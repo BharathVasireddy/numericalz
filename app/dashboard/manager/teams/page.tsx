@@ -32,50 +32,96 @@ export default async function TeamsPage() {
     redirect('/dashboard/staff')
   }
 
-  // Fetch all users and their client assignments
-  const users = await db.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      isActive: true,
-      lastLoginAt: true,
-      createdAt: true,
-      assignedClients: {
-        where: {
-          isActive: true
-        },
-        select: {
-          id: true,
-          companyName: true,
-          companyType: true,
-          nextAccountsDue: true,
-          nextConfirmationDue: true,
-        }
+  try {
+    // Fetch all users with simplified query
+    const users = await db.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        lastLoginAt: true,
+        createdAt: true,
       },
-      _count: {
-        select: {
-          assignedClients: {
-            where: {
-              isActive: true
+      orderBy: {
+        name: 'asc'
+      }
+    })
+
+    // Fetch client assignments separately to avoid complex joins
+    const usersWithClients = await Promise.all(
+      users.map(async (user) => {
+        try {
+          const [assignedClients, clientCount] = await Promise.all([
+            db.client.findMany({
+              where: {
+                assignedUserId: user.id,
+                isActive: true
+              },
+              select: {
+                id: true,
+                companyName: true,
+                companyType: true,
+                nextAccountsDue: true,
+                nextConfirmationDue: true,
+              },
+              take: 10 // Limit to avoid large queries
+            }),
+            db.client.count({
+              where: {
+                assignedUserId: user.id,
+                isActive: true
+              }
+            })
+          ])
+
+          return {
+            ...user,
+            assignedClients,
+            _count: {
+              assignedClients: clientCount
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching clients for user ${user.id}:`, error)
+          return {
+            ...user,
+            assignedClients: [],
+            _count: {
+              assignedClients: 0
             }
           }
         }
-      }
-    },
-    orderBy: {
-      name: 'asc'
-    }
-  })
+      })
+    )
 
-  return (
-    <div className="page-container">
-      <div className="content-wrapper">
-        <div className="content-sections">
-          <TeamManagement users={users} />
+    return (
+      <div className="page-container">
+        <div className="content-wrapper">
+          <div className="content-sections">
+            <TeamManagement users={usersWithClients} />
+          </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  } catch (error) {
+    console.error('Error in teams page:', error)
+    
+    // Fallback: return page with empty data
+    return (
+      <div className="page-container">
+        <div className="content-wrapper">
+          <div className="content-sections">
+            <div className="page-header">
+              <h1 className="text-xl md:text-2xl font-bold">Team Management</h1>
+              <p className="text-sm text-muted-foreground text-red-600">
+                Error loading team data. Please try refreshing the page.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 } 
