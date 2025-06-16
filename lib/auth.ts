@@ -21,6 +21,7 @@ export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES]
  * - Role-based access control (Manager/Staff)
  * - Secure session configuration
  * - Custom login pages
+ * - Improved error handling for serverless environments
  */
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(db),
@@ -46,20 +47,46 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Find user by email
-          const user = await db.user.findUnique({
-            where: {
-              email: credentials.email.toLowerCase().trim(),
-            },
-            select: {
-              id: true,
-              email: true,
-              name: true,
-              password: true,
-              role: true,
-              isActive: true,
-            },
-          })
+          // Ensure database connection
+          await db.$connect()
+          
+          // Find user by email with retry logic
+          let user = null
+          let retryCount = 0
+          const maxRetries = 3
+          
+          while (!user && retryCount < maxRetries) {
+            try {
+              user = await db.user.findUnique({
+                where: {
+                  email: credentials.email.toLowerCase().trim(),
+                },
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  password: true,
+                  role: true,
+                  isActive: true,
+                },
+              })
+              break
+            } catch (dbError) {
+              retryCount++
+              console.error(`Database query attempt ${retryCount} failed:`, dbError)
+              
+              if (retryCount >= maxRetries) {
+                throw new Error('Database connection failed after multiple attempts')
+              }
+              
+              // Wait before retry
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount))
+              
+              // Reconnect to database
+              await db.$disconnect()
+              await db.$connect()
+            }
+          }
 
           if (!user) {
             throw new Error('Invalid email or password')
@@ -76,30 +103,29 @@ export const authOptions: NextAuthOptions = {
             throw new Error('Invalid email or password')
           }
 
-          // Log successful login attempt and update last login
-          await Promise.all([
-            db.activityLog.create({
-              data: {
-                userId: user.id,
-                action: 'LOGIN',
-                resource: 'auth',
-                metadata: JSON.stringify({
-                  email: user.email,
-                  timestamp: new Date().toISOString(),
-                }),
-              },
-            }),
-            db.user.update({
-              where: { id: user.id },
-              data: { lastLoginAt: new Date() },
-            })
-          ])
-
-          // Update last login timestamp
-          await db.user.update({
-            where: { id: user.id },
-            data: { lastLoginAt: new Date() },
-          })
+          // Log successful login attempt and update last login with retry logic
+          try {
+            await Promise.all([
+              db.activityLog.create({
+                data: {
+                  userId: user.id,
+                  action: 'LOGIN',
+                  resource: 'auth',
+                  metadata: JSON.stringify({
+                    email: user.email,
+                    timestamp: new Date().toISOString(),
+                  }),
+                },
+              }),
+              db.user.update({
+                where: { id: user.id },
+                data: { lastLoginAt: new Date() },
+              })
+            ])
+          } catch (logError) {
+            console.error('Failed to log login activity:', logError)
+            // Don't fail authentication if logging fails
+          }
 
           return {
             id: user.id,
@@ -131,6 +157,13 @@ export const authOptions: NextAuthOptions = {
           }
 
           throw error
+        } finally {
+          // Clean up connection
+          try {
+            await db.$disconnect()
+          } catch (disconnectError) {
+            console.error('Failed to disconnect from database:', disconnectError)
+          }
         }
       }
     })
@@ -189,6 +222,7 @@ export const authOptions: NextAuthOptions = {
       // Log logout activity
       if (token?.id) {
         try {
+          await db.$connect()
           await db.activityLog.create({
             data: {
               userId: token.id as string,
@@ -200,7 +234,13 @@ export const authOptions: NextAuthOptions = {
             },
           })
         } catch (error) {
-          console.error('Failed to log logout:', error)
+          console.error('Failed to log logout activity:', error)
+        } finally {
+          try {
+            await db.$disconnect()
+          } catch (disconnectError) {
+            console.error('Failed to disconnect from database:', disconnectError)
+          }
         }
       }
     },

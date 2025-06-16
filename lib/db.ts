@@ -6,17 +6,18 @@ import { PrismaClient } from '@prisma/client'
  * This implementation:
  * - Uses singleton pattern to prevent multiple connections
  * - Ensures proper connection reuse in development
- * - Handles production connection pooling
+ * - Handles serverless environments properly
  * - Provides type-safe database operations
+ * - Fixes prepared statement issues
  */
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-export const db =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+// Create a new Prisma client with optimized settings for serverless
+function createPrismaClient() {
+  return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
     datasources: {
       db: {
@@ -24,25 +25,32 @@ export const db =
       },
     },
   })
+}
+
+export const db = globalForPrisma.prisma ?? createPrismaClient()
 
 // Prevent multiple instances in development
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = db
+}
 
-/**
- * Gracefully disconnect from database on process termination
- */
-process.on('beforeExit', async () => {
-  await db.$disconnect()
-})
+// Ensure clean disconnection in serverless environments
+export async function ensureConnection() {
+  try {
+    await db.$connect()
+    return db
+  } catch (error) {
+    console.error('Database connection failed:', error)
+    throw error
+  }
+}
 
-process.on('SIGINT', async () => {
-  await db.$disconnect()
-  process.exit(0)
-})
-
-process.on('SIGTERM', async () => {
-  await db.$disconnect()
-  process.exit(0)
-})
+export async function cleanupConnection() {
+  try {
+    await db.$disconnect()
+  } catch (error) {
+    console.error('Database disconnection failed:', error)
+  }
+}
 
 export default db 
