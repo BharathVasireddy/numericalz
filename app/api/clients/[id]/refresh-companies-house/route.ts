@@ -14,15 +14,14 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    // TEMPORARY: Comment out auth check for testing
-    // const session = await getServerSession(authOptions)
-    // 
-    // if (!session) {
-    //   return NextResponse.json(
-    //     { success: false, error: 'Unauthorized' },
-    //     { status: 401 }
-    //   )
-    // }
+    const session = await getServerSession(authOptions)
+    
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
 
     const { id } = params
 
