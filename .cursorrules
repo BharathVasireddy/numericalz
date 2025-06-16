@@ -1,0 +1,377 @@
+# Numericalz Internal Management System - Cursor Rules
+
+## 🎯 Project Overview
+This is the Numericalz Internal Management System - a UK-based accounting firm management platform built with Next.js 14, TypeScript, Prisma, and PostgreSQL.
+
+## 📋 Core Development Principles
+
+### 🚫 CRITICAL: NEVER REMOVE CODE OR FUNCTIONALITY
+- NEVER delete existing functions, components, or features without explicit approval
+- NEVER remove imports, exports, or dependencies that are being used
+- ALWAYS preserve existing functionality when refactoring
+- ALWAYS add comments explaining why code is being modified
+- If code seems unused, comment it out with a note rather than deleting it
+- ALWAYS backup critical sections before major changes
+
+### 🔒 Code Preservation Rules
+- When refactoring, ALWAYS maintain backward compatibility
+- When updating components, preserve all existing props and functionality
+- When modifying API endpoints, maintain existing response formats
+- NEVER remove database fields or tables without migration strategy
+- ALWAYS use deprecation warnings before removing features
+
+## 🛠️ Technology Stack Guidelines
+
+### Next.js 14 (App Router)
+- Use App Router exclusively (app/ directory)
+- Server Components by default, Client Components when needed
+- Use proper loading.tsx, error.tsx, and not-found.tsx files
+- Implement proper metadata for SEO
+- Use route groups with parentheses for organization: (auth), (dashboard)
+
+### TypeScript Standards
+- Use strict TypeScript configuration
+- Define interfaces for all data structures
+- Use proper generic types where applicable
+- Avoid 'any' type - use 'unknown' or proper typing
+- Export types from dedicated types/ directory
+
+### React/Next.js Component Rules
+- Use functional components with hooks exclusively
+- Implement proper error boundaries
+- Use React.memo() for performance optimization where needed
+- Prefer composition over inheritance
+- Use proper key props in lists
+
+## 📁 File Organization & Naming
+
+### Directory Structure
+```
+app/
+├── (auth)/           # Authentication routes
+├── (dashboard)/      # Protected dashboard routes
+├── api/             # API routes
+├── globals.css      # Global styles
+├── layout.tsx       # Root layout
+└── page.tsx         # Home page
+
+components/
+├── ui/              # Reusable UI components (ShadCN)
+├── forms/           # Form components
+├── dashboard/       # Dashboard-specific components
+├── clients/         # Client management components
+├── layout/          # Layout components
+└── shared/          # Shared components
+
+lib/
+├── auth.ts          # Authentication utilities
+├── db.ts            # Database connection
+├── companies-house.ts # Companies House API
+├── email.ts         # Email utilities
+├── utils.ts         # General utilities
+└── validations.ts   # Zod schemas
+```
+
+### Naming Conventions
+- Components: PascalCase (e.g., `ClientCard.tsx`)
+- Files/Directories: kebab-case (e.g., `client-management/`)
+- Variables/Functions: camelCase (e.g., `getUserClients`)
+- Constants: UPPER_SNAKE_CASE (e.g., `API_BASE_URL`)
+- Database tables: snake_case (e.g., `user_clients`)
+
+## 🎨 UI/UX Guidelines
+
+### Design System
+- Use Tailwind CSS exclusively for styling
+- Use ShadCN/UI components as base components
+- Maintain consistent spacing using Tailwind spacing scale
+- Use semantic color classes (e.g., `text-primary`, `bg-secondary`)
+- Implement proper focus states for accessibility
+
+### Component Architecture
+- Create reusable components in components/ui/
+- Use compound components for complex UI patterns
+- Implement proper loading and error states
+- Use Framer Motion for animations consistently
+- Maintain consistent button heights and spacing
+
+### Responsive Design
+- Mobile-first approach using Tailwind responsive prefixes
+- Test on mobile, tablet, and desktop breakpoints
+- Use proper touch targets (minimum 44px)
+- Implement proper keyboard navigation
+
+## 📐 STANDARDIZED LAYOUT SYSTEM
+
+### CRITICAL: Layout Consistency Rules
+- **ALWAYS** use the standardized layout system for ALL pages
+- **NEVER** use old layout classes (`container-padding`, `section-spacing`, `content-spacing`)
+- **ALWAYS** use new layout components for consistency
+
+### Required Layout Structure for ALL Pages
+```tsx
+// Option 1: Using layout components (PREFERRED)
+import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
+
+export default function MyPage() {
+  return (
+    <PageLayout maxWidth="xl">
+      <PageHeader 
+        title="Page Title"
+        description="Page description"
+      >
+        {/* Optional header actions */}
+      </PageHeader>
+      <PageContent>
+        {/* Page content sections */}
+      </PageContent>
+    </PageLayout>
+  )
+}
+
+// Option 2: Using CSS classes directly
+export default function MyPage() {
+  return (
+    <div className="page-container">
+      <div className="content-wrapper">
+        <div className="content-sections">
+          {/* Page content */}
+        </div>
+      </div>
+    </div>
+  )
+}
+```
+
+### Layout CSS Classes
+- `.page-container` - Main page wrapper with consistent padding
+- `.content-wrapper` - Content container with max-width and centering
+- `.content-sections` - Sections wrapper with consistent spacing
+- `.page-header` - Standardized page header with bottom border
+
+### Max Width Options
+- `sm` - 672px (forms, simple pages)
+- `md` - 896px (content pages)
+- `lg` - 1152px (dashboard pages)
+- `xl` - 1280px (default, most pages)
+- `2xl` - No max width (full-width pages)
+- `full` - Full width (special cases)
+
+### Spacing Variables
+```css
+--layout-padding-x: 1rem;        /* Mobile horizontal padding */
+--layout-padding-x-md: 1.5rem;   /* Tablet horizontal padding */
+--layout-padding-x-lg: 2rem;     /* Desktop horizontal padding */
+
+--layout-padding-y: 1.5rem;      /* Mobile vertical padding */
+--layout-padding-y-md: 2rem;     /* Tablet vertical padding */
+--layout-padding-y-lg: 2.5rem;   /* Desktop vertical padding */
+
+--content-spacing: 1.5rem;       /* Mobile content spacing */
+--content-spacing-md: 2rem;      /* Tablet content spacing */
+--content-spacing-lg: 2.5rem;    /* Desktop content spacing */
+```
+
+## 🗄️ Database & API Standards
+
+### Prisma Guidelines
+- Use descriptive model names in PascalCase
+- Include proper relations with clear foreign keys
+- Use proper field types (DateTime, UUID, etc.)
+- Include created_at and updated_at on all models
+- Use enums for status fields
+
+### API Route Standards
+- Use proper HTTP methods (GET, POST, PUT, DELETE)
+- Implement proper error handling with status codes
+- Use Zod for request/response validation
+- Include proper authentication middleware
+- Return consistent JSON response format:
+```typescript
+{
+  success: boolean,
+  data?: any,
+  error?: string,
+  message?: string
+}
+```
+
+### Authentication Rules
+- Use NextAuth.js for authentication
+- Implement proper session management
+- Use role-based access control (RBAC)
+- Protect all API routes that need authentication
+- Use proper JWT token handling
+
+## 🔧 Code Quality Standards
+
+### TypeScript Best Practices
+- Use interface for object shapes, type for unions/primitives
+- Implement proper error handling with try/catch
+- Use async/await instead of promises chains
+- Implement proper loading states with React Query
+- Use proper TypeScript generics where applicable
+
+### Performance Guidelines
+- Use React.memo() for expensive components
+- Implement proper code splitting with dynamic imports
+- Use React Query for server state management
+- Implement proper caching strategies
+- Use Next.js Image component for images
+- Implement proper database indexing
+
+### Security Standards
+- Validate all user inputs with Zod
+- Sanitize data before database operations
+- Use proper CORS configuration
+- Implement rate limiting on API routes
+- Use environment variables for sensitive data
+- Hash passwords with bcrypt
+- Implement proper session timeout
+
+## 📝 Documentation Requirements
+
+### Code Documentation
+- Add JSDoc comments for all functions and components
+- Include prop types documentation for components
+- Document complex business logic with inline comments
+- Maintain up-to-date README.md files
+- Document API endpoints with proper examples
+
+### Commit Guidelines
+- Use conventional commit format: `type(scope): description`
+- Types: feat, fix, docs, style, refactor, test, chore
+- Write descriptive commit messages
+- Reference issue numbers when applicable
+
+## 🧪 Testing Standards
+
+### Testing Requirements
+- Write unit tests for utility functions
+- Write integration tests for API routes
+- Write component tests using React Testing Library
+- Maintain test coverage above 80%
+- Test error scenarios and edge cases
+
+### Test Organization
+- Place tests adjacent to source files: `component.test.tsx`
+- Use descriptive test names
+- Group related tests with describe blocks
+- Mock external dependencies properly
+- Use proper test data factories
+
+## 🚀 Deployment & Environment
+
+### Environment Management
+- Use different env files for different environments
+- Never commit sensitive data to version control
+- Use proper environment variable validation
+- Document all required environment variables
+
+### Build & Deployment
+- Ensure builds pass without warnings
+- Test deployments in staging environment
+- Use proper database migrations
+- Implement proper logging for production
+- Monitor application performance
+
+## 🔄 Development Workflow
+
+### Branch Strategy
+- Use feature branches: `feature/client-management`
+- Use descriptive branch names
+- Keep branches small and focused
+- Rebase before merging to main
+- Delete branches after merging
+
+### Code Review Guidelines
+- Review for functionality, not just syntax
+- Check for proper error handling
+- Verify accessibility compliance
+- Ensure proper TypeScript usage
+- Check for performance implications
+- **VERIFY LAYOUT CONSISTENCY** - Ensure new pages use standardized layout system
+
+## 🎯 Business Logic Guidelines
+
+### Client Management
+- Always validate company numbers with Companies House API
+- Implement proper client assignment workflows
+- Maintain audit trails for client changes
+- Use proper date handling for UK accounting periods
+- Implement proper client status tracking
+
+### Task Management
+- Use proper deadline tracking and notifications
+- Implement workload balancing algorithms
+- Maintain task history and status changes
+- Use proper priority levels
+- Implement recurring task support
+
+### Communication System
+- Use proper email template validation
+- Implement proper notification queuing
+- Maintain communication audit trails
+- Use proper unsubscribe mechanisms
+- Implement proper email delivery tracking
+
+## ⚡ Performance Optimization
+
+### Frontend Performance
+- Use proper image optimization with Next.js Image
+- Implement proper bundle splitting
+- Use proper caching headers
+- Minimize JavaScript bundle size
+- Use proper preloading strategies
+
+### Backend Performance
+- Use proper database indexing
+- Implement query optimization
+- Use proper caching strategies (Redis if needed)
+- Implement proper connection pooling
+- Monitor API response times
+
+## 🛡️ Error Handling
+
+### Error Boundaries
+- Implement proper React error boundaries
+- Use proper error logging services
+- Provide user-friendly error messages
+- Implement proper fallback UI components
+- Log errors with proper context
+
+### API Error Handling
+- Use proper HTTP status codes
+- Return consistent error response format
+- Log errors with request context
+- Implement proper validation error messages
+- Use proper error recovery strategies
+
+## 📊 Analytics & Monitoring
+
+### Logging Standards
+- Use structured logging with proper levels
+- Log important business events
+- Include proper context in logs
+- Use proper log rotation strategies
+- Monitor error rates and performance
+
+### Metrics Tracking
+- Track user engagement metrics
+- Monitor system performance metrics
+- Track business KPIs
+- Implement proper alerting
+- Use proper dashboard visualization
+
+---
+
+## 🎯 REMEMBER: PRESERVATION & CONSISTENCY FIRST
+- When in doubt, preserve existing functionality
+- Always ask before removing seemingly unused code
+- Comment extensively when making significant changes
+- Test thoroughly before deploying changes
+- Maintain backward compatibility whenever possible
+- **ALWAYS use the standardized layout system for new pages**
+- **NEVER use deprecated layout classes in new code**
+
+These rules ensure code consistency, maintainability, reliability, and visual consistency while preserving all existing functionality throughout the development process. 

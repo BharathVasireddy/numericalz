@@ -1,0 +1,248 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Note: SQLite doesn't support enums, so we use String fields with validation in the application
+// For PostgreSQL, these would be proper enums
+
+// Models
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("STAFF") // MANAGER, STAFF
+  isActive  Boolean  @default(true)
+  lastLoginAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  assignedClients Client[]
+  sentCommunications Communication[]
+  activityLogs    ActivityLog[]
+  notifications   Notification[]
+
+  // NextAuth.js compatibility
+  accounts Account[]
+  sessions Session[]
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@map("users")
+}
+
+model Client {
+  id               String      @id @default(cuid())
+  
+  // Basic Company Information
+  clientCode       String?     @unique // Optional unique client code
+  companyName      String
+  companyNumber    String?     @unique // Optional for Directors and Sub Contractors
+  companyType      String      // LIMITED_COMPANY, NON_LIMITED_COMPANY, DIRECTOR, SUB_CONTRACTOR
+  companyStatus    String?     // active, dissolved, liquidation, etc.
+  companyStatusDetail String?  // More detailed status
+  
+  // Dates
+  incorporationDate DateTime?  // When company was incorporated
+  cessationDate    DateTime?   // When company ceased (if applicable)
+  
+  // Address Information
+  registeredOfficeAddress String? // Full registered office address from Companies House (JSON string)
+  tradingAddress   String?     // Trading address if different (user input, JSON string)
+  residentialAddress String?   // Residential address (user input, JSON string)
+  
+  // Companies House Data
+  sicCodes         String?     // Standard Industrial Classification codes (JSON array)
+  nextAccountsDue  DateTime?   // Next accounts filing due date
+  lastAccountsMadeUpTo DateTime? // Last accounts made up to date
+  accountingReferenceDate String? // Accounting reference date (JSON string: {"day": "31", "month": "03"})
+  nextConfirmationDue DateTime? // Next confirmation statement due
+  lastConfirmationMadeUpTo DateTime? // Last confirmation statement date
+  jurisdiction     String?     // england-wales, scotland, northern-ireland
+  hasBeenLiquidated Boolean    @default(false)
+  hasCharges       Boolean     @default(false)
+  hasInsolvencyHistory Boolean @default(false)
+  
+  // Owner/Director Information (from Companies House)
+  officers         String?     // Company officers/directors data (JSON array)
+  personsWithSignificantControl String? // PSC data (JSON array)
+  
+  // Contact Information (User Input)
+  contactName      String
+  contactEmail     String
+  contactPhone     String?
+  contactFax       String?     // Fax number
+  website          String?
+  vatNumber        String?     // VAT registration number
+  
+  // Business Information (User Input)
+  yearEstablished  Int?
+  numberOfEmployees Int?
+  annualTurnover   Float?
+  paperworkFrequency String?   // MONTHLY, QUARTERLY, ANNUALLY
+  
+  // System Information
+  assignedUserId   String?
+  isActive         Boolean @default(true)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  assignedUser     User?           @relation(fields: [assignedUserId], references: [id])
+  communications   Communication[]
+  activityLogs     ActivityLog[]
+
+  @@index([companyNumber])
+  @@index([assignedUserId])
+  @@index([isActive])
+  @@index([companyType])
+  @@index([companyStatus])
+  @@index([nextAccountsDue])
+  @@index([nextConfirmationDue])
+  @@map("clients")
+}
+
+model Communication {
+  id          String            @id @default(cuid())
+  type        String            // EMAIL, SMS, PHONE, LETTER, MEETING
+  subject     String
+  content     String
+  sentAt      DateTime?
+  scheduledAt DateTime?
+  
+  // Relations
+  clientId String
+  sentByUserId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  sentBy   User?  @relation(fields: [sentByUserId], references: [id])
+
+  @@index([clientId])
+  @@index([sentByUserId])
+  @@index([type])
+  @@index([sentAt])
+  @@map("communications")
+}
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  subject     String
+  htmlContent String
+  textContent String?
+  variables   String?  // Comma-separated variable names
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("email_templates")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      String           // CLIENT_ADDED, SYSTEM_ALERT, EMAIL_SENT
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  data      String?          // Additional notification data as JSON string
+  
+  // Relations
+  userId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([type])
+  @@map("notifications")
+}
+
+model ActivityLog {
+  id         String      @id @default(cuid())
+  action     String      // CREATE, READ, UPDATE, DELETE, LOGIN, LOGOUT, EXPORT
+  resource   String      // e.g., "client", "user"
+  resourceId String?     // ID of the affected resource
+  oldValues  String?     // Previous values (for updates) as JSON string
+  newValues  String?     // New values (for creates/updates) as JSON string
+  metadata   String?     // Additional context as JSON string
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime    @default(now())
+
+  // Relations
+  userId   String?
+  clientId String?
+
+  user   User?   @relation(fields: [userId], references: [id])
+  client Client? @relation(fields: [clientId], references: [id])
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([action])
+  @@index([timestamp])
+  @@map("activity_logs")
+}
+
+model Settings {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String // JSON string
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+  @@map("settings")
+}
+
+// NextAuth.js models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+} 
