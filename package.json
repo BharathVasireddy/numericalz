@@ -31,6 +31,7 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:deploy": "prisma migrate deploy",
+    "db:migrate-production": "node scripts/migrate-production.js",
     "analyze": "cross-env ANALYZE=true next build",
     "prepare": "husky install",
     "postinstall": "prisma generate"
