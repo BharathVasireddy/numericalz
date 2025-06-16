@@ -1,8 +1,15 @@
 # Numericalz Deployment Guide
 
-## 🚀 Vercel + Neon Database Deployment
+## 🚀 Vercel + Supabase Database Deployment (RECOMMENDED)
 
-### Step 1: Create Neon Database (FREE)
+### Step 1: Add Supabase Integration (EASIEST)
+
+1. **Go to Vercel Marketplace**: https://vercel.com/marketplace/supabase
+2. **Click "Add Integration"**
+3. **Select your Numericalz project**
+4. **Follow setup wizard** - automatically creates database and sets environment variables
+
+### Alternative: Manual Neon Setup (if Supabase doesn't work)
 
 1. **Sign up for Neon**: https://console.neon.tech/signup
 2. **Create project**: `numericalz-production`
@@ -75,13 +82,15 @@ VALUES (
 - Verify database connection string
 - Ensure NextAuth secret is set
 
-## 📊 Neon Database Benefits
+## 📊 Supabase Database Benefits
 
-- **512MB storage** free (vs 256MB on old Vercel Postgres)
-- **191.9 compute hours** free (vs 60 hours)
-- **Instant branching** for development
+- **500MB storage** free (vs 256MB on old Vercel Postgres)
+- **2 free databases** per account
+- **Native Vercel integration** with automatic setup
+- **Built-in Auth, Storage, Realtime** features
 - **Auto-scaling** based on usage
 - **Built-in connection pooling**
+- **No credit card required**
 
 ## 🔄 Development Workflow
 
