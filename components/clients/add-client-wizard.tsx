@@ -29,6 +29,7 @@ interface CompaniesHouseSearchResult {
     locality?: string
     postal_code?: string
   }
+  ownerNames?: string[]
 }
 
 interface CompaniesHouseCompany {
@@ -58,6 +59,7 @@ interface CompaniesHouseCompany {
   has_insolvency_history?: boolean
   officers?: any[]
   psc?: any[]
+  ownerNames?: string[]
 }
 
 export function AddClientWizard() {
@@ -113,10 +115,67 @@ export function AddClientWizard() {
 
     setSearchLoading(true)
     try {
+      console.log('🔍 Starting search for:', query)
       const response = await fetch(`/api/companies-house/search?q=${encodeURIComponent(query)}`)
       if (response.ok) {
         const data = await response.json()
-        setSearchResults(data.data?.items || [])
+        const searchResults = data.data?.items || []
+        console.log('📋 Search results received:', searchResults.length, 'companies')
+        
+        // Fetch owner names for each search result
+        console.log('🔄 Fetching owner names for each company...')
+        const resultsWithOwners = await Promise.all(
+          searchResults.map(async (company: CompaniesHouseSearchResult, index: number) => {
+            try {
+              console.log(`📞 Fetching details for company ${index + 1}:`, company.company_number, company.title)
+              // Fetch detailed company info to get owner names
+              const detailResponse = await fetch(`/api/companies-house/company/${company.company_number}`)
+              if (detailResponse.ok) {
+                const detailData = await detailResponse.json()
+                const ownerNames: string[] = []
+                
+                console.log(`📊 Company detail data for ${company.company_number}:`, detailData.data)
+                console.log(`👥 Officers data for ${company.company_number}:`, detailData.data.officers)
+                console.log(`🏛️ PSC data for ${company.company_number}:`, detailData.data.psc)
+                
+                // Add directors/officers names
+                if (detailData.data.officers?.items) {
+                  console.log(`👔 Processing ${detailData.data.officers.items.length} officers for ${company.company_number}`)
+                  detailData.data.officers.items.forEach((officer: any) => {
+                    console.log('Officer:', officer)
+                    if (officer.name && !ownerNames.includes(officer.name)) {
+                      ownerNames.push(officer.name)
+                      console.log('✅ Added officer name:', officer.name)
+                    }
+                  })
+                }
+                
+                // Add PSC (People with Significant Control) names
+                if (detailData.data.psc?.items) {
+                  console.log(`🎯 Processing ${detailData.data.psc.items.length} PSC for ${company.company_number}`)
+                  detailData.data.psc.items.forEach((person: any) => {
+                    console.log('PSC person:', person)
+                    if (person.name && !ownerNames.includes(person.name)) {
+                      ownerNames.push(person.name)
+                      console.log('✅ Added PSC name:', person.name)
+                    }
+                  })
+                }
+                
+                console.log(`🎉 Final owner names for ${company.company_number}:`, ownerNames)
+                return { ...company, ownerNames }
+              } else {
+                console.error(`❌ Failed to fetch details for ${company.company_number}:`, detailResponse.status)
+              }
+            } catch (error) {
+              console.error(`💥 Error fetching owners for ${company.company_number}:`, error)
+            }
+            return { ...company, ownerNames: [] }
+          })
+        )
+        
+        console.log('🏁 Final results with owners:', resultsWithOwners)
+        setSearchResults(resultsWithOwners)
       } else {
         console.warn('Companies House search API not available:', response.status)
         setSearchResults([])
@@ -134,11 +193,38 @@ export function AddClientWizard() {
   const selectCompany = async (companyNumber: string) => {
     setLoading(true)
     try {
+      // Find the selected company from search results to get owner names
+      const searchResult = searchResults.find(company => company.company_number === companyNumber)
+      
       const response = await fetch(`/api/companies-house/company/${companyNumber}`)
       if (response.ok) {
         const data = await response.json()
         if (data.success && data.data) {
-          setSelectedCompany(data.data)
+          // Use owner names from search results if available, otherwise extract from detail data
+          let ownerNames: string[] = searchResult?.ownerNames || []
+          
+          // If we don't have owner names from search, extract them from detail data
+          if (ownerNames.length === 0) {
+            // Add directors/officers names
+            if (data.data.officers?.items) {
+              data.data.officers.items.forEach((officer: any) => {
+                if (officer.name && !ownerNames.includes(officer.name)) {
+                  ownerNames.push(officer.name)
+                }
+              })
+            }
+            
+            // Add PSC (People with Significant Control) names
+            if (data.data.psc?.items) {
+              data.data.psc.items.forEach((person: any) => {
+                if (person.name && !ownerNames.includes(person.name)) {
+                  ownerNames.push(person.name)
+                }
+              })
+            }
+          }
+          
+          setSelectedCompany({ ...data.data, ownerNames })
           setFormData(prev => ({
             ...prev,
             companyNumber: data.data.company_number
@@ -411,13 +497,30 @@ export function AddClientWizard() {
                                 onClick={() => selectCompany(company.company_number)}
                               >
                                 <div className="flex justify-between items-start">
-                                  <div>
+                                  <div className="flex-1">
                                     <p className="font-medium text-sm">{company.title}</p>
                                     <p className="text-xs text-muted-foreground">
                                       {company.company_number} • {company.company_status}
                                     </p>
+                                    {company.ownerNames && company.ownerNames.length > 0 && (
+                                      <div className="mt-2">
+                                        <p className="text-xs font-medium text-muted-foreground mb-1">Directors/Owners:</p>
+                                        <div className="flex flex-wrap gap-1">
+                                          {company.ownerNames.slice(0, 3).map((name, index) => (
+                                            <Badge key={index} variant="secondary" className="text-xs">
+                                              {name}
+                                            </Badge>
+                                          ))}
+                                          {company.ownerNames.length > 3 && (
+                                            <Badge variant="outline" className="text-xs">
+                                              +{company.ownerNames.length - 3} more
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant="outline" className="text-xs ml-2 flex-shrink-0">
                                     {company.company_type}
                                   </Badge>
                                 </div>
@@ -482,6 +585,18 @@ export function AddClientWizard() {
                               <div className="flex justify-between">
                                 <span className="text-muted-foreground">SIC Codes:</span>
                                 <span className="text-xs">{selectedCompany.sic_codes.slice(0, 3).join(', ')}{selectedCompany.sic_codes.length > 3 ? '...' : ''}</span>
+                              </div>
+                            )}
+                            {selectedCompany.ownerNames && selectedCompany.ownerNames.length > 0 && (
+                              <div className="space-y-1">
+                                <span className="text-muted-foreground text-xs font-medium">Directors/Owners:</span>
+                                <div className="flex flex-wrap gap-1">
+                                  {selectedCompany.ownerNames.map((name, index) => (
+                                    <Badge key={index} variant="secondary" className="text-xs">
+                                      {name}
+                                    </Badge>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
