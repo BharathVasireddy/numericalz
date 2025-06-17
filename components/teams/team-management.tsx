@@ -12,7 +12,10 @@ import {
   Calendar,
   AlertTriangle,
   Shield,
-  User
+  User,
+  Clock,
+  FileText,
+  CheckCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -39,6 +42,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
 import { CreateTeamMemberForm } from './create-team-member-form'
 import { EditTeamMemberForm } from './edit-team-member-form'
@@ -197,6 +206,50 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
     return { overdueAccounts, overdueCS, upcomingAccounts, upcomingCS }
   }
 
+  const getClientsDueThisMonth = (user: TeamMember) => {
+    const now = new Date()
+    const currentMonth = now.getMonth()
+    const currentYear = now.getFullYear()
+    
+    const accountsDueThisMonth: Array<{ name: string; dueDate: Date; type: 'accounts' }> = []
+    const confirmationsDueThisMonth: Array<{ name: string; dueDate: Date; type: 'confirmation' }> = []
+
+    user.assignedClients.forEach(client => {
+      if (client.nextAccountsDue) {
+        const accountsDue = new Date(client.nextAccountsDue)
+        if (accountsDue.getMonth() === currentMonth && accountsDue.getFullYear() === currentYear) {
+          accountsDueThisMonth.push({
+            name: client.companyName,
+            dueDate: accountsDue,
+            type: 'accounts'
+          })
+        }
+      }
+
+      if (client.nextConfirmationDue) {
+        const confirmationDue = new Date(client.nextConfirmationDue)
+        if (confirmationDue.getMonth() === currentMonth && confirmationDue.getFullYear() === currentYear) {
+          confirmationsDueThisMonth.push({
+            name: client.companyName,
+            dueDate: confirmationDue,
+            type: 'confirmation'
+          })
+        }
+      }
+    })
+
+    // Sort by due date
+    const allDueThisMonth = [...accountsDueThisMonth, ...confirmationsDueThisMonth]
+      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+
+    return {
+      accountsDueThisMonth,
+      confirmationsDueThisMonth,
+      allDueThisMonth,
+      totalCount: allDueThisMonth.length
+    }
+  }
+
   const getDailyWorkload = (user: TeamMember) => {
     const clientCount = user._count.assignedClients
     if (clientCount === 0) return 'No clients'
@@ -303,6 +356,7 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                   <TableHead>Status</TableHead>
                   <TableHead>Clients</TableHead>
                   <TableHead>Daily Load</TableHead>
+                  <TableHead>Due This Month</TableHead>
                   <TableHead>Last Login</TableHead>
                   <TableHead>Deadlines</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -312,6 +366,7 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                 {users.map((user) => {
                   const deadlines = getUpcomingDeadlines(user)
                   const dailyLoad = getDailyWorkload(user)
+                  const dueThisMonth = getClientsDueThisMonth(user)
                   
                   return (
                     <TableRow key={user.id}>
@@ -343,6 +398,51 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                         <Badge className={getWorkloadColor(user._count.assignedClients)}>
                           {dailyLoad}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <TooltipProvider>
+                          {dueThisMonth.totalCount > 0 ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1 cursor-help">
+                                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    {dueThisMonth.totalCount}
+                                  </Badge>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <div className="space-y-2">
+                                  <p className="font-semibold text-sm">Due This Month:</p>
+                                  {dueThisMonth.allDueThisMonth.slice(0, 5).map((item, index) => (
+                                    <div key={index} className="flex items-center justify-between text-xs">
+                                      <span className="truncate max-w-32">{item.name}</span>
+                                      <div className="flex items-center gap-1 ml-2">
+                                        {item.type === 'accounts' ? (
+                                          <FileText className="h-3 w-3 text-blue-500" />
+                                        ) : (
+                                          <CheckCircle className="h-3 w-3 text-green-500" />
+                                        )}
+                                        <span className="text-muted-foreground">
+                                          {item.dueDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  {dueThisMonth.allDueThisMonth.length > 5 && (
+                                    <p className="text-xs text-muted-foreground">
+                                      +{dueThisMonth.allDueThisMonth.length - 5} more...
+                                    </p>
+                                  )}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs bg-gray-50 text-gray-600">
+                              None
+                            </Badge>
+                          )}
+                        </TooltipProvider>
                       </TableCell>
                       <TableCell>
                         <span className={`text-sm ${
@@ -445,13 +545,16 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-4">
-            {users.map((user) => (
-              <Card key={user.id} className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-medium">{user.name}</h3>
-                    <p className="text-xs text-muted-foreground">{user.email}</p>
-                  </div>
+            {users.map((user) => {
+              const dueThisMonth = getClientsDueThisMonth(user)
+              
+              return (
+                <Card key={user.id} className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-medium">{user.name}</h3>
+                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                    </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
@@ -532,6 +635,52 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Due This Month:</span>
+                    <TooltipProvider>
+                      {dueThisMonth.totalCount > 0 ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-help">
+                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                <Clock className="h-3 w-3 mr-1" />
+                                {dueThisMonth.totalCount}
+                              </Badge>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <div className="space-y-2">
+                              <p className="font-semibold text-sm">Due This Month:</p>
+                              {dueThisMonth.allDueThisMonth.slice(0, 3).map((item, index) => (
+                                <div key={index} className="flex items-center justify-between text-xs">
+                                  <span className="truncate max-w-24">{item.name}</span>
+                                  <div className="flex items-center gap-1 ml-2">
+                                    {item.type === 'accounts' ? (
+                                      <FileText className="h-3 w-3 text-blue-500" />
+                                    ) : (
+                                      <CheckCircle className="h-3 w-3 text-green-500" />
+                                    )}
+                                    <span className="text-muted-foreground">
+                                      {item.dueDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                              {dueThisMonth.allDueThisMonth.length > 3 && (
+                                <p className="text-xs text-muted-foreground">
+                                  +{dueThisMonth.allDueThisMonth.length - 3} more...
+                                </p>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs bg-gray-50 text-gray-600">
+                          None
+                        </Badge>
+                      )}
+                    </TooltipProvider>
+                  </div>
+                  <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">Last Login:</span>
                     <span className={`text-xs ${
                       user.lastLoginAt && new Date(user.lastLoginAt).getTime() > Date.now() - (24 * 60 * 60 * 1000)
@@ -563,7 +712,8 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                   </div>
                 </div>
               </Card>
-            ))}
+              )
+            })}
           </div>
         </CardContent>
       </Card>
