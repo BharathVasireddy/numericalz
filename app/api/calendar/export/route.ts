@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getAllDeadlines } from '@/lib/deadline-utils'
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -25,9 +28,10 @@ export async function GET(request: NextRequest) {
     if (startDate && endDate) {
       const start = new Date(startDate)
       const end = new Date(endDate)
-      filteredDeadlines = deadlines.filter(deadline => 
-        deadline.dueDate >= start && deadline.dueDate <= end
-      )
+      filteredDeadlines = deadlines.filter(deadline => {
+        const dueDate = new Date(deadline.dueDate)
+        return dueDate >= start && dueDate <= end
+      })
     }
 
     if (format === 'csv') {
@@ -35,26 +39,27 @@ export async function GET(request: NextRequest) {
       const csvHeaders = [
         'Client Name',
         'Company Number',
-        'Type',
         'Due Date',
+        'Type',
         'Assigned User',
-        'Status',
-        'Days Until Due'
+        'Days Until Due',
+        'Status'
       ]
 
       const csvRows = filteredDeadlines.map(deadline => [
         deadline.clientName,
         deadline.companyNumber || '',
-        deadline.type === 'accounts' ? 'Annual Accounts' : 'Confirmation Statement',
-        deadline.dueDate.toLocaleDateString('en-GB'),
+        deadline.dueDate.toISOString().split('T')[0],
+        deadline.type === 'accounts' ? 'Accounts' : 'Confirmation Statement',
         deadline.assignedUser?.name || 'Unassigned',
-        deadline.isOverdue ? 'Overdue' : 'Due',
-        deadline.daysUntilDue.toString()
+        deadline.daysUntilDue.toString(),
+        deadline.isOverdue ? 'Overdue' : 'Due'
       ])
 
-      const csvContent = [csvHeaders, ...csvRows]
-        .map(row => row.map(field => `"${field}"`).join(','))
-        .join('\n')
+      const csvContent = [
+        csvHeaders.join(','),
+        ...csvRows.map(row => row.map(field => `"${field}"`).join(','))
+      ].join('\n')
 
       return new NextResponse(csvContent, {
         headers: {
@@ -64,16 +69,12 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    if (format === 'json') {
-      return NextResponse.json({
-        success: true,
-        data: filteredDeadlines,
-        total: filteredDeadlines.length,
-        exported_at: new Date().toISOString()
-      })
-    }
-
-    return NextResponse.json({ error: 'Invalid format' }, { status: 400 })
+    // Default to JSON format
+    return NextResponse.json({
+      success: true,
+      data: filteredDeadlines,
+      count: filteredDeadlines.length
+    })
 
   } catch (error) {
     console.error('Error exporting calendar data:', error)
