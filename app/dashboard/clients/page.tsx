@@ -25,8 +25,6 @@ export default function ClientsPage() {
     assignedUser: '',
     status: ''
   })
-  const [refreshFunction, setRefreshFunction] = useState<(() => Promise<void>) | null>(null)
-  const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
     if (status === 'loading') return // Still loading
@@ -35,19 +33,6 @@ export default function ClientsPage() {
       return
     }
   }, [session, status, router])
-
-  const handleRefresh = async () => {
-    if (refreshFunction) {
-      setIsRefreshing(true)
-      try {
-        await refreshFunction()
-      } catch (error) {
-        console.error('Refresh failed:', error)
-      } finally {
-        setIsRefreshing(false)
-      }
-    }
-  }
 
   if (status === 'loading') {
     return (
@@ -78,13 +63,10 @@ export default function ClientsPage() {
             onSearchChange={setSearchQuery}
             filters={filters}
             onFiltersChange={setFilters}
-            onRefresh={handleRefresh}
-            isRefreshing={isRefreshing}
           />
           <ClientsTable 
             searchQuery={searchQuery}
             filters={filters}
-            onRefreshExpose={setRefreshFunction}
           />
         </div>
       </div>

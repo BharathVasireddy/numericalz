@@ -84,7 +84,6 @@ interface ClientsTableProps {
     assignedUser: string
     status: string
   }
-  onRefreshExpose?: (refreshFn: () => Promise<void>) => void
 }
 
 /**
@@ -100,21 +99,21 @@ interface ClientsTableProps {
  * - Shows client code, company details, due dates, and assignments
  * - Real-time search and filtering with debouncing
  */
-export function ClientsTable({ searchQuery, filters, onRefreshExpose }: ClientsTableProps) {
+export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
+  const { data: session } = useSession()
+  const router = useRouter()
   const [clients, setClients] = useState<Client[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
-  const [sortBy, setSortBy] = useState<string>('companyName')
+  const [sortBy, setSortBy] = useState('companyName')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
-  const [showResignModal, setShowResignModal] = useState(false)
-  const [clientToResign, setClientToResign] = useState<Client | null>(null)
   const [selectedClients, setSelectedClients] = useState<string[]>([])
-  const [showAssignModal, setShowAssignModal] = useState(false)
-  const [clientToAssign, setClientToAssign] = useState<Client | null>(null)
-  const { data: session } = useSession()
-  const router = useRouter()
+  const [assignModalOpen, setAssignModalOpen] = useState(false)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
   const fetchClients = useCallback(async () => {
+    if (!session) return
+
     try {
       setLoading(true)
       
@@ -131,7 +130,13 @@ export function ClientsTable({ searchQuery, filters, onRefreshExpose }: ClientsT
       }
       
       if (filters.assignedUser) {
-        params.append('assignedUserId', filters.assignedUser)
+        if (filters.assignedUser === 'me') {
+          params.append('assignedUserId', session.user.id)
+        } else if (filters.assignedUser === 'unassigned') {
+          params.append('unassigned', 'true')
+        } else {
+          params.append('assignedUserId', filters.assignedUser)
+        }
       }
       
       if (filters.status) {
@@ -151,71 +156,13 @@ export function ClientsTable({ searchQuery, filters, onRefreshExpose }: ClientsT
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, filters, sortBy, sortOrder])
+  }, [searchQuery, filters, sortBy, sortOrder, session])
 
   useEffect(() => {
     if (session?.user?.role === 'MANAGER') {
       fetchUsers()
     }
   }, [session])
-
-  // Refresh function for Companies House data
-  const refreshClientsData = useCallback(async () => {
-    try {
-      setLoading(true)
-      
-      // Get all client IDs that have company numbers
-      const clientIds = clients
-        .filter(client => client.companyNumber)
-        .map(client => client.id)
-      
-      if (clientIds.length === 0) {
-        toast.error('No clients with company numbers found to refresh')
-        return
-      }
-      
-      toast.loading('Refreshing Companies House data...', { id: 'refresh-toast' })
-      
-      // First, trigger a bulk refresh of Companies House data
-      const refreshResponse = await fetch('/api/clients/bulk-refresh', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ clientIds })
-      })
-      
-      if (refreshResponse.ok) {
-        const result = await refreshResponse.json()
-        console.log('Companies House refresh completed:', result.message)
-        
-        // Then fetch the updated client data
-        await fetchClients()
-        
-        // Show success message
-        toast.success(
-          `Companies House data refreshed successfully! ${result.successCount} clients updated${result.errorCount > 0 ? `, ${result.errorCount} failed` : ''}`,
-          { id: 'refresh-toast', duration: 6000 }
-        )
-      } else {
-        const error = await refreshResponse.json()
-        console.error('Failed to refresh Companies House data:', error.error)
-        toast.error(`Failed to refresh Companies House data: ${error.error}`, { id: 'refresh-toast' })
-      }
-    } catch (error) {
-      console.error('Error refreshing client data:', error)
-      toast.error('Error refreshing client data. Please try again.', { id: 'refresh-toast' })
-    } finally {
-      setLoading(false)
-    }
-  }, [clients, fetchClients])
-
-  // Expose refresh function to parent
-  useEffect(() => {
-    if (onRefreshExpose) {
-      onRefreshExpose(refreshClientsData)
-    }
-  }, [onRefreshExpose, refreshClientsData])
 
   // Debounced fetch effect - separate from the debounced function to avoid dependency issues
   useEffect(() => {
@@ -231,7 +178,7 @@ export function ClientsTable({ searchQuery, filters, onRefreshExpose }: ClientsT
     return () => {
       debouncedFetch.cancel()
     }
-  }, [session, fetchClients])
+  }, [fetchClients])
 
   const fetchUsers = async () => {
     try {
@@ -275,71 +222,7 @@ export function ClientsTable({ searchQuery, filters, onRefreshExpose }: ClientsT
     setSelectedClients([])
   }
 
-  const handleRefreshCompaniesHouse = async (client: any) => {
-    if (!client.companyNumber) {
-      showToast.error('No company number available for refetch')
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/clients/${client.id}/refresh-companies-house`, {
-        method: 'POST',
-      })
-      
-      if (response.ok) {
-        showToast.success('Companies House data refreshed successfully')
-      } else {
-        showToast.error('Failed to refresh Companies House data')
-      }
-    } catch (error) {
-      console.error('Error refreshing Companies House data:', error)
-      showToast.error('Error refreshing Companies House data')
-    }
-  }
-
-  const handleResignClient = (client: Client) => {
-    if (!client.isActive) {
-      showToast.error('Client is already inactive')
-      return
-    }
-    setClientToResign(client)
-    setShowResignModal(true)
-  }
-
-  const confirmResignClient = async () => {
-    if (!clientToResign) return
-
-    try {
-      const response = await fetch(`/api/clients/${clientToResign.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...clientToResign,
-          isActive: false
-        })
-      })
-
-      if (response.ok) {
-        showToast.success('Client resigned successfully')
-        fetchClients() // Refresh the list
-        setShowResignModal(false)
-        setClientToResign(null)
-      } else {
-        const data = await response.json()
-        showToast.error(data.error || 'Failed to resign client')
-      }
-    } catch (error) {
-      console.error('Error resigning client:', error)
-      showToast.error('Failed to resign client')
-    }
-  }
-
-  const cancelResignClient = () => {
-    setShowResignModal(false)
-    setClientToResign(null)
-  }
+  const isAllSelected = clients.length > 0 && selectedClients.length === clients.length
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-'
@@ -398,8 +281,18 @@ export function ClientsTable({ searchQuery, filters, onRefreshExpose }: ClientsT
   }
 
   const handleAssignUser = (client: Client) => {
-    setClientToAssign(client)
-    setShowAssignModal(true)
+    setSelectedClient(client)
+    setAssignModalOpen(true)
+  }
+
+  const handleResignClient = (client: Client) => {
+    // Handle client resignation
+    console.log('Resign client:', client.id)
+  }
+
+  const handleRefreshCompaniesHouse = (client: Client) => {
+    // Handle individual client refresh from Companies House
+    console.log('Refresh Companies House data for:', client.id)
   }
 
   const handleAssignSuccess = () => {
@@ -417,31 +310,6 @@ export function ClientsTable({ searchQuery, filters, onRefreshExpose }: ClientsT
       </Card>
     )
   }
-
-  if (clients.length === 0) {
-    return (
-      <Card className="p-8 text-center">
-        <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">
-          {session?.user?.role === 'MANAGER' ? 'No clients yet' : 'No clients assigned'}
-        </h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          {session?.user?.role === 'MANAGER' 
-            ? 'Get started by adding your first client to the system.'
-            : 'You have no clients assigned to you yet. Contact your manager for client assignments.'
-          }
-        </p>
-        {session?.user?.role === 'MANAGER' && (
-          <Button className="btn-primary">
-            Add First Client
-          </Button>
-        )}
-      </Card>
-    )
-  }
-
-  const isAllSelected = selectedClients.length === clients.length
-  const isIndeterminate = selectedClients.length > 0 && selectedClients.length < clients.length
 
   return (
     <>
@@ -664,18 +532,6 @@ export function ClientsTable({ searchQuery, filters, onRefreshExpose }: ClientsT
                             )}
                           </>
                         )}
-                        {client.companyNumber && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleRefreshCompaniesHouse(client)}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                              Refetch from CH
-                            </DropdownMenuItem>
-                          </>
-                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -815,18 +671,6 @@ export function ClientsTable({ searchQuery, filters, onRefreshExpose }: ClientsT
                             )}
                           </>
                         )}
-                        {client.companyNumber && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleRefreshCompaniesHouse(client)}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                              Refetch from CH
-                            </DropdownMenuItem>
-                          </>
-                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -900,18 +744,6 @@ export function ClientsTable({ searchQuery, filters, onRefreshExpose }: ClientsT
                         )}
                       </>
                     )}
-                    {client.companyNumber && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={() => handleRefreshCompaniesHouse(client)}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                          Refetch from CH
-                        </DropdownMenuItem>
-                      </>
-                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -958,43 +790,19 @@ export function ClientsTable({ searchQuery, filters, onRefreshExpose }: ClientsT
         </div>
       </Card>
 
-      {/* Bulk Operations */}
-      <BulkOperations
-        selectedClients={selectedClients}
-        users={users}
-        onClearSelection={handleClearSelection}
-        onRefreshClients={fetchClients}
-      />
-
       {/* Assign User Modal */}
-      <AssignUserModal
-        client={clientToAssign}
-        users={users}
-        isOpen={showAssignModal}
-        onClose={() => setShowAssignModal(false)}
-        onSuccess={handleAssignSuccess}
-      />
-
-      {/* Resign Confirmation Modal */}
-      <Dialog open={showResignModal} onOpenChange={setShowResignModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Client Resignation</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to resign <strong>{clientToResign?.companyName}</strong>? 
-              This will move the client to inactive status and remove them from the active clients list.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={cancelResignClient}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmResignClient}>
-              Resign Client
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {selectedClient && (
+        <AssignUserModal
+          client={selectedClient}
+          users={users}
+          isOpen={assignModalOpen}
+          onClose={() => {
+            setAssignModalOpen(false)
+            setSelectedClient(null)
+          }}
+          onSuccess={handleAssignSuccess}
+        />
+      )}
     </>
   )
 } 
