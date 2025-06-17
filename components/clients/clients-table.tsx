@@ -47,7 +47,6 @@ import {
 } from '@/components/ui/dialog'
 import { BulkOperations } from './bulk-operations'
 import { AssignUserModal } from './assign-user-modal'
-import toast from 'react-hot-toast'
 
 interface Client {
   id: string
@@ -292,28 +291,30 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
 
   const handleRefreshCompaniesHouse = async (client: Client) => {
     if (!client.companyNumber) {
-      toast.error('No company number available for refresh')
+      showToast.error('No company number available for refresh')
       return
     }
 
     try {
-      toast.loading('Refreshing Companies House data...', { id: `refresh-${client.id}` })
+      const loadingToast = showToast.loading('Refreshing Companies House data...')
       
       const response = await fetch(`/api/clients/${client.id}/refresh-companies-house`, {
         method: 'POST',
       })
       
       if (response.ok) {
-        toast.success('Companies House data refreshed successfully', { id: `refresh-${client.id}` })
+        showToast.dismiss(loadingToast)
+        showToast.success('Companies House data refreshed successfully')
         // Refresh the clients list to show updated data
         fetchClients()
       } else {
         const error = await response.json()
-        toast.error(`Failed to refresh: ${error.error || 'Unknown error'}`, { id: `refresh-${client.id}` })
+        showToast.dismiss(loadingToast)
+        showToast.error(`Failed to refresh: ${error.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error refreshing Companies House data:', error)
-      toast.error('Error refreshing Companies House data', { id: `refresh-${client.id}` })
+      showToast.error('Error refreshing Companies House data')
     }
   }
 

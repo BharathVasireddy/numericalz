@@ -7,7 +7,7 @@ import { Plus, Search, Filter, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import toast from 'react-hot-toast'
+import { showToast } from '@/lib/toast'
 
 interface ClientsHeaderProps {
   searchQuery: string
@@ -46,7 +46,7 @@ export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersC
   const handleExport = async () => {
     try {
       setIsExporting(true)
-      toast.loading('Preparing export...', { id: 'export-toast' })
+      const loadingToast = showToast.loading('Preparing export...')
       
       // Build query parameters
       const params = new URLSearchParams()
@@ -72,14 +72,16 @@ export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersC
         document.body.removeChild(link)
         window.URL.revokeObjectURL(url)
         
-        toast.success('Clients exported successfully!', { id: 'export-toast' })
+        showToast.dismiss(loadingToast)
+        showToast.success('Clients exported successfully!')
       } else {
         const error = await response.json()
-        toast.error(`Export failed: ${error.error || 'Unknown error'}`, { id: 'export-toast' })
+        showToast.dismiss(loadingToast)
+        showToast.error(`Export failed: ${error.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error exporting clients:', error)
-      toast.error('Export failed. Please try again.', { id: 'export-toast' })
+      showToast.error('Export failed. Please try again.')
     } finally {
       setIsExporting(false)
     }
@@ -138,7 +140,7 @@ export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersC
                 placeholder="Search clients by name, company number, or email..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="pl-9 sm:pl-10 input-field"
+                className="pl-10 input-field"
               />
             </div>
           </div>
