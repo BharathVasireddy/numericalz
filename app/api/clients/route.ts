@@ -5,6 +5,9 @@ import { db, executeWithRetry } from '@/lib/db'
 import { invalidateClientCaches } from '@/lib/cache-invalidation'
 import { z } from 'zod'
 
+// Force dynamic rendering for this route since it uses session
+export const dynamic = 'force-dynamic'
+
 // Validation schemas
 const createClientSchema = z.object({
   companyType: z.string().min(1, 'Company type is required'),

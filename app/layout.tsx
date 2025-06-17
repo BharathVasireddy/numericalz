@@ -193,43 +193,14 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              // Performance monitoring initialization
+              // Performance monitoring initialization (simplified for production)
               (function() {
-                // Track initial page load
                 if (typeof window !== 'undefined' && window.performance) {
                   window.addEventListener('load', function() {
                     // Hide loading indicator
                     const indicator = document.getElementById('loading-indicator');
                     if (indicator) indicator.style.display = 'none';
-                    
-                    // Report performance metrics
-                    setTimeout(function() {
-                      const navigation = performance.getEntriesByType('navigation')[0];
-                      if (navigation && window.console) {
-                        console.log('📊 Page Load Performance:', {
-                          'DOM Content Loaded': Math.round(navigation.domContentLoadedEventEnd - navigation.fetchStart) + 'ms',
-                          'Load Complete': Math.round(navigation.loadEventEnd - navigation.fetchStart) + 'ms',
-                          'First Paint': performance.getEntriesByName('first-paint')[0]?.startTime + 'ms' || 'N/A',
-                          'First Contentful Paint': performance.getEntriesByName('first-contentful-paint')[0]?.startTime + 'ms' || 'N/A'
-                        });
-                      }
-                    }, 100);
                   });
-                  
-                  // Track route changes for SPA performance
-                  let lastUrl = location.href;
-                  new MutationObserver(function() {
-                    const url = location.href;
-                    if (url !== lastUrl) {
-                      lastUrl = url;
-                      // Show loading indicator for route changes
-                      const indicator = document.getElementById('loading-indicator');
-                      if (indicator) {
-                        indicator.style.display = 'block';
-                        setTimeout(() => indicator.style.display = 'none', 1000);
-                      }
-                    }
-                  }).observe(document, { subtree: true, childList: true });
                 }
               })();
             `

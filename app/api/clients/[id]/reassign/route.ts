@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
+// Force dynamic rendering for this route since it uses session
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/clients/[id]/reassign
  * Reassign (reactivate) an inactive client - Manager only

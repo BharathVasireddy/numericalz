@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { searchCompanies } from '@/lib/companies-house'
 
+// Force dynamic rendering for this route since it uses request parameters
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/companies-house/search
  * 

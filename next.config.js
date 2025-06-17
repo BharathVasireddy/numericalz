@@ -18,8 +18,8 @@ const nextConfig = {
     ],
     // External packages for server components
     serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs', 'nodemailer'],
-    // Enable optimized CSS loading
-    optimizeCss: true,
+    // Enable optimized CSS loading (disabled to fix critters build issue)
+    optimizeCss: false,
     // Enable modern bundling (if available)
     turbo: {
       rules: {

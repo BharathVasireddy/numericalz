@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { getCompanyDetails } from '@/lib/companies-house'
+import { getCompanyDetails, getComprehensiveCompanyData } from '@/lib/companies-house'
+
+// Force dynamic rendering for this route since it uses session
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {

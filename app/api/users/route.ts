@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { db, dbOperation } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 
+// Force dynamic rendering for this route since it uses session
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/users
  * 

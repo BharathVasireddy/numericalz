@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getComprehensiveCompanyData } from '@/lib/companies-house'
 
+// Force dynamic rendering for this route since it uses session
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/clients/[id]/refresh-companies-house
  * 
