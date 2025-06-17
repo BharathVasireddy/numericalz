@@ -29,9 +29,17 @@ export const metadata: Metadata = {
   robots: {
     index: false,
     follow: false,
+    noarchive: true,
+    nosnippet: true,
+    noimageindex: true,
+    nocache: true,
     googleBot: {
       index: false,
       follow: false,
+      noarchive: true,
+      nosnippet: true,
+      noimageindex: true,
+      nocache: true,
     },
   },
   metadataBase: new URL(process.env.NEXTAUTH_URL || 'http://localhost:3000'),
@@ -106,7 +114,7 @@ export default function RootLayout({
         
         {/* Favicon and app icons with optimized sizes */}
         <link rel="icon" href="/favicon.ico" sizes="32x32" />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon.png" type="image/png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
         
@@ -117,6 +125,16 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        
+        {/* Additional anti-indexing measures */}
+        <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, nocache" />
+        <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex, nocache" />
+        <meta name="bingbot" content="noindex, nofollow, noarchive, nosnippet, noimageindex, nocache" />
+        <meta name="slurp" content="noindex, nofollow, noarchive, nosnippet, noimageindex, nocache" />
+        <meta name="duckduckbot" content="noindex, nofollow, noarchive, nosnippet, noimageindex, nocache" />
+        <meta name="referrer" content="no-referrer" />
+        <meta name="application-type" content="private" />
+        <meta name="classification" content="internal" />
         
         {/* Performance optimization meta tags */}
         <meta name="renderer" content="webkit" />
