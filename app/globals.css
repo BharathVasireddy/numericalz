@@ -323,6 +323,11 @@
     @apply h-4 w-4;
   }
   
+  /* Action trigger button icon - larger for better visibility */
+  .action-trigger-icon {
+    @apply h-5 w-5;
+  }
+  
   /* Compact Status System */
   .status-badge {
     @apply inline-flex items-center rounded-sm px-1.5 md:px-2 py-0.5 text-xs font-medium;

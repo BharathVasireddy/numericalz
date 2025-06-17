@@ -389,7 +389,7 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
-                              <Settings className="h-4 w-4" />
+                              <Settings className="action-trigger-icon" />
                               <span className="sr-only">Open menu</span>
                             </Button>
                           </DropdownMenuTrigger>
@@ -455,7 +455,7 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
-                        <Settings className="h-4 w-4" />
+                        <Settings className="action-trigger-icon" />
                         <span className="sr-only">Open menu</span>
                       </Button>
                     </DropdownMenuTrigger>

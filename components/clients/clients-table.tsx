@@ -568,9 +568,9 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   <td className="p-3 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
-                          <Settings className="h-4 w-4" />
+                        <Button variant="ghost" className="h-8 w-8 p-0">
                           <span className="sr-only">Open menu</span>
+                          <Settings className="action-trigger-icon" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
@@ -719,9 +719,9 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   <td className="p-3 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
-                          <Settings className="h-4 w-4" />
+                        <Button variant="ghost" className="h-8 w-8 p-0">
                           <span className="sr-only">Open menu</span>
+                          <Settings className="action-trigger-icon" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
@@ -804,9 +804,9 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
-                      <Settings className="h-4 w-4" />
+                    <Button variant="ghost" className="h-8 w-8 p-0">
                       <span className="sr-only">Open menu</span>
+                      <Settings className="action-trigger-icon" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">

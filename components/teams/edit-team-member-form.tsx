@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { showToast } from '@/lib/toast'
-import { Save, X, User, Mail, Shield } from 'lucide-react'
+import { Save, X, User, Mail, Shield, Key, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -30,6 +31,7 @@ interface EditTeamMemberFormProps {
 }
 
 export function EditTeamMemberForm({ user, onSuccess, onCancel }: EditTeamMemberFormProps) {
+  const { data: session } = useSession()
   const [formData, setFormData] = useState({
     name: user.name,
     email: user.email,
@@ -37,7 +39,11 @@ export function EditTeamMemberForm({ user, onSuccess, onCancel }: EditTeamMember
     isActive: user.isActive,
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [isResettingPassword, setIsResettingPassword] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  
+  // Check if current user is editing themselves
+  const isEditingSelf = session?.user?.id === user.id
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -93,6 +99,37 @@ export function EditTeamMemberForm({ user, onSuccess, onCancel }: EditTeamMember
       showToast.error('Failed to update team member')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handlePasswordReset = async () => {
+    if (!confirm(`Are you sure you want to reset ${user.name}'s password? A new temporary password will be generated.`)) {
+      return
+    }
+
+    setIsResettingPassword(true)
+    try {
+      const response = await fetch(`/api/users/${user.id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sendEmail: false })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        showToast.success(data.message)
+        // You might want to show the temporary password in a modal instead
+        if (data.tempPassword) {
+          alert(`Temporary password: ${data.tempPassword}\n\nPlease share this securely with the user.`)
+        }
+      } else {
+        const data = await response.json()
+        showToast.error(data.error || 'Failed to reset password')
+      }
+    } catch (error) {
+      showToast.error('Failed to reset password')
+    } finally {
+      setIsResettingPassword(false)
     }
   }
 
@@ -170,21 +207,60 @@ export function EditTeamMemberForm({ user, onSuccess, onCancel }: EditTeamMember
         <div className="space-y-2">
           <Label htmlFor="isActive" className="flex items-center gap-2">
             Status
+            {isEditingSelf && (
+              <AlertTriangle className="h-3 w-3 text-amber-500" />
+            )}
           </Label>
           <Select 
             value={formData.isActive.toString()} 
             onValueChange={(value) => handleInputChange('isActive', value === 'true')}
+            disabled={isEditingSelf && formData.isActive}
           >
             <SelectTrigger className="input-field">
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="true">Active</SelectItem>
-              <SelectItem value="false">Inactive</SelectItem>
+              <SelectItem value="false" disabled={isEditingSelf}>
+                Inactive
+              </SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            Inactive users cannot access the system but their data is preserved.
+            {isEditingSelf 
+              ? "You cannot deactivate your own account. Contact another manager if needed."
+              : "Inactive users cannot access the system but their data is preserved."
+            }
+          </p>
+        </div>
+
+        {/* Password Reset Section */}
+        <div className="space-y-2 pt-2 border-t">
+          <Label className="flex items-center gap-2">
+            <Key className="h-4 w-4" />
+            Password Management
+          </Label>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handlePasswordReset}
+            disabled={isResettingPassword || isLoading}
+            className="w-full flex items-center gap-2"
+          >
+            {isResettingPassword ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+                Resetting Password...
+              </>
+            ) : (
+              <>
+                <Key className="h-4 w-4" />
+                Reset Password
+              </>
+            )}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Generate a new temporary password for this user. The password will be displayed once.
           </p>
         </div>
 
