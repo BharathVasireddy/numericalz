@@ -138,7 +138,9 @@ export default function RootLayout({
         
         {/* Performance optimization meta tags */}
         <meta name="renderer" content="webkit" />
-        <meta httpEquiv="Cache-Control" content="public, max-age=31536000, immutable" />
+        <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+        <meta httpEquiv="Pragma" content="no-cache" />
+        <meta httpEquiv="Expires" content="0" />
         
         {/* Prefetch critical routes for faster navigation */}
         <link rel="prefetch" href="/dashboard" />

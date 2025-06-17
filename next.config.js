@@ -59,7 +59,7 @@ const nextConfig = {
         hostname: '*.supabase.co',
       },
     ],
-    minimumCacheTTL: 31536000, // 1 year
+    minimumCacheTTL: 60, // 1 minute for real-time updates
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
@@ -185,10 +185,18 @@ const nextConfig = {
       {
         source: '/api/(.*)',
         headers: [
-          // Cache API responses
+          // Disable caching for real-time API responses
           {
             key: 'Cache-Control',
-            value: 'public, max-age=60, stale-while-revalidate=120',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
           },
         ],
       },

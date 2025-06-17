@@ -6,6 +6,8 @@ import bcrypt from 'bcryptjs'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
+// Disable all caching for real-time data
+export const revalidate = 0
 
 /**
  * GET /api/users
@@ -73,8 +75,10 @@ export async function GET(request: NextRequest) {
       users,
     })
 
-    // Cache for 5 minutes to improve performance
-    response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600')
+    // Disable all caching for real-time updates
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
     
     return response
 
@@ -182,11 +186,18 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       user: newUser,
       message: 'User created successfully'
     })
+
+    // Disable all caching for real-time updates
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
 
   } catch (error) {
     console.error('Error creating user:', error)

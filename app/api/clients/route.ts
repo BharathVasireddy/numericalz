@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db, executeWithRetry } from '@/lib/db'
-import { invalidateClientCaches } from '@/lib/cache-invalidation'
 import { z } from 'zod'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
+// Disable all caching for real-time data
+export const revalidate = 0
 
 // Validation schemas
 const createClientSchema = z.object({
@@ -180,7 +181,7 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(totalCount / limit)
 
-    // Add caching headers for better performance
+    // Return real-time data with no caching
     const response = NextResponse.json({
       success: true,
       clients,
@@ -194,8 +195,10 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Minimal caching for real-time updates
-    response.headers.set('Cache-Control', 'public, max-age=5, stale-while-revalidate=10')
+    // Disable all caching for real-time updates
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
     
     return response
 
@@ -283,14 +286,19 @@ export async function POST(request: NextRequest) {
       })
     })
 
-    // Invalidate client caches for real-time updates
-    await invalidateClientCaches()
-
-    return NextResponse.json({
+    // Return real-time response with no caching
+    const response = NextResponse.json({
       success: true,
       data: client,
       message: 'Client created successfully',
     })
+
+    // Disable all caching for real-time updates
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
 
   } catch (error) {
     

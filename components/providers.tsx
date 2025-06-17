@@ -63,7 +63,7 @@ export function Providers({ children }: ProvidersProps) {
     }
   }, [])
 
-  // Create an optimized QueryClient with advanced performance settings
+  // Create an optimized QueryClient with real-time settings
   const [queryClient] = useState(() => {
     // Query cache with performance monitoring
     const queryCache = new QueryCache({
@@ -86,10 +86,10 @@ export function Providers({ children }: ProvidersProps) {
       mutationCache,
       defaultOptions: {
         queries: {
-          // Reduced stale time for real-time updates
-          staleTime: 1000 * 30, // 30 seconds default for real-time updates
-          // Shorter cache time for fresh data
-          gcTime: 1000 * 60 * 5, // 5 minutes (was cacheTime)
+          // Disable all caching for real-time updates
+          staleTime: 0, // Always consider data stale
+          // No cache time for real-time data
+          gcTime: 0, // Immediate garbage collection
           // Intelligent retry logic
           retry: (failureCount, error: any) => {
             // Don't retry on authentication errors
@@ -105,12 +105,12 @@ export function Providers({ children }: ProvidersProps) {
           },
           // Exponential backoff for retries
           retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-          // Refetch on window focus for fresh data
+          // Always refetch for real-time data
           refetchOnWindowFocus: true,
-          // Refetch on reconnect for critical data
+          // Always refetch on reconnect
           refetchOnReconnect: true,
-          // Background refetch for fresh data
-          refetchInterval: false, // Disable automatic refetching by default
+          // Enable background refetch for real-time updates
+          refetchInterval: 5000, // Refetch every 5 seconds for real-time data
           // Network mode for better offline handling
           networkMode: 'online',
           // Enhanced error retry logic
@@ -162,10 +162,15 @@ export function Providers({ children }: ProvidersProps) {
     }, 30000)
   }
 
+  // Expose queryClient globally for cache invalidation
+  if (typeof window !== 'undefined') {
+    window.queryClient = queryClient
+  }
+
   return (
     <SessionProvider
-      // Optimize session management
-      refetchInterval={5 * 60} // 5 minutes
+      // Real-time session management
+      refetchInterval={60} // 1 minute for real-time updates
       refetchOnWindowFocus={true}
       refetchWhenOffline={false}
     >

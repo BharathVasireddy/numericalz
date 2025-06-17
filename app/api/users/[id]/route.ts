@@ -5,6 +5,8 @@ import { db } from '@/lib/db'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
+// Disable all caching for real-time data
+export const revalidate = 0
 
 interface RouteParams {
   params: {
@@ -58,10 +60,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       ...user,
     })
+
+    // Disable all caching for real-time updates
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
 
   } catch (error) {
     console.error('Error fetching user:', error)
@@ -141,11 +150,18 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       },
     })
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       user: updatedUser,
       message: 'User updated successfully',
     })
+
+    // Disable all caching for real-time updates
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
 
   } catch (error) {
     console.error('Error updating user:', error)
