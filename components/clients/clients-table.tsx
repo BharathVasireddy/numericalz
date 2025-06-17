@@ -284,9 +284,33 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
     setAssignModalOpen(true)
   }
 
-  const handleResignClient = (client: Client) => {
-    // Handle client resignation
-    console.log('Resign client:', client.id)
+  const handleResignClient = async (client: Client) => {
+    if (!window.confirm(`Are you sure you want to resign ${client.companyName}? This will deactivate the client and remove any assignments.`)) {
+      return
+    }
+
+    try {
+      const loadingToast = showToast.loading('Resigning client...')
+      
+      const response = await fetch(`/api/clients/${client.id}/resign`, {
+        method: 'POST',
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        showToast.dismiss(loadingToast)
+        showToast.success('Client resigned successfully')
+        // Refresh the clients list to remove the resigned client
+        fetchClients()
+      } else {
+        const error = await response.json()
+        showToast.dismiss(loadingToast)
+        showToast.error(`Failed to resign client: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error resigning client:', error)
+      showToast.error('Error resigning client')
+    }
   }
 
   const handleRefreshCompaniesHouse = async (client: Client) => {
