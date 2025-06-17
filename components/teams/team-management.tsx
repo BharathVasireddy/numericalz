@@ -418,21 +418,21 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                                 </>
                               )}
                             </DropdownMenuItem>
-                            {user.role !== 'MANAGER' && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setUserToDelete(user)
-                                    setShowDeleteDialog(true)
-                                  }}
-                                  className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </>
-                            )}
+                                                  <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setUserToDelete(user)
+                          setShowDeleteDialog(true)
+                        }}
+                        className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                        disabled={user.role === 'MANAGER' && user._count.assignedClients > 0}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                        {user.role === 'MANAGER' && user._count.assignedClients > 0 && (
+                          <AlertTriangle className="h-3 w-3 ml-1" />
+                        )}
+                      </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -484,21 +484,21 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                           </>
                         )}
                       </DropdownMenuItem>
-                      {user.role !== 'MANAGER' && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setUserToDelete(user)
-                              setShowDeleteDialog(true)
-                            }}
-                            className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </>
-                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setUserToDelete(user)
+                          setShowDeleteDialog(true)
+                        }}
+                        className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                        disabled={user.role === 'MANAGER' && user._count.assignedClients > 0}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                        {user.role === 'MANAGER' && user._count.assignedClients > 0 && (
+                          <AlertTriangle className="h-3 w-3 ml-1" />
+                        )}
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -605,10 +605,45 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Team Member</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete <strong>{userToDelete?.name}</strong>? 
-              This action cannot be undone. All their assigned clients will become unassigned.
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              Delete Team Member
+            </DialogTitle>
+            <DialogDescription className="space-y-2">
+              <div>
+                Are you sure you want to delete <strong>{userToDelete?.name}</strong>? 
+                This action cannot be undone.
+              </div>
+              
+              {userToDelete?.role === 'MANAGER' && userToDelete._count.assignedClients > 0 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
+                  <div className="flex items-center gap-2 text-amber-800 mb-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="font-medium">Cannot Delete Manager</span>
+                  </div>
+                  <p className="text-sm text-amber-700">
+                    This manager has <strong>{userToDelete._count.assignedClients} assigned client(s)</strong>. 
+                    Please reassign all clients to another staff member or manager before deletion.
+                  </p>
+                </div>
+              ) : userToDelete?.role === 'MANAGER' ? (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
+                  <div className="flex items-center gap-2 text-red-800 mb-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="font-medium">Deleting Manager Account</span>
+                  </div>
+                  <p className="text-sm text-red-700">
+                    You are about to delete a manager account. This will remove all their permissions and access to the system.
+                  </p>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground mt-2">
+                  {userToDelete?._count.assignedClients && userToDelete._count.assignedClients > 0 
+                    ? `All ${userToDelete._count.assignedClients} assigned clients will become unassigned.`
+                    : 'This user has no assigned clients.'
+                  }
+                </div>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -622,7 +657,7 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
             <Button
               variant="destructive"
               onClick={handleDeleteUser}
-              disabled={isLoading}
+              disabled={isLoading || (userToDelete?.role === 'MANAGER' && userToDelete._count.assignedClients > 0)}
             >
               {isLoading ? 'Deleting...' : 'Delete Member'}
             </Button>

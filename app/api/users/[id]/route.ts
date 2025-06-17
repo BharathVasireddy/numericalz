@@ -138,12 +138,18 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Prevent deletion of managers
+    // For managers, check if they have assigned clients
     if (existingUser.role === 'MANAGER') {
-      return NextResponse.json(
-        { success: false, error: 'Cannot delete manager accounts' },
-        { status: 400 }
-      )
+      if (existingUser.assignedClients.length > 0) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: `Cannot delete manager with ${existingUser.assignedClients.length} assigned client(s). Please reassign all clients to another staff member or manager before deletion.`,
+            clientCount: existingUser.assignedClients.length
+          },
+          { status: 400 }
+        )
+      }
     }
 
     // Prevent managers from deleting themselves
@@ -154,7 +160,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Unassign all clients before deletion
+    // Unassign all clients before deletion (only for staff members, managers should have 0 clients at this point)
     if (existingUser.assignedClients.length > 0) {
       await db.client.updateMany({
         where: { assignedUserId: params.id },
