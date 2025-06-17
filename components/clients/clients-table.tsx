@@ -83,6 +83,7 @@ interface ClientsTableProps {
     assignedUser: string
     status: string
   }
+  onRefreshExpose?: (refreshFn: () => Promise<void>) => void
 }
 
 /**
@@ -98,7 +99,7 @@ interface ClientsTableProps {
  * - Shows client code, company details, due dates, and assignments
  * - Real-time search and filtering with debouncing
  */
-export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
+export function ClientsTable({ searchQuery, filters, onRefreshExpose }: ClientsTableProps) {
   const [clients, setClients] = useState<Client[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -156,6 +157,39 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
       fetchUsers()
     }
   }, [session])
+
+  // Refresh function for Companies House data
+  const refreshClientsData = useCallback(async () => {
+    try {
+      setLoading(true)
+      
+      // First, trigger a bulk refresh of Companies House data
+      const refreshResponse = await fetch('/api/clients/bulk-refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (refreshResponse.ok) {
+        // Then fetch the updated client data
+        await fetchClients()
+      } else {
+        console.error('Failed to refresh Companies House data')
+      }
+    } catch (error) {
+      console.error('Error refreshing client data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [fetchClients])
+
+  // Expose refresh function to parent
+  useEffect(() => {
+    if (onRefreshExpose) {
+      onRefreshExpose(refreshClientsData)
+    }
+  }, [onRefreshExpose, refreshClientsData])
 
   // Debounced fetch effect - separate from the debounced function to avoid dependency issues
   useEffect(() => {

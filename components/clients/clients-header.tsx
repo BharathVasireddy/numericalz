@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { Plus, Search, Filter, Download } from 'lucide-react'
+import { Plus, Search, Filter, Download, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -17,6 +17,8 @@ interface ClientsHeaderProps {
     status: string
   }
   onFiltersChange: (filters: any) => void
+  onRefresh?: () => void
+  isRefreshing?: boolean
 }
 
 /**
@@ -29,7 +31,7 @@ interface ClientsHeaderProps {
  * - Add new client button
  * - Export functionality
  */
-export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersChange }: ClientsHeaderProps) {
+export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersChange, onRefresh, isRefreshing }: ClientsHeaderProps) {
   const router = useRouter()
   const [showFilters, setShowFilters] = useState(false)
   const { data: session } = useSession()
@@ -52,6 +54,17 @@ export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersC
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            className="btn-outline"
+            title="Refresh client data from Companies House"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           <Button
             variant="outline"
             size="sm"

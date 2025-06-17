@@ -105,12 +105,12 @@ export function Providers({ children }: ProvidersProps) {
           },
           // Exponential backoff for retries
           retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-          // Always refetch for real-time data
-          refetchOnWindowFocus: true,
-          // Always refetch on reconnect
-          refetchOnReconnect: true,
-          // Enable background refetch for real-time updates
-          refetchInterval: 5000, // Refetch every 5 seconds for real-time data
+          // Disable automatic refetching - only manual refresh
+          refetchOnWindowFocus: false,
+          // Disable refetch on reconnect
+          refetchOnReconnect: false,
+          // Disable background refetch - manual refresh only
+          refetchInterval: false, // No automatic refetching
           // Network mode for better offline handling
           networkMode: 'online',
           // Enhanced error retry logic
