@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
@@ -32,8 +32,48 @@ import { Card } from '@/components/ui/card'
  */
 export function DashboardNavigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [currentUserName, setCurrentUserName] = useState<string>('')
   const pathname = usePathname()
-  const { data: session } = useSession()
+  const { data: session, update } = useSession()
+
+  // Fetch fresh user data when component mounts or session changes
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (session?.user?.id) {
+        try {
+          const response = await fetch(`/api/users/${session.user.id}`)
+          if (response.ok) {
+            const userData = await response.json()
+            if (userData.name !== session.user.name) {
+              // Update session with fresh data
+              await update({
+                ...session,
+                user: {
+                  ...session.user,
+                  name: userData.name
+                }
+              })
+              setCurrentUserName(userData.name)
+            } else {
+              setCurrentUserName(userData.name)
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch user data:', error)
+          setCurrentUserName(session.user.name || 'User')
+        }
+      }
+    }
+
+    fetchUserData()
+  }, [session?.user?.id, session, update])
+
+  // Update current user name when session changes
+  useEffect(() => {
+    if (session?.user?.name) {
+      setCurrentUserName(session.user.name)
+    }
+  }, [session?.user?.name])
 
   // Get role-based navigation items
   const getNavigationItems = () => {
@@ -168,33 +208,36 @@ export function DashboardNavigation() {
                   </li>
                 )
               })}
+              
+              {/* Inactive Clients - Manager Only */}
+              {session?.user?.role === 'MANAGER' && (
+                <li>
+                  <Link
+                    href="/dashboard/clients/inactive"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`
+                      flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium
+                      transition-colors duration-200
+                      ${pathname === '/dashboard/clients/inactive'
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      }
+                    `}
+                  >
+                    <Building2 className="h-4 w-4" />
+                    Inactive Clients
+                  </Link>
+                </li>
+              )}
             </ul>
           </nav>
 
           {/* User Actions */}
           <div className="p-4 border-t border-border space-y-3">
-            {/* Inactive Clients - Manager Only */}
-            {session?.user?.role === 'MANAGER' && (
-              <Link
-                href="/dashboard/clients/inactive"
-                className={`
-                  flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium
-                  transition-colors duration-200 w-full
-                  ${pathname === '/dashboard/clients/inactive'
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  }
-                `}
-              >
-                <Building2 className="h-4 w-4" />
-                Inactive Clients
-              </Link>
-            )}
-            
             {/* User Info */}
             <div className="px-3 py-2 rounded-sm bg-muted/50">
               <p className="text-sm font-medium text-foreground truncate">
-                {session?.user?.name || 'User'}
+                {currentUserName || session?.user?.name || 'User'}
               </p>
               <p className="text-xs text-muted-foreground truncate">
                 {session?.user?.email || 'No email'}

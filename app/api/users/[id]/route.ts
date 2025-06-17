@@ -13,6 +13,66 @@ interface RouteParams {
 }
 
 /**
+ * GET /api/users/[id]
+ * 
+ * Get user details by ID
+ * Users can only access their own data, managers can access any user
+ */
+export async function GET(request: NextRequest, { params }: RouteParams) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Users can only access their own data, managers can access any user
+    if (session.user.role !== 'MANAGER' && session.user.id !== params.id) {
+      return NextResponse.json(
+        { success: false, error: 'Access denied. You can only access your own data.' },
+        { status: 403 }
+      )
+    }
+
+    // Fetch user data
+    const user = await db.user.findUnique({
+      where: { id: params.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'User not found' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      ...user,
+    })
+
+  } catch (error) {
+    console.error('Error fetching user:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch user data' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
  * PUT /api/users/[id]
  * 
  * Update user details (activate/deactivate, role, etc.)
