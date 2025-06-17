@@ -151,7 +151,8 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/users')
+      // Include the current user (manager) in the list for assignment
+      const response = await fetch('/api/users?includeSelf=true')
       if (response.ok) {
         const data = await response.json()
         setUsers(data.users || [])

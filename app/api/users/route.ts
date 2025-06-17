@@ -13,6 +13,9 @@ export const dynamic = 'force-dynamic'
  * Get all users for assignment purposes
  * Only accessible to managers
  * Optimized with caching for better performance
+ * 
+ * Query parameters:
+ * - includeSelf: Include the current user in the results (default: false)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -33,15 +36,26 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Check if we should include the current user
+    const { searchParams } = new URL(request.url)
+    const includeSelf = searchParams.get('includeSelf') === 'true'
+
+    // Build the where clause conditionally
+    const whereClause: any = {
+      isActive: true // Only fetch active users
+    }
+
+    // Exclude current user unless includeSelf is true
+    if (!includeSelf) {
+      whereClause.id = {
+        not: session.user.id
+      }
+    }
+
     // Optimized database query with retry logic
     const users = await dbOperation(async () => {
       return db.user.findMany({
-        where: {
-          id: {
-            not: session.user.id
-          },
-          isActive: true // Only fetch active users
-        },
+        where: whereClause,
         select: {
           id: true,
           name: true,
