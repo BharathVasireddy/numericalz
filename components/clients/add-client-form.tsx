@@ -23,12 +23,17 @@ interface User {
   email: string
 }
 
+// Extended interface to include owner names
+interface ExtendedCompaniesHouseCompany extends CompaniesHouseCompany {
+  ownerNames?: string[]
+}
+
 export function AddClientForm({ onSuccess, onCancel }: AddClientFormProps) {
   const { data: session } = useSession()
   const [loading, setLoading] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchResults, setSearchResults] = useState<CompaniesHouseSearchResult[]>([])
-  const [selectedCompany, setSelectedCompany] = useState<CompaniesHouseCompany | null>(null)
+  const [selectedCompany, setSelectedCompany] = useState<ExtendedCompaniesHouseCompany | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [companySearch, setCompanySearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
@@ -100,7 +105,28 @@ export function AddClientForm({ onSuccess, onCancel }: AddClientFormProps) {
         const data = await response.json()
         const company: CompaniesHouseCompany = data.data
         
-        setSelectedCompany(company)
+        // Extract owner names from officers and PSC data
+        const ownerNames: string[] = []
+        
+        // Add directors/officers names
+        if (data.data.officers?.items) {
+          data.data.officers.items.forEach((officer: any) => {
+            if (officer.name && !ownerNames.includes(officer.name)) {
+              ownerNames.push(officer.name)
+            }
+          })
+        }
+        
+        // Add PSC (People with Significant Control) names
+        if (data.data.psc?.items) {
+          data.data.psc.items.forEach((person: any) => {
+            if (person.name && !ownerNames.includes(person.name)) {
+              ownerNames.push(person.name)
+            }
+          })
+        }
+        
+        setSelectedCompany({ ...company, ownerNames })
         setFormData(prev => ({
           ...prev,
           companyNumber: company.company_number,
@@ -286,11 +312,23 @@ export function AddClientForm({ onSuccess, onCancel }: AddClientFormProps) {
                 )}
 
                 {selectedCompany && (
-                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-sm">
+                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-sm space-y-2">
                     <div className="flex items-center gap-2 text-sm text-primary">
                       <CheckCircle className="h-4 w-4" />
                       Company selected: {selectedCompany.company_name}
                     </div>
+                    {selectedCompany.ownerNames && selectedCompany.ownerNames.length > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        <span className="font-medium">Directors/Owners:</span>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {selectedCompany.ownerNames.map((name, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {name}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
