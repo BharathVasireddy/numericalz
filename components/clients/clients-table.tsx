@@ -25,7 +25,8 @@ import {
   RotateCcw,
   Loader2,
   Mail,
-  Phone
+  Phone,
+  MoreHorizontal
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -47,6 +48,7 @@ import {
 } from '@/components/ui/dialog'
 import { BulkOperations } from './bulk-operations'
 import { AssignUserModal } from './assign-user-modal'
+import { Badge } from '@/components/ui/badge'
 
 interface Client {
   id: string
@@ -86,7 +88,7 @@ interface ClientsTableProps {
 }
 
 /**
- * Clients table component
+ * Clients table component with comprehensive functionality
  * 
  * Features:
  * - Display clients in a comprehensive table with all key fields
@@ -97,6 +99,8 @@ interface ClientsTableProps {
  * - Mobile-friendly design
  * - Shows client code, company details, due dates, and assignments
  * - Real-time search and filtering with debouncing
+ * - Modal-based resign confirmation
+ * - Working assign user functionality
  */
 export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
   const { data: session } = useSession()
@@ -104,11 +108,17 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
   const [clients, setClients] = useState<Client[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
-  const [sortBy, setSortBy] = useState('companyName')
+  const [sortBy, setSortBy] = useState<string>('companyName')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [selectedClients, setSelectedClients] = useState<string[]>([])
-  const [assignModalOpen, setAssignModalOpen] = useState(false)
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  
+  // Modal state for resign functionality
+  const [showResignModal, setShowResignModal] = useState(false)
+  const [clientToResign, setClientToResign] = useState<Client | null>(null)
+  
+  // Modal state for assign functionality
+  const [showAssignModal, setShowAssignModal] = useState(false)
+  const [clientToAssign, setClientToAssign] = useState<Client | null>(null)
 
   const fetchClients = useCallback(async () => {
     if (!session) return
@@ -280,28 +290,32 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
   }
 
   const handleAssignUser = (client: Client) => {
-    setSelectedClient(client)
-    setAssignModalOpen(true)
+    setClientToAssign(client)
+    setShowAssignModal(true)
   }
 
-  const handleResignClient = async (client: Client) => {
-    if (!window.confirm(`Are you sure you want to resign ${client.companyName}? This will deactivate the client and remove any assignments.`)) {
-      return
-    }
+  const handleResignClient = (client: Client) => {
+    setClientToResign(client)
+    setShowResignModal(true)
+  }
+
+  const confirmResignClient = async () => {
+    if (!clientToResign) return
 
     try {
       const loadingToast = showToast.loading('Resigning client...')
       
-      const response = await fetch(`/api/clients/${client.id}/resign`, {
+      const response = await fetch(`/api/clients/${clientToResign.id}/resign`, {
         method: 'POST',
       })
       
       if (response.ok) {
-        const data = await response.json()
         showToast.dismiss(loadingToast)
         showToast.success('Client resigned successfully')
         // Refresh the clients list to remove the resigned client
         fetchClients()
+        setShowResignModal(false)
+        setClientToResign(null)
       } else {
         const error = await response.json()
         showToast.dismiss(loadingToast)
@@ -311,6 +325,11 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
       console.error('Error resigning client:', error)
       showToast.error('Error resigning client')
     }
+  }
+
+  const cancelResignClient = () => {
+    setShowResignModal(false)
+    setClientToResign(null)
   }
 
   const handleRefreshCompaniesHouse = async (client: Client) => {
@@ -511,9 +530,10 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                     </div>
                   </td>
                   <td className="p-3">
-                    <div className="max-w-[150px]">
-                      <span className="text-xs truncate block">
-                        {client.contactEmail === 'contact@tobeupdated.com' || !client.contactEmail ? 'TBU' : client.contactEmail}
+                    <div className="flex items-center gap-1">
+                      <Mail className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs truncate max-w-[120px]">
+                        {client.contactEmail || '-'}
                       </span>
                     </div>
                   </td>
@@ -528,8 +548,9 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   </td>
                   <td className="p-3">
                     {client.assignedUser ? (
-                      <div className="max-w-[120px]">
-                        <div className="text-xs font-medium truncate">{client.assignedUser.name}</div>
+                      <div className="text-xs">
+                        <div className="font-medium">{client.assignedUser.name}</div>
+                        <div className="text-muted-foreground">{client.assignedUser.email}</div>
                       </div>
                     ) : (
                       <span className="text-xs text-muted-foreground">Unassigned</span>
@@ -538,22 +559,20 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   <td className="p-3 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-9 w-9 p-1 hover:bg-muted/50 flex items-center justify-center">
-                          <span className="sr-only">Open menu</span>
-                          <Settings className="action-trigger-icon" />
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuContent align="end">
                         <DropdownMenuItem 
                           onClick={() => router.push(`/dashboard/clients/${client.id}`)}
                           className="flex items-center gap-2 cursor-pointer"
                         >
                           <Eye className="h-4 w-4" />
-                          View Client
+                          View Details
                         </DropdownMenuItem>
                         {session?.user?.role === 'MANAGER' && (
                           <>
-                            <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
                               className="flex items-center gap-2 cursor-pointer"
@@ -568,19 +587,6 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                               <UserPlus className="h-4 w-4" />
                               Assign User
                             </DropdownMenuItem>
-                            {client.isActive && (
-                              <DropdownMenuItem 
-                                onClick={() => handleResignClient(client)}
-                                className="flex items-center gap-2 cursor-pointer"
-                              >
-                                <UserX className="h-4 w-4" />
-                                Resign Client
-                              </DropdownMenuItem>
-                            )}
-                          </>
-                        )}
-                        {client.companyNumber && (
-                          <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               onClick={() => handleRefreshCompaniesHouse(client)}
@@ -589,6 +595,15 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                               <RefreshCw className="h-4 w-4" />
                               Refresh from Companies House
                             </DropdownMenuItem>
+                            {client.isActive && (
+                              <DropdownMenuItem 
+                                onClick={() => handleResignClient(client)}
+                                className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                              >
+                                <UserX className="h-4 w-4" />
+                                Resign Client
+                              </DropdownMenuItem>
+                            )}
                           </>
                         )}
                       </DropdownMenuContent>
@@ -601,291 +616,251 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
         </div>
 
         {/* Tablet View */}
-        <div className="hidden md:block lg:hidden overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                {session?.user?.role === 'MANAGER' && (
-                  <th className="text-left p-3 w-12">
-                    <Checkbox
-                      checked={isAllSelected}
-                      onCheckedChange={handleSelectAll}
-                      aria-label="Select all clients"
-                    />
-                  </th>
-                )}
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground">
-                  Client Details
-                </th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground">
-                  Due Dates
-                </th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground">
-                  Assignment
-                </th>
-                <th className="text-right p-3 text-xs font-medium text-muted-foreground">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {clients.map((client) => (
-                <tr key={client.id} className="border-b border-border hover:bg-muted/30">
-                  {session?.user?.role === 'MANAGER' && (
-                    <td className="p-3">
-                      <Checkbox
-                        checked={selectedClients.includes(client.id)}
-                        onCheckedChange={(checked) => handleSelectClient(client.id, checked as boolean)}
-                        aria-label={`Select ${client.companyName}`}
-                      />
-                    </td>
-                  )}
-                  <td className="p-3">
-                    <div>
-                      <div className="font-medium text-sm">{client.companyName}</div>
-                      <div className="text-xs text-muted-foreground space-y-1">
-                        <div>Code: {client.clientCode || 'N/A'}</div>
-                        <div>No: {client.companyNumber || '-'}</div>
-                        <div>{client.contactEmail === 'contact@tobeupdated.com' || !client.contactEmail ? 'TBU' : client.contactEmail}</div>
-                      </div>
+        <div className="hidden md:block lg:hidden">
+          <div className="space-y-4 p-4">
+            {clients.map((client) => (
+              <div key={client.id} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <div className="font-medium text-sm">{client.companyName}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {client.companyNumber} • {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' : client.companyType}
                     </div>
-                  </td>
-                  <td className="p-3">
-                    <div className="space-y-1 text-xs">
-                      <div className="flex items-center gap-1">
-                        <span className="text-muted-foreground">Accounts:</span>
-                        {isDateOverdue(client.nextAccountsDue) && (
-                          <AlertTriangle className="h-3 w-3 text-red-500" />
-                        )}
-                        <span className={isDateOverdue(client.nextAccountsDue) ? 'text-red-600 font-medium' : ''}>
-                          {formatDate(client.nextAccountsDue)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-muted-foreground">CS:</span>
-                        {isDateOverdue(client.nextConfirmationDue) && (
-                          <AlertTriangle className="h-3 w-3 text-red-500" />
-                        )}
-                        <span className={isDateOverdue(client.nextConfirmationDue) ? 'text-red-600 font-medium' : ''}>
-                          {formatDate(client.nextConfirmationDue)}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <div>
-                      <span className={`status-badge text-xs ${
-                        client.isActive 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {client.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {client.assignedUser?.name || 'Unassigned'}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-3 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-9 w-9 p-1 hover:bg-muted/50 flex items-center justify-center">
-                          <span className="sr-only">Open menu</span>
-                          <Settings className="action-trigger-icon" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem 
-                          onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <Eye className="h-4 w-4" />
-                          View Client
-                        </DropdownMenuItem>
-                        {session?.user?.role === 'MANAGER' && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <Edit className="h-4 w-4" />
-                              Edit Client
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleAssignUser(client)}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <UserPlus className="h-4 w-4" />
-                              Assign User
-                            </DropdownMenuItem>
-                            {client.isActive && (
-                              <DropdownMenuItem 
-                                onClick={() => handleResignClient(client)}
-                                className="flex items-center gap-2 cursor-pointer"
-                              >
-                                <UserX className="h-4 w-4" />
-                                Resign Client
-                              </DropdownMenuItem>
-                            )}
-                          </>
-                        )}
-                        {client.companyNumber && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleRefreshCompaniesHouse(client)}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                              Refresh from Companies House
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="md:hidden space-y-4 p-4">
-          {clients.map((client) => (
-            <Card key={client.id} className="p-4 hover-lift">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-start gap-3 flex-1">
-                  {session?.user?.role === 'MANAGER' && (
-                    <Checkbox
-                      checked={selectedClients.includes(client.id)}
-                      onCheckedChange={(checked) => handleSelectClient(client.id, checked as boolean)}
-                      aria-label={`Select ${client.companyName}`}
-                      className="mt-1"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <h3 className="font-medium text-sm">{client.companyName}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {client.clientCode || 'No code'} • {client.companyNumber || 'No number'}
-                    </p>
                   </div>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-9 w-9 p-1 hover:bg-muted/50 flex items-center justify-center">
-                      <span className="sr-only">Open menu</span>
-                      <Settings className="action-trigger-icon" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem 
-                      onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                      className="flex items-center gap-2 cursor-pointer"
-                    >
-                      <Eye className="h-4 w-4" />
-                      View Client
-                    </DropdownMenuItem>
-                    {session?.user?.role === 'MANAGER' && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <Edit className="h-4 w-4" />
-                          Edit Client
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleAssignUser(client)}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <UserPlus className="h-4 w-4" />
-                          Assign User
-                        </DropdownMenuItem>
-                        {client.isActive && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem 
+                        onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <Eye className="h-4 w-4" />
+                        View Details
+                      </DropdownMenuItem>
+                      {session?.user?.role === 'MANAGER' && (
+                        <>
                           <DropdownMenuItem 
-                            onClick={() => handleResignClient(client)}
+                            onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
                             className="flex items-center gap-2 cursor-pointer"
                           >
-                            <UserX className="h-4 w-4" />
-                            Resign Client
+                            <Edit className="h-4 w-4" />
+                            Edit Client
                           </DropdownMenuItem>
-                        )}
-                      </>
-                    )}
-                    {client.companyNumber && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={() => handleRefreshCompaniesHouse(client)}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                          Refresh from Companies House
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs">
-                  <Mail className="h-3 w-3 text-muted-foreground" />
-                  <span>{client.contactEmail === 'contact@tobeupdated.com' || !client.contactEmail ? 'TBU' : client.contactEmail}</span>
+                          <DropdownMenuItem 
+                            onClick={() => handleAssignUser(client)}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <UserPlus className="h-4 w-4" />
+                            Assign User
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => handleRefreshCompaniesHouse(client)}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                            Refresh from Companies House
+                          </DropdownMenuItem>
+                          {client.isActive && (
+                            <DropdownMenuItem 
+                              onClick={() => handleResignClient(client)}
+                              className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                            >
+                              <UserX className="h-4 w-4" />
+                              Resign Client
+                            </DropdownMenuItem>
+                          )}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="grid grid-cols-2 gap-4 text-xs">
                   <div>
                     <span className="text-muted-foreground">Accounts Due:</span>
-                    <div className={`font-mono ${isDateOverdue(client.nextAccountsDue) ? 'text-red-600 font-medium' : ''}`}>
+                    <div className={`font-mono ${
+                      isDateOverdue(client.nextAccountsDue) ? 'text-red-600 font-medium' :
+                      isDateSoon(client.nextAccountsDue) ? 'text-amber-600 font-medium' :
+                      'text-foreground'
+                    }`}>
                       {formatDate(client.nextAccountsDue)}
                     </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">CS Due:</span>
-                    <div className={`font-mono ${isDateOverdue(client.nextConfirmationDue) ? 'text-red-600 font-medium' : ''}`}>
+                    <div className={`font-mono ${
+                      isDateOverdue(client.nextConfirmationDue) ? 'text-red-600 font-medium' :
+                      isDateSoon(client.nextConfirmationDue) ? 'text-amber-600 font-medium' :
+                      'text-foreground'
+                    }`}>
                       {formatDate(client.nextConfirmationDue)}
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex justify-between items-center pt-2">
-                  <span className={`status-badge text-xs ${
-                    client.isActive 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {client.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                  
-                  {client.assignedUser && (
-                    <span className="text-xs text-muted-foreground">
-                      {client.assignedUser.name}
-                    </span>
-                  )}
+                <div className="flex items-center justify-between">
+                  <div className="text-xs">
+                    <span className="text-muted-foreground">Assigned to:</span>
+                    <div className="font-medium">
+                      {client.assignedUser?.name || 'Unassigned'}
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    Active
+                  </Badge>
                 </div>
               </div>
-            </Card>
-          ))}
+            ))}
+          </div>
         </div>
+
+        {/* Mobile View */}
+        <div className="block md:hidden">
+          <div className="space-y-3 p-3">
+            {clients.map((client) => (
+              <div key={client.id} className="border rounded-lg p-3 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1 flex-1">
+                    <div className="font-medium text-sm">{client.companyName}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {client.companyNumber}
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem 
+                        onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <Eye className="h-4 w-4" />
+                        View Details
+                      </DropdownMenuItem>
+                      {session?.user?.role === 'MANAGER' && (
+                        <>
+                          <DropdownMenuItem 
+                            onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <Edit className="h-4 w-4" />
+                            Edit Client
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleAssignUser(client)}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <UserPlus className="h-4 w-4" />
+                            Assign User
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => handleRefreshCompaniesHouse(client)}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                            Refresh from Companies House
+                          </DropdownMenuItem>
+                          {client.isActive && (
+                            <DropdownMenuItem 
+                              onClick={() => handleResignClient(client)}
+                              className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                            >
+                              <UserX className="h-4 w-4" />
+                              Resign Client
+                            </DropdownMenuItem>
+                          )}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Accounts:</span>
+                    <span className={`font-mono ${
+                      isDateOverdue(client.nextAccountsDue) ? 'text-red-600 font-medium' :
+                      isDateSoon(client.nextAccountsDue) ? 'text-amber-600 font-medium' :
+                      'text-foreground'
+                    }`}>
+                      {formatDate(client.nextAccountsDue)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">CS:</span>
+                    <span className={`font-mono ${
+                      isDateOverdue(client.nextConfirmationDue) ? 'text-red-600 font-medium' :
+                      isDateSoon(client.nextConfirmationDue) ? 'text-amber-600 font-medium' :
+                      'text-foreground'
+                    }`}>
+                      {formatDate(client.nextConfirmationDue)}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="text-xs">
+                    <span className="text-muted-foreground">Assigned:</span>
+                    <div className="font-medium">
+                      {client.assignedUser?.name || 'Unassigned'}
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    Active
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {clients.length === 0 && !loading && (
+          <div className="p-8 text-center text-muted-foreground">
+            <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No active clients found</p>
+            <p className="text-sm">Try adjusting your search or filters</p>
+          </div>
+        )}
       </Card>
 
       {/* Assign User Modal */}
-      {selectedClient && (
-        <AssignUserModal
-          client={selectedClient}
-          users={users}
-          isOpen={assignModalOpen}
-          onClose={() => {
-            setAssignModalOpen(false)
-            setSelectedClient(null)
-          }}
-          onSuccess={handleAssignSuccess}
-        />
-      )}
+      <AssignUserModal
+        client={clientToAssign}
+        users={users}
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        onSuccess={handleAssignSuccess}
+      />
+
+      {/* Resign Confirmation Modal */}
+      <Dialog open={showResignModal} onOpenChange={setShowResignModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Client Resignation</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to resign <strong>{clientToResign?.companyName}</strong>? 
+              This will move the client to inactive status and remove them from the active clients list.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={cancelResignClient}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmResignClient}>
+              Resign Client
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 } 
