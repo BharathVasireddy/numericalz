@@ -323,9 +323,9 @@
     @apply h-4 w-4;
   }
   
-  /* Action trigger button icon - larger for better visibility */
+  /* Action trigger button icon - larger for better visibility and prominence */
   .action-trigger-icon {
-    @apply h-5 w-5;
+    @apply h-6 w-6 text-muted-foreground hover:text-foreground transition-colors duration-200;
   }
   
   /* Compact Status System */
