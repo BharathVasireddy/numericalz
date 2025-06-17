@@ -208,29 +208,29 @@ export function DashboardNavigation() {
                   </li>
                 )
               })}
-              
-              {/* Inactive Clients - Manager Only */}
-              {session?.user?.role === 'MANAGER' && (
-                <li>
-                  <Link
-                    href="/dashboard/clients/inactive"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`
-                      flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium
-                      transition-colors duration-200
-                      ${pathname === '/dashboard/clients/inactive'
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                      }
-                    `}
-                  >
-                    <Building2 className="h-4 w-4" />
-                    Inactive Clients
-                  </Link>
-                </li>
-              )}
             </ul>
           </nav>
+
+          {/* Inactive Clients - Manager Only (Above separator) */}
+          {session?.user?.role === 'MANAGER' && (
+            <div className="px-4">
+              <Link
+                href="/dashboard/clients/inactive"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`
+                  flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium
+                  transition-colors duration-200 w-full
+                  ${pathname === '/dashboard/clients/inactive'
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }
+                `}
+              >
+                <Building2 className="h-4 w-4" />
+                Inactive Clients
+              </Link>
+            </div>
+          )}
 
           {/* User Actions */}
           <div className="p-4 border-t border-border space-y-3">
