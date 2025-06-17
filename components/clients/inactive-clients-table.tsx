@@ -79,7 +79,7 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
         showToast.error(data.error || 'Failed to reassign client')
       }
     } catch (error) {
-      console.error('Error reassigning client:', error)
+      // Error reassigning client
       showToast.error('Failed to reassign client')
     } finally {
       setIsReassigning(null)
@@ -104,7 +104,7 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
         showToast.error(data.error || 'Failed to delete client')
       }
     } catch (error) {
-      console.error('Error deleting client:', error)
+      // Error deleting client
       showToast.error('Failed to delete client')
     } finally {
       setIsDeleting(false)

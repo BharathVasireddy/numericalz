@@ -8,6 +8,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 
+interface ClientsHeaderProps {
+  searchQuery: string
+  onSearchChange: (query: string) => void
+  filters: {
+    companyType: string
+    assignedUser: string
+    status: string
+  }
+  onFiltersChange: (filters: any) => void
+}
+
 /**
  * Clients page header component
  * 
@@ -18,11 +29,17 @@ import { Card } from '@/components/ui/card'
  * - Add new client button
  * - Export functionality
  */
-export function ClientsHeader() {
+export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersChange }: ClientsHeaderProps) {
   const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const { data: session } = useSession()
+
+  const handleFilterChange = (key: string, value: string) => {
+    onFiltersChange({
+      ...filters,
+      [key]: value
+    })
+  }
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -74,7 +91,7 @@ export function ClientsHeader() {
               <Input
                 placeholder="Search clients by name, company number, or email..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => onSearchChange(e.target.value)}
                 className="pl-10 input-field"
               />
             </div>
@@ -89,7 +106,11 @@ export function ClientsHeader() {
                 <label className="text-xs font-medium text-muted-foreground mb-2 block">
                   Company Type
                 </label>
-                <select className="input-field w-full">
+                <select 
+                  className="input-field w-full"
+                  value={filters.companyType}
+                  onChange={(e) => handleFilterChange('companyType', e.target.value)}
+                >
                   <option value="">All Types</option>
                   <option value="LIMITED_COMPANY">Limited Companies</option>
                   <option value="NON_LIMITED_COMPANY">Non Limited Companies</option>
@@ -101,7 +122,11 @@ export function ClientsHeader() {
                 <label className="text-xs font-medium text-muted-foreground mb-2 block">
                   Assigned User
                 </label>
-                <select className="input-field w-full">
+                <select 
+                  className="input-field w-full"
+                  value={filters.assignedUser}
+                  onChange={(e) => handleFilterChange('assignedUser', e.target.value)}
+                >
                   <option value="">All Users</option>
                   <option value="me">Assigned to Me</option>
                   <option value="unassigned">Unassigned</option>
@@ -111,13 +136,16 @@ export function ClientsHeader() {
                 <label className="text-xs font-medium text-muted-foreground mb-2 block">
                   Status
                 </label>
-                <select className="input-field w-full">
+                <select 
+                  className="input-field w-full"
+                  value={filters.status}
+                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                >
                   <option value="">All Statuses</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
                 </select>
               </div>
-
             </div>
           </div>
         )}

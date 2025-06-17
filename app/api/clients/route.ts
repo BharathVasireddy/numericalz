@@ -2,6 +2,43 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db, executeWithRetry } from '@/lib/db'
+import { invalidateClientCaches } from '@/lib/cache-invalidation'
+import { z } from 'zod'
+
+// Validation schemas
+const createClientSchema = z.object({
+  companyType: z.string().min(1, 'Company type is required'),
+  companyNumber: z.string().optional(),
+  companyName: z.string().min(1, 'Company name is required'),
+  contactName: z.string().min(1, 'Contact name is required'),
+  contactEmail: z.string().email('Valid email is required'),
+  contactPhone: z.string().optional(),
+  website: z.string().optional(),
+  tradingAddress: z.string().optional(),
+  yearEstablished: z.number().optional(),
+  numberOfEmployees: z.number().optional(),
+  annualTurnover: z.number().optional(),
+  assignedUserId: z.string().optional(),
+  notes: z.string().optional(),
+  // Companies House data
+  registeredOfficeAddress: z.string().optional(),
+  sicCodes: z.string().optional(),
+  nextAccountsDue: z.string().optional(),
+  lastAccountsMadeUpTo: z.string().optional(),
+  accountingReferenceDate: z.string().optional(),
+  nextConfirmationDue: z.string().optional(),
+  lastConfirmationMadeUpTo: z.string().optional(),
+  jurisdiction: z.string().optional(),
+  companyStatus: z.string().optional(),
+  companyStatusDetail: z.string().optional(),
+  incorporationDate: z.string().optional(),
+  cessationDate: z.string().optional(),
+  hasBeenLiquidated: z.boolean().optional(),
+  hasCharges: z.boolean().optional(),
+  hasInsolvencyHistory: z.boolean().optional(),
+  officers: z.string().optional(),
+  personsWithSignificantControl: z.string().optional(),
+})
 
 /**
  * Generate a unique client code with retry logic
@@ -38,17 +75,7 @@ async function generateClientCode(): Promise<string> {
  * GET /api/clients
  * 
  * Fetch all clients with optional filtering and sorting
- * 
- * Query parameters:
- * - search: Search term for company name, number, or email
- * - companyType: Filter by company type
- * - assignedUserId: Filter by assigned user
- * - isActive: Filter by active status
- * - industry: Filter by industry
- * - sortBy: Sort field (default: companyName)
- * - sortOrder: Sort order (asc/desc, default: asc)
- * - page: Page number (default: 1)
- * - limit: Items per page (default: 50)
+ * Optimized for performance with caching and efficient queries
  */
 export async function GET(request: NextRequest) {
   try {
@@ -65,16 +92,16 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || ''
     const companyType = searchParams.get('companyType') || ''
     const assignedUserId = searchParams.get('assignedUserId') || ''
-    const isActive = searchParams.get('active') || searchParams.get('isActive') // Support both 'active' and 'isActive' parameters
+    const isActive = searchParams.get('active') || searchParams.get('isActive')
     const sortBy = searchParams.get('sortBy') || 'companyName'
     const sortOrder = searchParams.get('sortOrder') || 'asc'
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = parseInt(searchParams.get('limit') || '100') // Increased default limit
 
-    // Build where clause
+    // Build optimized where clause
     const where: any = {}
 
-    // Search across multiple fields
+    // Search across multiple fields with optimized query
     if (search) {
       where.OR = [
         { companyName: { contains: search, mode: 'insensitive' } },
@@ -111,31 +138,47 @@ export async function GET(request: NextRequest) {
     // Calculate pagination
     const skip = (page - 1) * limit
 
-    // Fetch clients with pagination
-    const [clients, totalCount] = await Promise.all([
-      db.client.findMany({
-        where,
-        include: {
-          assignedUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
+    // Optimized database query with minimal fields for list view
+    const [clients, totalCount] = await executeWithRetry(async () => {
+      return Promise.all([
+        db.client.findMany({
+          where,
+          select: {
+            id: true,
+            clientCode: true,
+            companyName: true,
+            companyNumber: true,
+            companyType: true,
+            contactName: true,
+            contactEmail: true,
+            contactPhone: true,
+            nextAccountsDue: true,
+            nextConfirmationDue: true,
+            accountingReferenceDate: true,
+            isActive: true,
+            createdAt: true,
+            assignedUser: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
             },
           },
-        },
-        orderBy: {
-          [sortBy]: sortOrder as 'asc' | 'desc',
-        },
-        skip,
-        take: limit,
-      }),
-      db.client.count({ where }),
-    ])
+          orderBy: {
+            [sortBy]: sortOrder as 'asc' | 'desc',
+          },
+          skip,
+          take: limit,
+        }),
+        db.client.count({ where }),
+      ])
+    })
 
     const totalPages = Math.ceil(totalCount / limit)
 
-    return NextResponse.json({
+    // Add caching headers for better performance
+    const response = NextResponse.json({
       success: true,
       clients,
       pagination: {
@@ -148,8 +191,12 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Minimal caching for real-time updates
+    response.headers.set('Cache-Control', 'public, max-age=5, stale-while-revalidate=10')
+    
+    return response
+
   } catch (error) {
-    console.error('Error fetching clients:', error)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
@@ -233,6 +280,9 @@ export async function POST(request: NextRequest) {
       })
     })
 
+    // Invalidate client caches for real-time updates
+    await invalidateClientCaches()
+
     return NextResponse.json({
       success: true,
       data: client,
@@ -240,7 +290,6 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error creating client:', error)
     
     if (error instanceof Error) {
       // Handle Prisma unique constraint violations

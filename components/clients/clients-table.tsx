@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { showToast } from '@/lib/toast'
+import { debounce } from '@/lib/utils'
 import { MoreHorizontal, Eye, Edit, UserPlus, Building2, Mail, Phone, RefreshCw, Calendar, AlertTriangle, UserX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -53,6 +54,15 @@ interface User {
   role: string
 }
 
+interface ClientsTableProps {
+  searchQuery: string
+  filters: {
+    companyType: string
+    assignedUser: string
+    status: string
+  }
+}
+
 /**
  * Clients table component
  * 
@@ -64,8 +74,9 @@ interface User {
  * - Loading and empty states
  * - Mobile-friendly design
  * - Shows client code, company details, due dates, and assignments
+ * - Real-time search and filtering with debouncing
  */
-export function ClientsTable() {
+export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
   const [clients, setClients] = useState<Client[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -79,17 +90,54 @@ export function ClientsTable() {
   const { data: session } = useSession()
   const router = useRouter()
 
+  // Debounced fetch function
+  const debouncedFetchClients = useCallback(
+    debounce(() => {
+      fetchClients()
+    }, 300), // 300ms delay
+    [searchQuery, filters, sortBy, sortOrder]
+  )
+
   useEffect(() => {
-    fetchClients()
     if (session?.user?.role === 'MANAGER') {
       fetchUsers()
     }
   }, [session])
 
+  useEffect(() => {
+    if (session) {
+      debouncedFetchClients()
+    }
+  }, [session, searchQuery, filters, sortBy, sortOrder, debouncedFetchClients])
+
   const fetchClients = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/clients?active=true')
+      
+      // Build query parameters
+      const params = new URLSearchParams()
+      params.append('active', 'true')
+      
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim())
+      }
+      
+      if (filters.companyType) {
+        params.append('companyType', filters.companyType)
+      }
+      
+      if (filters.assignedUser) {
+        params.append('assignedUserId', filters.assignedUser)
+      }
+      
+      if (filters.status) {
+        params.append('isActive', filters.status)
+      }
+      
+      params.append('sortBy', sortBy)
+      params.append('sortOrder', sortOrder)
+      
+      const response = await fetch(`/api/clients?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
         setClients(data.clients || [])
@@ -121,6 +169,13 @@ export function ClientsTable() {
       setSortOrder('asc')
     }
   }
+
+  // Refetch when sorting changes
+  useEffect(() => {
+    if (session) {
+      fetchClients()
+    }
+  }, [sortBy, sortOrder])
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {

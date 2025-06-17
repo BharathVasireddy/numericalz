@@ -34,5 +34,5 @@ export default async function DashboardPage() {
   }
 
   // Fallback redirect (shouldn't reach here)
-  redirect('/auth/login')
+  redirect('/dashboard/staff')
 } 

@@ -4,12 +4,47 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 })
 
 const nextConfig = {
+  // Latest Next.js 14 performance optimizations (compatible version)
   experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs']
+    // Optimize package imports for faster builds
+    optimizePackageImports: [
+      'lucide-react', 
+      '@radix-ui/react-icons',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-select',
+      'react-window',
+      'recharts'
+    ],
+    // External packages for server components
+    serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs', 'nodemailer'],
+    // Enable optimized CSS loading
+    optimizeCss: true,
+    // Enable modern bundling (if available)
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    }
   },
   
+  // Enhanced compiler optimizations
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn']
+    } : false,
+    // Remove React dev tools in production
+    reactRemoveProperties: process.env.NODE_ENV === 'production',
+  },
+  
+  // Advanced image optimization
   images: {
     formats: ['image/webp', 'image/avif'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     remotePatterns: [
       {
         protocol: 'https',
@@ -19,117 +54,178 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'api.companieshouse.gov.uk',
       },
-    ],
-  },
-
-  compiler: {
-    removeConsole: process.env.NODE_ENV === 'production' ? {
-      exclude: ['error']
-    } : false,
-  },
-
-  swcMinify: true,
-  compress: true,
-  poweredByHeader: false,
-
-  async headers() {
-    return [
       {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'Content-Security-Policy',
-            value: `
-              default-src 'self';
-              script-src 'self' 'unsafe-eval' 'unsafe-inline' https://vercel.live;
-              style-src 'self' 'unsafe-inline';
-              img-src 'self' data: https: blob:;
-              font-src 'self' data:;
-              connect-src 'self' https://api.companieshouse.gov.uk https://vercel.live wss://ws.pusher.com;
-              frame-src 'self' https://vercel.live;
-              frame-ancestors 'none';
-              object-src 'none';
-              base-uri 'self';
-              form-action 'self';
-              upgrade-insecure-requests;
-            `.replace(/\s{2,}/g, ' ').trim()
-          },
-          {
-            key: 'X-DNS-Prefetch-Control',
-            value: 'on'
-          },
-          {
-            key: 'Strict-Transport-Security',
-            value: 'max-age=31536000; includeSubDomains; preload'
-          },
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY'
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff'
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin'
-          },
-          {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()'
-          }
-        ]
+        protocol: 'https',
+        hostname: '*.supabase.co',
       },
-      {
-        source: '/api/(.*)',
-        headers: [
-          {
-            key: 'X-Robots-Tag',
-            value: 'noindex'
-          }
-        ]
-      }
-    ]
+    ],
+    minimumCacheTTL: 31536000, // 1 year
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-
-  webpack: (config, { dev, isServer }) => {
+  
+  // Advanced webpack optimizations
+  webpack: (config, { dev, isServer, webpack }) => {
+    // Enhanced bundle splitting for better caching
     if (!dev && !isServer) {
-      // Optimize for production
-      config.optimization.splitChunks = {
-        chunks: 'all',
-        cacheGroups: {
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            chunks: 'all',
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          chunks: 'all',
+          minSize: 20000,
+          maxSize: 244000,
+          cacheGroups: {
+            // Separate vendor chunks for better caching
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: 'vendors',
+              priority: 10,
+              chunks: 'all',
+            },
+            // UI components chunk
+            ui: {
+              test: /[\\/]components[\\/]ui[\\/]/,
+              name: 'ui-components',
+              priority: 20,
+              chunks: 'all',
+            },
+            // Common utilities
+            common: {
+              name: 'common',
+              minChunks: 2,
+              priority: 5,
+              chunks: 'all',
+            },
           },
-          common: {
-            name: 'common',
-            minChunks: 2,
-            chunks: 'all',
-            enforce: true,
-          }
         },
+        // Enable module concatenation
+        concatenateModules: true,
+        // Enable tree shaking for unused exports
+        usedExports: true,
+        // Enable side effects optimization
+        sideEffects: false,
       }
     }
-
-    // Optimize bundle size
+    
+    // Optimize bundle size with aliases
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': __dirname,
     }
 
+    // Add progress plugin for build visibility
+    if (!dev) {
+      config.plugins.push(
+        new webpack.ProgressPlugin((percentage, message, ...args) => {
+          if (process.env.CI !== 'true') {
+            console.log(`${(percentage * 100).toFixed(2)}%`, message, ...args)
+          }
+        })
+      )
+    }
+
+    // Optimize module resolution
+    config.resolve.modules = ['node_modules']
+    config.resolve.symlinks = false
+
     return config
   },
+  
+  // Enable advanced compression
+  compress: true,
+  
+  // Reduce memory usage
+  generateEtags: false,
+  
+  // Optimize static generation
+  trailingSlash: false,
+  
+  // Remove powered by header
+  poweredByHeader: false,
+  
+  // Enable SWC minification
+  swcMinify: true,
+  
+  // Production browser source maps for debugging (smaller than full maps)
+  productionBrowserSourceMaps: false,
+  
+  // Enhanced output configuration
+  output: 'standalone',
+  
+  // Advanced headers for performance and security
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          // Security headers
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'origin-when-cross-origin',
+          },
+          // Performance headers
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on',
+          },
+        ],
+      },
+      {
+        source: '/api/(.*)',
+        headers: [
+          // Cache API responses
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=60, stale-while-revalidate=120',
+          },
+        ],
+      },
+      {
+        source: '/_next/static/(.*)',
+        headers: [
+          // Long-term cache for static assets
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/(.*)\\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2)',
+        headers: [
+          // Cache static files
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ]
+  },
 
+  // Environment variables optimization
   env: {
     CUSTOM_KEY: 'numericalz-internal-app',
   },
 
+  // Optimized redirects
   async redirects() {
     return []
   },
 
+  // Optimized rewrites
   async rewrites() {
     return [
       {
@@ -137,6 +233,13 @@ const nextConfig = {
         destination: '/api/health',
       },
     ]
+  },
+
+  // Logging configuration for monitoring
+  logging: {
+    fetches: {
+      fullUrl: true,
+    },
   },
 }
 

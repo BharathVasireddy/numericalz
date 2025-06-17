@@ -23,9 +23,9 @@ This document provides a comprehensive overview of all currently implemented fea
 - **Permission Checks**: API-level permission validation
 
 #### Default Users
-- **Admin Account**: `admin@numericalz.com` / `admin123`
+- **Manager Account**: `admin@numericalz.com` / `admin123`
 - **Manager Role**: Full access to all features
-- **Database Seeded**: Ready-to-use admin account
+- **Database Seeded**: Ready-to-use manager account
 
 ## 🏢 Client Management System
 

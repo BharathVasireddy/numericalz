@@ -93,7 +93,7 @@ export function BulkOperations({
         showToast.error(data.error || 'Failed to assign clients')
       }
     } catch (error) {
-      console.error('Error assigning clients:', error)
+      // Error assigning clients
       showToast.error('Failed to assign clients')
     } finally {
       setIsLoading(false)
@@ -123,7 +123,7 @@ export function BulkOperations({
         showToast.error(data.error || 'Failed to resign clients')
       }
     } catch (error) {
-      console.error('Error resigning clients:', error)
+      // Error resigning clients
       showToast.error('Failed to resign clients')
     } finally {
       setIsLoading(false)
@@ -152,7 +152,7 @@ export function BulkOperations({
         showToast.error(data.error || 'Failed to refresh clients')
       }
     } catch (error) {
-      console.error('Error refreshing clients:', error)
+      // Error refreshing clients
       showToast.error('Failed to refresh clients')
     } finally {
       setIsLoading(false)

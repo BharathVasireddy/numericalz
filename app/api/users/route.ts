@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { db, dbOperation } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 
 /**
@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs'
  * 
  * Get all users for assignment purposes
  * Only accessible to managers
+ * Optimized with caching for better performance
  */
 export async function GET(request: NextRequest) {
   try {
@@ -29,28 +30,36 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch all users except the current user
-    const users = await db.user.findMany({
-      where: {
-        id: {
-          not: session.user.id
+    // Optimized database query with retry logic
+    const users = await dbOperation(async () => {
+      return db.user.findMany({
+        where: {
+          id: {
+            not: session.user.id
+          },
+          isActive: true // Only fetch active users
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+        orderBy: {
+          name: 'asc'
         }
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-      },
-      orderBy: {
-        name: 'asc'
-      }
+      })
     })
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       users,
     })
+
+    // Cache for 5 minutes to improve performance
+    response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600')
+    
+    return response
 
   } catch (error) {
     console.error('Error fetching users:', error)
