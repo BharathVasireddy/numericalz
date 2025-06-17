@@ -1,168 +1,59 @@
-# Numericalz API Documentation
+# API Documentation - Numericalz Internal Management System
 
 ## 🎯 Overview
 
-The Numericalz API provides a comprehensive set of endpoints for managing accounting firm operations, including user authentication, client management, task tracking, and integration with the Companies House API.
-
-**Base URL**: `https://numericalz-internal.vercel.app/api`  
-**Version**: v1.0  
-**Authentication**: JWT Bearer Token
+This document provides comprehensive documentation for all API endpoints in the Numericalz Internal Management System. All endpoints require authentication unless otherwise specified.
 
 ## 🔐 Authentication
 
-### Authentication Flow
+### Base URL
+- **Development**: `http://localhost:3000/api`
+- **Production**: `https://numericalz.cloud9digital.in/api`
 
-The API uses JWT-based authentication with NextAuth.js. All protected endpoints require a valid JWT token in the Authorization header.
+### Authentication Method
+All API endpoints use NextAuth.js session-based authentication. Include session cookies with all requests.
 
-#### Login
-```http
-POST /api/auth/signin
-Content-Type: application/json
-
-{
-  "email": "user@numericalz.com",
-  "password": "securePassword123"
-}
-```
-
-**Response:**
+### Response Format
+All API responses follow this standard format:
 ```json
 {
-  "success": true,
-  "data": {
-    "user": {
-      "id": "uuid-here",
-      "email": "user@numericalz.com",
-      "role": "MANAGER",
-      "firstName": "John",
-      "lastName": "Smith"
-    },
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "expiresAt": "2024-12-31T23:59:59Z"
-  }
+  "success": boolean,
+  "data": any,
+  "error": string,
+  "message": string
 }
 ```
 
-#### Register New User (Manager Only)
-```http
-POST /api/auth/register
-Content-Type: application/json
-Authorization: Bearer {token}
+## 👤 Authentication Endpoints
 
-{
-  "email": "newuser@numericalz.com",
-  "password": "securePassword123",
-  "firstName": "Jane",
-  "lastName": "Doe",
-  "role": "STAFF"
-}
-```
+### Login
+**POST** `/auth/[...nextauth]`
 
-#### Logout
-```http
-POST /api/auth/signout
-Authorization: Bearer {token}
-```
+NextAuth.js handles authentication. Use the `signIn` function from `next-auth/react`.
 
-## 👥 User Management
+```typescript
+import { signIn } from 'next-auth/react'
 
-### Get Current User
-```http
-GET /api/users/me
-Authorization: Bearer {token}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid-here",
-    "email": "user@numericalz.com",
-    "role": "MANAGER",
-    "firstName": "John",
-    "lastName": "Smith",
-    "isActive": true,
-    "createdAt": "2024-01-01T00:00:00Z",
-    "lastLoginAt": "2024-01-15T10:30:00Z"
-  }
-}
-```
-
-### Get All Users (Manager Only)
-```http
-GET /api/users
-Authorization: Bearer {token}
-```
-
-**Query Parameters:**
-- `page` (optional): Page number (default: 1)
-- `limit` (optional): Items per page (default: 10)
-- `role` (optional): Filter by role (MANAGER, STAFF)
-- `active` (optional): Filter by active status (true, false)
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "users": [
-      {
-        "id": "uuid-here",
-        "email": "user@numericalz.com",
-        "role": "STAFF",
-        "firstName": "John",
-        "lastName": "Smith",
-        "isActive": true,
-        "clientCount": 15,
-        "pendingTasks": 8
-      }
-    ],
-    "pagination": {
-      "currentPage": 1,
-      "totalPages": 3,
-      "totalItems": 25,
-      "itemsPerPage": 10
-    }
-  }
-}
-```
-
-### Update User Profile
-```http
-PATCH /api/users/me
-Content-Type: application/json
-Authorization: Bearer {token}
-
-{
-  "firstName": "John",
-  "lastName": "Smith Updated"
-}
-```
-
-### Deactivate User (Manager Only)
-```http
-PATCH /api/users/{userId}/deactivate
-Authorization: Bearer {token}
+const result = await signIn('credentials', {
+  email: 'admin@numericalz.com',
+  password: 'admin123',
+  redirect: false
+})
 ```
 
 ## 🏢 Client Management
 
 ### Get All Clients
-```http
-GET /api/clients
-Authorization: Bearer {token}
-```
+**GET** `/clients`
+
+Retrieve all clients with optional filtering and pagination.
 
 **Query Parameters:**
-- `page` (optional): Page number (default: 1)
-- `limit` (optional): Items per page (default: 20)
-- `search` (optional): Search by company name or number
-- `type` (optional): Filter by company type (LTD, NON_LTD, DIRECTOR, SUBCONTRACTOR)
-- `assignedTo` (optional): Filter by assigned user ID
-- `status` (optional): Filter by status
-- `sortBy` (optional): Sort field (companyName, createdAt, nextAccountsDue)
-- `sortOrder` (optional): Sort order (asc, desc)
+- `search` (optional): Search term for client name or company number
+- `assignedUserId` (optional): Filter by assigned user
+- `isActive` (optional): Filter by active status (true/false)
+- `page` (optional): Page number for pagination (default: 1)
+- `limit` (optional): Items per page (default: 50)
 
 **Response:**
 ```json
@@ -171,106 +62,101 @@ Authorization: Bearer {token}
   "data": {
     "clients": [
       {
-        "id": "uuid-here",
-        "companyNumber": "12345678",
+        "id": "client-id",
+        "clientCode": "CLI001",
         "companyName": "Example Ltd",
-        "companyType": "LTD",
+        "companyNumber": "12345678",
+        "companyType": "LIMITED_COMPANY",
         "companyStatus": "active",
-        "incorporationDate": "2020-01-15",
-        "registeredAddress": {
-          "line1": "123 Business Street",
-          "city": "London",
-          "postcode": "SW1A 1AA",
-          "country": "United Kingdom"
-        },
-        "sicCodes": ["62020", "62090"],
-        "contactPerson": "John Director",
+        "contactName": "John Doe",
         "contactEmail": "john@example.com",
         "contactPhone": "+44 20 1234 5678",
-        "assignedTo": {
-          "id": "uuid-here",
-          "firstName": "Jane",
-          "lastName": "Accountant"
+        "nextAccountsDue": "2024-12-31T00:00:00.000Z",
+        "nextConfirmationDue": "2024-06-30T00:00:00.000Z",
+        "assignedUser": {
+          "id": "user-id",
+          "name": "Jane Smith",
+          "email": "jane@numericalz.com"
         },
-        "assignedBy": {
-          "id": "uuid-here",
-          "firstName": "Manager",
-          "lastName": "Smith"
-        },
-        "assignedAt": "2024-01-01T00:00:00Z",
-        "yearEnd": "2024-03-31",
-        "nextAccountsDue": "2024-12-31",
-        "nextConfirmationDue": "2024-01-15",
-        "accountingPeriod": "12 months",
-        "createdAt": "2024-01-01T00:00:00Z",
-        "updatedAt": "2024-01-10T12:00:00Z"
+        "isActive": true,
+        "createdAt": "2024-01-01T00:00:00.000Z",
+        "updatedAt": "2024-01-01T00:00:00.000Z"
       }
     ],
     "pagination": {
-      "currentPage": 1,
-      "totalPages": 5,
-      "totalItems": 100,
-      "itemsPerPage": 20
+      "page": 1,
+      "limit": 50,
+      "total": 100,
+      "pages": 2
     }
   }
 }
 ```
 
-### Get Single Client
-```http
-GET /api/clients/{clientId}
-Authorization: Bearer {token}
-```
+### Get Client by ID
+**GET** `/clients/[id]`
+
+Retrieve detailed information for a specific client.
 
 **Response:**
 ```json
 {
   "success": true,
   "data": {
-    "id": "uuid-here",
-    "companyNumber": "12345678",
+    "id": "client-id",
+    "clientCode": "CLI001",
     "companyName": "Example Ltd",
-    // ... full client details
-    "recentTasks": [
-      {
-        "id": "task-uuid",
-        "taskType": "ANNUAL_ACCOUNTS",
-        "dueDate": "2024-12-31",
-        "status": "PENDING",
-        "priority": "HIGH"
-      }
-    ],
-    "communicationHistory": [
-      {
-        "id": "comm-uuid",
-        "type": "EMAIL",
-        "subject": "Account Reminder",
-        "sentAt": "2024-01-10T10:00:00Z",
-        "sentBy": "Jane Accountant"
-      }
-    ]
+    "companyNumber": "12345678",
+    "companyType": "LIMITED_COMPANY",
+    "companyStatus": "active",
+    "companyStatusDetail": null,
+    "incorporationDate": "2020-01-01T00:00:00.000Z",
+    "registeredOfficeAddress": "{\"address_line_1\":\"123 Business St\",\"locality\":\"London\",\"postal_code\":\"SW1A 1AA\"}",
+    "sicCodes": "[\"62020\",\"62090\"]",
+    "contactName": "John Doe",
+    "contactEmail": "john@example.com",
+    "contactPhone": "+44 20 1234 5678",
+    "website": "https://example.com",
+    "tradingAddress": "123 Trading St, London",
+    "nextAccountsDue": "2024-12-31T00:00:00.000Z",
+    "lastAccountsMadeUpTo": "2023-12-31T00:00:00.000Z",
+    "nextConfirmationDue": "2024-06-30T00:00:00.000Z",
+    "accountingReferenceDate": "{\"day\":\"31\",\"month\":\"12\"}",
+    "assignedUser": {
+      "id": "user-id",
+      "name": "Jane Smith",
+      "email": "jane@numericalz.com"
+    },
+    "officers": "[{\"name\":\"John Doe\",\"role\":\"director\"}]",
+    "personsWithSignificantControl": "[{\"name\":\"John Doe\",\"nature_of_control\":[\"ownership-of-shares-25-to-50-percent\"]}]",
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
   }
 }
 ```
 
-### Create New Client
-```http
-POST /api/clients
-Content-Type: application/json
-Authorization: Bearer {token}
+### Create Client
+**POST** `/clients`
 
+Create a new client record.
+
+**Request Body:**
+```json
 {
-  "companyNumber": "12345678", // Optional for non-Ltd companies
-  "companyName": "New Company Ltd",
-  "companyType": "LTD",
-  "contactPerson": "John Director",
-  "contactEmail": "john@newcompany.com",
+  "companyNumber": "12345678",
+  "companyName": "Example Ltd",
+  "contactName": "John Doe",
+  "contactEmail": "john@example.com",
   "contactPhone": "+44 20 1234 5678",
-  "assignedTo": "staff-user-uuid",
-  "yearEnd": "2024-03-31",
-  "accountingPeriod": "12 months",
-  // Additional fields populated from Companies House if companyNumber provided
-  "additionalNotes": "New client from referral"
+  "website": "https://example.com",
+  "tradingAddress": "123 Trading St, London",
+  "residentialAddress": "456 Home St, London",
+  "yearEstablished": 2020,
+  "numberOfEmployees": 10,
+  "annualTurnover": 500000,
+  "assignedUserId": "user-id",
+  "notes": "Important client notes"
 }
 ```
 
@@ -279,198 +165,57 @@ Authorization: Bearer {token}
 {
   "success": true,
   "data": {
-    "id": "new-client-uuid",
-    "companyNumber": "12345678",
-    // ... full client details
+    "id": "new-client-id",
+    "clientCode": "CLI002",
+    // ... full client object
   },
   "message": "Client created successfully"
 }
 ```
 
 ### Update Client
-```http
-PATCH /api/clients/{clientId}
-Content-Type: application/json
-Authorization: Bearer {token}
+**PUT** `/clients/[id]`
 
-{
-  "contactEmail": "newemail@company.com",
-  "contactPhone": "+44 20 9876 5432",
-  "assignedTo": "different-staff-uuid"
-}
-```
+Update an existing client record.
 
-### Delete Client (Manager Only)
-```http
-DELETE /api/clients/{clientId}
-Authorization: Bearer {token}
-```
-
-## 📝 Task Management
-
-### Get Tasks
-```http
-GET /api/tasks
-Authorization: Bearer {token}
-```
-
-**Query Parameters:**
-- `clientId` (optional): Filter by client
-- `assignedTo` (optional): Filter by assigned user
-- `status` (optional): Filter by status (PENDING, IN_PROGRESS, COMPLETED, OVERDUE)
-- `taskType` (optional): Filter by type (ANNUAL_ACCOUNTS, VAT_RETURN, CONFIRMATION, TAX_RETURN)
-- `priority` (optional): Filter by priority (LOW, MEDIUM, HIGH, URGENT)
-- `dueBefore` (optional): Filter by due date (ISO date)
-- `page` (optional): Page number
-- `limit` (optional): Items per page
+**Request Body:** Same as Create Client
 
 **Response:**
 ```json
 {
   "success": true,
   "data": {
-    "tasks": [
-      {
-        "id": "task-uuid",
-        "client": {
-          "id": "client-uuid",
-          "companyName": "Example Ltd",
-          "companyNumber": "12345678"
-        },
-        "assignedTo": {
-          "id": "user-uuid",
-          "firstName": "Jane",
-          "lastName": "Accountant"
-        },
-        "taskType": "ANNUAL_ACCOUNTS",
-        "dueDate": "2024-12-31",
-        "status": "PENDING",
-        "priority": "HIGH",
-        "notes": "Year-end accounts for 2024",
-        "createdAt": "2024-01-01T00:00:00Z",
-        "completedAt": null
-      }
-    ],
-    "pagination": {
-      "currentPage": 1,
-      "totalPages": 3,
-      "totalItems": 45,
-      "itemsPerPage": 20
-    }
-  }
+    // ... updated client object
+  },
+  "message": "Client updated successfully"
 }
 ```
 
-### Create Task
-```http
-POST /api/tasks
-Content-Type: application/json
-Authorization: Bearer {token}
+### Delete Client
+**DELETE** `/clients/[id]`
 
-{
-  "clientId": "client-uuid",
-  "assignedTo": "user-uuid",
-  "taskType": "ANNUAL_ACCOUNTS",
-  "dueDate": "2024-12-31",
-  "priority": "HIGH",
-  "notes": "Year-end accounts preparation"
-}
-```
-
-### Update Task Status
-```http
-PATCH /api/tasks/{taskId}
-Content-Type: application/json
-Authorization: Bearer {token}
-
-{
-  "status": "IN_PROGRESS",
-  "notes": "Started working on accounts preparation"
-}
-```
-
-### Complete Task
-```http
-POST /api/tasks/{taskId}/complete
-Content-Type: application/json
-Authorization: Bearer {token}
-
-{
-  "completionNotes": "Accounts completed and filed with Companies House"
-}
-```
-
-## 📧 Communication & Email
-
-### Get Communications
-```http
-GET /api/communications
-Authorization: Bearer {token}
-```
-
-**Query Parameters:**
-- `clientId` (optional): Filter by client
-- `type` (optional): Filter by type (EMAIL, NOTE, CALL, MEETING)
-- `userId` (optional): Filter by user
-- `page` (optional): Page number
-- `limit` (optional): Items per page
+Soft delete a client (sets isActive to false).
 
 **Response:**
 ```json
 {
   "success": true,
-  "data": {
-    "communications": [
-      {
-        "id": "comm-uuid",
-        "client": {
-          "id": "client-uuid",
-          "companyName": "Example Ltd"
-        },
-        "user": {
-          "id": "user-uuid",
-          "firstName": "Jane",
-          "lastName": "Accountant"
-        },
-        "type": "EMAIL",
-        "subject": "Account Deadline Reminder",
-        "content": "Dear Client, your accounts are due...",
-        "templateUsed": "deadline-reminder",
-        "sentAt": "2024-01-10T10:00:00Z"
-      }
-    ],
-    "pagination": {
-      "currentPage": 1,
-      "totalPages": 2,
-      "totalItems": 30,
-      "itemsPerPage": 20
-    }
-  }
+  "message": "Client deleted successfully"
 }
 ```
 
-### Send Email
-```http
-POST /api/communications/send-email
-Content-Type: application/json
-Authorization: Bearer {token}
+## 🔄 Client Assignment
 
+### Assign Client to User
+**POST** `/clients/[id]/assign`
+
+Assign a client to a team member.
+
+**Request Body:**
+```json
 {
-  "clientId": "client-uuid",
-  "templateId": "template-uuid", // Optional
-  "subject": "Account Reminder",
-  "content": "Dear Client, your accounts are due on...",
-  "variables": { // For template usage
-    "clientName": "Example Ltd",
-    "dueDate": "2024-12-31"
-  }
+  "assignedUserId": "user-id"
 }
-```
-
-### Get Email Templates
-```http
-GET /api/email-templates
-Authorization: Bearer {token}
 ```
 
 **Response:**
@@ -478,51 +223,159 @@ Authorization: Bearer {token}
 {
   "success": true,
   "data": {
-    "templates": [
+    // ... updated client object
+  },
+  "message": "Client assigned successfully"
+}
+```
+
+### Reassign Client
+**POST** `/clients/[id]/reassign`
+
+Reassign a client to a different team member.
+
+**Request Body:**
+```json
+{
+  "newAssignedUserId": "new-user-id",
+  "reason": "Workload balancing"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    // ... updated client object
+  },
+  "message": "Client reassigned successfully"
+}
+```
+
+### Refresh Companies House Data
+**POST** `/clients/[id]/refresh-companies-house`
+
+Update client with latest Companies House information.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    // ... updated client object with latest CH data
+  },
+  "message": "Client updated with latest Companies House data"
+}
+```
+
+## 📊 Bulk Operations
+
+### Bulk Assign Clients
+**POST** `/clients/bulk-assign`
+
+Assign multiple clients to users simultaneously.
+
+**Request Body:**
+```json
+{
+  "clientIds": ["client-id-1", "client-id-2"],
+  "assignedUserId": "user-id"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "successCount": 2,
+    "failureCount": 0,
+    "results": [
       {
-        "id": "template-uuid",
-        "name": "Deadline Reminder",
-        "subject": "Account Deadline - {{clientName}}",
-        "content": "Dear {{contactPerson}}, your accounts for {{clientName}} are due on {{dueDate}}...",
-        "variables": ["clientName", "contactPerson", "dueDate"],
-        "isActive": true,
-        "createdBy": {
-          "firstName": "Manager",
-          "lastName": "Smith"
-        },
-        "createdAt": "2024-01-01T00:00:00Z"
+        "clientId": "client-id-1",
+        "success": true,
+        "clientName": "Example Ltd"
       }
     ]
-  }
+  },
+  "message": "Bulk assignment completed"
 }
 ```
 
-### Create Email Template (Manager Only)
-```http
-POST /api/email-templates
-Content-Type: application/json
-Authorization: Bearer {token}
+### Bulk Refresh Companies House
+**POST** `/clients/bulk-refresh`
 
+Refresh multiple clients with latest Companies House data.
+
+**Request Body:**
+```json
 {
-  "name": "Welcome Email",
-  "subject": "Welcome to Numericalz - {{clientName}}",
-  "content": "Dear {{contactPerson}}, welcome to our services...",
-  "variables": ["clientName", "contactPerson"]
+  "clientIds": ["client-id-1", "client-id-2"]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "successCount": 2,
+    "errorCount": 0,
+    "results": [
+      {
+        "clientId": "client-id-1",
+        "success": true,
+        "clientName": "Example Ltd"
+      }
+    ]
+  },
+  "message": "Bulk refresh completed"
+}
+```
+
+### Bulk Resign Clients
+**POST** `/clients/bulk-resign`
+
+Remove assignments from multiple clients.
+
+**Request Body:**
+```json
+{
+  "clientIds": ["client-id-1", "client-id-2"]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "successCount": 2,
+    "failureCount": 0,
+    "results": [
+      {
+        "clientId": "client-id-1",
+        "success": true,
+        "clientName": "Example Ltd"
+      }
+    ]
+  },
+  "message": "Bulk resignation completed"
 }
 ```
 
 ## 🏢 Companies House Integration
 
 ### Search Companies
-```http
-GET /api/companies-house/search
-Authorization: Bearer {token}
-```
+**GET** `/companies-house/search`
+
+Search for UK companies using Companies House API.
 
 **Query Parameters:**
-- `q`: Search query (company name or number)
-- `items_per_page` (optional): Results per page (default: 20, max: 100)
-- `start_index` (optional): Starting index (default: 0)
+- `q`: Search query (company name or number) - **Required**
+- `items_per_page`: Results per page (default: 20, max: 100)
+- `start_index`: Starting index (default: 0)
 
 **Response:**
 ```json
@@ -551,10 +404,9 @@ Authorization: Bearer {token}
 ```
 
 ### Get Company Details
-```http
-GET /api/companies-house/company/{companyNumber}
-Authorization: Bearer {token}
-```
+**GET** `/companies-house/company/[companyNumber]`
+
+Get comprehensive company information including officers and PSC data.
 
 **Response:**
 ```json
@@ -564,241 +416,251 @@ Authorization: Bearer {token}
     "company_number": "12345678",
     "company_name": "EXAMPLE LIMITED",
     "company_status": "active",
-    "company_status_detail": "Active",
+    "company_status_detail": null,
     "type": "ltd",
     "date_of_creation": "2020-01-15",
-    "date_of_cessation": null,
     "registered_office_address": {
       "address_line_1": "123 Business Street",
       "locality": "London",
       "postal_code": "SW1A 1AA",
-      "country": "United Kingdom"
+      "country": "England"
     },
     "sic_codes": ["62020", "62090"],
     "accounts": {
       "next_due": "2024-12-31",
       "last_accounts": {
-        "made_up_to": "2023-03-31",
+        "made_up_to": "2023-12-31",
         "type": "full"
+      },
+      "accounting_reference_date": {
+        "day": "31",
+        "month": "12"
       }
     },
     "confirmation_statement": {
-      "next_due": "2024-01-15",
-      "last_made_up_to": "2023-01-15"
-    }
-  }
-}
-```
-
-### Get Company Officers
-```http
-GET /api/companies-house/company/{companyNumber}/officers
-Authorization: Bearer {token}
-```
-
-## 📊 Dashboard & Analytics
-
-### Get Dashboard Data
-```http
-GET /api/dashboard
-Authorization: Bearer {token}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "overview": {
-      "totalClients": 150,
-      "pendingTasks": 45,
-      "overdueAccounts": 8,
-      "thisMonthDeadlines": 23
+      "next_due": "2024-06-30",
+      "last_made_up_to": "2023-06-30"
     },
-    "urgentTasks": [
+    "officers": [
       {
-        "id": "task-uuid",
-        "client": "Example Ltd",
-        "taskType": "ANNUAL_ACCOUNTS",
-        "dueDate": "2024-01-20",
-        "daysUntilDue": 5
+        "name": "John DOE",
+        "officer_role": "director",
+        "appointed_on": "2020-01-15"
       }
     ],
-    "workloadDistribution": [
+    "psc": [
       {
-        "userId": "user-uuid",
-        "name": "Jane Accountant",
-        "assignedClients": 25,
-        "pendingTasks": 12,
-        "completedThisMonth": 8
+        "name": "John DOE",
+        "nature_of_control": ["ownership-of-shares-25-to-50-percent"]
       }
-    ],
-    "monthlyStats": {
-      "accountsCompleted": 35,
-      "accountsPending": 45,
-      "newClientsAdded": 5,
-      "totalRevenue": 25000
-    }
+    ]
   }
 }
 ```
 
-### Get User Analytics
-```http
-GET /api/dashboard/user-analytics
-Authorization: Bearer {token}
+## 👥 User Management
+
+### Get All Users
+**GET** `/users`
+
+Retrieve all users (Manager only).
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "user-id",
+      "name": "Jane Smith",
+      "email": "jane@numericalz.com",
+      "role": "STAFF",
+      "isActive": true,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "_count": {
+        "assignedClients": 15
+      }
+    }
+  ]
+}
 ```
 
-**Query Parameters:**
-- `userId` (optional): Specific user ID (Manager only)
-- `period` (optional): Time period (week, month, quarter, year)
+### Get User by ID
+**GET** `/users/[id]`
 
-## 🔔 Notifications
-
-### Get Notifications
-```http
-GET /api/notifications
-Authorization: Bearer {token}
-```
-
-**Query Parameters:**
-- `unread` (optional): Filter unread notifications (true, false)
-- `type` (optional): Filter by type
-- `page` (optional): Page number
-- `limit` (optional): Items per page
+Get detailed user information including assigned clients.
 
 **Response:**
 ```json
 {
   "success": true,
   "data": {
-    "notifications": [
+    "id": "user-id",
+    "name": "Jane Smith",
+    "email": "jane@numericalz.com",
+    "role": "STAFF",
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "assignedClients": [
       {
-        "id": "notif-uuid",
-        "type": "DEADLINE_REMINDER",
-        "title": "Account Deadline Approaching",
-        "message": "Example Ltd accounts due in 7 days",
-        "isRead": false,
-        "actionUrl": "/clients/client-uuid",
-        "createdAt": "2024-01-10T09:00:00Z"
+        "id": "client-id",
+        "companyName": "Example Ltd",
+        "clientCode": "CLI001"
       }
-    ],
-    "unreadCount": 5
+    ]
   }
 }
 ```
 
-### Mark Notification as Read
-```http
-PATCH /api/notifications/{notificationId}/read
-Authorization: Bearer {token}
+### Get Team Statistics
+**GET** `/users/team`
+
+Get comprehensive team statistics (Manager only).
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "totalUsers": 5,
+    "activeUsers": 4,
+    "totalClients": 100,
+    "assignedClients": 85,
+    "unassignedClients": 15,
+    "users": [
+      {
+        "id": "user-id",
+        "name": "Jane Smith",
+        "email": "jane@numericalz.com",
+        "role": "STAFF",
+        "clientCount": 15,
+        "workloadPercentage": 75
+      }
+    ],
+    "workloadDistribution": {
+      "balanced": 3,
+      "overloaded": 1,
+      "underutilized": 1
+    }
+  }
+}
 ```
 
-### Mark All Notifications as Read
-```http
-POST /api/notifications/mark-all-read
-Authorization: Bearer {token}
+## 🔍 Debug Endpoints
+
+### System Status
+**GET** `/debug`
+
+Get system status and configuration (Development only).
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "environment": "development",
+    "database": "connected",
+    "companiesHouse": "configured",
+    "auth": "enabled",
+    "timestamp": "2024-01-01T00:00:00.000Z"
+  }
+}
 ```
 
-## ❌ Error Responses
+## 🚨 Error Handling
 
-All API endpoints return consistent error responses:
-
+### Error Response Format
 ```json
 {
   "success": false,
-  "error": "ERROR_CODE",
-  "message": "Human readable error message",
-  "details": {
-    "field": "Specific validation error"
-  }
+  "error": "Error message",
+  "code": "ERROR_CODE"
 }
 ```
 
 ### Common HTTP Status Codes
-
-- `200` - Success
-- `201` - Created
-- `400` - Bad Request (validation errors)
-- `401` - Unauthorized (authentication required)
-- `403` - Forbidden (insufficient permissions)
-- `404` - Not Found
-- `409` - Conflict (duplicate data)
-- `422` - Unprocessable Entity (business logic error)
-- `429` - Too Many Requests (rate limited)
-- `500` - Internal Server Error
+- **200**: Success
+- **201**: Created
+- **400**: Bad Request - Invalid input data
+- **401**: Unauthorized - Authentication required
+- **403**: Forbidden - Insufficient permissions
+- **404**: Not Found - Resource doesn't exist
+- **429**: Too Many Requests - Rate limit exceeded
+- **500**: Internal Server Error - Server error
 
 ### Common Error Codes
+- `UNAUTHORIZED`: Authentication required
+- `FORBIDDEN`: Insufficient permissions
+- `VALIDATION_ERROR`: Invalid input data
+- `NOT_FOUND`: Resource not found
+- `COMPANIES_HOUSE_ERROR`: Companies House API error
+- `DATABASE_ERROR`: Database operation failed
+- `RATE_LIMIT_EXCEEDED`: Too many requests
 
-- `AUTHENTICATION_REQUIRED` - Valid token required
-- `INSUFFICIENT_PERMISSIONS` - User lacks required permissions
-- `VALIDATION_ERROR` - Request validation failed
-- `CLIENT_NOT_FOUND` - Requested client doesn't exist
-- `USER_NOT_FOUND` - Requested user doesn't exist
-- `COMPANIES_HOUSE_ERROR` - External API error
-- `EMAIL_SEND_FAILED` - Email delivery failed
-- `RATE_LIMIT_EXCEEDED` - Too many requests
+## 🔒 Security
 
-## 🔒 Rate Limiting
+### Authentication
+All endpoints require valid NextAuth.js session except:
+- `/auth/[...nextauth]` - Authentication endpoint
 
-API endpoints are rate limited to prevent abuse:
+### Authorization
+- **Manager Role**: Access to all endpoints
+- **Staff Role**: Limited access to assigned clients only
 
-- **Authentication endpoints**: 5 requests per minute per IP
-- **General API endpoints**: 100 requests per minute per user
-- **Companies House proxy**: 600 requests per 5 minutes (API limit)
-- **Email sending**: 10 emails per minute per user
+### Rate Limiting
+- Companies House API: 600 requests per 5 minutes
+- Internal APIs: No specific limits (handled by Vercel)
 
-Rate limit headers are included in responses:
+### Data Validation
+All endpoints use Zod schemas for input validation:
+- Required fields validation
+- Data type validation
+- Format validation (email, phone, etc.)
+- Business rule validation
+
+## 📝 Usage Examples
+
+### JavaScript/TypeScript
+```typescript
+// Get all clients
+const response = await fetch('/api/clients', {
+  credentials: 'include' // Include session cookies
+})
+const data = await response.json()
+
+// Create a client
+const newClient = await fetch('/api/clients', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  credentials: 'include',
+  body: JSON.stringify({
+    companyName: 'Example Ltd',
+    contactName: 'John Doe',
+    contactEmail: 'john@example.com'
+  })
+})
 ```
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1640995200
-```
 
-## 📝 Webhooks (Future Feature)
+### React Hook Example
+```typescript
+import { useSession } from 'next-auth/react'
 
-Webhook endpoints for external integrations:
-
-### Companies House Updates
-```http
-POST /api/webhooks/companies-house
-Content-Type: application/json
-X-Webhook-Signature: {signature}
-
-{
-  "event": "company_updated",
-  "company_number": "12345678",
-  "timestamp": "2024-01-10T10:00:00Z"
+function useClients() {
+  const { data: session } = useSession()
+  
+  const fetchClients = async () => {
+    if (!session) return
+    
+    const response = await fetch('/api/clients')
+    return response.json()
+  }
+  
+  return { fetchClients }
 }
 ```
 
 ---
 
-## 🔧 Development & Testing
-
-### Base URLs
-- **Development**: `http://localhost:3000/api`
-- **Staging**: `https://numericalz-staging.vercel.app/api`
-- **Production**: `https://numericalz-internal.vercel.app/api`
-
-### Postman Collection
-
-Import the Postman collection for easy API testing: [Download Collection](./postman/numericalz-api.json)
-
-### SDK (Future)
-
-TypeScript SDK for easy integration:
-```typescript
-import { NumericalzAPI } from '@numericalz/sdk'
-
-const api = new NumericalzAPI({
-  baseUrl: 'https://numericalz-internal.vercel.app/api',
-  token: 'your-jwt-token'
-})
-
-const clients = await api.clients.getAll()
-```
-
----
-
-This API documentation is automatically generated and kept up-to-date with the latest API changes. For questions or issues, please contact the development team. 
+**Note**: This API documentation reflects the current implementation of the Numericalz Internal Management System. All endpoints are production-ready and actively used in the application. 
