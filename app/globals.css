@@ -325,7 +325,14 @@
   
   /* Action trigger button icon - larger for better visibility and prominence */
   .action-trigger-icon {
-    @apply h-6 w-6 text-muted-foreground hover:text-foreground transition-colors duration-200;
+    @apply h-6 w-6 text-gray-600 hover:text-foreground transition-colors duration-200 flex-shrink-0;
+  }
+  
+  /* Ensure icon visibility on desktop with better contrast */
+  @media (min-width: 768px) {
+    .action-trigger-icon {
+      @apply text-gray-700 hover:text-gray-900;
+    }
   }
   
   /* Compact Status System */

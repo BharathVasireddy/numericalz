@@ -563,7 +563,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   <td className="p-3 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-9 w-9 p-0 hover:bg-muted/50">
+                        <Button variant="ghost" className="h-9 w-9 p-1 hover:bg-muted/50 flex items-center justify-center">
                           <span className="sr-only">Open menu</span>
                           <Settings className="action-trigger-icon" />
                         </Button>
@@ -714,7 +714,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   <td className="p-3 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-9 w-9 p-0 hover:bg-muted/50">
+                        <Button variant="ghost" className="h-9 w-9 p-1 hover:bg-muted/50 flex items-center justify-center">
                           <span className="sr-only">Open menu</span>
                           <Settings className="action-trigger-icon" />
                         </Button>
@@ -799,7 +799,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-9 w-9 p-0 hover:bg-muted/50">
+                    <Button variant="ghost" className="h-9 w-9 p-1 hover:bg-muted/50 flex items-center justify-center">
                       <span className="sr-only">Open menu</span>
                       <Settings className="action-trigger-icon" />
                     </Button>
