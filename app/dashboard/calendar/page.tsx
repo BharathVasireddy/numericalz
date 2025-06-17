@@ -3,30 +3,71 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { DeadlineCalendar } from '@/components/dashboard/deadline-calendar'
-import { getAllDeadlines } from '@/lib/deadline-utils'
+import { getAllDeadlines, getDeadlinesForUser } from '@/lib/deadline-utils'
 import { db } from '@/lib/db'
-import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
-import { CalendarIcon } from 'lucide-react'
+
+
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
 async function CalendarData() {
-  // Fetch deadlines and users
-  const [deadlines, users] = await Promise.all([
-    getAllDeadlines(),
-    db.user.findMany({
-      where: {
-        isActive: true
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true
-      }
-    })
-  ])
+  const session = await getServerSession(authOptions)
+  
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
 
-  return <DeadlineCalendar deadlines={deadlines} users={users} />
+  // Get user details to check role
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      id: true,
+      role: true,
+      name: true
+    }
+  })
+
+  if (!user) {
+    throw new Error('User not found')
+  }
+
+  // Fetch deadlines based on user role
+  let deadlines
+  let users: Array<{ id: string; name: string; email: string }> = []
+
+  if (user.role === 'MANAGER') {
+    // Managers see all deadlines with filtering options
+    const [allDeadlines, allUsers] = await Promise.all([
+      getAllDeadlines(),
+      db.user.findMany({
+        where: {
+          isActive: true
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      })
+    ])
+    deadlines = allDeadlines
+    users = allUsers
+  } else {
+    // Staff members only see their own assigned clients' deadlines
+    deadlines = await getDeadlinesForUser(user.id)
+    // Staff don't need user filtering options since they only see their own
+    users = []
+  }
+
+  return (
+    <DeadlineCalendar 
+      deadlines={deadlines} 
+      users={users} 
+      userRole={user.role}
+      currentUserId={user.id}
+      currentUserName={user.name}
+    />
+  )
 }
 
 function CalendarSkeleton() {
@@ -61,19 +102,14 @@ export default async function CalendarPage() {
   }
 
   return (
-    <PageLayout maxWidth="2xl">
-      <PageHeader
-        title="Deadline Calendar"
-        description="Visual calendar of all client deadlines with multiple view options"
-      >
-        <CalendarIcon className="h-6 w-6" />
-      </PageHeader>
-      
-      <PageContent>
-        <Suspense fallback={<CalendarSkeleton />}>
-          <CalendarData />
-        </Suspense>
-      </PageContent>
-    </PageLayout>
+    <div className="page-container">
+      <div className="content-wrapper">
+        <div className="content-sections">
+          <Suspense fallback={<CalendarSkeleton />}>
+            <CalendarData />
+          </Suspense>
+        </div>
+      </div>
+    </div>
   )
 } 

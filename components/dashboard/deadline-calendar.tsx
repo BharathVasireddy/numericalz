@@ -53,28 +53,39 @@ interface DeadlineCalendarProps {
     id: string
     name: string
   }>
+  userRole: string
+  currentUserId: string
+  currentUserName: string
 }
 
 type ViewType = 'month' | 'week' | 'list'
 
-export function DeadlineCalendar({ deadlines, users }: DeadlineCalendarProps) {
+export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, currentUserName }: DeadlineCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<ViewType>('month')
   const [selectedUser, setSelectedUser] = useState<string>('all')
   const [selectedType, setSelectedType] = useState<string>('all')
 
+  const isManager = userRole === 'MANAGER'
+
   // Filter deadlines based on selected filters
   const filteredDeadlines = useMemo(() => {
     return deadlines.filter(deadline => {
-      if (selectedUser !== 'all' && deadline.assignedUser?.id !== selectedUser) {
-        return false
+      // For managers: apply user and type filters
+      if (isManager) {
+        if (selectedUser !== 'all' && deadline.assignedUser?.id !== selectedUser) {
+          return false
+        }
       }
+      
+      // For both managers and staff: apply type filter
       if (selectedType !== 'all' && deadline.type !== selectedType) {
         return false
       }
+      
       return true
     })
-  }, [deadlines, selectedUser, selectedType])
+  }, [deadlines, selectedUser, selectedType, isManager])
 
   // Generate calendar days for month view
   const monthDays = useMemo(() => {
@@ -183,6 +194,16 @@ export function DeadlineCalendar({ deadlines, users }: DeadlineCalendarProps) {
     return type === 'accounts' ? FileText : CheckCircle
   }
 
+  // Calculate stats for the current view
+  const stats = useMemo(() => {
+    const total = filteredDeadlines.length
+    const overdue = filteredDeadlines.filter(d => d.isOverdue).length
+    const dueSoon = filteredDeadlines.filter(d => !d.isOverdue && d.daysUntilDue <= 7).length
+    const upcoming = total - overdue - dueSoon
+
+    return { total, overdue, dueSoon, upcoming }
+  }, [filteredDeadlines])
+
   const renderMonthView = () => (
     <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden">
       {/* Header */}
@@ -200,12 +221,9 @@ export function DeadlineCalendar({ deadlines, users }: DeadlineCalendarProps) {
             !day.isCurrentMonth ? 'opacity-50' : ''
           } ${day.isToday ? 'bg-blue-50' : ''}`}
         >
-          <div className={`text-sm font-medium mb-1 ${
-            day.isToday ? 'text-blue-600' : day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
-          }`}>
+          <div className="text-sm font-medium mb-1">
             {day.date.getDate()}
           </div>
-          
           <div className="space-y-1">
             {day.deadlines.slice(0, 3).map(deadline => {
               const Icon = getTypeIcon(deadline.type)
@@ -213,22 +231,33 @@ export function DeadlineCalendar({ deadlines, users }: DeadlineCalendarProps) {
                 <TooltipProvider key={deadline.id}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className={`text-xs p-1 rounded border cursor-pointer ${getDeadlineColor(deadline)}`}>
+                      <div
+                        className={`text-xs p-1 rounded border ${getDeadlineColor(deadline)} cursor-pointer`}
+                      >
                         <div className="flex items-center gap-1">
-                          <Icon className="h-3 w-3 flex-shrink-0" />
+                          <Icon className="h-3 w-3" />
                           <span className="truncate">{deadline.clientName}</span>
                         </div>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <div className="space-y-1">
-                        <p className="font-medium">{deadline.clientName}</p>
-                        <p className="text-xs">
+                      <div className="text-sm">
+                        <div className="font-medium">{deadline.clientName}</div>
+                        <div className="text-muted-foreground">
                           {deadline.type === 'accounts' ? 'Annual Accounts' : 'Confirmation Statement'}
-                        </p>
-                        <p className="text-xs">Due: {formatDate(deadline.dueDate)}</p>
+                        </div>
+                        <div className="text-muted-foreground">
+                          Due: {formatDate(deadline.dueDate)}
+                        </div>
                         {deadline.assignedUser && (
-                          <p className="text-xs">Assigned: {deadline.assignedUser.name}</p>
+                          <div className="text-muted-foreground">
+                            Assigned: {deadline.assignedUser.name}
+                          </div>
+                        )}
+                        {deadline.isOverdue && (
+                          <div className="text-red-600 font-medium">
+                            Overdue by {deadline.daysUntilDue} days
+                          </div>
                         )}
                       </div>
                     </TooltipContent>
@@ -237,7 +266,7 @@ export function DeadlineCalendar({ deadlines, users }: DeadlineCalendarProps) {
               )
             })}
             {day.deadlines.length > 3 && (
-              <div className="text-xs text-gray-500 text-center">
+              <div className="text-xs text-muted-foreground">
                 +{day.deadlines.length - 3} more
               </div>
             )}
@@ -368,9 +397,14 @@ export function DeadlineCalendar({ deadlines, users }: DeadlineCalendarProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Deadline Calendar</h2>
+          <h2 className="text-2xl font-bold">
+            {isManager ? 'Deadline Calendar - All Clients' : `My Deadline Calendar`}
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Track client account deadlines and confirmation statements
+            {isManager 
+              ? 'Track all client account deadlines and confirmation statements' 
+              : `Your assigned client deadlines (${currentUserName})`
+            }
           </p>
         </div>
         
@@ -418,31 +452,49 @@ export function DeadlineCalendar({ deadlines, users }: DeadlineCalendarProps) {
 
         {/* View Toggle & Filters */}
         <div className="flex items-center gap-2">
-          {/* Filters */}
-          <Select value={selectedUser} onValueChange={setSelectedUser}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="All Users" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Users</SelectItem>
-              {users.map(user => (
-                <SelectItem key={user.id} value={user.id}>
-                  {user.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Filters - Only show for managers */}
+          {isManager && (
+            <>
+              <Select value={selectedUser} onValueChange={setSelectedUser}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="All Users" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  {users.map(user => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-          <Select value={selectedType} onValueChange={setSelectedType}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="accounts">Accounts</SelectItem>
-              <SelectItem value="confirmation">Confirmations</SelectItem>
-            </SelectContent>
-          </Select>
+              <Select value={selectedType} onValueChange={setSelectedType}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="accounts">Accounts</SelectItem>
+                  <SelectItem value="confirmation">Confirmations</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          )}
+
+          {/* Type filter for staff (no user filter needed since they only see their own) */}
+          {!isManager && (
+            <Select value={selectedType} onValueChange={setSelectedType}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="accounts">Accounts</SelectItem>
+                <SelectItem value="confirmation">Confirmations</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
 
           {/* View Toggle */}
           <div className="flex items-center border rounded-lg p-1">
@@ -484,7 +536,7 @@ export function DeadlineCalendar({ deadlines, users }: DeadlineCalendarProps) {
               </div>
               <div>
                 <div className="text-2xl font-bold text-red-600">
-                  {filteredDeadlines.filter(d => d.isOverdue).length}
+                  {stats.overdue}
                 </div>
                 <div className="text-sm text-gray-600">Overdue</div>
               </div>
@@ -500,7 +552,7 @@ export function DeadlineCalendar({ deadlines, users }: DeadlineCalendarProps) {
               </div>
               <div>
                 <div className="text-2xl font-bold text-amber-600">
-                  {filteredDeadlines.filter(d => !d.isOverdue && d.daysUntilDue <= 7).length}
+                  {stats.dueSoon}
                 </div>
                 <div className="text-sm text-gray-600">Due Soon</div>
               </div>
@@ -516,7 +568,7 @@ export function DeadlineCalendar({ deadlines, users }: DeadlineCalendarProps) {
               </div>
               <div>
                 <div className="text-2xl font-bold text-blue-600">
-                  {filteredDeadlines.length}
+                  {stats.total}
                 </div>
                 <div className="text-sm text-gray-600">Total</div>
               </div>
