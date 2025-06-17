@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { showToast } from '@/lib/toast'
@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/dialog'
 import { BulkOperations } from './bulk-operations'
 import { AssignUserModal } from './assign-user-modal'
+import toast from 'react-hot-toast'
 
 interface Client {
   id: string
@@ -163,26 +164,51 @@ export function ClientsTable({ searchQuery, filters, onRefreshExpose }: ClientsT
     try {
       setLoading(true)
       
+      // Get all client IDs that have company numbers
+      const clientIds = clients
+        .filter(client => client.companyNumber)
+        .map(client => client.id)
+      
+      if (clientIds.length === 0) {
+        toast.error('No clients with company numbers found to refresh')
+        return
+      }
+      
+      toast.loading('Refreshing Companies House data...', { id: 'refresh-toast' })
+      
       // First, trigger a bulk refresh of Companies House data
       const refreshResponse = await fetch('/api/clients/bulk-refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ clientIds })
       })
       
       if (refreshResponse.ok) {
+        const result = await refreshResponse.json()
+        console.log('Companies House refresh completed:', result.message)
+        
         // Then fetch the updated client data
         await fetchClients()
+        
+        // Show success message
+        toast.success(
+          `Companies House data refreshed successfully! ${result.successCount} clients updated${result.errorCount > 0 ? `, ${result.errorCount} failed` : ''}`,
+          { id: 'refresh-toast', duration: 6000 }
+        )
       } else {
-        console.error('Failed to refresh Companies House data')
+        const error = await refreshResponse.json()
+        console.error('Failed to refresh Companies House data:', error.error)
+        toast.error(`Failed to refresh Companies House data: ${error.error}`, { id: 'refresh-toast' })
       }
     } catch (error) {
       console.error('Error refreshing client data:', error)
+      toast.error('Error refreshing client data. Please try again.', { id: 'refresh-toast' })
     } finally {
       setLoading(false)
     }
-  }, [fetchClients])
+  }, [clients, fetchClients])
 
   // Expose refresh function to parent
   useEffect(() => {

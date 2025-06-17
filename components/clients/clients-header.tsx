@@ -7,6 +7,7 @@ import { Plus, Search, Filter, Download, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
+import toast from 'react-hot-toast'
 
 interface ClientsHeaderProps {
   searchQuery: string
@@ -34,6 +35,7 @@ interface ClientsHeaderProps {
 export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersChange, onRefresh, isRefreshing }: ClientsHeaderProps) {
   const router = useRouter()
   const [showFilters, setShowFilters] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   const { data: session } = useSession()
 
   const handleFilterChange = (key: string, value: string) => {
@@ -41,6 +43,49 @@ export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersC
       ...filters,
       [key]: value
     })
+  }
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true)
+      toast.loading('Preparing export...', { id: 'export-toast' })
+      
+      // Build query parameters
+      const params = new URLSearchParams()
+      if (searchQuery) params.append('search', searchQuery)
+      if (filters.companyType) params.append('companyType', filters.companyType)
+      if (filters.assignedUser) params.append('assignedUser', filters.assignedUser)
+      if (filters.status) params.append('status', filters.status)
+      
+      const response = await fetch(`/api/clients/export?${params.toString()}`)
+      
+      if (response.ok) {
+        // Get the CSV content
+        const csvContent = await response.text()
+        
+        // Create a blob and download
+        const blob = new Blob([csvContent], { type: 'text/csv' })
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `clients-export-${new Date().toISOString().split('T')[0]}.csv`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        
+        toast.success('Clients exported successfully!', { id: 'export-toast' })
+      } else {
+        const error = await response.json()
+        console.error('Failed to export clients:', error)
+        toast.error(`Export failed: ${error.error || 'Unknown error'}`, { id: 'export-toast' })
+      }
+    } catch (error) {
+      console.error('Error exporting clients:', error)
+      toast.error('Export failed. Please try again.', { id: 'export-toast' })
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   return (
@@ -78,9 +123,11 @@ export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersC
             variant="outline"
             size="sm"
             className="btn-outline"
+            onClick={handleExport}
+            disabled={isExporting}
           >
-            <Download className="h-4 w-4 mr-2" />
-            Export
+            <Download className={`h-4 w-4 mr-2 ${isExporting ? 'animate-spin' : ''}`} />
+            {isExporting ? 'Exporting...' : 'Export'}
           </Button>
           {session?.user?.role === 'MANAGER' && (
             <Button
