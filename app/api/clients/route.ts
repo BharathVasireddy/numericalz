@@ -1,24 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { db, executeWithRetry } from '@/lib/db'
 
 /**
- * Generate a unique client code
+ * Generate a unique client code with retry logic
  */
 async function generateClientCode(): Promise<string> {
   const currentYear = new Date().getFullYear()
   
-  // Get the last client code for this year
-  const lastClient = await db.client.findFirst({
-    where: {
-      clientCode: {
-        startsWith: `CLI${currentYear}-`
+  // Get the last client code for this year with retry logic
+  const lastClient = await executeWithRetry(async () => {
+    return await db.client.findFirst({
+      where: {
+        clientCode: {
+          startsWith: `CLI${currentYear}-`
+        }
+      },
+      orderBy: {
+        clientCode: 'desc'
       }
-    },
-    orderBy: {
-      clientCode: 'desc'
-    }
+    })
   })
 
   let nextNumber = 1
@@ -187,46 +189,48 @@ export async function POST(request: NextRequest) {
     // Generate client code if not provided
     const clientCode = body.clientCode || await generateClientCode()
 
-    // Create client with all provided data
-    const client = await db.client.create({
-      data: {
-        clientCode,
-        companyName: body.companyName,
-        companyType: body.companyType,
-        companyNumber: body.companyNumber || null,
-        companyStatus: body.companyStatus || null,
-        companyStatusDetail: body.companyStatusDetail || null,
-        incorporationDate: body.incorporationDate ? new Date(body.incorporationDate) : null,
-        cessationDate: body.cessationDate ? new Date(body.cessationDate) : null,
-        registeredOfficeAddress: body.registeredOfficeAddress || null,
-        sicCodes: Array.isArray(body.sicCodes) 
-          ? JSON.stringify(body.sicCodes)
-          : typeof body.sicCodes === 'string' 
-            ? body.sicCodes 
-            : null,
-        nextAccountsDue: body.nextAccountsDue ? new Date(body.nextAccountsDue) : null,
-        lastAccountsMadeUpTo: body.lastAccountsMadeUpTo ? new Date(body.lastAccountsMadeUpTo) : null,
-        accountingReferenceDate: body.accountingReferenceDate || null,
-        nextConfirmationDue: body.nextConfirmationDue ? new Date(body.nextConfirmationDue) : null,
-        lastConfirmationMadeUpTo: body.lastConfirmationMadeUpTo ? new Date(body.lastConfirmationMadeUpTo) : null,
-        jurisdiction: body.jurisdiction || null,
-        hasBeenLiquidated: body.hasBeenLiquidated || false,
-        hasCharges: body.hasCharges || false,
-        hasInsolvencyHistory: body.hasInsolvencyHistory || false,
-        // Officers and PSC data
-        officers: body.officers ? JSON.stringify(body.officers) : null,
-        personsWithSignificantControl: body.personsWithSignificantControl ? JSON.stringify(body.personsWithSignificantControl) : null,
-        contactName: body.contactName || 'To Be Updated',
-        contactEmail: body.contactEmail || 'contact@tobeupdated.com',
-        contactPhone: body.contactPhone || null,
-        website: body.website || null,
-        yearEstablished: body.yearEstablished ? parseInt(body.yearEstablished) : null,
-        numberOfEmployees: body.numberOfEmployees ? parseInt(body.numberOfEmployees) : null,
-        annualTurnover: body.annualTurnover ? parseFloat(body.annualTurnover) : null,
-        assignedUserId: body.assignedUserId || null,
-        notes: body.notes || null,
-        isActive: body.isActive !== undefined ? body.isActive : true,
-      },
+    // Create client with all provided data using retry logic
+    const client = await executeWithRetry(async () => {
+      return await db.client.create({
+        data: {
+          clientCode,
+          companyName: body.companyName,
+          companyType: body.companyType,
+          companyNumber: body.companyNumber || null,
+          companyStatus: body.companyStatus || null,
+          companyStatusDetail: body.companyStatusDetail || null,
+          incorporationDate: body.incorporationDate ? new Date(body.incorporationDate) : null,
+          cessationDate: body.cessationDate ? new Date(body.cessationDate) : null,
+          registeredOfficeAddress: body.registeredOfficeAddress || null,
+          sicCodes: Array.isArray(body.sicCodes) 
+            ? JSON.stringify(body.sicCodes)
+            : typeof body.sicCodes === 'string' 
+              ? body.sicCodes 
+              : null,
+          nextAccountsDue: body.nextAccountsDue ? new Date(body.nextAccountsDue) : null,
+          lastAccountsMadeUpTo: body.lastAccountsMadeUpTo ? new Date(body.lastAccountsMadeUpTo) : null,
+          accountingReferenceDate: body.accountingReferenceDate || null,
+          nextConfirmationDue: body.nextConfirmationDue ? new Date(body.nextConfirmationDue) : null,
+          lastConfirmationMadeUpTo: body.lastConfirmationMadeUpTo ? new Date(body.lastConfirmationMadeUpTo) : null,
+          jurisdiction: body.jurisdiction || null,
+          hasBeenLiquidated: body.hasBeenLiquidated || false,
+          hasCharges: body.hasCharges || false,
+          hasInsolvencyHistory: body.hasInsolvencyHistory || false,
+          // Officers and PSC data
+          officers: body.officers ? JSON.stringify(body.officers) : null,
+          personsWithSignificantControl: body.personsWithSignificantControl ? JSON.stringify(body.personsWithSignificantControl) : null,
+          contactName: body.contactName || 'To Be Updated',
+          contactEmail: body.contactEmail || 'contact@tobeupdated.com',
+          contactPhone: body.contactPhone || null,
+          website: body.website || null,
+          yearEstablished: body.yearEstablished ? parseInt(body.yearEstablished) : null,
+          numberOfEmployees: body.numberOfEmployees ? parseInt(body.numberOfEmployees) : null,
+          annualTurnover: body.annualTurnover ? parseFloat(body.annualTurnover) : null,
+          assignedUserId: body.assignedUserId || null,
+          notes: body.notes || null,
+          isActive: body.isActive !== undefined ? body.isActive : true,
+        },
+      })
     })
 
     return NextResponse.json({
