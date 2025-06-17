@@ -153,36 +153,57 @@ export default async function StaffDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Recent Activities */}
-          <Card className="shadow-professional">
-            <CardHeader>
-              <CardTitle className="text-base md:text-lg">Recent Activities</CardTitle>
-              <CardDescription className="text-xs md:text-sm">
-                Your recent actions and updates
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {recentActivities.length > 0 ? (
-                <div className="space-y-2">
-                  {recentActivities.map((activity) => (
-                    <div key={activity.id} className="flex justify-between items-center p-2 rounded-sm border border-border">
-                      <div>
-                        <p className="text-sm font-medium">{activity.action}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {activity.client?.companyName || 'System'} • {new Date(activity.timestamp).toLocaleDateString()}
-                        </p>
+          {/* Quick Actions */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="shadow-professional">
+              <CardHeader>
+                <CardTitle className="text-base md:text-lg">Recent Activities</CardTitle>
+                <CardDescription className="text-xs md:text-sm">
+                  Your recent actions and updates
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {recentActivities.length > 0 ? (
+                  <div className="space-y-2">
+                    {recentActivities.map((activity) => (
+                      <div key={activity.id} className="flex justify-between items-center p-2 rounded-sm border border-border">
+                        <div>
+                          <p className="text-sm font-medium">{activity.action}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {activity.client?.companyName || 'System'} • {new Date(activity.timestamp).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span className="status-badge bg-muted text-muted-foreground text-xs">
+                          {activity.resource}
+                        </span>
                       </div>
-                      <span className="status-badge bg-muted text-muted-foreground text-xs">
-                        {activity.resource}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No recent activities</p>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No recent activities</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-professional">
+              <CardHeader>
+                <CardTitle className="text-base md:text-lg">Deadline Calendar</CardTitle>
+                <CardDescription className="text-xs md:text-sm">
+                  Visual calendar of your client deadlines
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  View all your client deadlines in an easy-to-use calendar format with multiple view options.
+                </p>
+                <Button className="btn-primary w-full" asChild>
+                  <Link href="/dashboard/calendar">
+                    View Calendar
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

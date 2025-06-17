@@ -157,6 +157,22 @@ export default async function ManagerDashboardPage() {
                   </Link>
                 </CardContent>
               </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Deadline Calendar</CardTitle>
+                  <CardDescription>
+                    Visual calendar of all client deadlines
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/calendar">
+                    <Button className="w-full">
+                      View Calendar
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
@@ -208,6 +224,22 @@ export default async function ManagerDashboardPage() {
                   <Link href="/dashboard/clients">
                     <Button className="w-full">
                       View All Clients
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Deadline Calendar</CardTitle>
+                  <CardDescription>
+                    Visual calendar of all client deadlines
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href="/dashboard/calendar">
+                    <Button className="w-full">
+                      View Calendar
                     </Button>
                   </Link>
                 </CardContent>

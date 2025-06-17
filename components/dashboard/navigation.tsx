@@ -13,7 +13,8 @@ import {
   Settings, 
   LogOut,
   Menu,
-  X
+  X,
+  Calendar
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -50,6 +51,11 @@ export function DashboardNavigation() {
         name: 'Clients',
         href: '/dashboard/clients',
         icon: Building2,
+      },
+      {
+        name: 'Calendar',
+        href: '/dashboard/calendar',
+        icon: Calendar,
       },
       {
         name: 'Communications',
