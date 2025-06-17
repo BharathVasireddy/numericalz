@@ -7,7 +7,7 @@ import {
   UserPlus, 
   Edit, 
   Trash2, 
-  MoreHorizontal,
+  Settings,
   Building2,
   Calendar,
   AlertTriangle,
@@ -28,6 +28,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -40,6 +41,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { CreateTeamMemberForm } from './create-team-member-form'
+import { EditTeamMemberForm } from './edit-team-member-form'
 
 interface TeamMember {
   id: string
@@ -68,7 +70,9 @@ interface TeamManagementProps {
 export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
   const [users, setUsers] = useState<TeamMember[]>(initialUsers)
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showEditForm, setShowEditForm] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [userToEdit, setUserToEdit] = useState<TeamMember | null>(null)
   const [userToDelete, setUserToDelete] = useState<TeamMember | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -82,6 +86,11 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
     } catch (error) {
       console.error('Error refreshing users:', error)
     }
+  }
+
+  const handleEditUser = (user: TeamMember) => {
+    setUserToEdit(user)
+    setShowEditForm(true)
   }
 
   const handleDeleteUser = async () => {
@@ -158,75 +167,54 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
 
   const getUpcomingDeadlines = (user: TeamMember) => {
     const now = new Date()
-    const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000))
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
     
-    let upcomingAccounts = 0
-    let upcomingCS = 0
     let overdueAccounts = 0
     let overdueCS = 0
-    
+    let upcomingAccounts = 0
+    let upcomingCS = 0
+
     user.assignedClients.forEach(client => {
       if (client.nextAccountsDue) {
-        const accountsDate = new Date(client.nextAccountsDue)
-        if (accountsDate < now) {
+        const accountsDue = new Date(client.nextAccountsDue)
+        if (accountsDue < now) {
           overdueAccounts++
-        } else if (accountsDate <= thirtyDaysFromNow) {
+        } else if (accountsDue <= sevenDaysFromNow) {
           upcomingAccounts++
         }
       }
-      
+
       if (client.nextConfirmationDue) {
-        const csDate = new Date(client.nextConfirmationDue)
-        if (csDate < now) {
+        const confirmationDue = new Date(client.nextConfirmationDue)
+        if (confirmationDue < now) {
           overdueCS++
-        } else if (csDate <= thirtyDaysFromNow) {
+        } else if (confirmationDue <= sevenDaysFromNow) {
           upcomingCS++
         }
       }
     })
-    
-    return { upcomingAccounts, upcomingCS, overdueAccounts, overdueCS }
+
+    return { overdueAccounts, overdueCS, upcomingAccounts, upcomingCS }
   }
 
   const getDailyWorkload = (user: TeamMember) => {
-    const deadlines = getUpcomingDeadlines(user)
-    const totalUrgent = deadlines.overdueAccounts + deadlines.overdueCS
-    const totalUpcoming = deadlines.upcomingAccounts + deadlines.upcomingCS
-    
-    // Estimate daily tasks based on client count and upcoming deadlines
-    const baseDaily = Math.ceil(user._count.assignedClients / 30) // Assume monthly touch-base
-    const urgentDaily = totalUrgent // Urgent items need immediate attention
-    const upcomingDaily = Math.ceil(totalUpcoming / 7) // Spread upcoming over a week
-    
-    return Math.max(1, baseDaily + urgentDaily + upcomingDaily)
+    const clientCount = user._count.assignedClients
+    if (clientCount === 0) return 'No clients'
+    if (clientCount <= 5) return 'Light'
+    if (clientCount <= 10) return 'Moderate'
+    return 'Heavy'
   }
 
-  const isDateOverdue = (date: Date | null) => {
-    if (!date) return false
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    return new Date(date) < today
-  }
-
-  const getWorkloadColor = (count: number) => {
-    if (count === 0) return 'bg-gray-100 text-gray-600'
-    if (count <= 3) return 'bg-green-100 text-green-700'
-    if (count <= 6) return 'bg-yellow-100 text-yellow-700'
-    return 'bg-red-100 text-red-700'
+  const getWorkloadColor = (clientCount: number) => {
+    if (clientCount === 0) return 'bg-gray-100 text-gray-800'
+    if (clientCount <= 5) return 'bg-green-100 text-green-800'
+    if (clientCount <= 10) return 'bg-yellow-100 text-yellow-800'
+    return 'bg-red-100 text-red-800'
   }
 
   const activeUsers = users.filter(u => u.isActive)
   const inactiveUsers = users.filter(u => !u.isActive)
-
-  const totalClients = activeUsers.reduce((sum, user) => sum + user._count.assignedClients, 0)
-  const totalUpcomingDeadlines = activeUsers.reduce((sum, user) => {
-    const deadlines = getUpcomingDeadlines(user)
-    return sum + deadlines.upcomingAccounts + deadlines.upcomingCS
-  }, 0)
-  const totalOverdueDeadlines = activeUsers.reduce((sum, user) => {
-    const deadlines = getUpcomingDeadlines(user)
-    return sum + deadlines.overdueAccounts + deadlines.overdueCS
-  }, 0)
+  const totalClients = users.reduce((sum, user) => sum + user._count.assignedClients, 0)
 
   return (
     <>
@@ -241,9 +229,9 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
           </div>
           <Button
             onClick={() => setShowCreateForm(true)}
-            className="btn-primary"
+            className="btn-primary flex items-center gap-2"
           >
-            <UserPlus className="h-4 w-4 mr-2" />
+            <UserPlus className="h-4 w-4" />
             Add Team Member
           </Button>
         </div>
@@ -279,16 +267,15 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming Deadlines</CardTitle>
+            <CardTitle className="text-sm font-medium">Avg. Workload</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{totalUpcomingDeadlines}</div>
+            <div className="text-2xl font-bold">
+              {activeUsers.length > 0 ? Math.round(totalClients / activeUsers.length) : 0}
+            </div>
             <p className="text-xs text-muted-foreground">
-              {totalOverdueDeadlines > 0 && (
-                <span className="text-red-600 font-medium">{totalOverdueDeadlines} overdue</span>
-              )}
-              {totalOverdueDeadlines === 0 && "All on track"}
+              Clients per active member
             </p>
           </CardContent>
         </Card>
@@ -299,10 +286,10 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
-            Team Members ({users.length})
+            Team Members
           </CardTitle>
           <CardDescription>
-            View team member workload statistics and manage assignments
+            Manage team member details, roles, and client assignments
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -337,9 +324,9 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                       <TableCell>
                         <Badge variant={user.role === 'MANAGER' ? 'default' : 'secondary'}>
                           {user.role === 'MANAGER' ? (
-                            <Shield className="h-3 w-3 mr-1" />
+                            <Shield className="h-3 w-3 mr-1.5" />
                           ) : (
-                            <User className="h-3 w-3 mr-1" />
+                            <User className="h-3 w-3 mr-1.5" />
                           )}
                           {user.role}
                         </Badge>
@@ -353,13 +340,9 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                         <span className="font-medium">{user._count.assignedClients}</span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{dailyLoad}</span>
-                          <Badge className={getWorkloadColor(dailyLoad)}>
-                            {dailyLoad <= 3 ? 'Light' :
-                             dailyLoad <= 6 ? 'Moderate' : 'Heavy'}
-                          </Badge>
-                        </div>
+                        <Badge className={getWorkloadColor(user._count.assignedClients)}>
+                          {dailyLoad}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <span className={`text-sm ${
@@ -373,67 +356,82 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="space-y-1">
-                          {(deadlines.overdueAccounts > 0 || deadlines.overdueCS > 0) && (
-                            <div className="flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3 text-red-500" />
-                              <span className="text-xs text-red-600 font-medium">
-                                {deadlines.overdueAccounts + deadlines.overdueCS} overdue
-                              </span>
-                            </div>
-                          )}
-                          {(deadlines.upcomingAccounts > 0 || deadlines.upcomingCS > 0) && (
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3 text-amber-500" />
-                              <span className="text-xs text-amber-600">
-                                {deadlines.upcomingAccounts + deadlines.upcomingCS} upcoming
-                              </span>
-                            </div>
-                          )}
-                          {deadlines.overdueAccounts === 0 && deadlines.overdueCS === 0 && 
-                           deadlines.upcomingAccounts === 0 && deadlines.upcomingCS === 0 && (
-                            <span className="text-xs text-green-600">All clear</span>
-                          )}
+                        <div className="flex items-center gap-1">
+                          {(() => {
+                            const overdue = deadlines.overdueAccounts + deadlines.overdueCS
+                            const upcoming = deadlines.upcomingAccounts + deadlines.upcomingCS
+                            
+                            if (overdue > 0) {
+                              return (
+                                <Badge variant="destructive" className="text-xs">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  {overdue} overdue
+                                </Badge>
+                              )
+                            }
+                            if (upcoming > 0) {
+                              return (
+                                <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">
+                                  <Calendar className="h-3 w-3 mr-1" />
+                                  {upcoming} upcoming
+                                </Badge>
+                              )
+                            }
+                            return (
+                              <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                                All clear
+                              </Badge>
+                            )
+                          })()}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
+                              <Settings className="h-4 w-4" />
+                              <span className="sr-only">Open menu</span>
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Edit className="h-4 w-4 mr-2" />
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem 
+                              onClick={() => handleEditUser(user)}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <Edit className="h-4 w-4" />
                               Edit Details
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => handleToggleUserStatus(user.id, user.isActive)}
+                              className="flex items-center gap-2 cursor-pointer"
                             >
                               {user.isActive ? (
                                 <>
-                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  <Trash2 className="h-4 w-4" />
                                   Deactivate
                                 </>
                               ) : (
                                 <>
-                                  <UserPlus className="h-4 w-4 mr-2" />
+                                  <UserPlus className="h-4 w-4" />
                                   Activate
                                 </>
                               )}
                             </DropdownMenuItem>
                             {user.role !== 'MANAGER' && (
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setUserToDelete(user)
-                                  setShowDeleteDialog(true)
-                                }}
-                                className="text-red-600"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setUserToDelete(user)
+                                    setShowDeleteDialog(true)
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -447,108 +445,125 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-4">
-            {users.map((user) => {
-              const deadlines = getUpcomingDeadlines(user)
-              const dailyLoad = getDailyWorkload(user)
-              
-              return (
-                <Card key={user.id} className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-medium">{user.name}</h3>
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleToggleUserStatus(user.id, user.isActive)}
-                        >
-                          {user.isActive ? 'Deactivate' : 'Activate'}
-                        </DropdownMenuItem>
-                        {user.role !== 'MANAGER' && (
+            {users.map((user) => (
+              <Card key={user.id} className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="font-medium">{user.name}</h3>
+                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
+                        <Settings className="h-4 w-4" />
+                        <span className="sr-only">Open menu</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem 
+                        onClick={() => handleEditUser(user)}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <Edit className="h-4 w-4" />
+                        Edit Details
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => handleToggleUserStatus(user.id, user.isActive)}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        {user.isActive ? (
+                          <>
+                            <Trash2 className="h-4 w-4" />
+                            Deactivate
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="h-4 w-4" />
+                            Activate
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                      {user.role !== 'MANAGER' && (
+                        <>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => {
                               setUserToDelete(user)
                               setShowDeleteDialog(true)
                             }}
-                            className="text-red-600"
+                            className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
                           >
+                            <Trash2 className="h-4 w-4" />
                             Delete
                           </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Role:</span>
-                      <Badge variant={user.role === 'MANAGER' ? 'default' : 'secondary'}>
-                        {user.role}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Status:</span>
-                      <Badge variant={user.isActive ? 'default' : 'secondary'}>
-                        {user.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Clients:</span>
-                      <span className="font-medium">{user._count.assignedClients}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Daily Load:</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{dailyLoad}</span>
-                        <Badge className={getWorkloadColor(dailyLoad)}>
-                          {dailyLoad <= 3 ? 'Light' :
-                           dailyLoad <= 6 ? 'Moderate' : 'Heavy'}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Last Login:</span>
-                      <span className={`text-xs ${
-                        user.lastLoginAt && new Date(user.lastLoginAt).getTime() > Date.now() - (24 * 60 * 60 * 1000)
-                          ? 'text-green-600' 
-                          : user.lastLoginAt 
-                            ? 'text-muted-foreground'
-                            : 'text-red-500'
-                      }`}>
-                        {formatLastLogin(user.lastLoginAt)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Deadlines:</span>
-                      <div className="text-xs">
-                        {(() => {
-                          const overdue = deadlines.overdueAccounts + deadlines.overdueCS
-                          const upcoming = deadlines.upcomingAccounts + deadlines.upcomingCS
-                          
-                          if (overdue > 0) {
-                            return <span className="text-red-600 font-medium">{overdue} overdue</span>
-                          }
-                          if (upcoming > 0) {
-                            return <span className="text-amber-600">{upcoming} upcoming</span>
-                          }
-                          return <span className="text-green-600">All clear</span>
-                        })()}
-                      </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Role:</span>
+                    <Badge variant={user.role === 'MANAGER' ? 'default' : 'secondary'}>
+                      {user.role === 'MANAGER' ? (
+                        <Shield className="h-3 w-3 mr-1.5" />
+                      ) : (
+                        <User className="h-3 w-3 mr-1.5" />
+                      )}
+                      {user.role}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Status:</span>
+                    <Badge variant={user.isActive ? 'default' : 'secondary'}>
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Clients:</span>
+                    <span className="font-medium">{user._count.assignedClients}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Workload:</span>
+                    <Badge className={getWorkloadColor(user._count.assignedClients)}>
+                      {getDailyWorkload(user)}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Last Login:</span>
+                    <span className={`text-xs ${
+                      user.lastLoginAt && new Date(user.lastLoginAt).getTime() > Date.now() - (24 * 60 * 60 * 1000)
+                        ? 'text-green-600' 
+                        : user.lastLoginAt 
+                          ? 'text-muted-foreground'
+                          : 'text-red-500'
+                    }`}>
+                      {formatLastLogin(user.lastLoginAt)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Deadlines:</span>
+                    <div className="text-xs">
+                      {(() => {
+                        const deadlines = getUpcomingDeadlines(user)
+                        const overdue = deadlines.overdueAccounts + deadlines.overdueCS
+                        const upcoming = deadlines.upcomingAccounts + deadlines.upcomingCS
+                        
+                        if (overdue > 0) {
+                          return <span className="text-red-600 font-medium">{overdue} overdue</span>
+                        }
+                        if (upcoming > 0) {
+                          return <span className="text-amber-600">{upcoming} upcoming</span>
+                        }
+                        return <span className="text-green-600">All clear</span>
+                      })()}
                     </div>
                   </div>
-                </Card>
-              )
-            })}
+                </div>
+              </Card>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -563,6 +578,26 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
             }}
             onCancel={() => setShowCreateForm(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Team Member Dialog */}
+      <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+        <DialogContent className="max-w-md">
+          {userToEdit && (
+            <EditTeamMemberForm
+              user={userToEdit}
+              onSuccess={() => {
+                setShowEditForm(false)
+                setUserToEdit(null)
+                refreshUsers()
+              }}
+              onCancel={() => {
+                setShowEditForm(false)
+                setUserToEdit(null)
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

@@ -5,7 +5,28 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { showToast } from '@/lib/toast'
 import { debounce } from '@/lib/utils'
-import { MoreHorizontal, Eye, Edit, UserPlus, Building2, Mail, Phone, RefreshCw, Calendar, AlertTriangle, UserX } from 'lucide-react'
+import {
+  Eye,
+  Edit,
+  UserPlus,
+  UserX,
+  RefreshCw,
+  Settings,
+  Building2,
+  Calendar,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Filter,
+  Search,
+  Download,
+  Upload,
+  RotateCcw,
+  Loader2,
+  Mail,
+  Phone
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -14,6 +35,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
 import {
   Dialog,
@@ -546,43 +568,59 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   <td className="p-3 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
+                          <Settings className="h-4 w-4" />
+                          <span className="sr-only">Open menu</span>
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}`)}>
-                          <Eye className="h-4 w-4 mr-2" />
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem 
+                          onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <Eye className="h-4 w-4" />
                           View Client
                         </DropdownMenuItem>
                         {session?.user?.role === 'MANAGER' && (
                           <>
-                            <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}>
-                              <Edit className="h-4 w-4 mr-2" />
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <Edit className="h-4 w-4" />
                               Edit Client
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleAssignUser(client)}>
-                              <UserPlus className="h-4 w-4 mr-2" />
+                            <DropdownMenuItem 
+                              onClick={() => handleAssignUser(client)}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <UserPlus className="h-4 w-4" />
                               Assign User
                             </DropdownMenuItem>
                             {client.isActive && (
-                              <DropdownMenuItem onClick={() => handleResignClient(client)}>
-                                <UserX className="h-4 w-4 mr-2" />
+                              <DropdownMenuItem 
+                                onClick={() => handleResignClient(client)}
+                                className="flex items-center gap-2 cursor-pointer"
+                              >
+                                <UserX className="h-4 w-4" />
                                 Resign Client
                               </DropdownMenuItem>
                             )}
                           </>
                         )}
                         {client.companyNumber && (
-                          <DropdownMenuItem onClick={() => handleRefreshCompaniesHouse(client)}>
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Refetch from CH
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleRefreshCompaniesHouse(client)}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                              Refetch from CH
+                            </DropdownMenuItem>
+                          </>
                         )}
-                        <DropdownMenuItem>
-                          <Mail className="h-4 w-4 mr-2" />
-                          Send Email
-                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -681,38 +719,58 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   <td className="p-3 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
+                          <Settings className="h-4 w-4" />
+                          <span className="sr-only">Open menu</span>
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}`)}>
-                          <Eye className="h-4 w-4 mr-2" />
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem 
+                          onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <Eye className="h-4 w-4" />
                           View Client
                         </DropdownMenuItem>
                         {session?.user?.role === 'MANAGER' && (
                           <>
-                            <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}>
-                              <Edit className="h-4 w-4 mr-2" />
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <Edit className="h-4 w-4" />
                               Edit Client
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleAssignUser(client)}>
-                              <UserPlus className="h-4 w-4 mr-2" />
+                            <DropdownMenuItem 
+                              onClick={() => handleAssignUser(client)}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <UserPlus className="h-4 w-4" />
                               Assign User
                             </DropdownMenuItem>
                             {client.isActive && (
-                              <DropdownMenuItem onClick={() => handleResignClient(client)}>
-                                <UserX className="h-4 w-4 mr-2" />
+                              <DropdownMenuItem 
+                                onClick={() => handleResignClient(client)}
+                                className="flex items-center gap-2 cursor-pointer"
+                              >
+                                <UserX className="h-4 w-4" />
                                 Resign Client
                               </DropdownMenuItem>
                             )}
                           </>
                         )}
                         {client.companyNumber && (
-                          <DropdownMenuItem onClick={() => handleRefreshCompaniesHouse(client)}>
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Refetch from CH
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleRefreshCompaniesHouse(client)}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                              Refetch from CH
+                            </DropdownMenuItem>
+                          </>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -746,38 +804,58 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <MoreHorizontal className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
+                      <Settings className="h-4 w-4" />
+                      <span className="sr-only">Open menu</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}`)}>
-                      <Eye className="h-4 w-4 mr-2" />
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem 
+                      onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <Eye className="h-4 w-4" />
                       View Client
                     </DropdownMenuItem>
                     {session?.user?.role === 'MANAGER' && (
                       <>
-                        <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}>
-                          <Edit className="h-4 w-4 mr-2" />
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <Edit className="h-4 w-4" />
                           Edit Client
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleAssignUser(client)}>
-                          <UserPlus className="h-4 w-4 mr-2" />
+                        <DropdownMenuItem 
+                          onClick={() => handleAssignUser(client)}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <UserPlus className="h-4 w-4" />
                           Assign User
                         </DropdownMenuItem>
                         {client.isActive && (
-                          <DropdownMenuItem onClick={() => handleResignClient(client)}>
-                            <UserX className="h-4 w-4 mr-2" />
+                          <DropdownMenuItem 
+                            onClick={() => handleResignClient(client)}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <UserX className="h-4 w-4" />
                             Resign Client
                           </DropdownMenuItem>
                         )}
                       </>
                     )}
                     {client.companyNumber && (
-                      <DropdownMenuItem onClick={() => handleRefreshCompaniesHouse(client)}>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Refetch from CH
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => handleRefreshCompaniesHouse(client)}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          Refetch from CH
+                        </DropdownMenuItem>
+                      </>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>

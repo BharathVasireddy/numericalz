@@ -232,50 +232,95 @@
     @apply btn bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/95;
   }
   
-  /* Compact Card System */
-  .card {
-    @apply rounded-sm border bg-card text-card-foreground shadow-sm;
+  /* Action Button Styles - Enhanced for better UX */
+  .action-btn {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs md:text-sm font-medium transition-all duration-200;
+    @apply h-8 md:h-9 px-3 md:px-4 rounded-sm;
+    @apply focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring;
+    @apply disabled:pointer-events-none disabled:opacity-50;
+    @apply hover:bg-accent hover:text-accent-foreground;
   }
   
-  .card-header {
-    @apply flex flex-col space-y-1 p-4 md:p-6;
+  .action-btn-icon {
+    @apply h-4 w-4 flex-shrink-0;
   }
   
-  .card-title {
-    @apply text-base md:text-lg font-semibold leading-tight tracking-tight;
+  /* Dropdown Menu Enhancements */
+  .dropdown-menu-item {
+    @apply flex items-center gap-2 cursor-pointer;
+    @apply px-3 py-2 text-sm;
+    @apply transition-colors duration-150;
+    @apply hover:bg-accent hover:text-accent-foreground;
+    @apply focus:bg-accent focus:text-accent-foreground;
+    @apply active:bg-accent/80;
   }
   
-  .card-description {
-    @apply text-xs md:text-sm text-muted-foreground leading-normal;
+  .dropdown-menu-item-icon {
+    @apply h-4 w-4 flex-shrink-0;
   }
   
-  .card-content {
-    @apply p-4 md:p-6 pt-0;
+  .dropdown-menu-separator {
+    @apply my-1 h-px bg-border;
   }
   
-  .card-footer {
-    @apply flex items-center p-4 md:p-6 pt-0;
+  /* Icon and Text Spacing Utilities */
+  .icon-text-gap {
+    @apply gap-2;
   }
   
-  /* Modern Form System */
+  .icon-text-gap-sm {
+    @apply gap-1.5;
+  }
+  
+  .icon-text-gap-lg {
+    @apply gap-3;
+  }
+  
+  /* Badge Enhancements */
+  .badge-with-icon {
+    @apply inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-sm;
+  }
+  
+  .badge-icon {
+    @apply h-3 w-3 flex-shrink-0;
+  }
+  
+  /* Form Field System */
   .form-field {
-    @apply space-y-1.5;
+    @apply space-y-2;
   }
   
   .form-label {
-    @apply text-xs md:text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70;
+    @apply flex items-center gap-2 text-xs md:text-sm font-medium leading-none;
+    @apply peer-disabled:cursor-not-allowed peer-disabled:opacity-70;
+  }
+  
+  .form-label-icon {
+    @apply h-4 w-4 text-muted-foreground;
   }
   
   .input-field {
-    @apply flex h-8 md:h-9 w-full rounded-sm border border-input bg-background px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm transition-colors file:border-0 file:bg-transparent file:text-xs file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
-  }
-  
-  .textarea-field {
-    @apply flex min-h-[60px] md:min-h-[80px] w-full rounded-sm border border-input bg-background px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
+    @apply flex h-8 md:h-9 w-full rounded-sm border border-input bg-background px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm transition-colors;
+    @apply file:border-0 file:bg-transparent file:text-xs md:file:text-sm file:font-medium;
+    @apply placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring;
+    @apply disabled:cursor-not-allowed disabled:opacity-50;
   }
   
   .select-field {
     @apply flex h-8 md:h-9 w-full items-center justify-between rounded-sm border border-input bg-background px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm transition-colors placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  
+  /* Table Enhancements */
+  .table-action-cell {
+    @apply text-right p-3;
+  }
+  
+  .table-action-btn {
+    @apply h-8 w-8 p-0 hover:bg-accent transition-colors duration-150;
+  }
+  
+  .table-action-icon {
+    @apply h-4 w-4;
   }
   
   /* Compact Status System */
@@ -334,6 +379,11 @@
     @apply focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1;
   }
   
+  /* Card Hover Effects */
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-md hover:border-accent;
+  }
+  
   /* DEPRECATED - Use new layout system instead */
   .container-padding {
     @apply px-4 md:px-6 lg:px-8;
@@ -348,20 +398,20 @@
   }
   
   /* Professional Table Styles */
-  .table {
-    @apply w-full border-collapse border-spacing-0;
+  .table-container {
+    @apply border rounded-md;
   }
   
-  .table th {
-    @apply border-b border-border bg-muted/50 px-2 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-medium text-muted-foreground;
+  .table-header {
+    @apply border-b bg-muted/50;
   }
   
-  .table td {
-    @apply border-b border-border px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm;
+  .table-cell {
+    @apply p-3 align-middle;
   }
   
-  .table tr:hover {
-    @apply bg-muted/50;
+  .table-cell-compact {
+    @apply p-2 align-middle text-xs md:text-sm;
   }
 }
 
