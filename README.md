@@ -11,9 +11,12 @@ The Numericalz Internal Management System is a production-ready application desi
 ### 🏢 Client Management
 - **Companies House Integration**: Automatic company data retrieval and updates
 - **Comprehensive Client Profiles**: Contact details, statutory dates, and business information
+- **Smart Client Codes**: Auto-generated sequential codes (NZ-1, NZ-2, NZ-3...)
+- **Contact Management**: Click-to-action email and phone icons for instant communication
 - **Client Assignment System**: Assign clients to team members with workload tracking
 - **Bulk Operations**: Mass assign, refresh, or resign clients
 - **Advanced Search & Filtering**: Find clients quickly with multiple search criteria
+- **Responsive Table Design**: Optimized layouts for desktop, tablet, and mobile
 
 ### 📊 Dashboard & Analytics
 - **Role-Based Dashboards**: Separate views for managers and staff
@@ -37,7 +40,9 @@ The Numericalz Internal Management System is a production-ready application desi
 - **Responsive Design**: Mobile-first approach with Tailwind CSS
 - **ShadCN/UI Components**: Consistent, accessible component library
 - **Standardized Layout System**: Consistent spacing and layout across all pages
-- **Dark/Light Mode Support**: User preference-based theming
+- **Contact Icons**: Intuitive email and phone icons with hover effects
+- **Fixed Table Layout**: No horizontal scrolling, content fits viewport
+- **Action Icons**: Consistent sizing and styling across all components
 
 ## 🛠️ Technology Stack
 
@@ -46,6 +51,7 @@ The Numericalz Internal Management System is a production-ready application desi
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first CSS framework
 - **ShadCN/UI** - Modern component library
+- **Lucide React** - Modern icon library
 - **Framer Motion** - Smooth animations
 
 ### Backend
@@ -120,20 +126,38 @@ numericalz/
 │   ├── (auth)/            # Authentication routes
 │   ├── (dashboard)/       # Protected dashboard routes
 │   ├── api/               # API endpoints
+│   │   ├── clients/       # Client management APIs
+│   │   │   ├── [id]/      # Individual client operations
+│   │   │   │   ├── assign/        # User assignment
+│   │   │   │   ├── reassign/      # User reassignment
+│   │   │   │   ├── resign/        # Client resignation
+│   │   │   │   └── refresh-companies-house/  # CH data refresh
+│   │   │   ├── bulk-assign/       # Bulk user assignment
+│   │   │   ├── bulk-resign/       # Bulk resignation
+│   │   │   ├── bulk-refresh/      # Bulk CH refresh
+│   │   │   └── export/            # Data export
+│   │   ├── companies-house/       # Companies House integration
+│   │   ├── users/                 # User management APIs
+│   │   └── auth/                  # Authentication APIs
 │   ├── dashboard/         # Dashboard pages
-│   └── globals.css        # Global styles
+│   └── globals.css        # Global styles with layout system
 ├── components/            # React components
 │   ├── auth/              # Authentication components
 │   ├── clients/           # Client management components
+│   │   ├── clients-table.tsx      # Main clients table with contact icons
+│   │   ├── assign-user-modal.tsx  # User assignment modal
+│   │   └── bulk-operations.tsx    # Bulk operations component
 │   ├── dashboard/         # Dashboard components
 │   ├── layout/            # Layout components
+│   │   └── page-layout.tsx        # Standardized page layouts
 │   ├── teams/             # Team management components
-│   └── ui/                # Reusable UI components
+│   └── ui/                # Reusable UI components (ShadCN)
 ├── lib/                   # Utility libraries
 │   ├── auth.ts            # Authentication configuration
 │   ├── companies-house.ts # Companies House API client
-│   ├── db.ts              # Database connection
-│   └── utils.ts           # General utilities
+│   ├── db.ts              # Database connection with retry logic
+│   ├── utils.ts           # General utilities
+│   └── validations.ts     # Zod validation schemas
 ├── prisma/                # Database schema and migrations
 ├── types/                 # TypeScript type definitions
 └── docs/                  # Documentation
@@ -164,9 +188,17 @@ The system uses NextAuth.js with credentials provider:
 ### Client Management Workflow
 1. **Add Client**: Search Companies House or enter manually
 2. **Auto-populate**: Company data filled automatically from CH API
-3. **Assign Team Member**: Distribute workload across team
-4. **Track Deadlines**: Monitor accounts and confirmation statement dates
-5. **Refresh Data**: Update with latest Companies House information
+3. **Generate Client Code**: Sequential codes (NZ-1, NZ-2, etc.)
+4. **Assign Team Member**: Distribute workload across team
+5. **Contact Management**: Email and phone icons for direct communication
+6. **Track Deadlines**: Monitor accounts and confirmation statement dates
+7. **Refresh Data**: Update with latest Companies House information
+
+### Contact Management Features
+- **Email Icons**: Click to open default email client with pre-filled recipient
+- **Phone Icons**: Click to initiate phone calls on mobile devices
+- **Hover Tooltips**: Display full contact information on hover
+- **Responsive Design**: Icons work consistently across all device sizes
 
 ### Team Management
 - **Managers**: Full access to all clients and team management
@@ -193,9 +225,26 @@ The system uses NextAuth.js with credentials provider:
 
 The application is fully responsive with:
 - **Mobile-first approach**: Optimized for mobile devices
+- **Fixed Table Layout**: No horizontal scrolling, content fits viewport
+- **Contact Icons**: Touch-friendly icons for mobile communication
 - **Tablet support**: Enhanced layouts for medium screens
 - **Desktop optimization**: Full feature access on large screens
-- **Touch-friendly**: Proper touch targets and interactions
+- **Consistent Spacing**: Standardized layout system across all pages
+
+## 🎨 Design System
+
+### Layout System
+- **Page Container**: `.page-container` - Main page wrapper with consistent padding
+- **Content Wrapper**: `.content-wrapper` - Content container with max-width and centering
+- **Content Sections**: `.content-sections` - Sections wrapper with consistent spacing
+- **Page Header**: `.page-header` - Standardized page header with bottom border
+
+### Component Standards
+- **Action Icons**: Consistent sizing (h-4 w-4) with hover effects
+- **Contact Icons**: Email and phone icons with click functionality
+- **Button Heights**: Standardized at 32px (h-8) for consistency
+- **Color Scheme**: Semantic colors (primary, secondary, muted-foreground)
+- **Typography**: Consistent font sizes and weights
 
 ## 🚀 Deployment
 

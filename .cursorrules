@@ -3,15 +3,40 @@
 ## 🎯 Project Overview
 This is the Numericalz Internal Management System - a UK-based accounting firm management platform built with Next.js 14, TypeScript, Prisma, and PostgreSQL.
 
-## 📋 Core Development Principles
+## 🚨 CRITICAL PROTECTION RULES - READ FIRST
 
-### 🚫 CRITICAL: NEVER REMOVE CODE OR FUNCTIONALITY
-- NEVER delete existing functions, components, or features without explicit approval
-- NEVER remove imports, exports, or dependencies that are being used
-- ALWAYS preserve existing functionality when refactoring
-- ALWAYS add comments explaining why code is being modified
+### 🛡️ ABSOLUTE NEVER DELETE RULES
+- **NEVER** delete any existing functionality without explicit user approval
+- **NEVER** remove working APIs, components, or database operations
+- **NEVER** change existing API response formats or data structures
+- **NEVER** remove imports, exports, or dependencies that are being used
+- **NEVER** modify working authentication or authorization logic
+- **NEVER** change database schema without migration strategy
+- **NEVER** remove existing client management features
+- **NEVER** alter working contact management (email/phone icons)
+- **NEVER** change responsive design or layout systems
+- **NEVER** remove client assignment functionality
+
+### 🔒 FUNCTIONALITY PRESERVATION MANDATE
+- **ALWAYS** preserve existing functionality when refactoring
+- **ALWAYS** maintain backward compatibility
+- **ALWAYS** test functionality before and after changes
+- **ALWAYS** add comments explaining why code is being modified
+- **ALWAYS** use deprecation warnings before removing features
+- **ALWAYS** backup critical sections before major changes
 - If code seems unused, comment it out with a note rather than deleting it
-- ALWAYS backup critical sections before major changes
+
+### 🚫 FORBIDDEN MODIFICATIONS WITHOUT APPROVAL
+- Client code generation logic (NZ-1, NZ-2 format)
+- Contact icon functionality (email/phone click actions)
+- User assignment system and API endpoints
+- Responsive table design and layout
+- Authentication and session management
+- Database connection and retry logic
+- Companies House API integration
+- Layout system and CSS classes
+
+## 📋 Core Development Principles
 
 ### 🔒 Code Preservation Rules
 - When refactoring, ALWAYS maintain backward compatibility
@@ -51,7 +76,20 @@ app/
 ├── (auth)/           # Authentication routes
 ├── (dashboard)/      # Protected dashboard routes
 ├── api/             # API routes
-├── globals.css      # Global styles
+│   ├── clients/     # Client management APIs
+│   │   ├── [id]/    # Individual client operations
+│   │   │   ├── assign/        # User assignment
+│   │   │   ├── reassign/      # User reassignment
+│   │   │   ├── resign/        # Client resignation
+│   │   │   └── refresh-companies-house/  # CH data refresh
+│   │   ├── bulk-assign/       # Bulk user assignment
+│   │   ├── bulk-resign/       # Bulk resignation
+│   │   ├── bulk-refresh/      # Bulk CH refresh
+│   │   └── export/            # Data export
+│   ├── companies-house/       # Companies House integration
+│   ├── users/                 # User management APIs
+│   └── auth/                  # Authentication APIs
+├── globals.css      # Global styles with layout system
 ├── layout.tsx       # Root layout
 └── page.tsx         # Home page
 
@@ -60,12 +98,16 @@ components/
 ├── forms/           # Form components
 ├── dashboard/       # Dashboard-specific components
 ├── clients/         # Client management components
+│   ├── clients-table.tsx      # Main clients table with contact icons
+│   ├── assign-user-modal.tsx  # User assignment modal
+│   └── bulk-operations.tsx    # Bulk operations component
 ├── layout/          # Layout components
+│   └── page-layout.tsx        # Standardized page layouts
 └── shared/          # Shared components
 
 lib/
 ├── auth.ts          # Authentication utilities
-├── db.ts            # Database connection
+├── db.ts            # Database connection with retry logic
 ├── companies-house.ts # Companies House API
 ├── email.ts         # Email utilities
 ├── utils.ts         # General utilities
@@ -81,23 +123,38 @@ lib/
 
 ## 🎨 UI/UX Guidelines
 
-### Design System
+### Design System Standards
 - Use Tailwind CSS exclusively for styling
 - Use ShadCN/UI components as base components
 - Maintain consistent spacing using Tailwind spacing scale
 - Use semantic color classes (e.g., `text-primary`, `bg-secondary`)
 - Implement proper focus states for accessibility
 
-### Component Architecture
+### Component Architecture Standards
 - Create reusable components in components/ui/
 - Use compound components for complex UI patterns
 - Implement proper loading and error states
 - Use Framer Motion for animations consistently
 - Maintain consistent button heights and spacing
 
-### Responsive Design
+### Contact Management Standards
+- **Email Icons**: Use Mail icon from Lucide React
+- **Phone Icons**: Use Phone icon from Lucide React
+- **Click Actions**: Email opens mailto:, Phone opens tel:
+- **Icon Sizing**: Consistent h-3 w-3 for contact icons
+- **Hover Effects**: text-muted-foreground hover:text-foreground
+- **Tooltips**: Show full contact info with title attribute
+
+### Action Icon Standards
+- **Consistent Sizing**: h-4 w-4 for all action icons
+- **Button Container**: h-8 w-8 p-0 for icon buttons
+- **CSS Class**: Use .action-trigger-icon for consistent styling
+- **Hover States**: Smooth transitions with proper color changes
+
+### Responsive Design Rules
 - Mobile-first approach using Tailwind responsive prefixes
-- Test on mobile, tablet, and desktop breakpoints
+- **NO HORIZONTAL SCROLLING** - Content must fit viewport
+- **Fixed Table Layout**: Use table-fixed for consistent columns
 - Use proper touch targets (minimum 44px)
 - Implement proper keyboard navigation
 
@@ -107,6 +164,8 @@ lib/
 - **ALWAYS** use the standardized layout system for ALL pages
 - **NEVER** use old layout classes (`container-padding`, `section-spacing`, `content-spacing`)
 - **ALWAYS** use new layout components for consistency
+- **NEVER** create horizontal scrolling
+- **ALWAYS** ensure content fits within viewport
 
 ### Required Layout Structure for ALL Pages
 ```tsx
@@ -148,6 +207,19 @@ export default function MyPage() {
 - `.content-wrapper` - Content container with max-width and centering
 - `.content-sections` - Sections wrapper with consistent spacing
 - `.page-header` - Standardized page header with bottom border
+- `.action-trigger-icon` - Consistent action icon styling
+
+### Table Layout Standards
+- **Use table-fixed**: Prevents horizontal scrolling
+- **Column Widths**: Specific widths for each column type
+  - Client Code: w-20 (80px)
+  - Company Number: w-24 (96px)
+  - Company Name: w-48 (192px) - Main content column
+  - Dates: w-20 or w-24 (80-96px)
+  - Contact: w-20 (80px) - For contact icons
+  - Assigned To: w-32 (128px)
+  - Actions: w-16 (64px)
+- **Text Truncation**: Use truncate with title tooltips
 
 ### Max Width Options
 - `sm` - 672px (forms, simple pages)
@@ -174,12 +246,11 @@ export default function MyPage() {
 
 ## 🗄️ Database & API Standards
 
-### Prisma Guidelines
-- Use descriptive model names in PascalCase
-- Include proper relations with clear foreign keys
-- Use proper field types (DateTime, UUID, etc.)
-- Include created_at and updated_at on all models
-- Use enums for status fields
+### Client Code Generation Rules
+- **Format**: NZ-1, NZ-2, NZ-3, etc. (sequential numbering)
+- **Function**: generateClientCode() in app/api/clients/route.ts
+- **Logic**: Find last NZ- code, increment by 1
+- **NEVER** change this format without explicit approval
 
 ### API Route Standards
 - Use proper HTTP methods (GET, POST, PUT, DELETE)
@@ -195,6 +266,20 @@ export default function MyPage() {
   message?: string
 }
 ```
+
+### Client Assignment API Rules
+- **Endpoint**: POST /api/clients/[id]/assign
+- **Body Parameter**: { userId: string | null }
+- **NEVER** change parameter name from 'userId'
+- **Response**: Include updated client with assignedUser data
+- **Authentication**: Require MANAGER role
+
+### Prisma Guidelines
+- Use descriptive model names in PascalCase
+- Include proper relations with clear foreign keys
+- Use proper field types (DateTime, UUID, etc.)
+- Include created_at and updated_at on all models
+- Use enums for status fields
 
 ### Authentication Rules
 - Use NextAuth.js for authentication
@@ -291,15 +376,26 @@ export default function MyPage() {
 - Ensure proper TypeScript usage
 - Check for performance implications
 - **VERIFY LAYOUT CONSISTENCY** - Ensure new pages use standardized layout system
+- **VERIFY NO HORIZONTAL SCROLLING** - Test responsive design
+- **VERIFY CONTACT ICONS** - Ensure email/phone functionality works
 
 ## 🎯 Business Logic Guidelines
 
-### Client Management
+### Client Management Rules
 - Always validate company numbers with Companies House API
 - Implement proper client assignment workflows
 - Maintain audit trails for client changes
 - Use proper date handling for UK accounting periods
 - Implement proper client status tracking
+- **PRESERVE** contact management functionality (email/phone icons)
+- **MAINTAIN** client code generation (NZ-X format)
+
+### Contact Management Rules
+- **Email Icons**: Must open mailto: links
+- **Phone Icons**: Must open tel: links
+- **Responsive**: Icons must work on all device sizes
+- **Accessibility**: Include proper titles and hover states
+- **Consistency**: Same styling across desktop/tablet/mobile
 
 ### Task Management
 - Use proper deadline tracking and notifications
@@ -363,15 +459,60 @@ export default function MyPage() {
 - Implement proper alerting
 - Use proper dashboard visualization
 
+## 🔐 CURRENT FUNCTIONALITY PROTECTION
+
+### Contact Management (PROTECTED)
+- Email icons with mailto: functionality
+- Phone icons with tel: functionality
+- Hover effects and tooltips
+- Responsive design across all breakpoints
+
+### Client Code Generation (PROTECTED)
+- NZ-1, NZ-2, NZ-3 sequential format
+- generateClientCode() function logic
+- Database query for last client code
+
+### User Assignment (PROTECTED)
+- POST /api/clients/[id]/assign endpoint
+- userId parameter in request body
+- AssignUserModal component functionality
+
+### Responsive Design (PROTECTED)
+- Fixed table layout without horizontal scrolling
+- Proper column widths and text truncation
+- Mobile/tablet/desktop breakpoints
+
+### Layout System (PROTECTED)
+- Standardized CSS classes
+- PageLayout components
+- Consistent spacing and padding
+
 ---
 
-## 🎯 REMEMBER: PRESERVATION & CONSISTENCY FIRST
-- When in doubt, preserve existing functionality
-- Always ask before removing seemingly unused code
-- Comment extensively when making significant changes
-- Test thoroughly before deploying changes
-- Maintain backward compatibility whenever possible
-- **ALWAYS use the standardized layout system for new pages**
-- **NEVER use deprecated layout classes in new code**
+## 🎯 FINAL REMINDER: ABSOLUTE PROTECTION RULES
+
+### NEVER DO THESE WITHOUT EXPLICIT APPROVAL:
+1. Delete any existing functionality
+2. Remove working APIs or endpoints
+3. Change client code generation format
+4. Remove contact icon functionality
+5. Alter responsive design or create horizontal scrolling
+6. Modify user assignment system
+7. Change authentication or authorization logic
+8. Remove layout system components
+9. Delete database operations or queries
+10. Change API response formats
+
+### ALWAYS DO THESE:
+1. Preserve existing functionality when refactoring
+2. Test thoroughly before deploying changes
+3. Use standardized layout system for new pages
+4. Maintain responsive design without horizontal scrolling
+5. Follow contact icon standards for new implementations
+6. Use consistent action icon sizing
+7. Implement proper error handling
+8. Document all changes thoroughly
+9. Follow TypeScript best practices
+10. Maintain backward compatibility
 
 These rules ensure code consistency, maintainability, reliability, and visual consistency while preserving all existing functionality throughout the development process. 
