@@ -1,13 +1,9 @@
-import { Metadata } from 'next'
+'use client'
+
 import Link from 'next/link'
 import { AlertTriangle, Home, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-
-export const metadata: Metadata = {
-  title: '404 - Page Not Found | Numericalz',
-  description: 'The page you are looking for could not be found.',
-}
 
 export default function NotFound() {
   return (
