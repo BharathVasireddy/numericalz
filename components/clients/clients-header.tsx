@@ -138,7 +138,7 @@ export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersC
                 placeholder="Search clients by name, company number, or email..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="pl-10 input-field"
+                className="pl-12 input-field"
               />
             </div>
           </div>

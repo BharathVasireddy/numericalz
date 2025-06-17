@@ -290,9 +290,31 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
     console.log('Resign client:', client.id)
   }
 
-  const handleRefreshCompaniesHouse = (client: Client) => {
-    // Handle individual client refresh from Companies House
-    console.log('Refresh Companies House data for:', client.id)
+  const handleRefreshCompaniesHouse = async (client: Client) => {
+    if (!client.companyNumber) {
+      toast.error('No company number available for refresh')
+      return
+    }
+
+    try {
+      toast.loading('Refreshing Companies House data...', { id: `refresh-${client.id}` })
+      
+      const response = await fetch(`/api/clients/${client.id}/refresh-companies-house`, {
+        method: 'POST',
+      })
+      
+      if (response.ok) {
+        toast.success('Companies House data refreshed successfully', { id: `refresh-${client.id}` })
+        // Refresh the clients list to show updated data
+        fetchClients()
+      } else {
+        const error = await response.json()
+        toast.error(`Failed to refresh: ${error.error || 'Unknown error'}`, { id: `refresh-${client.id}` })
+      }
+    } catch (error) {
+      console.error('Error refreshing Companies House data:', error)
+      toast.error('Error refreshing Companies House data', { id: `refresh-${client.id}` })
+    }
   }
 
   const handleAssignSuccess = () => {
@@ -532,6 +554,18 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                             )}
                           </>
                         )}
+                        {client.companyNumber && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleRefreshCompaniesHouse(client)}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                              Refresh from Companies House
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -671,6 +705,18 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                             )}
                           </>
                         )}
+                        {client.companyNumber && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleRefreshCompaniesHouse(client)}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                              Refresh from Companies House
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -742,6 +788,18 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                             Resign Client
                           </DropdownMenuItem>
                         )}
+                      </>
+                    )}
+                    {client.companyNumber && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => handleRefreshCompaniesHouse(client)}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                          Refresh from Companies House
+                        </DropdownMenuItem>
                       </>
                     )}
                   </DropdownMenuContent>
