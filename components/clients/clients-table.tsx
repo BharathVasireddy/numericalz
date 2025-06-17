@@ -112,27 +112,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
   const { data: session } = useSession()
   const router = useRouter()
 
-  // Debounced fetch function
-  const debouncedFetchClients = useCallback(
-    debounce(() => {
-      fetchClients()
-    }, 300), // 300ms delay
-    [searchQuery, filters, sortBy, sortOrder]
-  )
-
-  useEffect(() => {
-    if (session?.user?.role === 'MANAGER') {
-      fetchUsers()
-    }
-  }, [session])
-
-  useEffect(() => {
-    if (session) {
-      debouncedFetchClients()
-    }
-  }, [session, searchQuery, filters, sortBy, sortOrder, debouncedFetchClients])
-
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     try {
       setLoading(true)
       
@@ -169,7 +149,29 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchQuery, filters, sortBy, sortOrder])
+
+  useEffect(() => {
+    if (session?.user?.role === 'MANAGER') {
+      fetchUsers()
+    }
+  }, [session])
+
+  // Debounced fetch effect - separate from the debounced function to avoid dependency issues
+  useEffect(() => {
+    if (!session) return
+
+    const debouncedFetch = debounce(() => {
+      fetchClients()
+    }, 300)
+
+    debouncedFetch()
+
+    // Cleanup function to cancel pending debounced calls
+    return () => {
+      debouncedFetch.cancel()
+    }
+  }, [session, fetchClients])
 
   const fetchUsers = async () => {
     try {
@@ -192,13 +194,6 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
       setSortOrder('asc')
     }
   }
-
-  // Refetch when sorting changes
-  useEffect(() => {
-    if (session) {
-      fetchClients()
-    }
-  }, [sortBy, sortOrder])
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
