@@ -64,7 +64,7 @@ export function AssignUserModal({ client, users, isOpen, onClose, onSuccess }: A
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ assignedUserId: selectedUserId === 'unassigned' ? null : selectedUserId }),
+        body: JSON.stringify({ userId: selectedUserId === 'unassigned' ? null : selectedUserId }),
       })
 
       const data = await response.json()

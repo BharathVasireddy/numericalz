@@ -26,7 +26,9 @@ import {
   Loader2,
   Mail,
   Phone,
-  MoreHorizontal
+  MoreHorizontal,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -391,8 +393,8 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
 
       <Card className="overflow-hidden">
         {/* Desktop Table */}
-        <div className="hidden lg:block overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="hidden lg:block">
+          <table className="w-full text-sm table-fixed">
             <thead className="bg-muted/50 border-b border-border">
               <tr>
                 {session?.user?.role === 'MANAGER' && (
@@ -405,54 +407,48 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   </th>
                 )}
                 <th 
-                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground"
+                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground w-20"
                   onClick={() => handleSort('clientCode')}
                 >
                   Client Code
                 </th>
                 <th 
-                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground"
+                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground w-24"
                   onClick={() => handleSort('companyNumber')}
                 >
                   Company No.
                 </th>
                 <th 
-                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground"
+                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground w-48"
                   onClick={() => handleSort('companyName')}
                 >
                   Company Name
                 </th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground">
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground w-20">
                   Year End
                 </th>
                 <th 
-                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground"
+                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground w-24"
                   onClick={() => handleSort('nextAccountsDue')}
                 >
                   Accounts Due
                 </th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground">
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground w-20">
                   CT Due
                 </th>
                 <th 
-                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground"
+                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground w-24"
                   onClick={() => handleSort('nextConfirmationDue')}
                 >
                   CS Due
                 </th>
-                <th 
-                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground"
-                  onClick={() => handleSort('contactEmail')}
-                >
-                  Email
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground w-20">
+                  Contact
                 </th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground">
-                  Work Status
-                </th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground">
+                <th className="text-left p-3 text-xs font-medium text-muted-foreground w-32">
                   Assigned To
                 </th>
-                <th className="text-right p-3 text-xs font-medium text-muted-foreground">
+                <th className="text-right p-3 text-xs font-medium text-muted-foreground w-16">
                   Actions
                 </th>
               </tr>
@@ -480,9 +476,9 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                     </span>
                   </td>
                   <td className="p-3">
-                    <div className="max-w-[200px]">
-                      <div className="font-medium text-sm truncate">{client.companyName}</div>
-                      <div className="text-xs text-muted-foreground">
+                    <div className="w-full">
+                      <div className="font-medium text-sm truncate" title={client.companyName}>{client.companyName}</div>
+                      <div className="text-xs text-muted-foreground truncate">
                         {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' :
                          client.companyType === 'NON_LIMITED_COMPANY' ? 'Non Ltd' :
                          client.companyType === 'DIRECTOR' ? 'Director' :
@@ -530,27 +526,35 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                     </div>
                   </td>
                   <td className="p-3">
-                    <div className="flex items-center gap-1">
-                      <Mail className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs truncate max-w-[120px]">
-                        {client.contactEmail || '-'}
-                      </span>
+                    <div className="flex items-center gap-2">
+                      {client.contactEmail && (
+                        <button
+                          onClick={() => window.open(`mailto:${client.contactEmail}`, '_blank')}
+                          className="p-1 hover:bg-accent rounded transition-colors"
+                          title={client.contactEmail}
+                        >
+                          <Mail className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                        </button>
+                      )}
+                      {client.contactPhone && (
+                        <button
+                          onClick={() => window.open(`tel:${client.contactPhone}`, '_blank')}
+                          className="p-1 hover:bg-accent rounded transition-colors"
+                          title={client.contactPhone}
+                        >
+                          <Phone className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                        </button>
+                      )}
+                      {!client.contactEmail && !client.contactPhone && (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
                     </div>
-                  </td>
-                  <td className="p-3">
-                    <span className={`status-badge text-xs ${
-                      client.isActive 
-                        ? 'bg-green-100 text-green-700 border-green-200' 
-                        : 'bg-gray-100 text-gray-600 border-gray-200'
-                    }`}>
-                      {client.isActive ? 'Active' : 'Inactive'}
-                    </span>
                   </td>
                   <td className="p-3">
                     {client.assignedUser ? (
                       <div className="text-xs">
-                        <div className="font-medium">{client.assignedUser.name}</div>
-                        <div className="text-muted-foreground">{client.assignedUser.email}</div>
+                        <div className="font-medium truncate" title={client.assignedUser.name}>{client.assignedUser.name}</div>
+                        <div className="text-muted-foreground truncate" title={client.assignedUser.email}>{client.assignedUser.email}</div>
                       </div>
                     ) : (
                       <span className="text-xs text-muted-foreground">Unassigned</span>
@@ -560,7 +564,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
+                          <MoreHorizontal className="action-trigger-icon" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -630,7 +634,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
+                        <MoreHorizontal className="action-trigger-icon" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -680,7 +684,40 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   </DropdownMenu>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 text-xs">
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Year End:</span>
+                    <div className="font-medium">{getYearEnd(client.accountingReferenceDate)}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Contact:</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      {client.contactEmail && (
+                        <button
+                          onClick={() => window.open(`mailto:${client.contactEmail}`, '_blank')}
+                          className="p-1 hover:bg-accent rounded transition-colors"
+                          title={client.contactEmail}
+                        >
+                          <Mail className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                        </button>
+                      )}
+                      {client.contactPhone && (
+                        <button
+                          onClick={() => window.open(`tel:${client.contactPhone}`, '_blank')}
+                          className="p-1 hover:bg-accent rounded transition-colors"
+                          title={client.contactPhone}
+                        >
+                          <Phone className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                        </button>
+                      )}
+                      {!client.contactEmail && !client.contactPhone && (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
                     <span className="text-muted-foreground">Accounts Due:</span>
                     <div className={`font-mono ${
@@ -734,7 +771,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
+                        <MoreHorizontal className="action-trigger-icon" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -804,6 +841,32 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                     }`}>
                       {formatDate(client.nextConfirmationDue)}
                     </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Contact:</span>
+                    <div className="flex items-center gap-2">
+                      {client.contactEmail && (
+                        <button
+                          onClick={() => window.open(`mailto:${client.contactEmail}`, '_blank')}
+                          className="p-1 hover:bg-accent rounded transition-colors"
+                          title={client.contactEmail}
+                        >
+                          <Mail className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                        </button>
+                      )}
+                      {client.contactPhone && (
+                        <button
+                          onClick={() => window.open(`tel:${client.contactPhone}`, '_blank')}
+                          className="p-1 hover:bg-accent rounded transition-colors"
+                          title={client.contactPhone}
+                        >
+                          <Phone className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                        </button>
+                      )}
+                      {!client.contactEmail && !client.contactPhone && (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 

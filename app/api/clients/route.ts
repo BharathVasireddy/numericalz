@@ -48,14 +48,12 @@ const createClientSchema = z.object({
  * Generate a unique client code with retry logic
  */
 async function generateClientCode(): Promise<string> {
-  const currentYear = new Date().getFullYear()
-  
-  // Get the last client code for this year with retry logic
+  // Get the last client code with retry logic
   const lastClient = await executeWithRetry(async () => {
     return await db.client.findFirst({
       where: {
         clientCode: {
-          startsWith: `CLI${currentYear}-`
+          startsWith: 'NZ-'
         }
       },
       orderBy: {
@@ -66,13 +64,13 @@ async function generateClientCode(): Promise<string> {
 
   let nextNumber = 1
   if (lastClient?.clientCode) {
-    const match = lastClient.clientCode.match(/CLI\d{4}-(\d+)/)
+    const match = lastClient.clientCode.match(/NZ-(\d+)/)
     if (match && match[1]) {
       nextNumber = parseInt(match[1]) + 1
     }
   }
 
-  return `CLI${currentYear}-${nextNumber.toString().padStart(3, '0')}`
+  return `NZ-${nextNumber}`
 }
 
 /**
