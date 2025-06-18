@@ -677,4 +677,50 @@
 
 .toast-progress-bar {
   animation: toast-progress 3s linear;
+}
+
+/* ===== VAT DEADLINE TABLE COLUMNS ===== */
+.col-vat-client-code {
+  @apply w-16; /* Very compact for client codes like NZ-1, NZ-2 */
+}
+
+.col-vat-company-name {
+  @apply w-56; /* Main content column - larger but controlled */
+}
+
+.col-vat-frequency {
+  @apply w-20; /* Compact for frequency badges */
+}
+
+.col-vat-next-due {
+  @apply w-24; /* Date column - compact */
+}
+
+.col-vat-status {
+  @apply w-40; /* Status column - medium width for workflow stages */
+}
+
+.col-vat-contact {
+  @apply w-16; /* Contact icons - very compact */
+}
+
+.col-vat-assigned {
+  @apply w-28; /* Assigned to - compact for names */
+}
+
+.col-vat-actions {
+  @apply w-14; /* Actions dropdown - minimal */
+}
+
+/* ===== COMPACT TABLE UTILITIES ===== */
+.table-compact {
+  @apply text-xs; /* Smaller text for compact layout */
+}
+
+.table-compact .table-body-cell {
+  @apply py-2 px-2; /* Reduced padding */
+}
+
+.table-compact .table-header-cell {
+  @apply py-2 px-2; /* Reduced padding */
 } 

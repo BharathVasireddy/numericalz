@@ -248,7 +248,7 @@ export function VATDeadlineTable() {
   }
 
   const getFrequencyBadge = (frequency?: string, quarterGroup?: string) => {
-    if (!frequency) return <Badge variant="outline">Not set</Badge>
+    if (!frequency) return <Badge variant="outline" className="text-xs">Not set</Badge>
     
     const colors = {
       'QUARTERLY': 'bg-blue-100 text-blue-800 border-blue-200',
@@ -256,11 +256,15 @@ export function VATDeadlineTable() {
       'ANNUALLY': 'bg-purple-100 text-purple-800 border-purple-200'
     }
     
+    // Compact display text
     const displayText = frequency === 'QUARTERLY' && quarterGroup 
-      ? `Quarterly (${quarterGroup})`
-      : frequency.charAt(0) + frequency.slice(1).toLowerCase()
+      ? `Q (${quarterGroup.replace('_', '/')})`
+      : frequency === 'QUARTERLY' ? 'Q'
+      : frequency === 'MONTHLY' ? 'M'
+      : frequency === 'ANNUALLY' ? 'A'
+      : frequency.charAt(0)
     
-    return <Badge variant="outline" className={colors[frequency as keyof typeof colors] || ''}>
+    return <Badge variant="outline" className={`text-xs ${colors[frequency as keyof typeof colors] || ''}`}>
       {displayText}
     </Badge>
   }
@@ -330,7 +334,7 @@ export function VATDeadlineTable() {
   const formatWorkflowStage = (stage: string) => {
     const stageMap: { [key: string]: { label: string; color: string; icon: React.ReactNode } } = {
       'CLIENT_BOOKKEEPING': { 
-        label: 'Awaiting Records', 
+        label: 'Records', 
         color: 'bg-gray-100 text-gray-800 border-gray-200',
         icon: <FileText className="h-3 w-3" />
       },
@@ -340,17 +344,17 @@ export function VATDeadlineTable() {
         icon: <TrendingUp className="h-3 w-3" />
       },
       'QUERIES_PENDING': { 
-        label: 'Queries Pending', 
+        label: 'Queries', 
         color: 'bg-amber-100 text-amber-800 border-amber-200',
         icon: <AlertTriangle className="h-3 w-3" />
       },
       'REVIEW_PENDING_MANAGER': { 
-        label: 'Manager Review', 
+        label: 'Manager', 
         color: 'bg-purple-100 text-purple-800 border-purple-200',
         icon: <Users className="h-3 w-3" />
       },
       'REVIEW_PENDING_PARTNER': { 
-        label: 'Partner Review', 
+        label: 'Partner', 
         color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
         icon: <Target className="h-3 w-3" />
       },
@@ -365,12 +369,12 @@ export function VATDeadlineTable() {
         icon: <Mail className="h-3 w-3" />
       },
       'CLIENT_APPROVED': { 
-        label: 'Client Approved', 
+        label: 'Approved', 
         color: 'bg-green-100 text-green-800 border-green-200',
         icon: <CheckCircle className="h-3 w-3" />
       },
       'FILED_TO_HMRC': { 
-        label: 'Filed to HMRC', 
+        label: 'Filed', 
         color: 'bg-green-100 text-green-800 border-green-200',
         icon: <CheckCircle className="h-3 w-3" />
       }
@@ -383,7 +387,7 @@ export function VATDeadlineTable() {
     }
     
     return (
-      <Badge variant="outline" className={`flex items-center gap-1 ${stageInfo.color}`}>
+      <Badge variant="outline" className={`flex items-center gap-1 text-xs ${stageInfo.color}`}>
         {stageInfo.icon}
         {stageInfo.label}
       </Badge>
@@ -398,16 +402,11 @@ export function VATDeadlineTable() {
       case 'workflow':
         return (
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               {status.stage && formatWorkflowStage(status.stage)}
-              {status.workflowAssignee && (
-                <span className="text-xs text-muted-foreground">
-                  • {status.workflowAssignee.name}
-                </span>
-              )}
             </div>
             <div className="text-xs text-muted-foreground">
-              Quarter ends in {status.daysUntilQuarterEnd} days • Filing due in {status.daysUntilFiling} days
+              Q: {status.daysUntilQuarterEnd}d • Filing: {status.daysUntilFiling}d
             </div>
           </div>
         )
@@ -415,12 +414,12 @@ export function VATDeadlineTable() {
       case 'current_quarter':
         return (
           <div className="space-y-1">
-            <Badge variant="outline" className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200">
+            <Badge variant="outline" className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200 text-xs">
               <Calendar className="h-3 w-3" />
-              Current Quarter
+              Current Q
             </Badge>
             <div className="text-xs text-muted-foreground">
-              Quarter ends in {status.daysUntilQuarterEnd} days • Filing due in {status.daysUntilFiling} days
+              Q: {status.daysUntilQuarterEnd}d • Filing: {status.daysUntilFiling}d
             </div>
           </div>
         )
@@ -428,12 +427,12 @@ export function VATDeadlineTable() {
       case 'filing_period':
         return (
           <div className="space-y-1">
-            <Badge variant="outline" className="flex items-center gap-1 bg-amber-50 text-amber-700 border-amber-200">
+            <Badge variant="outline" className="flex items-center gap-1 bg-amber-50 text-amber-700 border-amber-200 text-xs">
               <Clock className="h-3 w-3" />
               Filing Period
             </Badge>
             <div className="text-xs text-muted-foreground">
-              Quarter ended • Filing due in {status.daysUntilFiling} days
+              Due in {status.daysUntilFiling}d
             </div>
           </div>
         )
@@ -441,12 +440,12 @@ export function VATDeadlineTable() {
       case 'filing_overdue':
         return (
           <div className="space-y-1">
-            <Badge variant="destructive" className="flex items-center gap-1">
+            <Badge variant="destructive" className="flex items-center gap-1 text-xs">
               <AlertTriangle className="h-3 w-3" />
-              Filing Overdue
+              Overdue
             </Badge>
             <div className="text-xs text-red-600">
-              {status.daysOverdue} days overdue
+              {status.daysOverdue}d overdue
             </div>
           </div>
         )
@@ -457,7 +456,7 @@ export function VATDeadlineTable() {
             {getStatusBadge(status.status)}
             {status.nextDue && (
               <div className="text-xs text-muted-foreground">
-                Next due: {formatDate(status.nextDue)}
+                Due: {formatDate(status.nextDue)}
               </div>
             )}
           </div>
@@ -687,31 +686,31 @@ export function VATDeadlineTable() {
             <div className="clients-table-container">
               {/* Desktop Table */}
               <div className="hidden lg:block">
-                <table className="table-fixed-layout">
+                <table className="table-fixed-layout table-compact">
                   <thead>
                     <tr className="table-header-row">
-                      <SortableHeader sortKey="clientCode" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients}>
-                        Client Code
+                      <SortableHeader sortKey="clientCode" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-client-code">
+                        Code
                       </SortableHeader>
-                      <SortableHeader sortKey="companyName" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients}>
+                      <SortableHeader sortKey="companyName" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-company-name">
                         Company Name
                       </SortableHeader>
-                      <SortableHeader sortKey="vatReturnsFrequency" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="w-24">
-                        Frequency
+                      <SortableHeader sortKey="vatReturnsFrequency" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-frequency">
+                        Freq
                       </SortableHeader>
-                      <SortableHeader sortKey="nextVatReturnDue" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients}>
+                      <SortableHeader sortKey="nextVatReturnDue" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-next-due">
                         Next Due
                       </SortableHeader>
-                      <SortableHeader sortKey="status" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="w-48">
-                        Current Status
+                      <SortableHeader sortKey="status" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-status">
+                        Status
                       </SortableHeader>
-                      <SortableHeader sortKey="contactEmail" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-contact">
+                      <SortableHeader sortKey="contactEmail" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-contact">
                         Contact
                       </SortableHeader>
-                      <SortableHeader sortKey="assignedUser" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-assigned-to">
-                        Assigned To
+                      <SortableHeader sortKey="assignedUser" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-assigned">
+                        Assigned
                       </SortableHeader>
-                      <th className="table-header-cell col-actions text-right">
+                      <th className="table-header-cell col-vat-actions text-right">
                         Actions
                       </th>
                     </tr>
@@ -827,8 +826,9 @@ export function VATDeadlineTable() {
                           <td className="table-body-cell">
                             {client.assignedUser ? (
                               <div className="text-xs">
-                                <div className="font-medium truncate" title={client.assignedUser.name}>{client.assignedUser.name}</div>
-                                <div className="text-muted-foreground truncate" title={client.assignedUser.email}>{client.assignedUser.email}</div>
+                                <div className="font-medium truncate" title={`${client.assignedUser.name} (${client.assignedUser.email})`}>
+                                  {client.assignedUser.name}
+                                </div>
                               </div>
                             ) : (
                               <span className="text-xs text-muted-foreground">Unassigned</span>
