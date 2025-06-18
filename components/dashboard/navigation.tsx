@@ -15,7 +15,8 @@ import {
   Menu,
   X,
   Calendar,
-  Briefcase
+  Briefcase,
+  BarChart3
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -116,6 +117,11 @@ export function DashboardNavigation() {
         name: 'VAT Deadlines',
         href: '/dashboard/clients/vat-dt',
         icon: Calendar,
+      },
+      {
+        name: 'VAT Analytics',
+        href: '/dashboard/clients/vat-analytics',
+        icon: BarChart3,
       },
     ]
 

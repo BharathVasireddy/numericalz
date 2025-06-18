@@ -17,6 +17,7 @@ import Link from 'next/link'
 import { showToast } from '@/lib/toast'
 import { calculateVATQuarter, getDaysUntilVATDeadline, calculateDaysBetween } from '@/lib/vat-workflow'
 import { VATWorkflowModal } from './vat-workflow-modal'
+import { VATBulkOperations } from './vat-bulk-operations'
 
 interface VATClient {
   id: string
@@ -586,6 +587,11 @@ export function VATDeadlineTable() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <VATBulkOperations 
+            clients={vatClients}
+            availableUsers={availableUsers}
+            onComplete={refreshVATClients}
+          />
           <Button 
             variant="outline" 
             size="sm" 
