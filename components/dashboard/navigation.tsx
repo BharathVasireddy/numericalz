@@ -258,8 +258,30 @@ export function DashboardNavigation() {
                       {/* Section Items */}
                       {section.items?.map((item) => {
                         const Icon = item.icon
-                        const isActive = pathname === item.href || 
-                          (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                        // More precise active state detection
+                        const isActive = (() => {
+                          // Exact match
+                          if (pathname === item.href) return true
+                          
+                          // Special case for dashboard - only exact match
+                          if (item.href.endsWith('/dashboard') || item.href.endsWith('/dashboard/staff') || 
+                              item.href.endsWith('/dashboard/manager') || item.href.endsWith('/dashboard/partner')) {
+                            return pathname === item.href
+                          }
+                          
+                          // Special case for main clients page - only exact match
+                          if (item.href === '/dashboard/clients') {
+                            return pathname === '/dashboard/clients'
+                          }
+                          
+                          // For sub-pages, check if current path starts with the item href
+                          // but ensure we're not matching a parent when a more specific child exists
+                          if (pathname.startsWith(item.href + '/') || pathname.startsWith(item.href + '?')) {
+                            return true
+                          }
+                          
+                          return false
+                        })()
 
                         return (
                           <Link

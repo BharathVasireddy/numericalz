@@ -1,0 +1,158 @@
+{
+  "timestamp": "2025-06-18T07:17:42.841Z",
+  "database": {
+    "users": {
+      "count": 3,
+      "records": [
+        {
+          "id": "cmc1lu8jz000010shwvzgbw4y",
+          "email": "partner@numericalz.co.uk",
+          "name": "Test Partner",
+          "role": "PARTNER",
+          "isActive": true,
+          "createdAt": "2025-06-18T07:02:27.023Z",
+          "updatedAt": "2025-06-18T07:02:27.023Z"
+        },
+        {
+          "id": "cmc1lu9xz000110shd2p9tj1x",
+          "email": "admin@numericalz.co.uk",
+          "name": "Test Manager",
+          "role": "MANAGER",
+          "isActive": true,
+          "createdAt": "2025-06-18T07:02:28.823Z",
+          "updatedAt": "2025-06-18T07:02:28.823Z"
+        },
+        {
+          "id": "cmc1luatd000210shxx6kyh8q",
+          "email": "staff@numericalz.co.uk",
+          "name": "Test Staff",
+          "role": "STAFF",
+          "isActive": true,
+          "createdAt": "2025-06-18T07:02:29.953Z",
+          "updatedAt": "2025-06-18T07:02:29.953Z"
+        }
+      ]
+    },
+    "clients": {
+      "count": 2,
+      "records": [
+        {
+          "id": "cmc1lfcoi0005i31phlz8lzyq",
+          "clientCode": "NZ-1",
+          "companyName": "NUMERICALZ ADMIN SERVICES LTD",
+          "companyNumber": "13868206",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-06-18T06:50:52.530Z",
+          "updatedAt": "2025-06-18T06:50:52.530Z"
+        },
+        {
+          "id": "cmc1luboh000410sh7fjjojj4",
+          "clientCode": null,
+          "companyName": "Test Company Ltd",
+          "companyNumber": "12345678",
+          "assignedUserId": "cmc1lu9xz000110shd2p9tj1x",
+          "isActive": true,
+          "createdAt": "2025-06-18T07:02:31.073Z",
+          "updatedAt": "2025-06-18T07:02:31.073Z"
+        }
+      ]
+    },
+    "userSettings": {
+      "count": 0,
+      "records": []
+    },
+    "communications": {
+      "count": 1
+    },
+    "notifications": {
+      "count": 0
+    },
+    "activityLogs": {
+      "count": 0
+    }
+  },
+  "foreignKeyConstraints": [
+    {
+      "table_name": "accounts",
+      "constraint_name": "accounts_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "activity_logs",
+      "constraint_name": "activity_logs_clientId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "clientId",
+      "foreign_table_name": "clients",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "activity_logs",
+      "constraint_name": "activity_logs_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "clients",
+      "constraint_name": "clients_assignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "assignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "communications",
+      "constraint_name": "communications_clientId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "clientId",
+      "foreign_table_name": "clients",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "communications",
+      "constraint_name": "communications_sentByUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "sentByUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "notifications",
+      "constraint_name": "notifications_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "sessions",
+      "constraint_name": "sessions_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "user_settings",
+      "constraint_name": "user_settings_defaultAssigneeId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "defaultAssigneeId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "user_settings",
+      "constraint_name": "user_settings_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    }
+  ],
+  "orphanedRecords": []
+}

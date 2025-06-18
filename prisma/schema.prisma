@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,30 +7,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Note: SQLite doesn't support enums, so we use String fields with validation in the application
-// For PostgreSQL, these would be proper enums
-
-// Models
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  password  String
-  role      String   @default("STAFF") // PARTNER, MANAGER, STAFF
-  isActive  Boolean  @default(true)
-  lastLoginAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  assignedClients Client[]
+  id                 String          @id @default(cuid())
+  email              String          @unique
+  name               String
+  password           String
+  role               String          @default("STAFF")
+  isActive           Boolean         @default(true)
+  lastLoginAt        DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  accounts           Account[]
+  activityLogs       ActivityLog[]
+  assignedClients    Client[]
   sentCommunications Communication[]
-  activityLogs    ActivityLog[]
-  notifications   Notification[]
-
-  // NextAuth.js compatibility
-  accounts Account[]
-  sessions Session[]
+  notifications      Notification[]
+  sessions           Session[]
+  defaultAssigneeFor UserSettings[]  @relation("DefaultAssignee")
+  settings           UserSettings?
 
   @@index([email])
   @@index([role])
@@ -42,106 +33,95 @@ model User {
 }
 
 model Client {
-  id               String      @id @default(cuid())
-  
-  // Basic Company Information
-  clientCode       String?     @unique // Optional unique client code
-  companyName      String
-  companyNumber    String?     @unique // Optional for Directors and Sub Contractors
-  companyType      String      // LIMITED_COMPANY, NON_LIMITED_COMPANY, DIRECTOR, SUB_CONTRACTOR
-  companyStatus    String?     // active, dissolved, liquidation, etc.
-  companyStatusDetail String?  // More detailed status
-  
-  // Dates
-  incorporationDate DateTime?  // When company was incorporated
-  cessationDate    DateTime?   // When company ceased (if applicable)
-  
-  // Address Information
-  registeredOfficeAddress String? // Full registered office address from Companies House (JSON string)
-  tradingAddress   String?     // Trading address if different (user input, JSON string)
-  residentialAddress String?   // Residential address (user input, JSON string)
-  
-  // Companies House Data
-  sicCodes         String?     // Standard Industrial Classification codes (JSON array)
-  nextAccountsDue  DateTime?   // Next accounts filing due date
-  lastAccountsMadeUpTo DateTime? // Last accounts made up to date
-  accountingReferenceDate String? // Accounting reference date (JSON string: {"day": "31", "month": "03"})
-  nextConfirmationDue DateTime? // Next confirmation statement due
-  lastConfirmationMadeUpTo DateTime? // Last confirmation statement date
-  jurisdiction     String?     // england-wales, scotland, northern-ireland
-  hasBeenLiquidated Boolean    @default(false)
-  hasCharges       Boolean     @default(false)
-  hasInsolvencyHistory Boolean @default(false)
-  
-  // Owner/Director Information (from Companies House)
-  officers         String?     // Company officers/directors data (JSON array)
-  personsWithSignificantControl String? // PSC data (JSON array)
-  
-  // Contact Information (User Input)
-  contactName      String
-  contactEmail     String
-  contactPhone     String?
-  contactFax       String?     // Fax number
-  website          String?
-  vatNumber        String?     // VAT registration number
-  
-  // Non Ltd Company specific fields
-  natureOfTrade    String?     // Nature of Trade
-  tradingAddressLine1 String? // Trading Address Line 1
-  tradingAddressLine2 String? // Trading Address Line 2
-  tradingAddressCountry String? // Trading Address Country
-  tradingAddressPostCode String? // Trading Address Post Code
-  residentialAddressLine1 String? // Residential Address Line 1
-  residentialAddressLine2 String? // Residential Address Line 2
-  residentialAddressCountry String? // Residential Address Country
-  residentialAddressPostCode String? // Residential Address Post Code
-  vatQuarters      String?     // VAT Quarters (Q1, Q2, Q3, Q4)
-  nationalInsuranceNumber String? // National Insurance Number
-  utrNumber        String?     // UTR Number (10 digits)
-  paperWorkReceived Boolean @default(false) // Paper Work Received
-  paperWorkReceivedDate DateTime? // Paper Work Received Date
-  jobCompleted     Boolean @default(false) // Job Completed
-  jobCompletedDate DateTime? // Job Completed Date
-  sa100Filed       Boolean @default(false) // SA100 Filed
-  sa100FiledDate   DateTime? // SA100 Filed Date
-  workStatus       String?     // Work Status
-  additionalComments String?   // Additional Comments
-  staff            String?     // Staff assigned
-  previousYearEnded DateTime?  // Previous Year Ended
-  previousYearWorkReceivedDate DateTime? // Previous Year Work Received Date
-  previousYearJobCompletedDate DateTime? // Previous Year Job Completed Date
-  previousYearSA100FiledDate DateTime? // Previous Year SA100 Filed Date
-  
-  // Business Information (User Input)
-  yearEstablished  Int?
-  numberOfEmployees Int?
-  annualTurnover   Float?
-  paperworkFrequency String?   // MONTHLY, QUARTERLY, ANNUALLY
-  
-  // Extended VAT and business fields
-  vatFrequency     String?     // MONTHLY, QUARTERLY, ANNUALLY
-  vatScheme        String?     // STANDARD, FLAT_RATE, ANNUAL_ACCOUNTING
-  vatRegistrationDate DateTime?
-  vatDeregistrationDate DateTime?
-  flatRatePercentage Float?
-  annualAccountingScheme Boolean @default(false)
-  businessType     String?     // SOLE_TRADER, PARTNERSHIP, LLP, OTHER
-  numberOfPartners Int?
-  partnershipTaxReturn Boolean @default(false)
-  dormantStatus    Boolean @default(false)
-  smallCompanyExemption Boolean @default(false)
-  
-  // System Information
-  assignedUserId   String?
-  isActive         Boolean @default(true)
-  notes            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  // Relations
-  assignedUser     User?           @relation(fields: [assignedUserId], references: [id])
-  communications   Communication[]
-  activityLogs     ActivityLog[]
+  id                            String          @id @default(cuid())
+  clientCode                    String?         @unique
+  companyName                   String
+  companyNumber                 String?         @unique
+  companyType                   String
+  companyStatus                 String?
+  companyStatusDetail           String?
+  incorporationDate             DateTime?
+  cessationDate                 DateTime?
+  registeredOfficeAddress       String?
+  tradingAddress                String?
+  residentialAddress            String?
+  sicCodes                      String?
+  nextAccountsDue               DateTime?
+  lastAccountsMadeUpTo          DateTime?
+  accountingReferenceDate       String?
+  nextConfirmationDue           DateTime?
+  lastConfirmationMadeUpTo      DateTime?
+  jurisdiction                  String?
+  hasBeenLiquidated             Boolean         @default(false)
+  hasCharges                    Boolean         @default(false)
+  hasInsolvencyHistory          Boolean         @default(false)
+  officers                      String?
+  personsWithSignificantControl String?
+  contactName                   String
+  contactEmail                  String
+  contactPhone                  String?
+  contactFax                    String?
+  website                       String?
+  vatNumber                     String?
+  yearEstablished               Int?
+  numberOfEmployees             Int?
+  annualTurnover                Float?
+  paperworkFrequency            String?
+  assignedUserId                String?
+  isActive                      Boolean         @default(true)
+  notes                         String?
+  createdAt                     DateTime        @default(now())
+  updatedAt                     DateTime        @updatedAt
+  additionalComments            String?
+  annualAccountingScheme        Boolean         @default(false)
+  businessType                  String?
+  dormantStatus                 Boolean         @default(false)
+  flatRatePercentage            Float?
+  jobCompleted                  Boolean         @default(false)
+  jobCompletedDate              DateTime?
+  nationalInsuranceNumber       String?
+  natureOfTrade                 String?
+  numberOfPartners              Int?
+  paperWorkReceived             Boolean         @default(false)
+  paperWorkReceivedDate         DateTime?
+  partnershipTaxReturn          Boolean         @default(false)
+  previousYearEnded             DateTime?
+  previousYearJobCompletedDate  DateTime?
+  previousYearSA100FiledDate    DateTime?
+  previousYearWorkReceivedDate  DateTime?
+  residentialAddressCountry     String?
+  residentialAddressLine1       String?
+  residentialAddressLine2       String?
+  residentialAddressPostCode    String?
+  sa100Filed                    Boolean         @default(false)
+  sa100FiledDate                DateTime?
+  smallCompanyExemption         Boolean         @default(false)
+  staff                         String?
+  tradingAddressCountry         String?
+  tradingAddressLine1           String?
+  tradingAddressLine2           String?
+  tradingAddressPostCode        String?
+  utrNumber                     String?
+  vatDeregistrationDate         DateTime?
+  vatFrequency                  String?
+  vatQuarters                   String?
+  vatRegistrationDate           DateTime?
+  vatScheme                     String?
+  workStatus                    String?
+  // Post-creation questionnaire fields
+  isVatEnabled                  Boolean         @default(false)
+  vatReturnsFrequency           String?
+  nextVatReturnDue              DateTime?
+  requiresPayroll               Boolean         @default(false)
+  requiresBookkeeping           Boolean         @default(false)
+  requiresManagementAccounts    Boolean         @default(false)
+  preferredContactMethod        String?
+  specialInstructions           String?
+  // Service management fields
+  handlesAnnualAccounts         Boolean         @default(true)  // Whether we handle their annual accounts
+  activityLogs                  ActivityLog[]
+  assignedUser                  User?           @relation(fields: [assignedUserId], references: [id])
+  communications                Communication[]
 
   @@index([companyNumber])
   @@index([assignedUserId])
@@ -154,21 +134,18 @@ model Client {
 }
 
 model Communication {
-  id          String            @id @default(cuid())
-  type        String            // EMAIL, SMS, PHONE, LETTER, MEETING
-  subject     String
-  content     String
-  sentAt      DateTime?
-  scheduledAt DateTime?
-  
-  // Relations
-  clientId String
+  id           String    @id @default(cuid())
+  type         String
+  subject      String
+  content      String
+  sentAt       DateTime?
+  scheduledAt  DateTime?
+  clientId     String
   sentByUserId String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  sentBy   User?  @relation(fields: [sentByUserId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  client       Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  sentBy       User?     @relation(fields: [sentByUserId], references: [id])
 
   @@index([clientId])
   @@index([sentByUserId])
@@ -183,7 +160,7 @@ model EmailTemplate {
   subject     String
   htmlContent String
   textContent String?
-  variables   String?  // Comma-separated variable names
+  variables   String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -192,18 +169,15 @@ model EmailTemplate {
 }
 
 model Notification {
-  id        String           @id @default(cuid())
-  type      String           // CLIENT_ADDED, SYSTEM_ALERT, EMAIL_SENT
+  id        String   @id @default(cuid())
+  type      String
   title     String
   message   String
-  isRead    Boolean          @default(false)
-  data      String?          // Additional notification data as JSON string
-  
-  // Relations
+  isRead    Boolean  @default(false)
+  data      String?
   userId    String
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isRead])
@@ -213,16 +187,13 @@ model Notification {
 
 model ActivityLog {
   id        String   @id @default(cuid())
-  action    String   // CLIENT_CREATED, CLIENT_UPDATED, CLIENT_ASSIGNED, etc.
-  details   String?  // Additional details as JSON string
+  action    String
   timestamp DateTime @default(now())
-  
-  // Relations
-  userId   String?
-  clientId String?
-  
-  user   User?   @relation(fields: [userId], references: [id])
-  client Client? @relation(fields: [clientId], references: [id])
+  userId    String?
+  clientId  String?
+  details   String?
+  client    Client?  @relation(fields: [clientId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([clientId])
@@ -235,28 +206,26 @@ model Settings {
   id        String   @id @default(cuid())
   key       String   @unique
   value     String
-  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 
   @@map("settings")
 }
 
-// NextAuth.js required models
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -279,4 +248,18 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("verificationtokens")
-} 
+}
+
+model UserSettings {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  defaultAssigneeId  String?
+  emailNotifications Boolean  @default(true)
+  smsNotifications   Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  defaultAssignee    User?    @relation("DefaultAssignee", fields: [defaultAssigneeId], references: [id])
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}

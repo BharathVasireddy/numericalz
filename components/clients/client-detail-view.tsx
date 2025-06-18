@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { showToast } from '@/lib/toast'
 import { 
@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { AssignUserModal } from '@/components/clients/assign-user-modal'
 
 interface ClientDetailViewProps {
   client: any // Full client object with relations
@@ -43,6 +44,9 @@ interface ClientDetailViewProps {
 export function ClientDetailView({ client, currentUser }: ClientDetailViewProps) {
   const router = useRouter()
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [showAssignModal, setShowAssignModal] = useState(false)
+  const [users, setUsers] = useState<any[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Not set'
@@ -148,6 +152,35 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
     return email === 'contact@tobeupdated.com' || !email ? 'TBU' : email
   }
 
+  const fetchUsers = async () => {
+    setLoadingUsers(true)
+    try {
+      const response = await fetch('/api/users?includeSelf=true')
+      const data = await response.json()
+      if (data.success) {
+        setUsers(data.users || [])
+      } else {
+        console.error('Failed to fetch users:', data.error)
+        setUsers([])
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+      setUsers([])
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  const handleAssignUser = async () => {
+    await fetchUsers()
+    setShowAssignModal(true)
+  }
+
+  const handleAssignSuccess = () => {
+    // Refresh the page to show updated assignment
+    router.refresh()
+  }
+
   return (
     <div className="page-container">
       <div className="content-wrapper">
@@ -174,15 +207,16 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                     Refresh CH Data
                   </Button>
                 )}
-                {currentUser.role === 'MANAGER' && (
+                {(currentUser.role === 'MANAGER' || currentUser.role === 'PARTNER') && (
                   <>
                     <Button
                       variant="outline"
-                      onClick={() => router.push(`/dashboard/clients/${client.id}/assign`)}
+                      onClick={handleAssignUser}
+                      disabled={loadingUsers}
                       className="btn-outline"
                     >
                       <UserPlus className="h-4 w-4 mr-2" />
-                      Assign User
+                      {loadingUsers ? 'Loading...' : 'Assign User'}
                     </Button>
                     <Button
                       onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
@@ -827,6 +861,15 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
           </div>
         </div>
       </div>
+      
+      {/* Assign User Modal */}
+      <AssignUserModal
+        client={client}
+        users={users}
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        onSuccess={handleAssignSuccess}
+      />
     </div>
   )
 } 

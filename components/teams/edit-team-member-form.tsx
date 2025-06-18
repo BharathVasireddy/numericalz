@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { showToast } from '@/lib/toast'
-import { Save, X, User, Mail, Shield, Key, AlertTriangle } from 'lucide-react'
+import { Save, X, User, Mail, Shield, Key, AlertTriangle, Crown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { PasswordResetModal } from './password-reset-modal'
 
 interface TeamMember {
   id: string
@@ -41,6 +42,7 @@ export function EditTeamMemberForm({ user, onSuccess, onCancel }: EditTeamMember
   const [isLoading, setIsLoading] = useState(false)
   const [isResettingPassword, setIsResettingPassword] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false)
   
   // Check if current user is editing themselves
   const isEditingSelf = session?.user?.id === user.id
@@ -102,35 +104,47 @@ export function EditTeamMemberForm({ user, onSuccess, onCancel }: EditTeamMember
     }
   }
 
-  const handlePasswordReset = async () => {
-    if (!confirm(`Are you sure you want to reset ${user.name}'s password? A new temporary password will be generated.`)) {
-      return
-    }
-
-    setIsResettingPassword(true)
-    try {
-      const response = await fetch(`/api/users/${user.id}/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sendEmail: false })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        showToast.success(data.message)
-        // You might want to show the temporary password in a modal instead
-        if (data.tempPassword) {
-          alert(`Temporary password: ${data.tempPassword}\n\nPlease share this securely with the user.`)
-        }
-      } else {
-        const data = await response.json()
-        showToast.error(data.error || 'Failed to reset password')
+  // Get role options based on current user's role
+  const getRoleOptions = () => {
+    const options = [
+      {
+        value: 'STAFF',
+        label: 'Staff Member',
+        icon: User,
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-100',
+        description: 'Can manage assigned clients'
+      },
+      {
+        value: 'MANAGER',
+        label: 'Manager',
+        icon: Shield,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-100',
+        description: 'Full system access and client management'
       }
-    } catch (error) {
-      showToast.error('Failed to reset password')
-    } finally {
-      setIsResettingPassword(false)
+    ]
+
+    // Only PARTNER users can edit PARTNER role
+    if (session?.user?.role === 'PARTNER') {
+      options.push({
+        value: 'PARTNER',
+        label: 'Partner',
+        icon: Crown,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-100',
+        description: 'Highest level access and system oversight'
+      })
     }
+
+    return options
+  }
+
+  const roleOptions = getRoleOptions()
+  const selectedRole = roleOptions.find(option => option.value === formData.role)
+
+  const handlePasswordReset = () => {
+    setShowPasswordResetModal(true)
   }
 
   return (
@@ -189,19 +203,41 @@ export function EditTeamMemberForm({ user, onSuccess, onCancel }: EditTeamMember
           </Label>
           <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
             <SelectTrigger className="input-field">
-              <SelectValue placeholder="Select role" />
+              <SelectValue placeholder="Select role">
+                {selectedRole && (
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1 rounded-full ${selectedRole.bgColor}`}>
+                      <selectedRole.icon className={`h-3 w-3 ${selectedRole.color}`} />
+                    </div>
+                    <span>{selectedRole.label}</span>
+                  </div>
+                )}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="STAFF">Staff Member</SelectItem>
-              <SelectItem value="MANAGER">Manager</SelectItem>
+              {roleOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  <div className="flex items-center gap-3 py-1">
+                    <div className={`p-1.5 rounded-full ${option.bgColor}`}>
+                      <option.icon className={`h-3 w-3 ${option.color}`} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{option.label}</span>
+                      <span className="text-xs text-muted-foreground">{option.description}</span>
+                    </div>
+                  </div>
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           {errors.role && (
             <p className="text-sm text-red-600">{errors.role}</p>
           )}
-          <p className="text-xs text-muted-foreground">
-            Staff members can manage assigned clients. Managers have full system access.
-          </p>
+          {selectedRole && (
+            <p className="text-xs text-muted-foreground">
+              {selectedRole.description}
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -244,20 +280,11 @@ export function EditTeamMemberForm({ user, onSuccess, onCancel }: EditTeamMember
             type="button"
             variant="outline"
             onClick={handlePasswordReset}
-            disabled={isResettingPassword || isLoading}
+            disabled={isLoading}
             className="w-full flex items-center gap-2"
           >
-            {isResettingPassword ? (
-              <>
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
-                Resetting Password...
-              </>
-            ) : (
-              <>
-                <Key className="h-4 w-4" />
-                Reset Password
-              </>
-            )}
+            <Key className="h-4 w-4" />
+            Reset Password
           </Button>
           <p className="text-xs text-muted-foreground">
             Generate a new temporary password for this user. The password will be displayed once.
@@ -294,6 +321,17 @@ export function EditTeamMemberForm({ user, onSuccess, onCancel }: EditTeamMember
           </Button>
         </div>
       </form>
+
+      {/* Password Reset Modal */}
+      <PasswordResetModal
+        isOpen={showPasswordResetModal}
+        onClose={() => setShowPasswordResetModal(false)}
+        user={{
+          id: user.id,
+          name: user.name,
+          email: user.email
+        }}
+      />
     </>
   )
 } 

@@ -15,13 +15,10 @@ export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES]
 /**
  * NextAuth configuration for the Numericalz Internal Management System
  * 
- * Features:
- * - Email/password authentication with bcrypt
- * - Prisma adapter for session management
- * - Role-based access control (Manager/Staff)
- * - Secure session configuration
- * - Custom login pages
- * - Improved error handling for serverless environments
+ * OPTIMIZED FOR PERFORMANCE:
+ * - Minimal database calls
+ * - Fast session validation
+ * - Streamlined authentication flow
  */
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(db),
@@ -47,46 +44,20 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Ensure database connection
-          await db.$connect()
-          
-          // Find user by email with retry logic
-          let user = null
-          let retryCount = 0
-          const maxRetries = 3
-          
-          while (!user && retryCount < maxRetries) {
-            try {
-              user = await db.user.findUnique({
-                where: {
-                  email: credentials.email.toLowerCase().trim(),
-                },
-                select: {
-                  id: true,
-                  email: true,
-                  name: true,
-                  password: true,
-                  role: true,
-                  isActive: true,
-                },
-              })
-              break
-            } catch (dbError) {
-              retryCount++
-              console.error(`Database query attempt ${retryCount} failed:`, dbError)
-              
-              if (retryCount >= maxRetries) {
-                throw new Error('Database connection failed after multiple attempts')
-              }
-              
-              // Wait before retry
-              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount))
-              
-              // Reconnect to database
-              await db.$disconnect()
-              await db.$connect()
-            }
-          }
+          // Single database query - no retry logic for speed
+          const user = await db.user.findUnique({
+            where: {
+              email: credentials.email.toLowerCase().trim(),
+            },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              password: true,
+              role: true,
+              isActive: true,
+            },
+          })
 
           if (!user) {
             throw new Error('Invalid email or password')
@@ -103,29 +74,13 @@ export const authOptions: NextAuthOptions = {
             throw new Error('Invalid email or password')
           }
 
-          // Log successful login attempt and update last login with retry logic
-          try {
-            await Promise.all([
-              db.activityLog.create({
-                data: {
-                  userId: user.id,
-                  action: 'LOGIN',
-                  
-                  details: JSON.stringify({
-                    email: user.email,
-                    timestamp: new Date().toISOString(),
-                  }),
-                },
-              }),
-              db.user.update({
-                where: { id: user.id },
-                data: { lastLoginAt: new Date() },
-              })
-            ])
-          } catch (logError) {
-            console.error('Failed to log login activity:', logError)
-            // Don't fail authentication if logging fails
-          }
+          // Update last login (async, don't wait)
+          db.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date() },
+          }).catch(error => {
+            console.error('Failed to update last login:', error)
+          })
 
           return {
             id: user.id,
@@ -135,35 +90,7 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (error) {
           console.error('Authentication error:', error)
-          
-          // Log failed login attempt (if we can identify the user)
-          if (credentials.email) {
-            try {
-              await db.activityLog.create({
-                data: {
-                  action: 'LOGIN',
-                  
-                  details: JSON.stringify({
-                    email: credentials.email,
-                    error: error instanceof Error ? error.message : 'Unknown error',
-                    timestamp: new Date().toISOString(),
-                    success: false,
-                  }),
-                },
-              })
-            } catch (logError) {
-              console.error('Failed to log login attempt:', logError)
-            }
-          }
-
           throw error
-        } finally {
-          // Clean up connection
-          try {
-            await db.$disconnect()
-          } catch (disconnectError) {
-            console.error('Failed to disconnect from database:', disconnectError)
-          }
         }
       }
     })
@@ -191,60 +118,89 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = user.role
         token.id = user.id
+        token.email = user.email
+        token.name = user.name
+        // Cache user validation timestamp to reduce database calls
+        token.lastValidated = Date.now()
       }
       return token
     },
 
     async session({ session, token }) {
-      // Send properties to the client
-      if (session.user) {
+      // PERFORMANCE OPTIMIZED: Only validate user existence periodically
+      if (session.user && token.id) {
+        // Only validate user existence every 5 minutes instead of every request
+        const lastValidated = token.lastValidated as number || 0
+        const validationInterval = 5 * 60 * 1000 // 5 minutes
+        const needsValidation = Date.now() - lastValidated > validationInterval
+
+        if (needsValidation) {
+          try {
+            // Quick user existence check without full connection cycle
+            const user = await db.user.findUnique({
+              where: { id: token.id as string },
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                isActive: true,
+              },
+            })
+
+            if (!user || !user.isActive) {
+              throw new Error('User account no longer exists or is deactivated')
+            }
+
+            // Update token with fresh data
+            token.email = user.email
+            token.name = user.name
+            token.role = user.role
+            token.lastValidated = Date.now()
+          } catch (error) {
+            console.error('Session validation error:', error)
+            throw new Error('Session validation failed')
+          }
+        }
+
+        // Set session data from token (fast)
         session.user.id = token.id as string
         session.user.role = token.role as UserRole
+        session.user.email = token.email as string
+        session.user.name = token.name as string
       }
       return session
     },
 
     async redirect({ url, baseUrl }) {
-      // Redirect to dashboard after successful login
+      // Fast redirect logic
       if (url === baseUrl || url === `${baseUrl}/`) {
         return `${baseUrl}/dashboard`
       }
-      // Allows relative callback URLs
       if (url.startsWith('/')) return `${baseUrl}${url}`
-      // Allows callback URLs on the same origin
-      else if (new URL(url).origin === baseUrl) return url
+      if (new URL(url).origin === baseUrl) return url
       return `${baseUrl}/dashboard`
     },
   },
 
   events: {
     async signOut({ token }) {
-      // Log logout activity
+      // Log logout activity (async, don't block)
       if (token?.id) {
-        try {
-          await db.$connect()
-          await db.activityLog.create({
-            data: {
-              userId: token.id as string,
-              action: 'LOGOUT',
-              
-              details: JSON.stringify({
-                timestamp: new Date().toISOString(),
-              }),
-            },
-          })
-        } catch (error) {
+        db.activityLog.create({
+          data: {
+            userId: token.id as string,
+            action: 'LOGOUT',
+            details: JSON.stringify({
+              timestamp: new Date().toISOString(),
+            }),
+          },
+        }).catch(error => {
           console.error('Failed to log logout activity:', error)
-        } finally {
-          try {
-            await db.$disconnect()
-          } catch (disconnectError) {
-            console.error('Failed to disconnect from database:', disconnectError)
-          }
-        }
+        })
       }
     },
   },
 
-  debug: process.env.NODE_ENV === 'development',
+  debug: false, // Disable debug for performance
 } 

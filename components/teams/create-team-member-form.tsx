@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { showToast } from '@/lib/toast'
-import { UserPlus, Save, X } from 'lucide-react'
+import { UserPlus, Save, X, Crown, Shield, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,6 +26,7 @@ interface CreateTeamMemberFormProps {
 }
 
 export function CreateTeamMemberForm({ onSuccess, onCancel }: CreateTeamMemberFormProps) {
+  const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -74,6 +76,45 @@ export function CreateTeamMemberForm({ onSuccess, onCancel }: CreateTeamMemberFo
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
+
+  // Get role options based on current user's role
+  const getRoleOptions = () => {
+    const options = [
+      {
+        value: 'STAFF',
+        label: 'Staff Member',
+        icon: User,
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-100',
+        description: 'Can manage assigned clients'
+      },
+      {
+        value: 'MANAGER',
+        label: 'Manager',
+        icon: Shield,
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-100',
+        description: 'Full system access and client management'
+      }
+    ]
+
+    // Only PARTNER users can create other PARTNER users
+    if (session?.user?.role === 'PARTNER') {
+      options.push({
+        value: 'PARTNER',
+        label: 'Partner',
+        icon: Crown,
+        color: 'text-purple-600',
+        bgColor: 'bg-purple-100',
+        description: 'Highest level access and system oversight'
+      })
+    }
+
+    return options
+  }
+
+  const roleOptions = getRoleOptions()
+  const selectedRole = roleOptions.find(option => option.value === formData.role)
 
   return (
     <>
@@ -135,16 +176,38 @@ export function CreateTeamMemberForm({ onSuccess, onCancel }: CreateTeamMemberFo
           <Label htmlFor="role">Role *</Label>
           <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
             <SelectTrigger className="input-field">
-              <SelectValue placeholder="Select role" />
+              <SelectValue placeholder="Select role">
+                {selectedRole && (
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1 rounded-full ${selectedRole.bgColor}`}>
+                      <selectedRole.icon className={`h-3 w-3 ${selectedRole.color}`} />
+                    </div>
+                    <span>{selectedRole.label}</span>
+                  </div>
+                )}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="STAFF">Staff Member</SelectItem>
-              <SelectItem value="MANAGER">Manager</SelectItem>
+              {roleOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  <div className="flex items-center gap-3 py-1">
+                    <div className={`p-1.5 rounded-full ${option.bgColor}`}>
+                      <option.icon className={`h-3 w-3 ${option.color}`} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{option.label}</span>
+                      <span className="text-xs text-muted-foreground">{option.description}</span>
+                    </div>
+                  </div>
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">
-            Staff members can manage assigned clients. Managers have full system access.
-          </p>
+          {selectedRole && (
+            <p className="text-xs text-muted-foreground">
+              {selectedRole.description}
+            </p>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 pt-4">

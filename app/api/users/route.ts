@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { db, dbOperation } from '@/lib/db'
+import { db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 
 // Force dynamic rendering for this route since it uses session
@@ -54,20 +54,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Optimized database query with retry logic
-    const users = await dbOperation(async () => {
-      return db.user.findMany({
-        where: whereClause,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-        },
-        orderBy: {
-          name: 'asc'
-        }
-      })
+    // Optimized database query
+    const users = await db.user.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+      orderBy: {
+        name: 'asc'
+      }
     })
 
     const response = NextResponse.json({

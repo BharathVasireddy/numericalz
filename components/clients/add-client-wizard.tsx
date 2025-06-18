@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { showToast } from '@/lib/toast'
 import { 
@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { ClientCreatedModal } from './client-created-modal'
+import { ClientPostCreationQuestionnaire } from './client-post-creation-questionnaire'
 import { NonLtdCompanyForm } from './non-ltd-company-form'
 
 interface CompaniesHouseSearchResult {
@@ -75,6 +76,7 @@ interface CompaniesHouseCompany {
 
 export function AddClientWizard() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { data: session } = useSession()
   const [loading, setLoading] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
@@ -83,13 +85,33 @@ export function AddClientWizard() {
   const [companySearch, setCompanySearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false)
   const [createdClient, setCreatedClient] = useState<any>(null)
 
+  // Debug logging for questionnaire state
+  useEffect(() => {
+    console.log('🎯 showQuestionnaire changed:', showQuestionnaire)
+  }, [showQuestionnaire])
+
+  useEffect(() => {
+    console.log('🎯 createdClient changed:', createdClient)
+  }, [createdClient])
+
+  // Get company type from URL parameter
+  const typeParam = searchParams.get('type')
+  
   const [formData, setFormData] = useState({
     clientCode: '',
-    companyType: '',
+    companyType: typeParam || '',
     companyNumber: '',
   })
+
+  // Set initial search visibility based on pre-selected company type
+  useEffect(() => {
+    if (typeParam === 'LIMITED_COMPANY') {
+      setShowSearch(true)
+    }
+  }, [typeParam])
 
   // Non Ltd Company form data
   const [nonLtdFormData, setNonLtdFormData] = useState({
@@ -423,17 +445,18 @@ export function AddClientWizard() {
       if (data.success) {
         showToast.success('Client created successfully')
         
-        // Store created client data for modal
+        // Store created client data for questionnaire
         setCreatedClient({
           id: data.data.id,
           companyName: data.data.companyName,
           companyNumber: data.data.companyNumber,
           clientCode: data.data.clientCode,
+          companyType: data.data.companyType,
           createdAt: data.data.createdAt
         })
         
-        // Show success modal
-        setShowSuccessModal(true)
+        // Show questionnaire modal instead of success modal
+        setShowQuestionnaire(true)
         
         // Reset form
         setFormData(prev => ({
@@ -518,17 +541,18 @@ export function AddClientWizard() {
       if (data.success) {
         showToast.success('Client created successfully')
         
-        // Store created client data for modal
+        // Store created client data for questionnaire
         setCreatedClient({
           id: data.data.id,
           companyName: data.data.companyName,
           companyNumber: data.data.companyNumber,
           clientCode: data.data.clientCode,
+          companyType: data.data.companyType,
           createdAt: data.data.createdAt
         })
         
-        // Show success modal
-        setShowSuccessModal(true)
+        // Show questionnaire modal instead of success modal
+        setShowQuestionnaire(true)
         
         // Reset forms
         setFormData({
@@ -580,6 +604,15 @@ export function AddClientWizard() {
     }
   }
 
+  const handleQuestionnaireComplete = (updatedClient: any) => {
+    // Update the created client data with questionnaire results
+    setCreatedClient(updatedClient)
+    
+    // Hide questionnaire and show success modal
+    setShowQuestionnaire(false)
+    setShowSuccessModal(true)
+  }
+
   return (
     <div className="page-container">
       <div className="content-wrapper">
@@ -588,9 +621,25 @@ export function AddClientWizard() {
           <div className="page-header">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-xl md:text-2xl font-bold">Add New Client</h1>
+                <h1 className="text-xl md:text-2xl font-bold">
+                  {formData.companyType === 'LIMITED_COMPANY' 
+                    ? 'Add New Limited Company' 
+                    : formData.companyType === 'NON_LIMITED_COMPANY'
+                    ? 'Add New Non Limited Company'
+                    : formData.companyType === 'DIRECTOR'
+                    ? 'Add New Director'
+                    : formData.companyType === 'SUB_CONTRACTOR'
+                    ? 'Add New Sub Contractor'
+                    : 'Add New Client'
+                  }
+                </h1>
                 <p className="text-xs md:text-sm text-muted-foreground">
-                  Create a new client record with automatic data integration
+                  {formData.companyType === 'LIMITED_COMPANY'
+                    ? 'Create a new limited company client with Companies House integration'
+                    : formData.companyType === 'NON_LIMITED_COMPANY'
+                    ? 'Create a new non limited company client record'
+                    : 'Create a new client record with automatic data integration'
+                  }
                 </p>
               </div>
               <Button
@@ -889,6 +938,15 @@ export function AddClientWizard() {
                 </Button>
               </CardContent>
             </Card>
+          )}
+
+          {/* Post-Creation Questionnaire */}
+          {showQuestionnaire && createdClient && (
+            <ClientPostCreationQuestionnaire
+              client={createdClient}
+              isOpen={showQuestionnaire}
+              onComplete={handleQuestionnaireComplete}
+            />
           )}
 
           {/* Success Modal */}

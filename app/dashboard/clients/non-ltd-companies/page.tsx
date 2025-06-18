@@ -4,11 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { ClientsHeader } from '@/components/clients/clients-header'
-import { ClientsTable } from '@/components/clients/clients-table'
-import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
-import { Building2, Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import Link from 'next/link'
+import { LegacyClientsTable } from '@/components/clients/legacy-clients-table'
 
 /**
  * Non Limited Companies listing page
@@ -58,35 +54,24 @@ export default function NonLtdCompaniesPage() {
   }
 
   return (
-    <PageLayout maxWidth="2xl">
-      <PageHeader 
-        title="Non Ltd Companies"
-        description="Manage all Non Limited Company clients"
-        
-      >
-        <Link href="/dashboard/clients/add">
-          <Button className="btn-primary">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Client
-          </Button>
-        </Link>
-      </PageHeader>
-      
-      <PageContent>
-        <div className="space-y-6">
+    <div className="page-container">
+      <div className="content-wrapper">
+        <div className="content-sections">
           <ClientsHeader 
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             filters={filters}
             onFiltersChange={setFilters}
+            pageTitle="Non Ltd Companies"
+            pageDescription="Manage all Non Limited Company clients"
           />
           
-          <ClientsTable 
+          <LegacyClientsTable 
             searchQuery={searchQuery}
             filters={filters}
           />
         </div>
-      </PageContent>
-    </PageLayout>
+      </div>
+    </div>
   )
 } 

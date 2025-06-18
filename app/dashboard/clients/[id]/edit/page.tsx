@@ -39,8 +39,8 @@ export default async function EditClientPage({ params }: EditClientPageProps) {
     redirect('/auth/login')
   }
 
-  // Only managers can edit clients
-  if (session.user.role !== 'MANAGER') {
+  // Only managers and partners can edit clients
+  if (session.user.role !== 'MANAGER' && session.user.role !== 'PARTNER') {
     redirect('/dashboard/clients')
   }
 

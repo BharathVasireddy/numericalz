@@ -42,6 +42,8 @@ interface ClientsHeaderProps {
   onFiltersChange: (filters: any) => void
   totalCount?: number
   filteredCount?: number
+  pageTitle?: string
+  pageDescription?: string
 }
 
 /**
@@ -60,7 +62,9 @@ export function ClientsHeader({
   filters,
   onFiltersChange,
   totalCount = 0,
-  filteredCount = 0
+  filteredCount = 0,
+  pageTitle = "Clients",
+  pageDescription
 }: ClientsHeaderProps) {
   const router = useRouter()
   const [showFilters, setShowFilters] = useState(false)
@@ -120,13 +124,13 @@ export function ClientsHeader({
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold">Clients</h1>
+          <h1 className="text-xl md:text-2xl font-bold">{pageTitle}</h1>
           <p className="text-xs md:text-sm text-muted-foreground">
-            {hasActiveFilters ? (
+            {pageDescription || (hasActiveFilters ? (
               <>Showing {filteredCount} of {totalCount} clients</>
             ) : (
               <>Manage all {totalCount} clients</>
-            )}
+            ))}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -166,7 +170,7 @@ export function ClientsHeader({
             </Button>
           )}
           <Button asChild size="sm" className="flex items-center gap-2">
-            <Link href="/dashboard/clients/add">
+            <Link href={`/dashboard/clients/add${filters.companyType ? `?type=${filters.companyType}` : ''}`}>
               <Plus className="h-4 w-4" />
               Add Client
             </Link>

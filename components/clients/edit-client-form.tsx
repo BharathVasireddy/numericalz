@@ -3,13 +3,14 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { showToast } from '@/lib/toast'
-import { ArrowLeft, Save, RefreshCw, AlertTriangle, Clock, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Save, RefreshCw, AlertTriangle, Clock, CheckCircle, Calculator } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { AddressInput } from '@/components/clients/address-input'
 
 interface EditClientFormProps {
@@ -39,6 +40,18 @@ export function EditClientForm({ client }: EditClientFormProps) {
     // Address fields
     tradingAddress: client.tradingAddress || '',
     residentialAddress: client.residentialAddress || '',
+    // VAT Information
+    isVatEnabled: client.isVatEnabled || false,
+    vatRegistrationDate: client.vatRegistrationDate ? new Date(client.vatRegistrationDate).toISOString().split('T')[0] : '',
+    vatReturnsFrequency: client.vatReturnsFrequency || '',
+    nextVatReturnDue: client.nextVatReturnDue ? new Date(client.nextVatReturnDue).toISOString().split('T')[0] : '',
+    // Additional Services
+    requiresPayroll: client.requiresPayroll || false,
+    requiresBookkeeping: client.requiresBookkeeping || false,
+    requiresManagementAccounts: client.requiresManagementAccounts || false,
+    // Communication Preferences
+    preferredContactMethod: client.preferredContactMethod || '',
+    specialInstructions: client.specialInstructions || '',
   })
 
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -161,6 +174,9 @@ export function EditClientForm({ client }: EditClientFormProps) {
           yearEstablished: formData.yearEstablished ? parseInt(formData.yearEstablished) : null,
           numberOfEmployees: formData.numberOfEmployees ? parseInt(formData.numberOfEmployees) : null,
           annualTurnover: formData.annualTurnover ? parseFloat(formData.annualTurnover) : null,
+          // Convert date strings to Date objects for VAT fields
+          vatRegistrationDate: formData.vatRegistrationDate ? new Date(formData.vatRegistrationDate) : null,
+          nextVatReturnDue: formData.nextVatReturnDue ? new Date(formData.nextVatReturnDue) : null,
         }),
       })
 
@@ -481,6 +497,157 @@ export function EditClientForm({ client }: EditClientFormProps) {
                         value={formData.vatNumber}
                         onChange={(e) => handleInputChange('vatNumber', e.target.value)}
                         placeholder="e.g., GB123456789"
+                        className="input-field"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* VAT Information */}
+              <Card className="shadow-professional">
+                <CardHeader>
+                  <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                    <Calculator className="h-5 w-5" />
+                    VAT Information
+                  </CardTitle>
+                  <CardDescription>VAT registration and return details</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="isVatEnabled"
+                      checked={formData.isVatEnabled}
+                      onCheckedChange={(checked) => handleInputChange('isVatEnabled', checked as boolean)}
+                    />
+                    <Label htmlFor="isVatEnabled" className="text-sm font-medium">
+                      VAT Registered
+                    </Label>
+                  </div>
+
+                  {formData.isVatEnabled && (
+                    <div className="grid gap-4 md:grid-cols-2 mt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="vatRegistrationDate">VAT Registration Date</Label>
+                        <Input
+                          id="vatRegistrationDate"
+                          type="date"
+                          value={formData.vatRegistrationDate}
+                          onChange={(e) => handleInputChange('vatRegistrationDate', e.target.value)}
+                          className="input-field"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="vatReturnsFrequency">VAT Returns Frequency</Label>
+                        <Select
+                          value={formData.vatReturnsFrequency}
+                          onValueChange={(value) => handleInputChange('vatReturnsFrequency', value)}
+                        >
+                          <SelectTrigger className="input-field">
+                            <SelectValue placeholder="Select frequency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="MONTHLY">Monthly</SelectItem>
+                            <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                            <SelectItem value="ANNUALLY">Annually</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="nextVatReturnDue">Next VAT Return Due Date</Label>
+                        <Input
+                          id="nextVatReturnDue"
+                          type="date"
+                          value={formData.nextVatReturnDue}
+                          onChange={(e) => handleInputChange('nextVatReturnDue', e.target.value)}
+                          className="input-field"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Additional Services */}
+              <Card className="shadow-professional">
+                <CardHeader>
+                  <CardTitle className="text-base md:text-lg">Additional Services</CardTitle>
+                  <CardDescription>Services required by this client</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="requiresPayroll"
+                        checked={formData.requiresPayroll}
+                        onCheckedChange={(checked) => handleInputChange('requiresPayroll', checked as boolean)}
+                      />
+                      <Label htmlFor="requiresPayroll" className="text-sm font-medium">
+                        Payroll Services
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="requiresBookkeeping"
+                        checked={formData.requiresBookkeeping}
+                        onCheckedChange={(checked) => handleInputChange('requiresBookkeeping', checked as boolean)}
+                      />
+                      <Label htmlFor="requiresBookkeeping" className="text-sm font-medium">
+                        Bookkeeping Services
+                      </Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="requiresManagementAccounts"
+                        checked={formData.requiresManagementAccounts}
+                        onCheckedChange={(checked) => handleInputChange('requiresManagementAccounts', checked as boolean)}
+                      />
+                      <Label htmlFor="requiresManagementAccounts" className="text-sm font-medium">
+                        Management Accounts
+                      </Label>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Communication Preferences */}
+              <Card className="shadow-professional">
+                <CardHeader>
+                  <CardTitle className="text-base md:text-lg">Communication Preferences</CardTitle>
+                  <CardDescription>How to communicate with this client</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="preferredContactMethod">Preferred Contact Method</Label>
+                      <Select
+                        value={formData.preferredContactMethod}
+                        onValueChange={(value) => handleInputChange('preferredContactMethod', value)}
+                      >
+                        <SelectTrigger className="input-field">
+                          <SelectValue placeholder="Select preferred method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="EMAIL">Email</SelectItem>
+                          <SelectItem value="PHONE">Phone</SelectItem>
+                          <SelectItem value="POST">Post</SelectItem>
+                          <SelectItem value="IN_PERSON">In Person</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="specialInstructions">Special Instructions</Label>
+                      <Textarea
+                        id="specialInstructions"
+                        placeholder="Any special instructions or notes for this client..."
+                        value={formData.specialInstructions}
+                        onChange={(e) => handleInputChange('specialInstructions', e.target.value)}
+                        rows={3}
                         className="input-field"
                       />
                     </div>

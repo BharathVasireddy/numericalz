@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { db, executeWithRetry } from '@/lib/db'
+import { db } from '@/lib/db'
 import { z } from 'zod'
 
 // Force dynamic rendering for this route since it uses session
@@ -78,17 +78,15 @@ const createClientSchema = z.object({
  */
 async function generateClientCode(): Promise<string> {
   // Get the last client code with retry logic
-  const lastClient = await executeWithRetry(async () => {
-    return await db.client.findFirst({
-      where: {
-        clientCode: {
-          startsWith: 'NZ-'
-        }
-      },
-      orderBy: {
-        clientCode: 'desc'
+  const lastClient = await db.client.findFirst({
+    where: {
+      clientCode: {
+        startsWith: 'NZ-'
       }
-    })
+    },
+    orderBy: {
+      clientCode: 'desc'
+    }
   })
 
   let nextNumber = 1
@@ -167,41 +165,41 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
 
     // Optimized database query with minimal fields for list view
-    const [clients, totalCount] = await executeWithRetry(async () => {
-      return Promise.all([
-        db.client.findMany({
-          where,
-          select: {
-            id: true,
-            clientCode: true,
-            companyName: true,
-            companyNumber: true,
-            companyType: true,
-            contactName: true,
-            contactEmail: true,
-            contactPhone: true,
-            nextAccountsDue: true,
-            nextConfirmationDue: true,
-            accountingReferenceDate: true,
-            isActive: true,
-            createdAt: true,
-            assignedUser: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
+    const [clients, totalCount] = await Promise.all([
+      db.client.findMany({
+        where,
+        select: {
+          id: true,
+          clientCode: true,
+          companyName: true,
+          companyNumber: true,
+          companyType: true,
+          contactName: true,
+          contactEmail: true,
+          contactPhone: true,
+          nextAccountsDue: true,
+          nextConfirmationDue: true,
+          accountingReferenceDate: true,
+          isActive: true,
+          createdAt: true,
+          // Service management fields
+          
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
             },
           },
-          orderBy: {
-            [sortBy]: sortOrder as 'asc' | 'desc',
-          },
-          skip,
-          take: limit,
-        }),
-        db.client.count({ where }),
-      ])
-    })
+        },
+        orderBy: {
+          [sortBy]: sortOrder as 'asc' | 'desc',
+        },
+        skip,
+        take: limit,
+      }),
+      db.client.count({ where }),
+    ])
 
     const totalPages = Math.ceil(totalCount / limit)
 
@@ -241,14 +239,13 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // TEMPORARY: Comment out auth check for testing
-    // const session = await getServerSession(authOptions)
-    // if (!session) {
-    //   return NextResponse.json(
-    //     { success: false, error: 'Unauthorized' },
-    //     { status: 401 }
-    //   )
-    // }
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
 
     const body = await request.json()
 
@@ -266,9 +263,41 @@ export async function POST(request: NextRequest) {
     // Generate client code if not provided
     const clientCode = body.clientCode || await generateClientCode()
 
+    // Smart assignment logic: Creator -> Partner Settings -> Partner
+    let defaultAssignedUserId = body.assignedUserId || null
+    
+    if (!defaultAssignedUserId) {
+      // Check if current user is a partner and has assignment settings
+      if (session.user.role === 'PARTNER') {
+        // Get partner's assignment preferences
+        const currentUserSettings = await db.userSettings.findUnique({
+          where: { userId: session.user.id },
+          include: {
+            defaultAssignee: {
+              select: {
+                id: true,
+                name: true,
+                isActive: true
+              }
+            }
+          }
+        })
+
+        if (currentUserSettings?.defaultAssignee?.isActive) {
+          // Use partner's preferred default assignee
+          defaultAssignedUserId = currentUserSettings.defaultAssignee.id
+        } else {
+          // Partner has no specific preference, assign to themselves
+          defaultAssignedUserId = session.user.id
+        }
+      } else {
+        // Non-partner user: assign to themselves by default
+        defaultAssignedUserId = session.user.id
+      }
+    }
+
     // Create client with all provided data using retry logic
-    const client = await executeWithRetry(async () => {
-      return await db.client.create({
+    const client = await db.client.create({
         data: {
           clientCode,
           companyName: body.companyName,
@@ -303,18 +332,26 @@ export async function POST(request: NextRequest) {
           yearEstablished: body.yearEstablished ? parseInt(body.yearEstablished) : null,
           numberOfEmployees: body.numberOfEmployees ? parseInt(body.numberOfEmployees) : null,
           annualTurnover: body.annualTurnover ? parseFloat(body.annualTurnover) : null,
-          assignedUserId: body.assignedUserId || null,
+          assignedUserId: defaultAssignedUserId,
           notes: body.notes || null,
           isActive: body.isActive !== undefined ? body.isActive : true,
         },
+        include: {
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
       })
-    })
 
     // Return real-time response with no caching
     const response = NextResponse.json({
       success: true,
       data: client,
-      message: 'Client created successfully',
+      message: `Client created successfully${client.assignedUser ? ` and assigned to ${client.assignedUser.name}` : ''}`,
     })
 
     // Disable all caching for real-time updates

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { CheckCircle, Edit, X, Building2, Hash, Calendar } from 'lucide-react'
+import { CheckCircle, Edit, Eye, Building2, Hash, Calendar, Plus, UserPlus } from 'lucide-react'
 
 interface ClientCreatedModalProps {
   isOpen: boolean
@@ -42,6 +42,16 @@ export function ClientCreatedModal({ isOpen, onClose, client }: ClientCreatedMod
     router.push(`/dashboard/clients/${client.id}`)
   }
 
+  const handleAddAnother = () => {
+    onClose()
+    router.push('/dashboard/clients/add')
+  }
+
+  const handleAssignUser = () => {
+    onClose()
+    router.push(`/dashboard/clients/${client.id}?action=assign`)
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -56,7 +66,7 @@ export function ClientCreatedModal({ isOpen, onClose, client }: ClientCreatedMod
           {/* Success Message */}
           <div className="text-center py-2">
             <p className="text-sm text-muted-foreground">
-              Your new client has been added to the system
+              Your new client has been added to the system and is ready for management
             </p>
           </div>
 
@@ -111,23 +121,53 @@ export function ClientCreatedModal({ isOpen, onClose, client }: ClientCreatedMod
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
+          {/* Primary Actions */}
           <div className="flex gap-3 pt-2">
             <Button
-              onClick={handleEditClient}
+              onClick={handleClose}
               className="btn-primary flex-1"
             >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Client
+              <Eye className="h-4 w-4 mr-2" />
+              View Client
             </Button>
             <Button
-              onClick={handleClose}
+              onClick={handleEditClient}
               variant="outline"
               className="btn-outline flex-1"
             >
-              <X className="h-4 w-4 mr-2" />
-              View Client
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Details
             </Button>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="flex gap-2 pt-1">
+            <Button
+              onClick={handleAssignUser}
+              variant="ghost"
+              size="sm"
+              className="flex-1 text-xs"
+            >
+              <UserPlus className="h-3 w-3 mr-1" />
+              Assign User
+            </Button>
+            <Button
+              onClick={handleAddAnother}
+              variant="ghost"
+              size="sm"
+              className="flex-1 text-xs"
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Add Another
+            </Button>
+          </div>
+
+          {/* Next Steps Tip */}
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs font-medium text-blue-800 mb-1">💡 What's Next?</p>
+            <p className="text-xs text-blue-700">
+              View the client to see their complete profile, assign team members, or set up deadlines and reminders.
+            </p>
           </div>
         </div>
       </DialogContent>

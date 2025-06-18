@@ -121,6 +121,22 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // Validate role-based editing restrictions
+    if (role === 'PARTNER' && session.user.role !== 'PARTNER') {
+      return NextResponse.json(
+        { success: false, error: 'Only Partners can modify Partner roles' },
+        { status: 403 }
+      )
+    }
+
+    // Only PARTNER can edit other PARTNER users
+    if (existingUser.role === 'PARTNER' && session.user.role !== 'PARTNER') {
+      return NextResponse.json(
+        { success: false, error: 'Only Partners can edit other Partner accounts' },
+        { status: 403 }
+      )
+    }
+
     // Prevent managers from deactivating themselves
     if (session.user.id === params.id && isActive === false) {
       return NextResponse.json(

@@ -30,16 +30,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Only managers can reset passwords
-    if (session.user.role !== 'MANAGER') {
+    // Only managers and partners can reset passwords
+    if (session.user.role !== 'MANAGER' && session.user.role !== 'PARTNER') {
       return NextResponse.json(
-        { success: false, error: 'Access denied. Manager role required.' },
+        { success: false, error: 'Access denied. Manager or Partner role required.' },
         { status: 403 }
       )
     }
 
     const body = await request.json()
-    const { sendEmail = false } = body
+    const { 
+      sendEmail = false,
+      passwordConfig = {
+        length: 8,
+        includeUppercase: true,
+        includeLowercase: true,
+        includeNumbers: true,
+        includeSymbols: false
+      }
+    } = body
 
     // Check if user exists
     const existingUser = await db.user.findUnique({
@@ -60,26 +69,51 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Generate temporary password (8 characters: 4 letters + 4 numbers)
-    const generateTempPassword = () => {
-      const letters = 'abcdefghijklmnopqrstuvwxyz'
+    // Generate temporary password with custom configuration
+    const generateTempPassword = (config: any) => {
+      const lowercase = 'abcdefghijklmnopqrstuvwxyz'
+      const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
       const numbers = '0123456789'
+      const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?'
+      
+      let charset = ''
+      if (config.includeLowercase) charset += lowercase
+      if (config.includeUppercase) charset += uppercase
+      if (config.includeNumbers) charset += numbers
+      if (config.includeSymbols) charset += symbols
+      
+      // Ensure at least one character set is selected
+      if (charset === '') {
+        charset = lowercase + numbers // fallback
+      }
       
       let password = ''
-      // Add 4 random letters
-      for (let i = 0; i < 4; i++) {
-        password += letters.charAt(Math.floor(Math.random() * letters.length))
+      
+      // Ensure at least one character from each selected type
+      if (config.includeLowercase) {
+        password += lowercase.charAt(Math.floor(Math.random() * lowercase.length))
       }
-      // Add 4 random numbers
-      for (let i = 0; i < 4; i++) {
+      if (config.includeUppercase) {
+        password += uppercase.charAt(Math.floor(Math.random() * uppercase.length))
+      }
+      if (config.includeNumbers) {
         password += numbers.charAt(Math.floor(Math.random() * numbers.length))
+      }
+      if (config.includeSymbols) {
+        password += symbols.charAt(Math.floor(Math.random() * symbols.length))
+      }
+      
+      // Fill the rest randomly
+      const remainingLength = Math.max(config.length - password.length, 0)
+      for (let i = 0; i < remainingLength; i++) {
+        password += charset.charAt(Math.floor(Math.random() * charset.length))
       }
       
       // Shuffle the password
       return password.split('').sort(() => Math.random() - 0.5).join('')
     }
 
-    const tempPassword = generateTempPassword()
+    const tempPassword = generateTempPassword(passwordConfig)
     const hashedPassword = await bcrypt.hash(tempPassword, 12)
 
     // Update user password

@@ -8,19 +8,9 @@ import {
   Trash2, 
   AlertTriangle,
   Building2,
-  User,
-  Calendar
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import {
   Dialog,
   DialogContent,
@@ -60,6 +50,8 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
     client: null
   })
   const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteAllDialog, setDeleteAllDialog] = useState(false)
+  const [isDeletingAll, setIsDeletingAll] = useState(false)
 
   const handleReassign = async (clientId: string) => {
     setIsReassigning(clientId)
@@ -79,7 +71,6 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
         showToast.error(data.error || 'Failed to reassign client')
       }
     } catch (error) {
-      // Error reassigning client
       showToast.error('Failed to reassign client')
     } finally {
       setIsReassigning(null)
@@ -104,23 +95,51 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
         showToast.error(data.error || 'Failed to delete client')
       }
     } catch (error) {
-      // Error deleting client
       showToast.error('Failed to delete client')
     } finally {
       setIsDeleting(false)
     }
   }
 
+  const handleDeleteAll = async () => {
+    setIsDeletingAll(true)
+    try {
+      const clientIds = clients.map(client => client.id)
+      
+      const deletePromises = clientIds.map(id => 
+        fetch(`/api/clients/${id}`, { method: 'DELETE' })
+      )
+      
+      const results = await Promise.allSettled(deletePromises)
+      const successful = results.filter(result => result.status === 'fulfilled').length
+      const failed = results.length - successful
+      
+      if (successful > 0) {
+        showToast.success(`${successful} client${successful > 1 ? 's' : ''} deleted successfully`)
+      }
+      if (failed > 0) {
+        showToast.error(`Failed to delete ${failed} client${failed > 1 ? 's' : ''}`)
+      }
+      
+      setDeleteAllDialog(false)
+      router.refresh()
+    } catch (error) {
+      showToast.error('Failed to delete clients')
+    } finally {
+      setIsDeletingAll(false)
+    }
+  }
+
   const getCompanyTypeLabel = (type: string) => {
     switch (type) {
       case 'LIMITED_COMPANY':
-        return 'Limited Company'
+        return 'Ltd'
       case 'NON_LIMITED_COMPANY':
-        return 'Non Limited Company'
+        return 'Non-Ltd'
       case 'DIRECTOR':
         return 'Director'
       case 'SUB_CONTRACTOR':
-        return 'Sub Contractor'
+        return 'Sub Con'
       default:
         return type
     }
@@ -129,11 +148,11 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
   if (clients.length === 0) {
     return (
       <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">No Inactive Clients</h3>
+        <CardContent className="flex flex-col items-center justify-center py-8">
+          <Building2 className="h-8 w-8 text-muted-foreground mb-3" />
+          <h3 className="font-medium mb-1">No Inactive Clients</h3>
           <p className="text-sm text-muted-foreground text-center">
-            There are no resigned or inactive clients at the moment.
+            No resigned or inactive clients found.
           </p>
         </CardContent>
       </Card>
@@ -143,118 +162,123 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
   return (
     <>
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Inactive Clients ({clients.length})
-          </CardTitle>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Building2 className="h-4 w-4" />
+              Inactive Clients ({clients.length})
+            </CardTitle>
+            {clients.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteAllDialog(true)}
+                className="text-xs"
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Delete All
+              </Button>
+            )}
+          </div>
         </CardHeader>
-        <CardContent>
-          {/* Desktop Table */}
+        <CardContent className="pt-0">
+          {/* Compact Desktop Table */}
           <div className="hidden md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Company Number</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHead>Resigned Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <table className="table-fixed-layout">
+              <thead>
+                <tr className="table-header-row">
+                  <th className="table-header-cell col-client-code">Code</th>
+                  <th className="table-header-cell col-company-name">Company</th>
+                  <th className="table-header-cell col-role">Type</th>
+                  <th className="table-header-cell col-company-number">Co. No.</th>
+                  <th className="table-header-cell col-date">Resigned</th>
+                  <th className="table-header-cell col-actions text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
                 {clients.map((client) => (
-                  <TableRow key={client.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{client.companyName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {client.clientCode || 'No code'}
-                        </p>
+                  <tr key={client.id} className="table-body-row">
+                    <td className="table-body-cell">
+                      <span className="text-xs font-mono">
+                        {client.clientCode || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="table-body-cell">
+                      <div className="truncate">
+                        <span className="font-medium text-sm" title={client.companyName}>
+                          {client.companyName}
+                        </span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">
+                    </td>
+                    <td className="table-body-cell">
+                      <span className="text-xs">
                         {getCompanyTypeLabel(client.companyType)}
                       </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">
+                    </td>
+                    <td className="table-body-cell">
+                      <span className="text-xs font-mono">
                         {client.companyNumber || 'N/A'}
                       </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">
-                        {client.assignedUser?.name || 'Unassigned'}
+                    </td>
+                    <td className="table-body-cell">
+                      <span className="text-xs">
+                        {format(new Date(client.updatedAt), 'dd/MM/yy')}
                       </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">
-                        {format(new Date(client.updatedAt), 'dd/MM/yyyy')}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
+                    </td>
+                    <td className="table-actions-cell">
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleReassign(client.id)}
                           disabled={isReassigning === client.id}
-                          className="btn-outline"
+                          className="h-7 px-2 text-xs hover:bg-green-50 hover:border-green-300"
                         >
-                          <RotateCcw className="h-4 w-4 mr-1" />
-                          {isReassigning === client.id ? 'Reassigning...' : 'Reassign'}
+                          <RotateCcw className="h-3 w-3 mr-1 text-green-600" />
+                          {isReassigning === client.id ? 'Wait' : 'Reassign'}
                         </Button>
                         <Button
-                          variant="destructive"
+                          variant="outline"
                           size="sm"
                           onClick={() => setDeleteDialog({ isOpen: true, client })}
-                          className="btn-destructive"
+                          className="h-7 px-2 text-xs hover:bg-red-50 hover:border-red-300"
                         >
-                          <Trash2 className="h-4 w-4 mr-1" />
+                          <Trash2 className="h-3 w-3 mr-1 text-red-600" />
                           Delete
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           </div>
 
-          {/* Mobile Cards */}
-          <div className="md:hidden space-y-4">
+          {/* Compact Mobile Cards */}
+          <div className="md:hidden space-y-3">
             {clients.map((client) => (
-              <Card key={client.id} className="border border-border">
-                <CardContent className="p-4">
-                  <div className="space-y-3">
+              <Card key={client.id} className="border">
+                <CardContent className="p-3">
+                  <div className="space-y-2">
                     <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-medium">{client.companyName}</h3>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-medium text-sm truncate">{client.companyName}</h3>
                         <p className="text-xs text-muted-foreground">
-                          {client.clientCode || 'No code'}
+                          {client.clientCode || 'No code'} • {getCompanyTypeLabel(client.companyType)}
                         </p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                        <span>{getCompanyTypeLabel(client.companyType)}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span>{client.assignedUser?.name || 'Unassigned'}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <span>{format(new Date(client.updatedAt), 'dd/MM/yyyy')}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs">Company #:</span>
-                        <span className="text-xs">{client.companyNumber || 'N/A'}</span>
-                      </div>
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">Resigned:</span>{' '}
+                      <span>{format(new Date(client.updatedAt), 'dd/MM/yyyy')}</span>
+                      {client.companyNumber && (
+                        <>
+                          {' • '}
+                          <span className="text-muted-foreground">Co. No:</span>{' '}
+                          <span>{client.companyNumber}</span>
+                        </>
+                      )}
                     </div>
 
                     <div className="flex gap-2 pt-2">
@@ -263,18 +287,18 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
                         size="sm"
                         onClick={() => handleReassign(client.id)}
                         disabled={isReassigning === client.id}
-                        className="btn-outline flex-1"
+                        className="flex-1 h-8 text-xs hover:bg-green-50 hover:border-green-300"
                       >
-                        <RotateCcw className="h-4 w-4 mr-1" />
-                        {isReassigning === client.id ? 'Reassigning...' : 'Reassign'}
+                        <RotateCcw className="h-3 w-3 mr-1 text-green-600" />
+                        {isReassigning === client.id ? 'Wait' : 'Reassign'}
                       </Button>
                       <Button
-                        variant="destructive"
+                        variant="outline"
                         size="sm"
                         onClick={() => setDeleteDialog({ isOpen: true, client })}
-                        className="btn-destructive flex-1"
+                        className="flex-1 h-8 text-xs hover:bg-red-50 hover:border-red-300"
                       >
-                        <Trash2 className="h-4 w-4 mr-1" />
+                        <Trash2 className="h-3 w-3 mr-1 text-red-600" />
                         Delete
                       </Button>
                     </div>
@@ -316,6 +340,38 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
               disabled={isDeleting}
             >
               {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete All Confirmation Dialog */}
+      <Dialog open={deleteAllDialog} onOpenChange={setDeleteAllDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Delete All Inactive Clients
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete <span className="font-medium">ALL {clients.length} inactive clients</span>?
+              This action cannot be undone and will remove all inactive client data permanently.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteAllDialog(false)}
+              disabled={isDeletingAll}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAll}
+              disabled={isDeletingAll}
+            >
+              {isDeletingAll ? 'Deleting All...' : `Delete All ${clients.length} Clients`}
             </Button>
           </DialogFooter>
         </DialogContent>

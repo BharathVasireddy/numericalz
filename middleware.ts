@@ -1,27 +1,64 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
-export function middleware(request: NextRequest) {
-  // Create response
+/**
+ * PERFORMANCE OPTIMIZED Authentication middleware
+ * 
+ * - Fast token validation
+ * - Minimal security headers
+ * - Reduced processing overhead
+ */
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Skip middleware for static assets and API auth routes
+  if (
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/api/auth/') ||
+    pathname.includes('.') // Static files
+  ) {
+    return NextResponse.next()
+  }
+
+  // Fast token check - only for protected routes
+  const isProtectedRoute = pathname.startsWith('/dashboard') || 
+                          pathname.startsWith('/api/clients') ||
+                          pathname.startsWith('/api/users') ||
+                          pathname.startsWith('/api/companies-house') ||
+                          pathname.startsWith('/api/calendar')
+
+  if (isProtectedRoute) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    })
+
+    if (!token) {
+      const loginUrl = new URL('/auth/login', request.url)
+      loginUrl.searchParams.set('callbackUrl', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+  }
+
+  // Handle authenticated users on auth pages
+  if (pathname.startsWith('/auth') && pathname !== '/auth/error') {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    })
+
+    if (token) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
+
+  // Minimal response with essential security headers only
   const response = NextResponse.next()
-
-  // Add comprehensive anti-indexing headers
-  response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet, noimageindex, nocache')
+  
+  // Only essential security headers for performance
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('X-Frame-Options', 'DENY')
-  response.headers.set('X-XSS-Protection', '1; mode=block')
-  response.headers.set('Referrer-Policy', 'no-referrer')
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
-  
-  // Additional security headers
-  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
-  response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate, private')
-  response.headers.set('Pragma', 'no-cache')
-  response.headers.set('Expires', '0')
-  
-  // Prevent search engine indexing at header level
-  response.headers.set('X-Search-Engine-Index', 'false')
-  response.headers.set('X-Application-Type', 'internal-private')
   
   return response
 }
@@ -29,9 +66,14 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths including API routes for real-time data
-     * Only exclude static assets that should be cached
+     * Simple matcher - only process dashboard and API routes
      */
-    '/((?!_next/static|_next/image|favicon.ico|robots.txt).*)',
+    '/dashboard/:path*',
+    '/api/clients/:path*',
+    '/api/users/:path*',
+    '/api/companies-house/:path*',
+    '/api/calendar/:path*',
+    '/auth/:path*',
+    '/',
   ],
 } 

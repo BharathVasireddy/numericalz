@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { showToast } from '@/lib/toast'
-import { UserPlus, Save } from 'lucide-react'
+import { UserPlus, Save, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -42,8 +43,17 @@ interface AssignUserModalProps {
 }
 
 export function AssignUserModal({ client, users, isOpen, onClose, onSuccess }: AssignUserModalProps) {
+  const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string>('unassigned')
+
+  // Debug: Log users array when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('AssignUserModal opened with users:', users)
+      console.log('Current session:', session?.user)
+    }
+  }, [isOpen, users, session])
 
   // Reset form when modal opens
   useEffect(() => {
@@ -59,22 +69,34 @@ export function AssignUserModal({ client, users, isOpen, onClose, onSuccess }: A
     setIsLoading(true)
     
     try {
+      // Handle "me" option
+      const userIdToAssign = selectedUserId === 'me' ? session?.user?.id : selectedUserId
+      
       const response = await fetch(`/api/clients/${client.id}/assign`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userId: selectedUserId === 'unassigned' ? null : selectedUserId }),
+        body: JSON.stringify({ userId: userIdToAssign === 'unassigned' ? null : userIdToAssign }),
       })
 
       const data = await response.json()
 
       if (data.success) {
-        const assignedUser = users.find(u => u.id === selectedUserId)
+        let assignedUserName = ''
+        if (selectedUserId === 'me') {
+          assignedUserName = session?.user?.name || 'yourself'
+        } else if (selectedUserId !== 'unassigned') {
+          const assignedUser = users.find(u => u.id === selectedUserId)
+          assignedUserName = assignedUser?.name || 'selected user'
+        }
+
         showToast.success(
           selectedUserId === 'unassigned' 
             ? 'Client unassigned successfully'
-            : `Client assigned to ${assignedUser?.name} successfully`
+            : selectedUserId === 'me'
+            ? 'Client assigned to you successfully'
+            : `Client assigned to ${assignedUserName} successfully`
         )
         onSuccess()
         onClose()
@@ -82,6 +104,7 @@ export function AssignUserModal({ client, users, isOpen, onClose, onSuccess }: A
         showToast.error(data.error || 'Failed to assign user')
       }
     } catch (error: any) {
+      console.error('Assignment error:', error)
       showToast.error('Error assigning user')
     } finally {
       setIsLoading(false)
@@ -90,6 +113,9 @@ export function AssignUserModal({ client, users, isOpen, onClose, onSuccess }: A
 
   if (!client) return null
 
+  // Check if current user is in the users list
+  const currentUserInList = users.find(u => u.id === session?.user?.id)
+  
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
@@ -106,6 +132,7 @@ export function AssignUserModal({ client, users, isOpen, onClose, onSuccess }: A
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="assignedUser">Assigned User</Label>
+            
             <Select
               value={selectedUserId}
               onValueChange={setSelectedUserId}
@@ -114,17 +141,42 @@ export function AssignUserModal({ client, users, isOpen, onClose, onSuccess }: A
                 <SelectValue placeholder="Select a user or leave unassigned" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {users.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    <div className="flex items-center justify-between w-full">
-                      <span>{user.name}</span>
+                <SelectItem value="unassigned">
+                  <div className="flex items-center gap-2">
+                    <span>Unassigned</span>
+                  </div>
+                </SelectItem>
+                
+                {/* Assign to Me option */}
+                {session?.user && (
+                  <SelectItem value="me">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-blue-600" />
+                      <span className="font-medium">Assign to Me</span>
                       <span className="text-xs text-muted-foreground ml-2">
-                        ({user.role})
+                        ({session.user.role})
                       </span>
                     </div>
                   </SelectItem>
-                ))}
+                )}
+                
+                {/* Other users */}
+                {users.length > 0 ? (
+                  users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      <div className="flex items-center justify-between w-full">
+                        <span>{user.name}</span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          ({user.role})
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-users" disabled>
+                    <span className="text-muted-foreground">No other users available</span>
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
@@ -137,11 +189,17 @@ export function AssignUserModal({ client, users, isOpen, onClose, onSuccess }: A
               <div className="flex items-center gap-2">
                 <UserPlus className="h-4 w-4 text-blue-600" />
                 <span className="text-sm font-medium text-blue-900">
-                  {users.find(u => u.id === selectedUserId)?.name} will be assigned to this client
+                  {selectedUserId === 'me' 
+                    ? 'You will be assigned to this client'
+                    : `${users.find(u => u.id === selectedUserId)?.name} will be assigned to this client`
+                  }
                 </span>
               </div>
               <p className="text-xs text-blue-700 mt-1">
-                They will receive access to view and manage this client's information
+                {selectedUserId === 'me' 
+                  ? 'You will receive access to view and manage this client\'s information'
+                  : 'They will receive access to view and manage this client\'s information'
+                }
               </p>
             </div>
           )}

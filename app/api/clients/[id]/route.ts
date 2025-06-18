@@ -86,15 +86,22 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Only managers can update clients
-    if (session.user.role !== 'MANAGER') {
+    const body = await request.json()
+
+    // Check if this is a questionnaire update (less restrictive) or full update (manager only)
+    const isQuestionnaireUpdate = Object.keys(body).every(key => 
+      ['isVatEnabled', 'vatNumber', 'vatRegistrationDate', 'vatReturnsFrequency', 'nextVatReturnDue', 
+       'requiresPayroll', 'requiresBookkeeping', 'requiresManagementAccounts', 
+       'preferredContactMethod', 'specialInstructions'].includes(key)
+    )
+
+    // Only managers and partners can do full updates, but anyone can do questionnaire updates
+    if (!isQuestionnaireUpdate && session.user.role !== 'MANAGER' && session.user.role !== 'PARTNER') {
       return NextResponse.json(
-        { success: false, error: 'Forbidden - Manager access required' },
+        { success: false, error: 'Forbidden - Manager or Partner access required for full client updates' },
         { status: 403 }
       )
     }
-
-    const body = await request.json()
 
     // Check if client exists
     const existingClient = await db.client.findUnique({
@@ -108,21 +115,47 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Validate required fields
-    const requiredFields = ['companyName', 'companyType', 'contactName', 'contactEmail']
-    for (const field of requiredFields) {
-      if (!body[field]) {
-        return NextResponse.json(
-          { success: false, error: `${field} is required` },
-          { status: 400 }
-        )
+    // Validate required fields only for full updates (not questionnaire updates)
+    if (!isQuestionnaireUpdate) {
+      const requiredFields = ['companyName', 'companyType', 'contactName', 'contactEmail']
+      for (const field of requiredFields) {
+        if (!body[field]) {
+          return NextResponse.json(
+            { success: false, error: `${field} is required` },
+            { status: 400 }
+          )
+        }
       }
     }
 
-    // Update client
-    const updatedClient = await db.client.update({
-      where: { id: params.id },
-      data: {
+    // Prepare update data based on update type
+    let updateData: any = {
+      updatedAt: new Date(),
+    }
+
+    if (isQuestionnaireUpdate) {
+      // Only update questionnaire fields
+      updateData = {
+        ...updateData,
+        ...(body.isVatEnabled !== undefined && { isVatEnabled: body.isVatEnabled }),
+        ...(body.vatNumber !== undefined && { vatNumber: body.vatNumber }),
+        ...(body.vatRegistrationDate !== undefined && { 
+          vatRegistrationDate: body.vatRegistrationDate ? new Date(body.vatRegistrationDate) : null 
+        }),
+        ...(body.vatReturnsFrequency !== undefined && { vatReturnsFrequency: body.vatReturnsFrequency }),
+        ...(body.nextVatReturnDue !== undefined && { 
+          nextVatReturnDue: body.nextVatReturnDue ? new Date(body.nextVatReturnDue) : null 
+        }),
+        ...(body.requiresPayroll !== undefined && { requiresPayroll: body.requiresPayroll }),
+        ...(body.requiresBookkeeping !== undefined && { requiresBookkeeping: body.requiresBookkeeping }),
+        ...(body.requiresManagementAccounts !== undefined && { requiresManagementAccounts: body.requiresManagementAccounts }),
+        ...(body.preferredContactMethod !== undefined && { preferredContactMethod: body.preferredContactMethod }),
+        ...(body.specialInstructions !== undefined && { specialInstructions: body.specialInstructions }),
+      }
+    } else {
+      // Full update - include all fields
+      updateData = {
+        ...updateData,
         companyName: body.companyName,
         companyType: body.companyType,
         companyNumber: body.companyNumber || null,
@@ -141,8 +174,27 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         // Address fields
         tradingAddress: body.tradingAddress || null,
         residentialAddress: body.residentialAddress || null,
-        updatedAt: new Date(),
-      },
+        // Post-creation questionnaire fields
+        ...(body.isVatEnabled !== undefined && { isVatEnabled: body.isVatEnabled }),
+        ...(body.vatRegistrationDate !== undefined && { 
+          vatRegistrationDate: body.vatRegistrationDate ? new Date(body.vatRegistrationDate) : null 
+        }),
+        ...(body.vatReturnsFrequency !== undefined && { vatReturnsFrequency: body.vatReturnsFrequency }),
+        ...(body.nextVatReturnDue !== undefined && { 
+          nextVatReturnDue: body.nextVatReturnDue ? new Date(body.nextVatReturnDue) : null 
+        }),
+        ...(body.requiresPayroll !== undefined && { requiresPayroll: body.requiresPayroll }),
+        ...(body.requiresBookkeeping !== undefined && { requiresBookkeeping: body.requiresBookkeeping }),
+        ...(body.requiresManagementAccounts !== undefined && { requiresManagementAccounts: body.requiresManagementAccounts }),
+        ...(body.preferredContactMethod !== undefined && { preferredContactMethod: body.preferredContactMethod }),
+        ...(body.specialInstructions !== undefined && { specialInstructions: body.specialInstructions }),
+      }
+    }
+
+    // Update client
+    const updatedClient = await db.client.update({
+      where: { id: params.id },
+      data: updateData,
       include: {
         assignedUser: {
           select: {

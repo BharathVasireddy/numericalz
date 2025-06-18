@@ -13,17 +13,9 @@ import {
   RefreshCw,
   Settings,
   Building2,
-  Calendar,
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Clock,
-  Filter,
-  Search,
-  Download,
-  Upload,
-  RotateCcw,
-  Loader2,
   Mail,
   Phone,
   MoreHorizontal,
@@ -48,6 +40,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+
 import { BulkOperations } from './bulk-operations'
 import { AssignUserModal } from './assign-user-modal'
 import { Badge } from '@/components/ui/badge'
@@ -71,6 +64,7 @@ interface Client {
   }
   isActive: boolean
   createdAt: string
+
 }
 
 interface User {
@@ -123,7 +117,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
   const [clientToAssign, setClientToAssign] = useState<Client | null>(null)
 
   const fetchClients = useCallback(async () => {
-    if (!session) return
+    if (!session?.user?.id) return
 
     try {
       setLoading(true)
@@ -167,7 +161,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, filters, sortBy, sortOrder, session])
+  }, [searchQuery, filters, sortBy, sortOrder, session?.user?.id])
 
   useEffect(() => {
     if (session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') {
@@ -177,7 +171,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
 
   // Debounced fetch effect - separate from the debounced function to avoid dependency issues
   useEffect(() => {
-    if (!session) return
+    if (!session?.user?.id) return
 
     const debouncedFetch = debounce(() => {
       fetchClients()
@@ -193,11 +187,16 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
 
   const fetchUsers = async () => {
     try {
-      // Include the current user (manager) in the list for assignment
+      // Include the current user in the list for assignment
       const response = await fetch('/api/users?includeSelf=true')
       if (response.ok) {
         const data = await response.json()
+        console.log('Fetched users for assignment:', data.users) // Debug log
         setUsers(data.users || [])
+      } else {
+        console.error('Failed to fetch users:', response.status, response.statusText)
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Error details:', errorData)
       }
     } catch (error) {
       console.error('Error fetching users:', error)
@@ -252,7 +251,6 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
         return `${parsed.day}/${parsed.month}`
       }
     } catch (e) {
-      // If it's not JSON, try to parse as date string
       const date = new Date(accountingRefDate)
       if (!isNaN(date.getTime())) {
         return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })
@@ -263,7 +261,6 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
 
   const calculateCTDue = (nextAccountsDue: string | null) => {
     if (!nextAccountsDue) return '-'
-    // CT is typically due 9 months after accounting period end
     const accountsDate = new Date(nextAccountsDue)
     const ctDate = new Date(accountsDate)
     ctDate.setMonth(ctDate.getMonth() + 9)
@@ -290,6 +287,8 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays <= daysThreshold && diffDays > 0
   }
+
+
 
   const handleAssignUser = (client: Client) => {
     setClientToAssign(client)
@@ -416,7 +415,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   className="table-header-cell col-company-number cursor-pointer hover:text-foreground"
                   onClick={() => handleSort('companyNumber')}
                 >
-                  Company No.
+                  Company Number
                 </th>
                 <th 
                   className="table-header-cell col-company-name cursor-pointer hover:text-foreground"
@@ -626,150 +625,10 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
           </table>
         </div>
 
-        {/* Tablet View */}
-        <div className="hidden md:block lg:hidden">
-          <div className="space-y-4 p-4">
-            {clients.map((client) => (
-              <div key={client.id} className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-start justify-between">
-                  <button
-                    onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                    className="text-left hover:bg-accent/50 rounded px-2 py-1 -mx-2 -my-1 transition-colors group flex-1"
-                  >
-                    <div className="space-y-1">
-                      <div className="font-medium text-sm group-hover:text-primary">{client.companyName}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {client.companyNumber} • {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' : client.companyType}
-                      </div>
-                    </div>
-                  </button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="action-trigger-icon" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem 
-                        onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <Eye className="h-4 w-4" />
-                        View Details
-                      </DropdownMenuItem>
-                      {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
-                        <>
-                          <DropdownMenuItem 
-                            onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <Edit className="h-4 w-4" />
-                            Edit Client
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleAssignUser(client)}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <UserPlus className="h-4 w-4" />
-                            Assign User
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => handleRefreshCompaniesHouse(client)}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                            Refresh from Companies House
-                          </DropdownMenuItem>
-                          {client.isActive && (
-                            <DropdownMenuItem 
-                              onClick={() => handleResignClient(client)}
-                              className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                            >
-                              <UserX className="h-4 w-4" />
-                              Resign Client
-                            </DropdownMenuItem>
-                          )}
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <span className="text-muted-foreground">Year End:</span>
-                    <div className="font-medium">{getYearEnd(client.accountingReferenceDate)}</div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Contact:</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      {client.contactEmail && (
-                        <button
-                          onClick={() => window.open(`mailto:${client.contactEmail}`, '_blank')}
-                          className="p-1 hover:bg-accent rounded transition-colors"
-                          title={client.contactEmail}
-                        >
-                          <Mail className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                        </button>
-                      )}
-                      {client.contactPhone && (
-                        <button
-                          onClick={() => window.open(`tel:${client.contactPhone}`, '_blank')}
-                          className="p-1 hover:bg-accent rounded transition-colors"
-                          title={client.contactPhone}
-                        >
-                          <Phone className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                        </button>
-                      )}
-                      {!client.contactEmail && !client.contactPhone && (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <span className="text-muted-foreground">Accounts Due:</span>
-                    <div className={`font-mono ${
-                      isDateOverdue(client.nextAccountsDue) ? 'text-red-600 font-medium' :
-                      isDateSoon(client.nextAccountsDue) ? 'text-amber-600 font-medium' :
-                      'text-foreground'
-                    }`}>
-                      {formatDate(client.nextAccountsDue)}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">CS Due:</span>
-                    <div className={`font-mono ${
-                      isDateOverdue(client.nextConfirmationDue) ? 'text-red-600 font-medium' :
-                      isDateSoon(client.nextConfirmationDue) ? 'text-amber-600 font-medium' :
-                      'text-foreground'
-                    }`}>
-                      {formatDate(client.nextConfirmationDue)}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="text-xs">
-                    <span className="text-muted-foreground">Assigned to:</span>
-                    <div className="font-medium">
-                      {client.assignedUser?.name || 'Unassigned'}
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">
-                    Active
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+
 
         {/* Mobile View */}
-        <div className="block md:hidden">
+        <div className="block lg:hidden">
           <div className="space-y-3 p-3">
             {clients.map((client) => (
               <div key={client.id} className="border rounded-lg p-3 space-y-2">
@@ -834,9 +693,13 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                 </div>
                 
                 <div className="space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Accounts:</span>
-                    <span className={`font-mono ${
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Year End:</span>
+                    <span>{getYearEnd(client.accountingReferenceDate)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Accounts Due:</span>
+                    <span className={`${
                       isDateOverdue(client.nextAccountsDue) ? 'text-red-600 font-medium' :
                       isDateSoon(client.nextAccountsDue) ? 'text-amber-600 font-medium' :
                       'text-foreground'
@@ -844,9 +707,13 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                       {formatDate(client.nextAccountsDue)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">CS:</span>
-                    <span className={`font-mono ${
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">CT Due:</span>
+                    <span className="text-muted-foreground">{calculateCTDue(client.nextAccountsDue)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">CS Due:</span>
+                    <span className={`${
                       isDateOverdue(client.nextConfirmationDue) ? 'text-red-600 font-medium' :
                       isDateSoon(client.nextConfirmationDue) ? 'text-amber-600 font-medium' :
                       'text-foreground'
@@ -880,15 +747,15 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                       )}
                     </div>
                   </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Assigned To:</span>
+                    <span>
+                      {client.assignedUser ? client.assignedUser.name : 'Unassigned'}
+                    </span>
+                  </div>
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <div className="text-xs">
-                    <span className="text-muted-foreground">Assigned:</span>
-                    <div className="font-medium">
-                      {client.assignedUser?.name || 'Unassigned'}
-                    </div>
-                  </div>
                   <Badge variant="secondary" className="text-xs">
                     Active
                   </Badge>
