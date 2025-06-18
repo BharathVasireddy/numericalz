@@ -394,11 +394,11 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
       <Card className="overflow-hidden">
         {/* Desktop Table */}
         <div className="hidden lg:block">
-          <table className="w-full text-sm table-fixed">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
+          <table className="table-fixed-layout">
+            <thead>
+              <tr className="table-header-row">
                 {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
-                  <th className="text-left p-3 w-12">
+                  <th className="table-header-cell w-12">
                     <Checkbox
                       checked={isAllSelected}
                       onCheckedChange={handleSelectAll}
@@ -407,57 +407,57 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   </th>
                 )}
                 <th 
-                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground w-20"
+                  className="table-header-cell col-client-code cursor-pointer hover:text-foreground"
                   onClick={() => handleSort('clientCode')}
                 >
                   Client Code
                 </th>
                 <th 
-                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground w-24"
+                  className="table-header-cell col-company-number cursor-pointer hover:text-foreground"
                   onClick={() => handleSort('companyNumber')}
                 >
                   Company No.
                 </th>
                 <th 
-                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground w-48"
+                  className="table-header-cell col-company-name cursor-pointer hover:text-foreground"
                   onClick={() => handleSort('companyName')}
                 >
                   Company Name
                 </th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground w-20">
+                <th className="table-header-cell w-20">
                   Year End
                 </th>
                 <th 
-                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground w-24"
+                  className="table-header-cell col-date cursor-pointer hover:text-foreground"
                   onClick={() => handleSort('nextAccountsDue')}
                 >
                   Accounts Due
                 </th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground w-20">
+                <th className="table-header-cell w-20">
                   CT Due
                 </th>
                 <th 
-                  className="text-left p-3 text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground w-24"
+                  className="table-header-cell col-date cursor-pointer hover:text-foreground"
                   onClick={() => handleSort('nextConfirmationDue')}
                 >
                   CS Due
                 </th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground w-20">
+                <th className="table-header-cell col-contact">
                   Contact
                 </th>
-                <th className="text-left p-3 text-xs font-medium text-muted-foreground w-32">
+                <th className="table-header-cell col-assigned-to">
                   Assigned To
                 </th>
-                <th className="text-right p-3 text-xs font-medium text-muted-foreground w-16">
+                <th className="table-header-cell col-actions text-right">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody>
               {clients.map((client) => (
-                <tr key={client.id} className="border-b border-border hover:bg-muted/30">
+                <tr key={client.id} className="table-body-row">
                   {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
-                    <td className="p-3">
+                    <td className="table-body-cell">
                       <Checkbox
                         checked={selectedClients.includes(client.id)}
                         onCheckedChange={(checked) => handleSelectClient(client.id, checked as boolean)}
@@ -465,17 +465,17 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                       />
                     </td>
                   )}
-                  <td className="p-3">
+                  <td className="table-body-cell">
                     <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
                       {client.clientCode || 'N/A'}
                     </span>
                   </td>
-                  <td className="p-3">
+                  <td className="table-body-cell">
                     <span className="font-mono text-xs">
                       {client.companyNumber || '-'}
                     </span>
                   </td>
-                  <td className="p-3">
+                  <td className="table-body-cell">
                     <div className="w-full">
                       <button
                         onClick={() => router.push(`/dashboard/clients/${client.id}`)}
@@ -494,12 +494,12 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                       </button>
                     </div>
                   </td>
-                  <td className="p-3">
+                  <td className="table-body-cell">
                     <span className="text-xs font-mono">
                       {getYearEnd(client.accountingReferenceDate)}
                     </span>
                   </td>
-                  <td className="p-3">
+                  <td className="table-body-cell">
                     <div className="flex items-center gap-1">
                       {isDateOverdue(client.nextAccountsDue) && (
                         <AlertTriangle className="h-3 w-3 text-red-500" />
@@ -513,12 +513,12 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                       </span>
                     </div>
                   </td>
-                  <td className="p-3">
+                  <td className="table-body-cell">
                     <span className="text-xs font-mono text-muted-foreground">
                       {calculateCTDue(client.nextAccountsDue)}
                     </span>
                   </td>
-                  <td className="p-3">
+                  <td className="table-body-cell">
                     <div className="flex items-center gap-1">
                       {isDateOverdue(client.nextConfirmationDue) && (
                         <AlertTriangle className="h-3 w-3 text-red-500" />
@@ -532,7 +532,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                       </span>
                     </div>
                   </td>
-                  <td className="p-3">
+                  <td className="table-body-cell">
                     <div className="flex items-center gap-2">
                       {client.contactEmail && (
                         <button
@@ -557,7 +557,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                       )}
                     </div>
                   </td>
-                  <td className="p-3">
+                  <td className="table-body-cell">
                     {client.assignedUser ? (
                       <div className="text-xs">
                         <div className="font-medium truncate" title={client.assignedUser.name}>{client.assignedUser.name}</div>
@@ -567,10 +567,10 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                       <span className="text-xs text-muted-foreground">Unassigned</span>
                     )}
                   </td>
-                  <td className="p-3 text-right">
+                  <td className="table-actions-cell">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button variant="ghost" className="action-trigger-button">
                           <MoreHorizontal className="action-trigger-icon" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -582,7 +582,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                           <Eye className="h-4 w-4" />
                           View Details
                         </DropdownMenuItem>
-                        {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
+                        {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') &&
                           <>
                             <DropdownMenuItem 
                               onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
@@ -616,7 +616,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                               </DropdownMenuItem>
                             )}
                           </>
-                        )}
+                        }
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>

@@ -266,134 +266,148 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
             <CardContent>
               {/* Desktop Table */}
               <div className="hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Member</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Clients</TableHead>
-                      <TableHead>Last Login</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map((user) => {
-                      return (
-                        <TableRow key={user.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{user.name}</p>
-                              <p className="text-xs text-muted-foreground">{user.email}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={user.role === 'PARTNER' ? 'default' : 'secondary'}
-                              className={
-                                user.role === 'PARTNER' 
-                                  ? 'bg-purple-600 text-white hover:bg-purple-700' 
-                                  : user.role === 'MANAGER' 
-                                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                                    : 'bg-gray-600 text-white hover:bg-gray-700'
-                              }
-                            >
-                              {user.role === 'PARTNER' ? (
-                                <Crown className="h-3 w-3 mr-1.5" />
-                              ) : user.role === 'MANAGER' ? (
-                                <Shield className="h-3 w-3 mr-1.5" />
-                              ) : (
-                                <User className="h-3 w-3 mr-1.5" />
-                              )}
-                              {user.role}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={user.isActive ? 'default' : 'secondary'}>
-                              {user.isActive ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-medium">{user._count.assignedClients}</span>
-                          </TableCell>
-                          <TableCell>
-                            <span className={`text-sm ${
-                              user.lastLoginAt && new Date(user.lastLoginAt).getTime() > Date.now() - (24 * 60 * 60 * 1000)
-                                ? 'text-green-600' 
-                                : user.lastLoginAt 
-                                  ? 'text-muted-foreground'
-                                  : 'text-red-500'
-                            }`}>
-                              {formatLastLogin(user.lastLoginAt)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-9 w-9 p-1 hover:bg-muted/50 flex items-center justify-center">
-                                  <Settings className="action-trigger-icon" />
-                                  <span className="sr-only">Open menu</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem 
-                                  onClick={() => handleEditUser(user)}
-                                  className="flex items-center gap-2 cursor-pointer"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                  Edit Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => handleViewUserLog(user)}
-                                  className="flex items-center gap-2 cursor-pointer"
-                                >
-                                  <Activity className="h-4 w-4" />
-                                  View Log
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => handleToggleUserStatus(user.id, user.isActive)}
-                                  className="flex items-center gap-2 cursor-pointer"
-                                >
-                                  {user.isActive ? (
-                                    <>
-                                      <Trash2 className="h-4 w-4" />
-                                      Deactivate
-                                    </>
-                                  ) : (
-                                    <>
-                                      <UserPlus className="h-4 w-4" />
-                                      Activate
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setUserToDelete(user)
-                                    setShowDeleteDialog(true)
-                                  }}
-                                  className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                                  disabled={
-                                    !canDeleteUser(user)
-                                  }
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  Delete
-                                  {user.role === 'PARTNER' ? (
-                                    <Crown className="h-3 w-3 ml-1" />
-                                  ) : user.role === 'MANAGER' && user._count.assignedClients > 0 && (
-                                    <AlertTriangle className="h-3 w-3 ml-1" />
-                                  )}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
+                <div className="overflow-auto">
+                  <table className="table-fixed-layout">
+                    <thead>
+                      <tr className="table-header-row">
+                        <th className="table-header-cell col-member">
+                          Member
+                        </th>
+                        <th className="table-header-cell col-role">
+                          Role
+                        </th>
+                        <th className="table-header-cell col-status">
+                          Status
+                        </th>
+                        <th className="table-header-cell col-clients">
+                          Clients
+                        </th>
+                        <th className="table-header-cell col-last-login">
+                          Last Login
+                        </th>
+                        <th className="table-header-cell col-actions text-right">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map((user) => {
+                        return (
+                          <tr key={user.id} className="table-body-row">
+                            <td className="table-body-cell">
+                              <div>
+                                <p className="font-medium text-sm">{user.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                              </div>
+                            </td>
+                            <td className="table-body-cell">
+                              <Badge 
+                                variant={user.role === 'PARTNER' ? 'default' : 'secondary'}
+                                className={
+                                  user.role === 'PARTNER' 
+                                    ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                                    : user.role === 'MANAGER' 
+                                      ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                                      : 'bg-gray-600 text-white hover:bg-gray-700'
+                                }
+                              >
+                                {user.role === 'PARTNER' ? (
+                                  <Crown className="h-3 w-3 mr-1.5" />
+                                ) : user.role === 'MANAGER' ? (
+                                  <Shield className="h-3 w-3 mr-1.5" />
+                                ) : (
+                                  <User className="h-3 w-3 mr-1.5" />
+                                )}
+                                {user.role}
+                              </Badge>
+                            </td>
+                            <td className="table-body-cell">
+                              <Badge variant={user.isActive ? 'default' : 'secondary'}>
+                                {user.isActive ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </td>
+                            <td className="table-body-cell">
+                              <span className="font-medium text-sm">{user._count.assignedClients}</span>
+                            </td>
+                            <td className="table-body-cell">
+                              <span className={`text-xs ${
+                                user.lastLoginAt && new Date(user.lastLoginAt).getTime() > Date.now() - (24 * 60 * 60 * 1000)
+                                  ? 'text-green-600' 
+                                  : user.lastLoginAt 
+                                    ? 'text-muted-foreground'
+                                    : 'text-red-500'
+                              }`}>
+                                {formatLastLogin(user.lastLoginAt)}
+                              </span>
+                            </td>
+                            <td className="table-actions-cell">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="action-trigger-button">
+                                    <Settings className="action-trigger-icon" />
+                                    <span className="sr-only">Open menu</span>
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem 
+                                    onClick={() => handleEditUser(user)}
+                                    className="flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                    Edit Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleViewUserLog(user)}
+                                    className="flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Activity className="h-4 w-4" />
+                                    View Log
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => handleToggleUserStatus(user.id, user.isActive)}
+                                    className="flex items-center gap-2 cursor-pointer"
+                                  >
+                                    {user.isActive ? (
+                                      <>
+                                        <Trash2 className="h-4 w-4" />
+                                        Deactivate
+                                      </>
+                                    ) : (
+                                      <>
+                                        <UserPlus className="h-4 w-4" />
+                                        Activate
+                                      </>
+                                    )}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setUserToDelete(user)
+                                      setShowDeleteDialog(true)
+                                    }}
+                                    className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                                    disabled={
+                                      !canDeleteUser(user)
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete
+                                    {user.role === 'PARTNER' ? (
+                                      <Crown className="h-3 w-3 ml-1" />
+                                    ) : user.role === 'MANAGER' && user._count.assignedClients > 0 && (
+                                      <AlertTriangle className="h-3 w-3 ml-1" />
+                                    )}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               {/* Mobile Cards */}

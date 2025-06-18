@@ -336,6 +336,84 @@
     @apply h-4 w-4;
   }
   
+  /* Enhanced Table Layout System */
+  .table-fixed-layout {
+    @apply w-full text-sm table-fixed;
+  }
+  
+  .table-header-row {
+    @apply bg-muted/50 border-b border-border;
+  }
+  
+  .table-header-cell {
+    @apply text-left p-3 text-xs font-medium text-muted-foreground;
+  }
+  
+  .table-body-row {
+    @apply border-b border-border hover:bg-muted/30 transition-colors duration-150;
+  }
+  
+  .table-body-cell {
+    @apply p-3 align-middle;
+  }
+  
+  .table-actions-cell {
+    @apply p-3 text-right align-middle;
+  }
+  
+  .table-action-button {
+    @apply h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-accent transition-colors duration-150;
+  }
+  
+  /* Specific column width classes for consistent alignment */
+  .col-member {
+    @apply w-64; /* Member column - wider for name + email */
+  }
+  
+  .col-role {
+    @apply w-32; /* Role column */
+  }
+  
+  .col-status {
+    @apply w-24; /* Status column */
+  }
+  
+  .col-clients {
+    @apply w-20; /* Clients count column */
+  }
+  
+  .col-last-login {
+    @apply w-32; /* Last login column */
+  }
+  
+  .col-actions {
+    @apply w-16; /* Actions column - fixed small width */
+  }
+  
+  .col-client-code {
+    @apply w-20; /* Client code column */
+  }
+  
+  .col-company-number {
+    @apply w-24; /* Company number column */
+  }
+  
+  .col-company-name {
+    @apply w-48; /* Company name column - main content */
+  }
+  
+  .col-date {
+    @apply w-24; /* Date columns */
+  }
+  
+  .col-contact {
+    @apply w-20; /* Contact icons column */
+  }
+  
+  .col-assigned-to {
+    @apply w-32; /* Assigned to column */
+  }
+  
   /* Action trigger button icon - consistent with navigation icons */
   .action-trigger-icon {
     @apply h-4 w-4 text-gray-600 hover:text-foreground transition-colors duration-200 flex-shrink-0;
@@ -346,6 +424,16 @@
     .action-trigger-icon {
       @apply text-gray-700 hover:text-gray-900;
     }
+  }
+  
+  /* Ensure action buttons are always properly aligned */
+  .action-trigger-button {
+    @apply h-8 w-8 p-0 inline-flex items-center justify-center hover:bg-accent rounded-md transition-colors duration-150;
+  }
+  
+  /* Fix for dropdown trigger alignment */
+  .dropdown-trigger-centered {
+    @apply flex items-center justify-center;
   }
   
   /* Navigation Menu Enhancements */
