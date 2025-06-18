@@ -18,15 +18,16 @@ export function calculateVATQuarter(
   quarterGroup: string,
   referenceDate: Date = new Date()
 ): VATQuarterInfo {
-  const year = referenceDate.getFullYear()
-  const month = referenceDate.getMonth() + 1 // JavaScript months are 0-indexed
+  const currentDate = new Date(referenceDate)
+  const year = currentDate.getFullYear()
+  const month = currentDate.getMonth() + 1 // JavaScript months are 0-indexed
 
-  // Determine which quarter we're currently in based on the group
   let quarterEndMonth: number
   let quarterEndYear = year
 
+  // Handle quarter groups with underscore format (as per database schema)
   switch (quarterGroup) {
-    case "1/4/7/10":
+    case "1_4_7_10":
       if (month <= 1) {
         quarterEndMonth = 1 // January
       } else if (month <= 4) {
@@ -41,7 +42,7 @@ export function calculateVATQuarter(
       }
       break
 
-    case "2/5/8/11":
+    case "2_5_8_11":
       if (month <= 2) {
         quarterEndMonth = 2 // February
       } else if (month <= 5) {
@@ -56,7 +57,7 @@ export function calculateVATQuarter(
       }
       break
 
-    case "3/6/9/12":
+    case "3_6_9_12":
       if (month <= 3) {
         quarterEndMonth = 3 // March
       } else if (month <= 6) {
@@ -72,7 +73,7 @@ export function calculateVATQuarter(
       break
 
     default:
-      throw new Error(`Invalid quarter group: ${quarterGroup}`)
+      throw new Error(`Invalid quarter group: ${quarterGroup}. Expected format: "1_4_7_10", "2_5_8_11", or "3_6_9_12"`)
   }
 
   // Calculate quarter end date (last day of the month)

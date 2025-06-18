@@ -87,13 +87,20 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json()
+    
+    // Debug logging
+    console.log('🔍 PUT /api/clients/[id] - Received body:', JSON.stringify(body, null, 2))
+    console.log('🔍 PUT /api/clients/[id] - Client ID:', params.id)
+    console.log('🔍 PUT /api/clients/[id] - User role:', session.user.role)
 
     // Check if this is a questionnaire update (less restrictive) or full update (manager only)
     const isQuestionnaireUpdate = Object.keys(body).every(key => 
       ['isVatEnabled', 'vatNumber', 'vatRegistrationDate', 'vatReturnsFrequency', 'nextVatReturnDue', 
        'requiresPayroll', 'requiresBookkeeping', 'requiresManagementAccounts', 
-       'preferredContactMethod', 'specialInstructions'].includes(key)
+       'preferredContactMethod', 'specialInstructions', 'vatQuarterGroup'].includes(key)
     )
+    
+    console.log('🔍 PUT /api/clients/[id] - Is questionnaire update:', isQuestionnaireUpdate)
 
     // Only managers and partners can do full updates, but anyone can do questionnaire updates
     if (!isQuestionnaireUpdate && session.user.role !== 'MANAGER' && session.user.role !== 'PARTNER') {
@@ -128,6 +135,44 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
 
+    // Validate questionnaire data before processing
+    if (isQuestionnaireUpdate) {
+      if (body.vatRegistrationDate && body.vatRegistrationDate.trim() && isNaN(Date.parse(body.vatRegistrationDate))) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid VAT registration date format' },
+          { status: 400 }
+        )
+      }
+      
+      if (body.nextVatReturnDue && body.nextVatReturnDue.trim() && isNaN(Date.parse(body.nextVatReturnDue))) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid VAT return due date format' },
+          { status: 400 }
+        )
+      }
+      
+      if (body.vatReturnsFrequency && !['QUARTERLY', 'MONTHLY', 'ANNUALLY'].includes(body.vatReturnsFrequency)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid VAT returns frequency' },
+          { status: 400 }
+        )
+      }
+      
+      if (body.vatQuarterGroup && !['1_4_7_10', '2_5_8_11', '3_6_9_12'].includes(body.vatQuarterGroup)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid VAT quarter group' },
+          { status: 400 }
+        )
+      }
+      
+      if (body.preferredContactMethod && !['EMAIL', 'PHONE', 'POST', 'IN_PERSON'].includes(body.preferredContactMethod)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid preferred contact method' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Prepare update data based on update type
     let updateData: any = {
       updatedAt: new Date(),
@@ -138,14 +183,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       updateData = {
         ...updateData,
         ...(body.isVatEnabled !== undefined && { isVatEnabled: body.isVatEnabled }),
-        ...(body.vatNumber !== undefined && { vatNumber: body.vatNumber }),
+        ...(body.vatNumber !== undefined && { vatNumber: body.vatNumber || null }),
         ...(body.vatRegistrationDate !== undefined && { 
-          vatRegistrationDate: body.vatRegistrationDate ? new Date(body.vatRegistrationDate) : null 
+          vatRegistrationDate: (body.vatRegistrationDate && body.vatRegistrationDate.trim()) ? new Date(body.vatRegistrationDate) : null 
         }),
         ...(body.vatReturnsFrequency !== undefined && { vatReturnsFrequency: body.vatReturnsFrequency }),
         ...(body.vatQuarterGroup !== undefined && { vatQuarterGroup: body.vatQuarterGroup }),
         ...(body.nextVatReturnDue !== undefined && { 
-          nextVatReturnDue: body.nextVatReturnDue ? new Date(body.nextVatReturnDue) : null 
+          nextVatReturnDue: (body.nextVatReturnDue && body.nextVatReturnDue.trim()) ? new Date(body.nextVatReturnDue) : null 
         }),
         ...(body.requiresPayroll !== undefined && { requiresPayroll: body.requiresPayroll }),
         ...(body.requiresBookkeeping !== undefined && { requiresBookkeeping: body.requiresBookkeeping }),
@@ -178,12 +223,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         // Post-creation questionnaire fields
         ...(body.isVatEnabled !== undefined && { isVatEnabled: body.isVatEnabled }),
         ...(body.vatRegistrationDate !== undefined && { 
-          vatRegistrationDate: body.vatRegistrationDate ? new Date(body.vatRegistrationDate) : null 
+          vatRegistrationDate: (body.vatRegistrationDate && body.vatRegistrationDate.trim()) ? new Date(body.vatRegistrationDate) : null 
         }),
         ...(body.vatReturnsFrequency !== undefined && { vatReturnsFrequency: body.vatReturnsFrequency }),
         ...(body.vatQuarterGroup !== undefined && { vatQuarterGroup: body.vatQuarterGroup }),
         ...(body.nextVatReturnDue !== undefined && { 
-          nextVatReturnDue: body.nextVatReturnDue ? new Date(body.nextVatReturnDue) : null 
+          nextVatReturnDue: (body.nextVatReturnDue && body.nextVatReturnDue.trim()) ? new Date(body.nextVatReturnDue) : null 
         }),
         ...(body.requiresPayroll !== undefined && { requiresPayroll: body.requiresPayroll }),
         ...(body.requiresBookkeeping !== undefined && { requiresBookkeeping: body.requiresBookkeeping }),
@@ -192,6 +237,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         ...(body.specialInstructions !== undefined && { specialInstructions: body.specialInstructions }),
       }
     }
+
+    console.log('🔍 PUT /api/clients/[id] - Final updateData:', JSON.stringify(updateData, null, 2))
 
     // Update client
     const updatedClient = await db.client.update({
@@ -215,7 +262,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     })
 
   } catch (error) {
-    console.error('Error updating client:', error)
+    console.error('❌ Error updating client:', error)
+    console.error('❌ Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      clientId: params.id,
+      updateData: 'See previous logs'
+    })
     
     if (error instanceof Error) {
       // Handle Prisma unique constraint violations
@@ -229,6 +282,25 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         return NextResponse.json(
           { success: false, error: 'A client with these details already exists' },
           { status: 409 }
+        )
+      }
+      
+      // Handle validation errors
+      if (error.message.includes('Invalid value') || error.message.includes('Expected')) {
+        console.error('❌ Prisma validation error:', error.message)
+        console.error('❌ Full error:', error)
+        return NextResponse.json(
+          { success: false, error: `Validation error: ${error.message}` },
+          { status: 400 }
+        )
+      }
+      
+      // Handle any database constraint errors
+      if (error.message.includes('constraint') || error.message.includes('violates')) {
+        console.error('❌ Database constraint error:', error.message)
+        return NextResponse.json(
+          { success: false, error: `Database constraint error: ${error.message}` },
+          { status: 400 }
         )
       }
       

@@ -718,9 +718,9 @@ export function EditClientForm({ client }: EditClientFormProps) {
                               <SelectValue placeholder="Select quarter group" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="1/4/7/10">1/4/7/10 (Jan/Apr/Jul/Oct)</SelectItem>
-                              <SelectItem value="2/5/8/11">2/5/8/11 (Feb/May/Aug/Nov)</SelectItem>
-                              <SelectItem value="3/6/9/12">3/6/9/12 (Mar/Jun/Sep/Dec)</SelectItem>
+                              <SelectItem value="1_4_7_10">1/4/7/10 (Jan/Apr/Jul/Oct)</SelectItem>
+                              <SelectItem value="2_5_8_11">2/5/8/11 (Feb/May/Aug/Nov)</SelectItem>
+                              <SelectItem value="3_6_9_12">3/6/9/12 (Mar/Jun/Sep/Dec)</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>

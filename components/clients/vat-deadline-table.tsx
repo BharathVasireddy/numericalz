@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Calendar, AlertTriangle, CheckCircle, Clock, Building2, Eye, Mail, Phone, MoreHorizontal, RefreshCw, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react'
+import { Plus, Calendar, AlertTriangle, CheckCircle, Clock, Building2, Eye, Mail, Phone, MoreHorizontal, RefreshCw, ChevronUp, ChevronDown, ArrowUpDown, FileText, TrendingUp, Users, Target } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
 import { showToast } from '@/lib/toast'
+import { calculateVATQuarter, getDaysUntilVATDeadline, calculateDaysBetween } from '@/lib/vat-workflow'
+import { VATWorkflowModal } from './vat-workflow-modal'
 
 interface VATClient {
   id: string
@@ -23,7 +25,6 @@ interface VATClient {
   companyType: string
   contactEmail: string
   contactPhone?: string
-  vatNumber?: string
   vatReturnsFrequency?: string
   vatQuarterGroup?: string
   nextVatReturnDue?: string
@@ -32,6 +33,21 @@ interface VATClient {
     id: string
     name: string
     email: string
+  }
+  // Current VAT quarter workflow info
+  currentVATQuarter?: {
+    id: string
+    quarterPeriod: string
+    quarterStartDate: string
+    quarterEndDate: string
+    filingDueDate: string
+    currentStage: string
+    isCompleted: boolean
+    assignedUser?: {
+      id: string
+      name: string
+      email: string
+    }
   }
 }
 
@@ -69,6 +85,42 @@ function SortableHeader({ children, sortKey, currentSort, sortOrder, onSort, cla
   )
 }
 
+// Define types for comprehensive status
+type ComprehensiveStatus = 
+  | {
+      type: 'workflow'
+      stage: string
+      quarterInfo: any
+      daysUntilQuarterEnd: number
+      daysUntilFiling: number
+      workflowAssignee?: {
+        id: string
+        name: string
+        email: string
+      }
+    }
+  | {
+      type: 'current_quarter'
+      quarterInfo: any
+      daysUntilQuarterEnd: number
+      daysUntilFiling: number
+    }
+  | {
+      type: 'filing_period'
+      quarterInfo: any
+      daysUntilFiling: number
+    }
+  | {
+      type: 'filing_overdue'
+      quarterInfo: any
+      daysOverdue: number
+    }
+  | {
+      type: 'basic'
+      status: string
+      nextDue?: string
+    }
+
 export function VATDeadlineTable() {
   const { data: session } = useSession()
   const router = useRouter()
@@ -77,6 +129,16 @@ export function VATDeadlineTable() {
   const hasFetchedRef = useRef(false)
   const [currentSort, setCurrentSort] = useState('')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterFrequency, setFilterFrequency] = useState<string>('all')
+  const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set())
+  const [showBulkActions, setShowBulkActions] = useState(false)
+  const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([])
+  
+  // Workflow modal state
+  const [workflowModalOpen, setWorkflowModalOpen] = useState(false)
+  const [selectedVATQuarter, setSelectedVATQuarter] = useState<any>(null)
 
   const fetchVATClients = useCallback(async () => {
     // Prevent duplicate fetches
@@ -108,12 +170,26 @@ export function VATDeadlineTable() {
     }
   }, [vatClients.length])
 
+  const fetchAvailableUsers = useCallback(async () => {
+    try {
+      const response = await fetch('/api/users/staff')
+      const data = await response.json()
+      
+      if (data.success) {
+        setAvailableUsers(data.users)
+      }
+    } catch (error) {
+      console.error('Error fetching available users:', error)
+    }
+  }, [])
+
   useEffect(() => {
     // Only fetch if we have a session and haven't fetched yet
     if (session?.user?.id && !hasFetchedRef.current) {
       fetchVATClients()
+      fetchAvailableUsers()
     }
-  }, [session?.user?.id, fetchVATClients])
+  }, [session?.user?.id, fetchVATClients, fetchAvailableUsers])
 
   // Function to force refresh data (can be called when needed)
   const refreshVATClients = useCallback(() => {
@@ -188,12 +264,312 @@ export function VATDeadlineTable() {
     </Badge>
   }
 
+  // Get comprehensive status information including quarter progress and workflow
+  const getComprehensiveStatus = (client: VATClient): ComprehensiveStatus => {
+    const today = new Date()
+    
+    // If client has quarterly VAT and quarter group, calculate current quarter info
+    if (client.vatReturnsFrequency === 'QUARTERLY' && client.vatQuarterGroup) {
+      try {
+        const quarterInfo = calculateVATQuarter(client.vatQuarterGroup, today)
+        const daysUntilQuarterEnd = calculateDaysBetween(today, quarterInfo.quarterEndDate)
+        const daysUntilFiling = getDaysUntilVATDeadline(quarterInfo.filingDueDate)
+        
+        // Check if there's an active workflow
+        const currentWorkflow = client.currentVATQuarter
+        
+        if (currentWorkflow && !currentWorkflow.isCompleted) {
+          // Active workflow in progress
+          return {
+            type: 'workflow',
+            stage: currentWorkflow.currentStage,
+            quarterInfo,
+            daysUntilQuarterEnd,
+            daysUntilFiling,
+            workflowAssignee: currentWorkflow.assignedUser
+          }
+        } else if (daysUntilQuarterEnd > 0) {
+          // Current quarter is still ongoing
+          return {
+            type: 'current_quarter',
+            quarterInfo,
+            daysUntilQuarterEnd,
+            daysUntilFiling
+          }
+        } else if (daysUntilFiling > 0) {
+          // Quarter ended, filing period active
+          return {
+            type: 'filing_period',
+            quarterInfo,
+            daysUntilFiling
+          }
+        } else {
+          // Filing overdue
+          return {
+            type: 'filing_overdue',
+            quarterInfo,
+            daysOverdue: Math.abs(daysUntilFiling)
+          }
+        }
+      } catch (error) {
+        console.error('Error calculating quarter info:', error)
+      }
+    }
+    
+    // Fallback to basic deadline status
+    const deadlineStatus = getDeadlineStatus(client.nextVatReturnDue)
+    return {
+      type: 'basic',
+      status: deadlineStatus,
+      nextDue: client.nextVatReturnDue
+    }
+  }
+
+  // Format workflow stage for display
+  const formatWorkflowStage = (stage: string) => {
+    const stageMap: { [key: string]: { label: string; color: string; icon: React.ReactNode } } = {
+      'CLIENT_BOOKKEEPING': { 
+        label: 'Awaiting Records', 
+        color: 'bg-gray-100 text-gray-800 border-gray-200',
+        icon: <FileText className="h-3 w-3" />
+      },
+      'WORK_IN_PROGRESS': { 
+        label: 'In Progress', 
+        color: 'bg-blue-100 text-blue-800 border-blue-200',
+        icon: <TrendingUp className="h-3 w-3" />
+      },
+      'QUERIES_PENDING': { 
+        label: 'Queries Pending', 
+        color: 'bg-amber-100 text-amber-800 border-amber-200',
+        icon: <AlertTriangle className="h-3 w-3" />
+      },
+      'REVIEW_PENDING_MANAGER': { 
+        label: 'Manager Review', 
+        color: 'bg-purple-100 text-purple-800 border-purple-200',
+        icon: <Users className="h-3 w-3" />
+      },
+      'REVIEW_PENDING_PARTNER': { 
+        label: 'Partner Review', 
+        color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+        icon: <Target className="h-3 w-3" />
+      },
+      'EMAILED_TO_PARTNER': { 
+        label: 'With Partner', 
+        color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+        icon: <Mail className="h-3 w-3" />
+      },
+      'EMAILED_TO_CLIENT': { 
+        label: 'With Client', 
+        color: 'bg-orange-100 text-orange-800 border-orange-200',
+        icon: <Mail className="h-3 w-3" />
+      },
+      'CLIENT_APPROVED': { 
+        label: 'Client Approved', 
+        color: 'bg-green-100 text-green-800 border-green-200',
+        icon: <CheckCircle className="h-3 w-3" />
+      },
+      'FILED_TO_HMRC': { 
+        label: 'Filed to HMRC', 
+        color: 'bg-green-100 text-green-800 border-green-200',
+        icon: <CheckCircle className="h-3 w-3" />
+      }
+    }
+    
+    const stageInfo = stageMap[stage] || { 
+      label: stage, 
+      color: 'bg-gray-100 text-gray-800 border-gray-200',
+      icon: <Clock className="h-3 w-3" />
+    }
+    
+    return (
+      <Badge variant="outline" className={`flex items-center gap-1 ${stageInfo.color}`}>
+        {stageInfo.icon}
+        {stageInfo.label}
+      </Badge>
+    )
+  }
+
+  // Render the comprehensive status display
+  const renderStatusDisplay = (client: VATClient) => {
+    const status = getComprehensiveStatus(client)
+    
+    switch (status.type) {
+      case 'workflow':
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              {status.stage && formatWorkflowStage(status.stage)}
+              {status.workflowAssignee && (
+                <span className="text-xs text-muted-foreground">
+                  • {status.workflowAssignee.name}
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Quarter ends in {status.daysUntilQuarterEnd} days • Filing due in {status.daysUntilFiling} days
+            </div>
+          </div>
+        )
+      
+      case 'current_quarter':
+        return (
+          <div className="space-y-1">
+            <Badge variant="outline" className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200">
+              <Calendar className="h-3 w-3" />
+              Current Quarter
+            </Badge>
+            <div className="text-xs text-muted-foreground">
+              Quarter ends in {status.daysUntilQuarterEnd} days • Filing due in {status.daysUntilFiling} days
+            </div>
+          </div>
+        )
+      
+      case 'filing_period':
+        return (
+          <div className="space-y-1">
+            <Badge variant="outline" className="flex items-center gap-1 bg-amber-50 text-amber-700 border-amber-200">
+              <Clock className="h-3 w-3" />
+              Filing Period
+            </Badge>
+            <div className="text-xs text-muted-foreground">
+              Quarter ended • Filing due in {status.daysUntilFiling} days
+            </div>
+          </div>
+        )
+      
+      case 'filing_overdue':
+        return (
+          <div className="space-y-1">
+            <Badge variant="destructive" className="flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              Filing Overdue
+            </Badge>
+            <div className="text-xs text-red-600">
+              {status.daysOverdue} days overdue
+            </div>
+          </div>
+        )
+      
+      default:
+        return (
+          <div className="space-y-1">
+            {getStatusBadge(status.status)}
+            {status.nextDue && (
+              <div className="text-xs text-muted-foreground">
+                Next due: {formatDate(status.nextDue)}
+              </div>
+            )}
+          </div>
+        )
+    }
+  }
+
   const sortClients = (key: string) => {
     if (currentSort === key) {
       setSortOrder(prevOrder => prevOrder === 'asc' ? 'desc' : 'asc')
     } else {
       setCurrentSort(key)
     }
+  }
+
+  // Handle workflow modal
+  const handleOpenWorkflowModal = async (client: VATClient) => {
+    if (!client.currentVATQuarter) {
+      // Create a new VAT quarter if none exists
+      try {
+        const response = await fetch(`/api/clients/${client.id}/vat-quarters`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            quarterGroup: client.vatQuarterGroup,
+          }),
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          // Update the client with the new VAT quarter
+          const updatedClient = {
+            ...client,
+            currentVATQuarter: {
+              id: data.data.id,
+              quarterPeriod: data.data.quarterPeriod,
+              quarterStartDate: data.data.quarterStartDate,
+              quarterEndDate: data.data.quarterEndDate,
+              filingDueDate: data.data.filingDueDate,
+              currentStage: data.data.currentStage,
+              isCompleted: data.data.isCompleted,
+              assignedUser: data.data.assignedUser,
+            }
+          }
+          
+          setSelectedVATQuarter({
+            ...data.data,
+            client: {
+              id: client.id,
+              companyName: client.companyName,
+              vatQuarterGroup: client.vatQuarterGroup || '',
+            },
+            workflowHistory: []
+          })
+          setWorkflowModalOpen(true)
+          showToast.success('VAT quarter created successfully')
+        } else {
+          showToast.error(data.error || 'Failed to create VAT quarter')
+        }
+      } catch (error) {
+        console.error('Error creating VAT quarter:', error)
+        showToast.error('Failed to create VAT quarter')
+      }
+    } else {
+      // Fetch full VAT quarter details including workflow history
+      try {
+        const response = await fetch(`/api/clients/${client.id}/vat-quarters`)
+        const data = await response.json()
+        
+        if (data.success && data.data.vatQuarters.length > 0) {
+          const latestQuarter = data.data.vatQuarters[0] // Most recent quarter
+          setSelectedVATQuarter({
+            ...latestQuarter,
+            client: {
+              id: client.id,
+              companyName: client.companyName,
+              vatQuarterGroup: client.vatQuarterGroup || '',
+            }
+          })
+          setWorkflowModalOpen(true)
+        } else {
+          showToast.error('No VAT quarters found')
+        }
+      } catch (error) {
+        console.error('Error fetching VAT quarter details:', error)
+        showToast.error('Failed to load VAT quarter details')
+      }
+    }
+  }
+
+  const handleWorkflowUpdate = (updatedQuarter: any) => {
+    // Update the client in the table
+    setVatClients(prevClients => 
+      prevClients.map(client => 
+        client.id === updatedQuarter.clientId 
+          ? {
+              ...client,
+              currentVATQuarter: {
+                id: updatedQuarter.id,
+                quarterPeriod: updatedQuarter.quarterPeriod,
+                quarterStartDate: updatedQuarter.quarterStartDate,
+                quarterEndDate: updatedQuarter.quarterEndDate,
+                filingDueDate: updatedQuarter.filingDueDate,
+                currentStage: updatedQuarter.currentStage,
+                isCompleted: updatedQuarter.isCompleted,
+                assignedUser: updatedQuarter.assignedUser,
+              }
+            }
+          : client
+      )
+    )
   }
 
   return (
@@ -314,17 +690,14 @@ export function VATDeadlineTable() {
                       <SortableHeader sortKey="companyName" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients}>
                         Company Name
                       </SortableHeader>
-                      <SortableHeader sortKey="vatNumber" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="w-32">
-                        VAT Number
-                      </SortableHeader>
                       <SortableHeader sortKey="vatReturnsFrequency" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="w-24">
                         Frequency
                       </SortableHeader>
                       <SortableHeader sortKey="nextVatReturnDue" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients}>
                         Next Due
                       </SortableHeader>
-                      <SortableHeader sortKey="status" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients}>
-                        Status
+                      <SortableHeader sortKey="status" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="w-48">
+                        Current Status
                       </SortableHeader>
                       <SortableHeader sortKey="contactEmail" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-contact">
                         Contact
@@ -401,11 +774,6 @@ export function VATDeadlineTable() {
                             </div>
                           </td>
                           <td className="table-body-cell">
-                            <span className="font-mono text-xs">
-                              {client.vatNumber || 'Not set'}
-                            </span>
-                          </td>
-                          <td className="table-body-cell">
                             {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
                           </td>
                           <td className="table-body-cell">
@@ -423,7 +791,7 @@ export function VATDeadlineTable() {
                             </div>
                           </td>
                           <td className="table-body-cell">
-                            {getStatusBadge(getDeadlineStatus(client.nextVatReturnDue))}
+                            {renderStatusDisplay(client)}
                           </td>
                           <td className="table-body-cell">
                             <div className="flex items-center gap-2">
@@ -474,6 +842,13 @@ export function VATDeadlineTable() {
                                 >
                                   <Eye className="h-4 w-4" />
                                   View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleOpenWorkflowModal(client)}
+                                  className="flex items-center gap-2 cursor-pointer"
+                                >
+                                  <TrendingUp className="h-4 w-4" />
+                                  Manage Workflow
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -540,15 +915,11 @@ export function VATDeadlineTable() {
                             </button>
                           </div>
                           <div className="ml-2">
-                            {getStatusBadge(getDeadlineStatus(client.nextVatReturnDue))}
+                            {renderStatusDisplay(client)}
                           </div>
                         </div>
 
                         <div className="space-y-2 text-xs">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">VAT Number:</span>
-                            <span className="font-mono">{client.vatNumber || 'Not set'}</span>
-                          </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Frequency:</span>
                             {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
@@ -608,6 +979,17 @@ export function VATDeadlineTable() {
           )}
         </CardContent>
       </Card>
+
+      {/* VAT Workflow Modal */}
+      {workflowModalOpen && selectedVATQuarter && (
+        <VATWorkflowModal
+          isOpen={workflowModalOpen}
+          onClose={() => setWorkflowModalOpen(false)}
+          onUpdate={handleWorkflowUpdate}
+          vatQuarter={selectedVATQuarter}
+          availableUsers={availableUsers}
+        />
+      )}
     </div>
   )
 }
