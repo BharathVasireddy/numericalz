@@ -22,7 +22,8 @@ import {
   ChevronUp,
   ChevronDown,
   Check,
-  X
+  X,
+  ArrowUpDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -84,6 +85,40 @@ interface ClientsTableProps {
     assignedUser: string
     status: string
   }
+}
+
+// Sortable header component
+interface SortableHeaderProps {
+  children: React.ReactNode
+  sortKey: string
+  currentSort: string
+  sortOrder: 'asc' | 'desc'
+  onSort: (key: string) => void
+  className?: string
+}
+
+function SortableHeader({ children, sortKey, currentSort, sortOrder, onSort, className = '' }: SortableHeaderProps) {
+  const isActive = currentSort === sortKey
+  
+  return (
+    <th 
+      className={`table-header-cell cursor-pointer hover:text-foreground ${className}`}
+      onClick={() => onSort(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        <span>{children}</span>
+        {isActive ? (
+          sortOrder === 'asc' ? (
+            <ChevronUp className="h-3 w-3" />
+          ) : (
+            <ChevronDown className="h-3 w-3" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-50" />
+        )}
+      </div>
+    </th>
+  )
 }
 
 /**
@@ -397,34 +432,24 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                     />
                   </th>
                 )}
-                <th 
-                  className="table-header-cell col-client-code cursor-pointer hover:text-foreground"
-                  onClick={() => handleSort('clientCode')}
-                >
+                <SortableHeader sortKey="clientCode" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort}>
                   Client Code
-                </th>
-                <th 
-                  className="table-header-cell col-company-number cursor-pointer hover:text-foreground"
-                  onClick={() => handleSort('companyNumber')}
-                >
+                </SortableHeader>
+                <SortableHeader sortKey="companyNumber" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort}>
                   Company Number
-                </th>
-                <th 
-                  className="table-header-cell cursor-pointer hover:text-foreground"
-                  onClick={() => handleSort('companyName')}
-                  style={{ width: '300px' }}
-                >
+                </SortableHeader>
+                <SortableHeader sortKey="companyName" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-company-name">
                   Company Name
-                </th>
-                <th className="table-header-cell w-20 text-center">
+                </SortableHeader>
+                <SortableHeader sortKey="companyType" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="w-20 text-center">
                   Accounts
-                </th>
-                <th className="table-header-cell w-16 text-center">
+                </SortableHeader>
+                <SortableHeader sortKey="isVatEnabled" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="w-16 text-center">
                   VAT
-                </th>
-                <th className="table-header-cell col-contact">
+                </SortableHeader>
+                <SortableHeader sortKey="contactEmail" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-contact">
                   Contact
-                </th>
+                </SortableHeader>
                 <th className="table-header-cell col-actions text-right">
                   Actions
                 </th>

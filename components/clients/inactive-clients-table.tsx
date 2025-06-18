@@ -8,6 +8,9 @@ import {
   Trash2, 
   AlertTriangle,
   Building2,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -39,9 +42,45 @@ interface InactiveClientsTableProps {
   clients: InactiveClient[]
 }
 
+// Sortable header component
+interface SortableHeaderProps {
+  children: React.ReactNode
+  sortKey: string
+  currentSort: string
+  sortOrder: 'asc' | 'desc'
+  onSort: (key: string) => void
+  className?: string
+}
+
+function SortableHeader({ children, sortKey, currentSort, sortOrder, onSort, className = '' }: SortableHeaderProps) {
+  const isActive = currentSort === sortKey
+  
+  return (
+    <th 
+      className={`table-header-cell cursor-pointer hover:text-foreground ${className}`}
+      onClick={() => onSort(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        <span>{children}</span>
+        {isActive ? (
+          sortOrder === 'asc' ? (
+            <ChevronUp className="h-3 w-3" />
+          ) : (
+            <ChevronDown className="h-3 w-3" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-50" />
+        )}
+      </div>
+    </th>
+  )
+}
+
 export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
   const router = useRouter()
   const [isReassigning, setIsReassigning] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<string>('companyName')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [deleteDialog, setDeleteDialog] = useState<{
     isOpen: boolean
     client: InactiveClient | null
@@ -52,6 +91,15 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteAllDialog, setDeleteAllDialog] = useState(false)
   const [isDeletingAll, setIsDeletingAll] = useState(false)
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(column)
+      setSortOrder('asc')
+    }
+  }
 
   const handleReassign = async (clientId: string) => {
     setIsReassigning(clientId)
@@ -145,6 +193,34 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
     }
   }
 
+  // Sort clients based on current sort settings
+  const sortedClients = [...clients].sort((a, b) => {
+    let aValue: any = a[sortBy as keyof InactiveClient]
+    let bValue: any = b[sortBy as keyof InactiveClient]
+    
+    // Handle nested assignedUser sorting
+    if (sortBy === 'assignedUser') {
+      aValue = a.assignedUser?.name || ''
+      bValue = b.assignedUser?.name || ''
+    }
+    
+    // Handle date sorting
+    if (sortBy === 'updatedAt') {
+      aValue = new Date(a.updatedAt).getTime()
+      bValue = new Date(b.updatedAt).getTime()
+    }
+    
+    // Convert to string for consistent comparison
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      aValue = aValue.toLowerCase()
+      bValue = bValue.toLowerCase()
+    }
+    
+    if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
+    if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
+    return 0
+  })
+
   if (clients.length === 0) {
     return (
       <Card>
@@ -187,16 +263,26 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
             <table className="table-fixed-layout">
               <thead>
                 <tr className="table-header-row">
-                  <th className="table-header-cell col-client-code">Code</th>
-                  <th className="table-header-cell col-company-name">Company</th>
-                  <th className="table-header-cell col-role">Type</th>
-                  <th className="table-header-cell col-company-number">Co. No.</th>
-                  <th className="table-header-cell col-date">Resigned</th>
+                  <SortableHeader sortKey="clientCode" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-client-code">
+                    Code
+                  </SortableHeader>
+                  <SortableHeader sortKey="companyName" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-company-name">
+                    Company
+                  </SortableHeader>
+                  <SortableHeader sortKey="companyType" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-role">
+                    Type
+                  </SortableHeader>
+                  <SortableHeader sortKey="companyNumber" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-company-number">
+                    Co. No.
+                  </SortableHeader>
+                  <SortableHeader sortKey="updatedAt" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-date">
+                    Resigned
+                  </SortableHeader>
                   <th className="table-header-cell col-actions text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {clients.map((client) => (
+                {sortedClients.map((client) => (
                   <tr key={client.id} className="table-body-row">
                     <td className="table-body-cell">
                       <span className="text-xs font-mono">
@@ -256,7 +342,7 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
 
           {/* Compact Mobile Cards */}
           <div className="md:hidden space-y-3">
-            {clients.map((client) => (
+            {sortedClients.map((client) => (
               <Card key={client.id} className="border">
                 <CardContent className="p-3">
                   <div className="space-y-2">

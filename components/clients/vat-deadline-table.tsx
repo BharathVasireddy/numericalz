@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Calendar, AlertTriangle, CheckCircle, Clock, Building2, Eye, Mail, Phone, MoreHorizontal, RefreshCw } from 'lucide-react'
+import { Plus, Calendar, AlertTriangle, CheckCircle, Clock, Building2, Eye, Mail, Phone, MoreHorizontal, RefreshCw, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,12 +34,48 @@ interface VATClient {
   }
 }
 
+// Sortable header component
+interface SortableHeaderProps {
+  children: React.ReactNode
+  sortKey: string
+  currentSort: string
+  sortOrder: 'asc' | 'desc'
+  onSort: (key: string) => void
+  className?: string
+}
+
+function SortableHeader({ children, sortKey, currentSort, sortOrder, onSort, className = '' }: SortableHeaderProps) {
+  const isActive = currentSort === sortKey
+  
+  return (
+    <th 
+      className={`table-header-cell cursor-pointer hover:text-foreground ${className}`}
+      onClick={() => onSort(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        <span>{children}</span>
+        {isActive ? (
+          sortOrder === 'asc' ? (
+            <ChevronUp className="h-3 w-3" />
+          ) : (
+            <ChevronDown className="h-3 w-3" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3 w-3 opacity-50" />
+        )}
+      </div>
+    </th>
+  )
+}
+
 export function VATDeadlineTable() {
   const { data: session } = useSession()
   const router = useRouter()
   const [vatClients, setVatClients] = useState<VATClient[]>([])
   const [loading, setLoading] = useState(true)
   const hasFetchedRef = useRef(false)
+  const [currentSort, setCurrentSort] = useState('')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   const fetchVATClients = useCallback(async () => {
     // Prevent duplicate fetches
@@ -145,6 +181,14 @@ export function VATDeadlineTable() {
     return <Badge variant="outline" className={colors[frequency as keyof typeof colors] || ''}>
       {frequency.charAt(0) + frequency.slice(1).toLowerCase()}
     </Badge>
+  }
+
+  const sortClients = (key: string) => {
+    if (currentSort === key) {
+      setSortOrder(prevOrder => prevOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setCurrentSort(key)
+    }
   }
 
   return (
@@ -259,30 +303,30 @@ export function VATDeadlineTable() {
                 <table className="table-fixed-layout">
                   <thead>
                     <tr className="table-header-row">
-                      <th className="table-header-cell col-client-code">
+                      <SortableHeader sortKey="clientCode" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients}>
                         Client Code
-                      </th>
-                      <th className="table-header-cell col-company-name">
+                      </SortableHeader>
+                      <SortableHeader sortKey="companyName" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients}>
                         Company Name
-                      </th>
-                      <th className="table-header-cell w-32">
+                      </SortableHeader>
+                      <SortableHeader sortKey="vatNumber" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="w-32">
                         VAT Number
-                      </th>
-                      <th className="table-header-cell w-24">
+                      </SortableHeader>
+                      <SortableHeader sortKey="vatReturnsFrequency" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="w-24">
                         Frequency
-                      </th>
-                      <th className="table-header-cell col-date">
+                      </SortableHeader>
+                      <SortableHeader sortKey="nextVatReturnDue" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients}>
                         Next Due
-                      </th>
-                      <th className="table-header-cell w-24">
+                      </SortableHeader>
+                      <SortableHeader sortKey="status" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients}>
                         Status
-                      </th>
-                      <th className="table-header-cell col-contact">
+                      </SortableHeader>
+                      <SortableHeader sortKey="contactEmail" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-contact">
                         Contact
-                      </th>
-                      <th className="table-header-cell col-assigned-to">
+                      </SortableHeader>
+                      <SortableHeader sortKey="assignedUser" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-assigned-to">
                         Assigned To
-                      </th>
+                      </SortableHeader>
                       <th className="table-header-cell col-actions text-right">
                         Actions
                       </th>
@@ -291,11 +335,39 @@ export function VATDeadlineTable() {
                   <tbody>
                     {vatClients
                       .sort((a, b) => {
-                        // Sort by deadline status priority
-                        const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
-                        const aStatus = getDeadlineStatus(a.nextVatReturnDue)
-                        const bStatus = getDeadlineStatus(b.nextVatReturnDue)
-                        return statusOrder[aStatus as keyof typeof statusOrder] - statusOrder[bStatus as keyof typeof statusOrder]
+                        if (!currentSort) {
+                          // Default sort by deadline status priority
+                          const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
+                          const aStatus = getDeadlineStatus(a.nextVatReturnDue)
+                          const bStatus = getDeadlineStatus(b.nextVatReturnDue)
+                          return statusOrder[aStatus as keyof typeof statusOrder] - statusOrder[bStatus as keyof typeof statusOrder]
+                        }
+                        
+                        let aValue: any = a[currentSort as keyof VATClient]
+                        let bValue: any = b[currentSort as keyof VATClient]
+                        
+                        // Handle special sorting cases
+                        if (currentSort === 'assignedUser') {
+                          aValue = a.assignedUser?.name || ''
+                          bValue = b.assignedUser?.name || ''
+                        } else if (currentSort === 'nextVatReturnDue') {
+                          aValue = a.nextVatReturnDue ? new Date(a.nextVatReturnDue).getTime() : 0
+                          bValue = b.nextVatReturnDue ? new Date(b.nextVatReturnDue).getTime() : 0
+                        } else if (currentSort === 'status') {
+                          const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
+                          aValue = statusOrder[getDeadlineStatus(a.nextVatReturnDue) as keyof typeof statusOrder]
+                          bValue = statusOrder[getDeadlineStatus(b.nextVatReturnDue) as keyof typeof statusOrder]
+                        }
+                        
+                        // Convert to string for consistent comparison
+                        if (typeof aValue === 'string' && typeof bValue === 'string') {
+                          aValue = aValue.toLowerCase()
+                          bValue = bValue.toLowerCase()
+                        }
+                        
+                        if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
+                        if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
+                        return 0
                       })
                       .map((client) => (
                         <tr key={client.id} className="table-body-row">
@@ -411,11 +483,39 @@ export function VATDeadlineTable() {
               <div className="block lg:hidden space-y-4 p-4">
                 {vatClients
                   .sort((a, b) => {
-                    // Sort by deadline status priority
-                    const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
-                    const aStatus = getDeadlineStatus(a.nextVatReturnDue)
-                    const bStatus = getDeadlineStatus(b.nextVatReturnDue)
-                    return statusOrder[aStatus as keyof typeof statusOrder] - statusOrder[bStatus as keyof typeof statusOrder]
+                    if (!currentSort) {
+                      // Default sort by deadline status priority
+                      const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
+                      const aStatus = getDeadlineStatus(a.nextVatReturnDue)
+                      const bStatus = getDeadlineStatus(b.nextVatReturnDue)
+                      return statusOrder[aStatus as keyof typeof statusOrder] - statusOrder[bStatus as keyof typeof statusOrder]
+                    }
+                    
+                    let aValue: any = a[currentSort as keyof VATClient]
+                    let bValue: any = b[currentSort as keyof VATClient]
+                    
+                    // Handle special sorting cases
+                    if (currentSort === 'assignedUser') {
+                      aValue = a.assignedUser?.name || ''
+                      bValue = b.assignedUser?.name || ''
+                    } else if (currentSort === 'nextVatReturnDue') {
+                      aValue = a.nextVatReturnDue ? new Date(a.nextVatReturnDue).getTime() : 0
+                      bValue = b.nextVatReturnDue ? new Date(b.nextVatReturnDue).getTime() : 0
+                    } else if (currentSort === 'status') {
+                      const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
+                      aValue = statusOrder[getDeadlineStatus(a.nextVatReturnDue) as keyof typeof statusOrder]
+                      bValue = statusOrder[getDeadlineStatus(b.nextVatReturnDue) as keyof typeof statusOrder]
+                    }
+                    
+                    // Convert to string for consistent comparison
+                    if (typeof aValue === 'string' && typeof bValue === 'string') {
+                      aValue = aValue.toLowerCase()
+                      bValue = bValue.toLowerCase()
+                    }
+                    
+                    if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
+                    if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
+                    return 0
                   })
                   .map((client) => (
                     <Card key={client.id} className="mobile-client-card">
