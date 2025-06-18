@@ -425,7 +425,11 @@ export function AddClientWizard() {
           nextCorporationTaxDue: (() => {
             if (companyData.accounts?.last_accounts?.made_up_to) {
               const lastAccountsDate = new Date(companyData.accounts.last_accounts.made_up_to)
-              return calculateCTDueFromYearEnd(lastAccountsDate)
+              // First calculate the year end (last accounts + 1 year)
+              const yearEnd = new Date(lastAccountsDate)
+              yearEnd.setFullYear(yearEnd.getFullYear() + 1)
+              // Then calculate CT due from the year end
+              return calculateCTDueFromYearEnd(yearEnd)
             }
             if (companyData.accounts?.accounting_reference_date) {
               const { day, month } = companyData.accounts.accounting_reference_date

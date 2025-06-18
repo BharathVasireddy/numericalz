@@ -32,6 +32,7 @@ export interface CTUpdateResult {
 
 /**
  * Calculate the next CT due date from a given year end
+ * CT is due 12 months after the end of the accounting period (year end)
  */
 export function calculateCTDueFromYearEnd(yearEndDate: Date): Date {
   const ctDue = new Date(yearEndDate)

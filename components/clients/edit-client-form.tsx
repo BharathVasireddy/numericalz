@@ -143,13 +143,17 @@ export function EditClientForm({ client }: EditClientFormProps) {
   }
 
   const calculateCTDue = (accountingReferenceDate: string | null, lastAccountsMadeUpTo: string | null) => {
-    // If we have last accounts made up to date, calculate CT due from that
+    // If we have last accounts made up to date, calculate CT due from the year end (last accounts + 1 year)
     if (lastAccountsMadeUpTo) {
       try {
         const lastAccountsDate = new Date(lastAccountsMadeUpTo)
         if (!isNaN(lastAccountsDate.getTime())) {
-          // CT due is 12 months after last accounts made up to date
-          const ctDue = new Date(lastAccountsDate)
+          // First calculate the year end (last accounts + 1 year)
+          const yearEnd = new Date(lastAccountsDate)
+          yearEnd.setFullYear(yearEnd.getFullYear() + 1)
+          
+          // Then calculate CT due (year end + 12 months)
+          const ctDue = new Date(yearEnd)
           ctDue.setFullYear(ctDue.getFullYear() + 1)
           
           return ctDue.toLocaleDateString('en-GB', {
@@ -179,7 +183,7 @@ export function EditClientForm({ client }: EditClientFormProps) {
         
         // CT due = 12 months from year end
         const ctDue = new Date(yearEnd)
-        ctDue.setMonth(ctDue.getMonth() + 12)
+        ctDue.setFullYear(ctDue.getFullYear() + 1)
         
         return ctDue.toLocaleDateString('en-GB', {
           day: '2-digit',
@@ -289,14 +293,18 @@ export function EditClientForm({ client }: EditClientFormProps) {
       try {
         const lastAccountsDate = new Date(client.lastAccountsMadeUpTo)
         if (!isNaN(lastAccountsDate.getTime())) {
-          // CT due is 12 months after last accounts made up to date
-          const ctDue = new Date(lastAccountsDate)
+          // First calculate the year end (last accounts + 1 year)
+          const yearEnd = new Date(lastAccountsDate)
+          yearEnd.setFullYear(yearEnd.getFullYear() + 1)
+          
+          // Then calculate CT due (year end + 12 months)
+          const ctDue = new Date(yearEnd)
           ctDue.setFullYear(ctDue.getFullYear() + 1)
           
           const isoString = ctDue.toISOString()
           const formattedDate = isoString.substring(0, 10)
           handleInputChange('nextCorporationTaxDue', formattedDate)
-          showToast.success('CT due date calculated from last accounts date')
+          showToast.success('CT due date calculated from year end')
           return
         }
       } catch (e) {
@@ -323,7 +331,7 @@ export function EditClientForm({ client }: EditClientFormProps) {
         
         // CT due = 12 months from year end
         const ctDue = new Date(yearEnd)
-        ctDue.setMonth(ctDue.getMonth() + 12)
+        ctDue.setFullYear(ctDue.getFullYear() + 1)
         
         const isoString = ctDue.toISOString()
         const formattedDate = isoString.substring(0, 10)
