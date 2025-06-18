@@ -278,7 +278,7 @@ export function VATDeadlineTable() {
       try {
         const quarterInfo = calculateVATQuarter(client.vatQuarterGroup, today)
         const daysUntilQuarterEnd = calculateDaysBetween(today, quarterInfo.quarterEndDate)
-        const daysUntilFiling = getDaysUntilVATDeadline(quarterInfo.filingDueDate)
+        const daysUntilFiling = calculateDaysBetween(today, quarterInfo.filingDueDate)
         
         // Check if there's an active workflow
         const currentWorkflow = client.currentVATQuarter
@@ -696,16 +696,10 @@ export function VATDeadlineTable() {
                         Company Name
                       </SortableHeader>
                       <SortableHeader sortKey="vatReturnsFrequency" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-frequency">
-                        Freq
-                      </SortableHeader>
-                      <SortableHeader sortKey="nextVatReturnDue" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-next-due">
-                        Next Due
+                        Frequency
                       </SortableHeader>
                       <SortableHeader sortKey="status" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-status">
                         Status
-                      </SortableHeader>
-                      <SortableHeader sortKey="contactEmail" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-contact">
-                        Contact
                       </SortableHeader>
                       <SortableHeader sortKey="assignedUser" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-assigned">
                         Assigned
@@ -782,46 +776,7 @@ export function VATDeadlineTable() {
                             {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
                           </td>
                           <td className="table-body-cell">
-                            <div className="flex items-center gap-1">
-                              {getDeadlineStatus(client.nextVatReturnDue) === 'overdue' && (
-                                <AlertTriangle className="h-3 w-3 text-red-500" />
-                              )}
-                              <span className={`text-xs font-mono ${
-                                getDeadlineStatus(client.nextVatReturnDue) === 'overdue' ? 'text-red-600 font-medium' :
-                                getDeadlineStatus(client.nextVatReturnDue) === 'urgent' ? 'text-amber-600 font-medium' :
-                                'text-foreground'
-                              }`}>
-                                {formatDate(client.nextVatReturnDue)}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="table-body-cell">
                             {renderStatusDisplay(client)}
-                          </td>
-                          <td className="table-body-cell">
-                            <div className="flex items-center gap-2">
-                              {client.contactEmail && (
-                                <button
-                                  onClick={() => window.open(`mailto:${client.contactEmail}`, '_blank')}
-                                  className="p-1 hover:bg-accent rounded transition-colors"
-                                  title={client.contactEmail}
-                                >
-                                  <Mail className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                                </button>
-                              )}
-                              {client.contactPhone && (
-                                <button
-                                  onClick={() => window.open(`tel:${client.contactPhone}`, '_blank')}
-                                  className="p-1 hover:bg-accent rounded transition-colors"
-                                  title={client.contactPhone}
-                                >
-                                  <Phone className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                                </button>
-                              )}
-                              {!client.contactEmail && !client.contactPhone && (
-                                <span className="text-xs text-muted-foreground">-</span>
-                              )}
-                            </div>
                           </td>
                           <td className="table-body-cell">
                             {client.assignedUser ? (

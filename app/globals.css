@@ -679,37 +679,29 @@
   animation: toast-progress 3s linear;
 }
 
-/* ===== VAT DEADLINE TABLE COLUMNS ===== */
+/* ===== VAT DEADLINE TABLE COLUMNS (EQUAL WIDTH) ===== */
 .col-vat-client-code {
-  @apply w-16; /* Very compact for client codes like NZ-1, NZ-2 */
+  @apply w-1/6; /* Equal width columns - 1/6 each */
 }
 
 .col-vat-company-name {
-  @apply w-56; /* Main content column - larger but controlled */
+  @apply w-2/6; /* Company name gets 2/6 (double width) for longer names */
 }
 
 .col-vat-frequency {
-  @apply w-20; /* Compact for frequency badges */
-}
-
-.col-vat-next-due {
-  @apply w-24; /* Date column - compact */
+  @apply w-1/6; /* Equal width */
 }
 
 .col-vat-status {
-  @apply w-40; /* Status column - medium width for workflow stages */
-}
-
-.col-vat-contact {
-  @apply w-16; /* Contact icons - very compact */
+  @apply w-1/6; /* Equal width */
 }
 
 .col-vat-assigned {
-  @apply w-28; /* Assigned to - compact for names */
+  @apply w-1/6; /* Equal width */
 }
 
 .col-vat-actions {
-  @apply w-14; /* Actions dropdown - minimal */
+  @apply w-16; /* Fixed small width for actions */
 }
 
 /* ===== COMPACT TABLE UTILITIES ===== */
