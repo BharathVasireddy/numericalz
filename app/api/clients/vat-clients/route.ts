@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
         companyName: true,
         vatNumber: true,
         vatReturnsFrequency: true,
+        vatQuarterGroup: true,
         nextVatReturnDue: true,
         isVatEnabled: true,
         assignedUser: {

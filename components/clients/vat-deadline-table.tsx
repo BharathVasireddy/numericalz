@@ -25,6 +25,7 @@ interface VATClient {
   contactPhone?: string
   vatNumber?: string
   vatReturnsFrequency?: string
+  vatQuarterGroup?: string
   nextVatReturnDue?: string
   isVatEnabled: boolean
   assignedUser?: {
@@ -169,7 +170,7 @@ export function VATDeadlineTable() {
     })
   }
 
-  const getFrequencyBadge = (frequency?: string) => {
+  const getFrequencyBadge = (frequency?: string, quarterGroup?: string) => {
     if (!frequency) return <Badge variant="outline">Not set</Badge>
     
     const colors = {
@@ -178,8 +179,12 @@ export function VATDeadlineTable() {
       'ANNUALLY': 'bg-purple-100 text-purple-800 border-purple-200'
     }
     
+    const displayText = frequency === 'QUARTERLY' && quarterGroup 
+      ? `Quarterly (${quarterGroup})`
+      : frequency.charAt(0) + frequency.slice(1).toLowerCase()
+    
     return <Badge variant="outline" className={colors[frequency as keyof typeof colors] || ''}>
-      {frequency.charAt(0) + frequency.slice(1).toLowerCase()}
+      {displayText}
     </Badge>
   }
 
@@ -401,7 +406,7 @@ export function VATDeadlineTable() {
                             </span>
                           </td>
                           <td className="table-body-cell">
-                            {getFrequencyBadge(client.vatReturnsFrequency)}
+                            {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
                           </td>
                           <td className="table-body-cell">
                             <div className="flex items-center gap-1">
@@ -546,7 +551,7 @@ export function VATDeadlineTable() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Frequency:</span>
-                            {getFrequencyBadge(client.vatReturnsFrequency)}
+                            {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Next Due:</span>

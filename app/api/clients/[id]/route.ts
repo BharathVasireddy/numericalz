@@ -143,6 +143,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           vatRegistrationDate: body.vatRegistrationDate ? new Date(body.vatRegistrationDate) : null 
         }),
         ...(body.vatReturnsFrequency !== undefined && { vatReturnsFrequency: body.vatReturnsFrequency }),
+        ...(body.vatQuarterGroup !== undefined && { vatQuarterGroup: body.vatQuarterGroup }),
         ...(body.nextVatReturnDue !== undefined && { 
           nextVatReturnDue: body.nextVatReturnDue ? new Date(body.nextVatReturnDue) : null 
         }),
@@ -180,6 +181,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           vatRegistrationDate: body.vatRegistrationDate ? new Date(body.vatRegistrationDate) : null 
         }),
         ...(body.vatReturnsFrequency !== undefined && { vatReturnsFrequency: body.vatReturnsFrequency }),
+        ...(body.vatQuarterGroup !== undefined && { vatQuarterGroup: body.vatQuarterGroup }),
         ...(body.nextVatReturnDue !== undefined && { 
           nextVatReturnDue: body.nextVatReturnDue ? new Date(body.nextVatReturnDue) : null 
         }),

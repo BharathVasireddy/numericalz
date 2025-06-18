@@ -565,6 +565,74 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                 currentUser={currentUser}
               />
 
+              {/* VAT Information */}
+              {client.isVatEnabled && (
+                <Card className="shadow-professional">
+                  <CardHeader>
+                    <CardTitle className="text-base md:text-lg">VAT Information</CardTitle>
+                    <CardDescription>VAT registration and return details</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-3">
+                      {client.vatNumber && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">VAT Number:</span>
+                          <span className="text-sm font-medium font-mono">{client.vatNumber}</span>
+                        </div>
+                      )}
+                      
+                      {client.vatRegistrationDate && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Registration Date:</span>
+                          <span className="text-sm font-medium">{formatDate(client.vatRegistrationDate)}</span>
+                        </div>
+                      )}
+                      
+                      {client.vatReturnsFrequency && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Returns Frequency:</span>
+                          <Badge variant="outline" className={
+                            client.vatReturnsFrequency === 'QUARTERLY' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                            client.vatReturnsFrequency === 'MONTHLY' ? 'bg-green-100 text-green-800 border-green-200' :
+                            client.vatReturnsFrequency === 'ANNUALLY' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                            ''
+                          }>
+                            {client.vatReturnsFrequency.charAt(0) + client.vatReturnsFrequency.slice(1).toLowerCase()}
+                          </Badge>
+                        </div>
+                      )}
+                      
+                      {client.vatQuarterGroup && client.vatReturnsFrequency === 'QUARTERLY' && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Quarter Group:</span>
+                          <span className="text-sm font-medium font-mono">{client.vatQuarterGroup}</span>
+                        </div>
+                      )}
+                      
+                      {client.nextVatReturnDue && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Next VAT Due:</span>
+                          <div className="flex items-center gap-2">
+                            {(() => {
+                              const status = getDateStatus(client.nextVatReturnDue)
+                              const Icon = status.icon
+                              return (
+                                <>
+                                  {Icon && <Icon className={`h-3 w-3 ${status.color}`} />}
+                                  <span className={`text-sm font-medium ${status.color}`}>
+                                    {formatDate(client.nextVatReturnDue)}
+                                  </span>
+                                </>
+                              )
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Companies House Data */}
               {client.companyNumber && (
                 <Card className="shadow-professional">

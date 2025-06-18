@@ -46,6 +46,7 @@ export function EditClientForm({ client }: EditClientFormProps) {
     isVatEnabled: client.isVatEnabled || false,
     vatRegistrationDate: client.vatRegistrationDate ? new Date(client.vatRegistrationDate).toISOString().split('T')[0] : '',
     vatReturnsFrequency: client.vatReturnsFrequency || '',
+    vatQuarterGroup: client.vatQuarterGroup || '',
     nextVatReturnDue: client.nextVatReturnDue ? new Date(client.nextVatReturnDue).toISOString().split('T')[0] : '',
     // Additional Services
     requiresPayroll: client.requiresPayroll || false,
@@ -705,6 +706,25 @@ export function EditClientForm({ client }: EditClientFormProps) {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {formData.vatReturnsFrequency === 'QUARTERLY' && (
+                        <div className="space-y-2">
+                          <Label htmlFor="vatQuarterGroup">VAT Quarter Group</Label>
+                          <Select
+                            value={formData.vatQuarterGroup}
+                            onValueChange={(value) => handleInputChange('vatQuarterGroup', value)}
+                          >
+                            <SelectTrigger className="input-field">
+                              <SelectValue placeholder="Select quarter group" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1/4/7/10">1/4/7/10 (Jan/Apr/Jul/Oct)</SelectItem>
+                              <SelectItem value="2/5/8/11">2/5/8/11 (Feb/May/Aug/Nov)</SelectItem>
+                              <SelectItem value="3/6/9/12">3/6/9/12 (Mar/Jun/Sep/Dec)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
 
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="nextVatReturnDue">Next VAT Return Due Date</Label>

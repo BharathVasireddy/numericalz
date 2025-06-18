@@ -37,6 +37,7 @@ interface QuestionnaireData {
   vatNumber?: string
   vatRegistrationDate?: string
   vatReturnsFrequency?: string
+  vatQuarterGroup?: string
   nextVatReturnDue?: string
   
   // Additional Services
@@ -97,6 +98,7 @@ export function ClientPostCreationQuestionnaire({
           vatNumber: questionnaireData.vatNumber || null,
           vatRegistrationDate: questionnaireData.vatRegistrationDate || null,
           vatReturnsFrequency: questionnaireData.vatReturnsFrequency || null,
+          vatQuarterGroup: questionnaireData.vatQuarterGroup || null,
           nextVatReturnDue: questionnaireData.nextVatReturnDue || null,
           
           // Service requirements
@@ -202,6 +204,27 @@ export function ClientPostCreationQuestionnaire({
                   </SelectContent>
                 </Select>
               </div>
+
+              {questionnaireData.vatReturnsFrequency === 'QUARTERLY' && (
+                <div className="space-y-2">
+                  <Label htmlFor="vatQuarterGroup">VAT Quarter Group</Label>
+                  <Select
+                    value={questionnaireData.vatQuarterGroup || ''}
+                    onValueChange={(value) =>
+                      setQuestionnaireData(prev => ({ ...prev, vatQuarterGroup: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select quarter group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1/4/7/10">1/4/7/10 (Jan/Apr/Jul/Oct)</SelectItem>
+                      <SelectItem value="2/5/8/11">2/5/8/11 (Feb/May/Aug/Nov)</SelectItem>
+                      <SelectItem value="3/6/9/12">3/6/9/12 (Mar/Jun/Sep/Dec)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="nextVatDue">Next VAT Return Due</Label>
