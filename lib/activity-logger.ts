@@ -3,14 +3,10 @@ import { db } from '@/lib/db'
 interface ActivityLogData {
   userId: string
   action: string
-  resource?: string
-  resourceId?: string
-  oldValues?: any
-  newValues?: any
-  metadata?: any
+  clientId?: string
+  details?: any
   ipAddress?: string
   userAgent?: string
-  clientId?: string
 }
 
 /**
@@ -25,15 +21,15 @@ export async function logActivity(data: ActivityLogData): Promise<boolean> {
       data: {
         userId: data.userId,
         action: data.action,
-        resource: data.resource || 'SYSTEM',
-        resourceId: data.resourceId,
-        oldValues: data.oldValues ? JSON.stringify(data.oldValues) : null,
-        newValues: data.newValues ? JSON.stringify(data.newValues) : null,
-        metadata: data.metadata ? JSON.stringify(data.metadata) : null,
-        ipAddress: data.ipAddress,
-        userAgent: data.userAgent,
         clientId: data.clientId,
-        timestamp: new Date(),
+        details: data.details ? JSON.stringify({
+          ...data.details,
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent,
+        }) : JSON.stringify({
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent,
+        }),
       }
     })
     return true
@@ -86,7 +82,7 @@ export function getClientIP(request: Request): string {
   const realIP = request.headers.get('x-real-ip')
   
   if (forwarded) {
-    return forwarded.split(',')[0].trim()
+    return forwarded?.split(',')?.[0]?.trim() || 'unknown'
   }
   
   if (realIP) {
@@ -127,12 +123,10 @@ export async function logClientActivity(
   return logActivity({
     userId,
     action,
-    resource: 'CLIENT',
-    resourceId: clientId,
     clientId,
-    metadata: {
+    details: {
       clientName,
-      details
+      ...details
     },
     ipAddress: request ? getClientIP(request) : undefined,
     userAgent: request ? getUserAgent(request) : undefined,
@@ -160,11 +154,9 @@ export async function logUserActivity(
   return logActivity({
     userId: performedBy,
     action,
-    resource: 'USER',
-    resourceId: targetUserId,
-    metadata: {
+    details: {
       targetUserName,
-      details
+      ...details
     },
     ipAddress: request ? getClientIP(request) : undefined,
     userAgent: request ? getUserAgent(request) : undefined,
@@ -188,9 +180,8 @@ export async function logSystemActivity(
   return logActivity({
     userId,
     action,
-    resource: 'SYSTEM',
-    metadata: {
-      details
+    details: {
+      ...details
     },
     ipAddress: request ? getClientIP(request) : undefined,
     userAgent: request ? getUserAgent(request) : undefined,

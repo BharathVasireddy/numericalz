@@ -256,7 +256,7 @@ export function DashboardNavigation() {
                       )}
                       
                       {/* Section Items */}
-                      {section.items.map((item) => {
+                      {section.items?.map((item) => {
                         const Icon = item.icon
                         const isActive = pathname === item.href || 
                           (item.href !== '/dashboard' && pathname.startsWith(item.href))

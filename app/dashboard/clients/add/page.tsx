@@ -1,5 +1,5 @@
 import { Metadata } from 'next'
-import { EnhancedAddClientWizard } from '@/components/clients/enhanced-add-client-wizard'
+import { AddClientWizard } from '@/components/clients/add-client-wizard'
 
 export const metadata: Metadata = {
   title: 'Add New Client | Numericalz',
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 }
 
 export default function AddClientPage() {
-  return <EnhancedAddClientWizard />
+  return <AddClientWizard />
 } 

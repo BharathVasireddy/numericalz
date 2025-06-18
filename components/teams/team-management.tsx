@@ -59,7 +59,6 @@ import { EditTeamMemberForm } from './edit-team-member-form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 
 interface StaffMember {
@@ -83,19 +82,19 @@ interface StaffMember {
 }
 
 interface TeamManagementProps {
-  users: TeamMember[]
+  users: StaffMember[]
 }
 
 export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
   const { data: session } = useSession()
-  const [users, setUsers] = useState<TeamMember[]>(initialUsers)
+  const [users, setUsers] = useState<StaffMember[]>(initialUsers)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showUserLog, setShowUserLog] = useState(false)
-  const [userToEdit, setUserToEdit] = useState<TeamMember | null>(null)
-  const [userToDelete, setUserToDelete] = useState<TeamMember | null>(null)
-  const [userForLog, setUserForLog] = useState<TeamMember | null>(null)
+  const [userToEdit, setUserToEdit] = useState<StaffMember | null>(null)
+  const [userToDelete, setUserToDelete] = useState<StaffMember | null>(null)
+  const [userForLog, setUserForLog] = useState<StaffMember | null>(null)
   const [userActivities, setUserActivities] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingLog, setIsLoadingLog] = useState(false)
@@ -112,12 +111,12 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
     }
   }
 
-  const handleEditUser = (user: TeamMember) => {
+  const handleEditUser = (user: StaffMember) => {
     setUserToEdit(user)
     setShowEditForm(true)
   }
 
-  const handleViewUserLog = async (user: TeamMember) => {
+  const handleViewUserLog = async (user: StaffMember) => {
     setUserForLog(user)
     setShowUserLog(true)
     setIsLoadingLog(true)
@@ -215,7 +214,7 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
     })
   }
 
-  const canDeleteUser = (user: TeamMember) => {
+  const canDeleteUser = (user: StaffMember) => {
     // PARTNER can delete any account including other PARTNERs
     if (session?.user?.role === 'PARTNER') {
       return true

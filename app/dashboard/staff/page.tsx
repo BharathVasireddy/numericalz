@@ -111,14 +111,14 @@ export default async function StaffPage() {
         {
           id: '1',
           action: 'Updated client information',
-          resource: 'Client',
+          
           timestamp: new Date(),
           client: { companyName: 'Example Ltd' }
         },
         {
           id: '2', 
           action: 'Reviewed documents',
-          resource: 'Document',
+          
           timestamp: new Date(Date.now() - 86400000),
           client: { companyName: 'Test Corp' }
         }
@@ -230,7 +230,7 @@ export default async function StaffPage() {
                           </p>
                         </div>
                         <span className="status-badge bg-muted text-muted-foreground text-xs">
-                          {activity.resource}
+                          Activity
                         </span>
                       </div>
                     ))}

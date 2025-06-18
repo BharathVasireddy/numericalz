@@ -98,7 +98,17 @@ export default async function ManagerDashboardPage() {
       typeCounts,
       totalClients,
       totalUsers,
-      recentClients,
+      recentClients: recentClients.map(client => ({
+        id: client.id,
+        clientCode: client.clientCode || 'N/A',
+        companyName: client.companyName,
+        companyType: client.companyType,
+        createdAt: client.createdAt.toISOString(),
+        assignedUser: client.assignedUser ? {
+          name: client.assignedUser.name,
+          email: client.assignedUser.email
+        } : undefined
+      })),
       userRole: session.user.role
     }
 

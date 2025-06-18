@@ -63,7 +63,7 @@ export default function LtdCompaniesPage() {
       <PageHeader 
         title="Ltd Companies"
         description="Manage all Limited Company clients"
-        icon={Building2}
+        
       >
         <Link href="/dashboard/clients/add">
           <Button className="btn-primary">

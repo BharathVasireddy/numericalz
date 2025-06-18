@@ -62,7 +62,7 @@ export default function NonLtdCompaniesPage() {
       <PageHeader 
         title="Non Ltd Companies"
         description="Manage all Non Limited Company clients"
-        icon={Building2}
+        
       >
         <Link href="/dashboard/clients/add">
           <Button className="btn-primary">

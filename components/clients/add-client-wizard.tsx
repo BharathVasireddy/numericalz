@@ -190,7 +190,7 @@ export function AddClientWizard() {
                     const status = officer.resigned_on ? 'resigned' : 'active'
                     const role = officer.officer_role
                     
-                    (company as any).ownerDetails = (company as any).ownerDetails || []
+                    ;(company as any).ownerDetails = (company as any).ownerDetails || []
                     ;(company as any).ownerDetails.push({
                       name: officer.name,
                       status,
@@ -210,7 +210,7 @@ export function AddClientWizard() {
                     const status = person.ceased_on ? 'resigned' : 'active'
                     const role = person.kind || 'Person with Significant Control'
                     
-                    (company as any).ownerDetails = (company as any).ownerDetails || []
+                    ;;(company as any).ownerDetails = (company as any).ownerDetails || []
                     ;(company as any).ownerDetails.push({
                       name: person.name,
                       status,
@@ -899,14 +899,6 @@ export function AddClientWizard() {
               onClose={() => {
                 setShowSuccessModal(false)
                 setCreatedClient(null)
-              }}
-              onViewClient={() => {
-                router.push(`/dashboard/clients/${createdClient.id}`)
-              }}
-              onAddAnother={() => {
-                setShowSuccessModal(false)
-                setCreatedClient(null)
-                // Forms are already reset
               }}
             />
           )}

@@ -110,8 +110,8 @@ export const authOptions: NextAuthOptions = {
                 data: {
                   userId: user.id,
                   action: 'LOGIN',
-                  resource: 'auth',
-                  metadata: JSON.stringify({
+                  
+                  details: JSON.stringify({
                     email: user.email,
                     timestamp: new Date().toISOString(),
                   }),
@@ -142,8 +142,8 @@ export const authOptions: NextAuthOptions = {
               await db.activityLog.create({
                 data: {
                   action: 'LOGIN',
-                  resource: 'auth',
-                  metadata: JSON.stringify({
+                  
+                  details: JSON.stringify({
                     email: credentials.email,
                     error: error instanceof Error ? error.message : 'Unknown error',
                     timestamp: new Date().toISOString(),
@@ -227,8 +227,8 @@ export const authOptions: NextAuthOptions = {
             data: {
               userId: token.id as string,
               action: 'LOGOUT',
-              resource: 'auth',
-              metadata: JSON.stringify({
+              
+              details: JSON.stringify({
                 timestamp: new Date().toISOString(),
               }),
             },

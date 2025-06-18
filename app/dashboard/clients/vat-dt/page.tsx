@@ -25,7 +25,7 @@ export default async function VATDeadlineTrackerPage() {
       <PageHeader 
         title="VAT Deadline Tracker"
         description="Track VAT deadlines and quarters for all VAT-enabled clients"
-        icon={Calendar}
+        
       >
         <Link href="/dashboard/clients/add">
           <Button className="btn-primary">

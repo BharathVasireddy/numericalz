@@ -249,9 +249,9 @@ export function ManagerDashboard({ data }: ManagerDashboardProps) {
                 </Button>
                 
                 <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/dashboard/team" className="flex items-center gap-2">
+                  <Link href="/dashboard/staff" className="flex items-center gap-2">
                     <Users className="h-4 w-4" />
-                    Team Management
+                    Staff Management
                   </Link>
                 </Button>
               </CardContent>

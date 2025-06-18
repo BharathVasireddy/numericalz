@@ -77,20 +77,17 @@ export async function POST(
       data: {
         clientId: id,
         userId: session.user.id,
-        action: 'UPDATE',
-        resource: 'client',
-        resourceId: id,
-        oldValues: JSON.stringify({
-          isActive: true,
-          assignedUserId: existingClient.assignedUserId,
-        }),
-        newValues: JSON.stringify({
-          isActive: false,
-          assignedUserId: null,
-        }),
-        metadata: JSON.stringify({
-          action: 'CLIENT_RESIGNED',
+        action: 'CLIENT_RESIGNED',
+        details: JSON.stringify({
           companyName: existingClient.companyName,
+          oldValues: {
+            isActive: true,
+            assignedUserId: existingClient.assignedUserId,
+          },
+          newValues: {
+            isActive: false,
+            assignedUserId: null,
+          },
         }),
       },
     })
