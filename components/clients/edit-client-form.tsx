@@ -374,7 +374,7 @@ export function EditClientForm({ client }: EditClientFormProps) {
           </div>
 
           {/* Form Content */}
-          <div className="pb-24">
+          <div className="pb-6">
             <form id="edit-client-form" onSubmit={handleSubmit} className="space-y-6">
               {/* Basic Information */}
               <Card className="shadow-professional">
