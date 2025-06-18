@@ -86,10 +86,10 @@ export function calculateVATQuarter(
   quarterStartDate.setMonth(quarterStartDate.getMonth() - 2)
   quarterStartDate.setDate(1) // First day of the month
 
-  // Calculate filing due date (1 month + 7 days after quarter end)
-  const filingDueDate = new Date(quarterEndDate)
-  filingDueDate.setMonth(filingDueDate.getMonth() + 1)
-  filingDueDate.setDate(7)
+  // Calculate filing due date (last day of the month following quarter end)
+  // UK VAT Rule: Filing due by the last day of the month following the quarter end
+  // Simple approach: Use Date constructor to get last day of next month
+  const filingDueDate = new Date(quarterEndDate.getFullYear(), quarterEndDate.getMonth() + 1, 0)
 
   // Generate quarter period string
   const quarterPeriod = `${formatDate(quarterStartDate)}_to_${formatDate(quarterEndDate)}`
