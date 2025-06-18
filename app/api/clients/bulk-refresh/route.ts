@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only managers can perform bulk operations
-    if (session.user.role !== 'MANAGER') {
+    // Only managers and partners can perform bulk operations
+    if (session.user.role !== 'MANAGER' && session.user.role !== 'PARTNER') {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 

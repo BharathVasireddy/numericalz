@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 /**
  * POST /api/clients/[id]/resign
  * 
- * Resign (deactivate) a client
+ * Resign (deactivate) a client (Manager and Partner only)
  */
 export async function POST(
   request: NextRequest,
@@ -25,8 +25,8 @@ export async function POST(
       )
     }
 
-    // Only managers can resign clients
-    if (session.user.role !== 'MANAGER') {
+    // Only managers and partners can resign clients
+    if (session.user.role !== 'MANAGER' && session.user.role !== 'PARTNER') {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },
         { status: 403 }

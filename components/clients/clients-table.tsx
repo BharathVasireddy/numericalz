@@ -20,7 +20,9 @@ import {
   Phone,
   MoreHorizontal,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Check,
+  X
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -56,6 +58,7 @@ interface Client {
   contactPhone?: string
   nextAccountsDue: string | null
   nextConfirmationDue: string | null
+  nextCorporationTaxDue: string | null
   accountingReferenceDate: string | null
   assignedUser?: {
     id: string
@@ -63,8 +66,8 @@ interface Client {
     email: string
   }
   isActive: boolean
+  isVatEnabled: boolean
   createdAt: string
-
 }
 
 interface User {
@@ -253,22 +256,13 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
     } catch (e) {
       const date = new Date(accountingRefDate)
       if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })
+        return date.toLocaleDateString('en-GB', { 
+          day: '2-digit', 
+          month: '2-digit' 
+        })
       }
     }
     return '-'
-  }
-
-  const calculateCTDue = (nextAccountsDue: string | null) => {
-    if (!nextAccountsDue) return '-'
-    const accountsDate = new Date(nextAccountsDue)
-    const ctDate = new Date(accountsDate)
-    ctDate.setMonth(ctDate.getMonth() + 9)
-    return ctDate.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    })
   }
 
   const isDateOverdue = (dateString: string | null) => {
@@ -287,8 +281,6 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays <= daysThreshold && diffDays > 0
   }
-
-
 
   const handleAssignUser = (client: Client) => {
     setClientToAssign(client)
@@ -399,7 +391,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                 {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
                   <th className="table-header-cell w-12">
                     <Checkbox
-                      checked={isAllSelected}
+                      checked={selectedClients.length === clients.length && clients.length > 0}
                       onCheckedChange={handleSelectAll}
                       aria-label="Select all clients"
                     />
@@ -418,34 +410,20 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   Company Number
                 </th>
                 <th 
-                  className="table-header-cell col-company-name cursor-pointer hover:text-foreground"
+                  className="table-header-cell cursor-pointer hover:text-foreground"
                   onClick={() => handleSort('companyName')}
+                  style={{ width: '300px' }}
                 >
                   Company Name
                 </th>
-                <th className="table-header-cell w-20">
-                  Year End
+                <th className="table-header-cell w-20 text-center">
+                  Accounts
                 </th>
-                <th 
-                  className="table-header-cell col-date cursor-pointer hover:text-foreground"
-                  onClick={() => handleSort('nextAccountsDue')}
-                >
-                  Accounts Due
-                </th>
-                <th className="table-header-cell w-20">
-                  CT Due
-                </th>
-                <th 
-                  className="table-header-cell col-date cursor-pointer hover:text-foreground"
-                  onClick={() => handleSort('nextConfirmationDue')}
-                >
-                  CS Due
+                <th className="table-header-cell w-16 text-center">
+                  VAT
                 </th>
                 <th className="table-header-cell col-contact">
                   Contact
-                </th>
-                <th className="table-header-cell col-assigned-to">
-                  Assigned To
                 </th>
                 <th className="table-header-cell col-actions text-right">
                   Actions
@@ -493,42 +471,22 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                       </button>
                     </div>
                   </td>
-                  <td className="table-body-cell">
-                    <span className="text-xs font-mono">
-                      {getYearEnd(client.accountingReferenceDate)}
-                    </span>
-                  </td>
-                  <td className="table-body-cell">
-                    <div className="flex items-center gap-1">
-                      {isDateOverdue(client.nextAccountsDue) && (
-                        <AlertTriangle className="h-3 w-3 text-red-500" />
+                  <td className="table-body-cell text-center">
+                    <div className="flex justify-center">
+                      {(client.companyType === 'LIMITED_COMPANY' || client.companyType === 'NON_LIMITED_COMPANY') ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <X className="h-4 w-4 text-muted-foreground" />
                       )}
-                      <span className={`text-xs font-mono ${
-                        isDateOverdue(client.nextAccountsDue) ? 'text-red-600 font-medium' :
-                        isDateSoon(client.nextAccountsDue) ? 'text-amber-600 font-medium' :
-                        'text-foreground'
-                      }`}>
-                        {formatDate(client.nextAccountsDue)}
-                      </span>
                     </div>
                   </td>
-                  <td className="table-body-cell">
-                    <span className="text-xs font-mono text-muted-foreground">
-                      {calculateCTDue(client.nextAccountsDue)}
-                    </span>
-                  </td>
-                  <td className="table-body-cell">
-                    <div className="flex items-center gap-1">
-                      {isDateOverdue(client.nextConfirmationDue) && (
-                        <AlertTriangle className="h-3 w-3 text-red-500" />
+                  <td className="table-body-cell text-center">
+                    <div className="flex justify-center">
+                      {client.isVatEnabled ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <X className="h-4 w-4 text-muted-foreground" />
                       )}
-                      <span className={`text-xs font-mono ${
-                        isDateOverdue(client.nextConfirmationDue) ? 'text-red-600 font-medium' :
-                        isDateSoon(client.nextConfirmationDue) ? 'text-amber-600 font-medium' :
-                        'text-foreground'
-                      }`}>
-                        {formatDate(client.nextConfirmationDue)}
-                      </span>
                     </div>
                   </td>
                   <td className="table-body-cell">
@@ -555,16 +513,6 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
                     </div>
-                  </td>
-                  <td className="table-body-cell">
-                    {client.assignedUser ? (
-                      <div className="text-xs">
-                        <div className="font-medium truncate" title={client.assignedUser.name}>{client.assignedUser.name}</div>
-                        <div className="text-muted-foreground truncate" title={client.assignedUser.email}>{client.assignedUser.email}</div>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Unassigned</span>
-                    )}
                   </td>
                   <td className="table-actions-cell">
                     <DropdownMenu>
@@ -624,8 +572,6 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
             </tbody>
           </table>
         </div>
-
-
 
         {/* Mobile View */}
         <div className="block lg:hidden">
@@ -694,32 +640,24 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                 
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Year End:</span>
-                    <span>{getYearEnd(client.accountingReferenceDate)}</span>
+                    <span className="text-muted-foreground">Accounts:</span>
+                    <div className="flex items-center">
+                      {(client.companyType === 'LIMITED_COMPANY' || client.companyType === 'NON_LIMITED_COMPANY') ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Accounts Due:</span>
-                    <span className={`${
-                      isDateOverdue(client.nextAccountsDue) ? 'text-red-600 font-medium' :
-                      isDateSoon(client.nextAccountsDue) ? 'text-amber-600 font-medium' :
-                      'text-foreground'
-                    }`}>
-                      {formatDate(client.nextAccountsDue)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">CT Due:</span>
-                    <span className="text-muted-foreground">{calculateCTDue(client.nextAccountsDue)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">CS Due:</span>
-                    <span className={`${
-                      isDateOverdue(client.nextConfirmationDue) ? 'text-red-600 font-medium' :
-                      isDateSoon(client.nextConfirmationDue) ? 'text-amber-600 font-medium' :
-                      'text-foreground'
-                    }`}>
-                      {formatDate(client.nextConfirmationDue)}
-                    </span>
+                    <span className="text-muted-foreground">VAT:</span>
+                    <div className="flex items-center">
+                      {client.isVatEnabled ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <X className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Contact:</span>

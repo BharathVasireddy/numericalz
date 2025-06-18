@@ -13,7 +13,8 @@ import {
   Building2,
   User,
   Filter,
-  Download
+  Download,
+  Receipt
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,7 +39,7 @@ interface DeadlineItem {
   clientName: string
   companyNumber?: string
   dueDate: Date
-  type: 'accounts' | 'confirmation'
+  type: 'accounts' | 'confirmation' | 'corporation-tax'
   assignedUser?: {
     id: string
     name: string
@@ -191,7 +192,16 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
   }
 
   const getTypeIcon = (type: string) => {
-    return type === 'accounts' ? FileText : CheckCircle
+    switch (type) {
+      case 'accounts':
+        return FileText
+      case 'confirmation':
+        return CheckCircle
+      case 'corporation-tax':
+        return Receipt
+      default:
+        return FileText
+    }
   }
 
   // Calculate stats for the current view
@@ -244,7 +254,9 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
                       <div className="text-sm">
                         <div className="font-medium">{deadline.clientName}</div>
                         <div className="text-muted-foreground">
-                          {deadline.type === 'accounts' ? 'Annual Accounts' : 'Confirmation Statement'}
+                          {deadline.type === 'accounts' ? 'Annual Accounts' : 
+                           deadline.type === 'confirmation' ? 'Confirmation Statement' :
+                           deadline.type === 'corporation-tax' ? 'Corporation Tax' : deadline.type}
                         </div>
                         <div className="text-muted-foreground">
                           Due: {formatDate(deadline.dueDate)}
@@ -304,7 +316,9 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
                       <span className="font-medium text-sm">{deadline.clientName}</span>
                     </div>
                     <div className="text-xs opacity-80">
-                      {deadline.type === 'accounts' ? 'Annual Accounts' : 'Confirmation Statement'}
+                      {deadline.type === 'accounts' ? 'Annual Accounts' : 
+                       deadline.type === 'confirmation' ? 'Confirmation Statement' :
+                       deadline.type === 'corporation-tax' ? 'Corporation Tax' : deadline.type}
                     </div>
                     {deadline.assignedUser && (
                       <div className="flex items-center gap-1 text-xs opacity-80">
@@ -355,7 +369,9 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
                         <div>
                           <div className="font-medium">{deadline.clientName}</div>
                           <div className="text-sm opacity-80">
-                            {deadline.type === 'accounts' ? 'Annual Accounts' : 'Confirmation Statement'}
+                            {deadline.type === 'accounts' ? 'Annual Accounts' : 
+                             deadline.type === 'confirmation' ? 'Confirmation Statement' :
+                             deadline.type === 'corporation-tax' ? 'Corporation Tax' : deadline.type}
                             {deadline.companyNumber && ` • ${deadline.companyNumber}`}
                           </div>
                         </div>
@@ -402,7 +418,7 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
           </h2>
           <p className="text-sm text-muted-foreground">
             {isManager 
-              ? 'Track all client account deadlines and confirmation statements' 
+              ? 'Track all client deadlines: accounts, confirmations, and corporation tax' 
               : `Your assigned client deadlines (${currentUserName})`
             }
           </p>
@@ -477,6 +493,7 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="accounts">Accounts</SelectItem>
                   <SelectItem value="confirmation">Confirmations</SelectItem>
+                  <SelectItem value="corporation-tax">Corporation Tax</SelectItem>
                 </SelectContent>
               </Select>
             </>
@@ -492,6 +509,7 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="accounts">Accounts</SelectItem>
                 <SelectItem value="confirmation">Confirmations</SelectItem>
+                <SelectItem value="corporation-tax">Corporation Tax</SelectItem>
               </SelectContent>
             </Select>
           )}

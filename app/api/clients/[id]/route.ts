@@ -246,7 +246,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 /**
  * DELETE /api/clients/[id]
  * 
- * Delete a specific client (Manager only)
+ * Delete a specific client (Manager and Partner only)
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
@@ -259,10 +259,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Only managers can delete clients
-    if (session.user.role !== 'MANAGER') {
+    // Only managers and partners can delete clients
+    if (session.user.role !== 'MANAGER' && session.user.role !== 'PARTNER') {
       return NextResponse.json(
-        { success: false, error: 'Forbidden - Manager access required' },
+        { success: false, error: 'Forbidden - Manager or Partner access required' },
         { status: 403 }
       )
     }

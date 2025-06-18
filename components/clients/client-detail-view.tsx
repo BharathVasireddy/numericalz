@@ -24,6 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { AssignUserModal } from '@/components/clients/assign-user-modal'
+import { CTStatusManager } from './ct-status-manager'
 
 interface ClientDetailViewProps {
   client: any // Full client object with relations
@@ -68,33 +69,68 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
     })
   }
 
-  const getYearEnd = (accountingRefDate: string | null) => {
+  const getYearEnd = (accountingRefDate: string | null, lastAccountsMadeUpTo: string | null) => {
+    // If we have last accounts made up to date, calculate next year end from that
+    if (lastAccountsMadeUpTo) {
+      try {
+        const lastAccountsDate = new Date(lastAccountsMadeUpTo)
+        if (!isNaN(lastAccountsDate.getTime())) {
+          // Next year end is one year after last accounts made up to
+          const nextYearEnd = new Date(lastAccountsDate)
+          nextYearEnd.setFullYear(nextYearEnd.getFullYear() + 1)
+          
+          return nextYearEnd.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          })
+        }
+      } catch (e) {
+        // Fall through to accounting reference date calculation
+      }
+    }
+    
+    // Fallback to accounting reference date calculation if no last accounts
     if (!accountingRefDate) return 'Not set'
     try {
       const parsed = JSON.parse(accountingRefDate)
       if (parsed.day && parsed.month) {
-        return `${parsed.day}/${parsed.month}`
+        // Companies House provides day/month only for accounting reference date
+        // We need to calculate the next year end based on current date
+        const today = new Date()
+        const currentYear = today.getFullYear()
+        
+        // Create this year's year end date
+        const thisYearEnd = new Date(currentYear, parsed.month - 1, parsed.day)
+        
+        // If this year's year end has passed, next year end is next year
+        // If this year's year end hasn't passed, next year end is this year
+        const nextYearEnd = thisYearEnd <= today 
+          ? new Date(currentYear + 1, parsed.month - 1, parsed.day)
+          : thisYearEnd
+        
+        // Return the next year end date in full format
+        return nextYearEnd.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        })
       }
     } catch (e) {
+      // Fallback for invalid JSON - treat as date string
       const date = new Date(accountingRefDate)
       if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })
+        return date.toLocaleDateString('en-GB', { 
+          day: '2-digit', 
+          month: '2-digit',
+          year: 'numeric'
+        })
       }
     }
     return 'Not set'
   }
 
-  const calculateCTDue = (nextAccountsDue: string | null) => {
-    if (!nextAccountsDue) return 'Not set'
-    const accountsDate = new Date(nextAccountsDue)
-    const ctDate = new Date(accountsDate)
-    ctDate.setMonth(ctDate.getMonth() + 9)
-    return ctDate.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    })
-  }
+
 
   const isDateOverdue = (dateString: string | null) => {
     if (!dateString) return false
@@ -287,7 +323,7 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                   <div>
                     <p className="text-xs text-muted-foreground">Year End</p>
                     <p className="text-sm font-medium">
-                      {getYearEnd(client.accountingReferenceDate)}
+                      {getYearEnd(client.accountingReferenceDate, client.lastAccountsMadeUpTo)}
                     </p>
                   </div>
                   <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -472,9 +508,20 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                     
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">CT Due:</span>
-                      <span className="text-sm font-medium text-muted-foreground">
-                        {calculateCTDue(client.nextAccountsDue)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {(() => {
+                          const status = getDateStatus(client.nextCorporationTaxDue)
+                          const Icon = status.icon
+                          return (
+                            <>
+                              {Icon && <Icon className={`h-3 w-3 ${status.color}`} />}
+                              <span className={`text-sm font-medium ${status.color}`}>
+                                {formatDate(client.nextCorporationTaxDue)}
+                              </span>
+                            </>
+                          )
+                        })()}
+                      </div>
                     </div>
                     
                     <div className="flex items-center justify-between">
@@ -511,6 +558,12 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                   </div>
                 </CardContent>
               </Card>
+
+              {/* 🎯 CT Status Management */}
+              <CTStatusManager 
+                client={client} 
+                currentUser={currentUser}
+              />
 
               {/* Companies House Data */}
               {client.companyNumber && (

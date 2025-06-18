@@ -6,7 +6,7 @@ export interface DeadlineItem {
   clientName: string
   companyNumber?: string
   dueDate: Date
-  type: 'accounts' | 'confirmation'
+  type: 'accounts' | 'confirmation' | 'corporation-tax'
   assignedUser?: {
     id: string
     name: string
@@ -28,6 +28,7 @@ export async function getAllDeadlines(): Promise<DeadlineItem[]> {
         companyNumber: true,
         nextAccountsDue: true,
         nextConfirmationDue: true,
+        nextCorporationTaxDue: true,
         assignedUser: {
           select: {
             id: true,
@@ -78,6 +79,27 @@ export async function getAllDeadlines(): Promise<DeadlineItem[]> {
           companyNumber: client.companyNumber || undefined,
           dueDate: dueDate,
           type: 'confirmation',
+          assignedUser: client.assignedUser || undefined,
+          isOverdue: daysUntilDue < 0,
+          daysUntilDue: Math.abs(daysUntilDue)
+        })
+      }
+
+      // Process corporation tax due dates
+      if (client.nextCorporationTaxDue) {
+        const dueDate = new Date(client.nextCorporationTaxDue)
+        dueDate.setHours(0, 0, 0, 0)
+        
+        const timeDiff = dueDate.getTime() - today.getTime()
+        const daysUntilDue = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
+        
+        deadlines.push({
+          id: `${client.id}-corporation-tax`,
+          clientId: client.id,
+          clientName: client.companyName,
+          companyNumber: client.companyNumber || undefined,
+          dueDate: dueDate,
+          type: 'corporation-tax',
           assignedUser: client.assignedUser || undefined,
           isOverdue: daysUntilDue < 0,
           daysUntilDue: Math.abs(daysUntilDue)
@@ -106,6 +128,7 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
         companyNumber: true,
         nextAccountsDue: true,
         nextConfirmationDue: true,
+        nextCorporationTaxDue: true,
         assignedUser: {
           select: {
             id: true,
@@ -156,6 +179,27 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
           companyNumber: client.companyNumber || undefined,
           dueDate: dueDate,
           type: 'confirmation',
+          assignedUser: client.assignedUser || undefined,
+          isOverdue: daysUntilDue < 0,
+          daysUntilDue: Math.abs(daysUntilDue)
+        })
+      }
+
+      // Process corporation tax due dates
+      if (client.nextCorporationTaxDue) {
+        const dueDate = new Date(client.nextCorporationTaxDue)
+        dueDate.setHours(0, 0, 0, 0)
+        
+        const timeDiff = dueDate.getTime() - today.getTime()
+        const daysUntilDue = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
+        
+        deadlines.push({
+          id: `${client.id}-corporation-tax`,
+          clientId: client.id,
+          clientName: client.companyName,
+          companyNumber: client.companyNumber || undefined,
+          dueDate: dueDate,
+          type: 'corporation-tax',
           assignedUser: client.assignedUser || undefined,
           isOverdue: daysUntilDue < 0,
           daysUntilDue: Math.abs(daysUntilDue)
@@ -187,6 +231,12 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
               gte: startDate,
               lte: endDate
             }
+          },
+          {
+            nextCorporationTaxDue: {
+              gte: startDate,
+              lte: endDate
+            }
           }
         ]
       },
@@ -196,6 +246,7 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
         companyNumber: true,
         nextAccountsDue: true,
         nextConfirmationDue: true,
+        nextCorporationTaxDue: true,
         assignedUser: {
           select: {
             id: true,
@@ -249,6 +300,29 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
             companyNumber: client.companyNumber || undefined,
             dueDate: dueDate,
             type: 'confirmation',
+            assignedUser: client.assignedUser || undefined,
+            isOverdue: daysUntilDue < 0,
+            daysUntilDue: Math.abs(daysUntilDue)
+          })
+        }
+      }
+
+      // Process corporation tax due dates
+      if (client.nextCorporationTaxDue) {
+        const dueDate = new Date(client.nextCorporationTaxDue)
+        dueDate.setHours(0, 0, 0, 0)
+        
+        if (dueDate >= startDate && dueDate <= endDate) {
+          const timeDiff = dueDate.getTime() - today.getTime()
+          const daysUntilDue = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
+          
+          deadlines.push({
+            id: `${client.id}-corporation-tax`,
+            clientId: client.id,
+            clientName: client.companyName,
+            companyNumber: client.companyNumber || undefined,
+            dueDate: dueDate,
+            type: 'corporation-tax',
             assignedUser: client.assignedUser || undefined,
             isOverdue: daysUntilDue < 0,
             daysUntilDue: Math.abs(daysUntilDue)

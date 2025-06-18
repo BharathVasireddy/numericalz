@@ -37,6 +37,8 @@ export function EditClientForm({ client }: EditClientFormProps) {
     paperworkFrequency: client.paperworkFrequency || '',
     isActive: client.isActive,
     notes: client.notes || '',
+    // 🎯 Add editable CT due field
+    nextCorporationTaxDue: client.nextCorporationTaxDue ? new Date(client.nextCorporationTaxDue).toISOString().split('T')[0] : '',
     // Address fields
     tradingAddress: client.tradingAddress || '',
     residentialAddress: client.residentialAddress || '',
@@ -79,16 +81,55 @@ export function EditClientForm({ client }: EditClientFormProps) {
     })
   }
 
-  const getYearEnd = (accountingRefDate: string | null) => {
+  const getYearEnd = (accountingRefDate: string | null, lastAccountsMadeUpTo: string | null) => {
+    // If we have last accounts made up to date, calculate next year end from that
+    if (lastAccountsMadeUpTo) {
+      try {
+        const lastAccountsDate = new Date(lastAccountsMadeUpTo)
+        if (!isNaN(lastAccountsDate.getTime())) {
+          // Next year end is one year after last accounts made up to
+          const nextYearEnd = new Date(lastAccountsDate)
+          nextYearEnd.setFullYear(nextYearEnd.getFullYear() + 1)
+          
+          return nextYearEnd.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          })
+        }
+      } catch (e) {
+        // Fall through to accounting reference date calculation
+      }
+    }
+    
+    // Fallback to accounting reference date calculation if no last accounts
     if (!accountingRefDate) return 'Not set'
     try {
       const parsed = JSON.parse(accountingRefDate)
       if (parsed.day && parsed.month) {
-        // Get current year for display
-        const currentYear = new Date().getFullYear()
-        return `${parsed.day}/${parsed.month}/${currentYear}`
+        // Companies House provides day/month only for accounting reference date
+        // We need to calculate the next year end based on current date
+        const today = new Date()
+        const currentYear = today.getFullYear()
+        
+        // Create this year's year end date
+        const thisYearEnd = new Date(currentYear, parsed.month - 1, parsed.day)
+        
+        // If this year's year end has passed, next year end is next year
+        // If this year's year end hasn't passed, next year end is this year
+        const nextYearEnd = thisYearEnd <= today 
+          ? new Date(currentYear + 1, parsed.month - 1, parsed.day)
+          : thisYearEnd
+        
+        // Return the next year end date in full format
+        return nextYearEnd.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        })
       }
     } catch (e) {
+      // Fallback for invalid JSON - treat as date string
       const date = new Date(accountingRefDate)
       if (!isNaN(date.getTime())) {
         return date.toLocaleDateString('en-GB', { 
@@ -101,16 +142,56 @@ export function EditClientForm({ client }: EditClientFormProps) {
     return 'Not set'
   }
 
-  const calculateCTDue = (nextAccountsDue: string | null) => {
-    if (!nextAccountsDue) return 'Not set'
-    const accountsDate = new Date(nextAccountsDue)
-    const ctDate = new Date(accountsDate)
-    ctDate.setMonth(ctDate.getMonth() + 9)
-    return ctDate.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    })
+  const calculateCTDue = (accountingReferenceDate: string | null, lastAccountsMadeUpTo: string | null) => {
+    // If we have last accounts made up to date, calculate CT due from that
+    if (lastAccountsMadeUpTo) {
+      try {
+        const lastAccountsDate = new Date(lastAccountsMadeUpTo)
+        if (!isNaN(lastAccountsDate.getTime())) {
+          // CT due is 12 months after last accounts made up to date
+          const ctDue = new Date(lastAccountsDate)
+          ctDue.setFullYear(ctDue.getFullYear() + 1)
+          
+          return ctDue.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          })
+        }
+      } catch (e) {
+        console.warn('Error calculating CT due from last accounts:', e)
+      }
+    }
+    
+    // Fallback: calculate from accounting reference date
+    if (!accountingReferenceDate) return 'Not set'
+    
+    try {
+      const parsed = JSON.parse(accountingReferenceDate)
+      if (parsed.day && parsed.month) {
+        const today = new Date()
+        const currentYear = today.getFullYear()
+        const yearEnd = new Date(currentYear, parsed.month - 1, parsed.day)
+        
+        if (yearEnd < today) {
+          yearEnd.setFullYear(currentYear + 1)
+        }
+        
+        // CT due = 12 months from year end
+        const ctDue = new Date(yearEnd)
+        ctDue.setMonth(ctDue.getMonth() + 12)
+        
+        return ctDue.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        })
+      }
+    } catch (e) {
+      console.warn('Error calculating CT due:', e)
+    }
+    
+    return 'Not set'
   }
 
   const isDateOverdue = (dateString: string | null) => {
@@ -174,9 +255,11 @@ export function EditClientForm({ client }: EditClientFormProps) {
           yearEstablished: formData.yearEstablished ? parseInt(formData.yearEstablished) : null,
           numberOfEmployees: formData.numberOfEmployees ? parseInt(formData.numberOfEmployees) : null,
           annualTurnover: formData.annualTurnover ? parseFloat(formData.annualTurnover) : null,
-          // Convert date strings to Date objects for VAT fields
+          // Convert date strings to Date objects for date fields
           vatRegistrationDate: formData.vatRegistrationDate ? new Date(formData.vatRegistrationDate) : null,
           nextVatReturnDue: formData.nextVatReturnDue ? new Date(formData.nextVatReturnDue) : null,
+          // 🎯 Include CT due date
+          nextCorporationTaxDue: formData.nextCorporationTaxDue ? new Date(formData.nextCorporationTaxDue) : null,
         }),
       })
 
@@ -198,6 +281,59 @@ export function EditClientForm({ client }: EditClientFormProps) {
 
   // Get registered office address for copying
   const registeredOfficeAddress = parseAddress(client.registeredOfficeAddress)
+
+  // 🎯 Add function to calculate CT due date and set it in form
+  const handleCalculateCTDue = () => {
+    // Try to calculate from last accounts first
+    if (client.lastAccountsMadeUpTo) {
+      try {
+        const lastAccountsDate = new Date(client.lastAccountsMadeUpTo)
+        if (!isNaN(lastAccountsDate.getTime())) {
+          // CT due is 12 months after last accounts made up to date
+          const ctDue = new Date(lastAccountsDate)
+          ctDue.setFullYear(ctDue.getFullYear() + 1)
+          
+          const isoString = ctDue.toISOString()
+          const formattedDate = isoString.substring(0, 10)
+          handleInputChange('nextCorporationTaxDue', formattedDate)
+          showToast.success('CT due date calculated from last accounts date')
+          return
+        }
+      } catch (e) {
+        console.warn('Error calculating CT due from last accounts:', e)
+      }
+    }
+    
+    // Fallback to accounting reference date
+    if (!client.accountingReferenceDate) {
+      showToast.error('No year end or last accounts date available to calculate from')
+      return
+    }
+    
+    try {
+      const parsed = JSON.parse(client.accountingReferenceDate)
+      if (parsed.day && parsed.month) {
+        const today = new Date()
+        const currentYear = today.getFullYear()
+        const yearEnd = new Date(currentYear, parsed.month - 1, parsed.day)
+        
+        if (yearEnd < today) {
+          yearEnd.setFullYear(currentYear + 1)
+        }
+        
+        // CT due = 12 months from year end
+        const ctDue = new Date(yearEnd)
+        ctDue.setMonth(ctDue.getMonth() + 12)
+        
+        const isoString = ctDue.toISOString()
+        const formattedDate = isoString.substring(0, 10)
+        handleInputChange('nextCorporationTaxDue', formattedDate)
+        showToast.success('CT due date calculated from year end')
+      }
+    } catch (e) {
+      showToast.error('Error calculating CT due date')
+    }
+  }
 
   return (
     <div className="page-container">
@@ -333,7 +469,7 @@ export function EditClientForm({ client }: EditClientFormProps) {
                       <Label>Year End</Label>
                       <div className="flex items-center gap-2">
                         <Input
-                          value={getYearEnd(client.accountingReferenceDate)}
+                          value={getYearEnd(client.accountingReferenceDate, client.lastAccountsMadeUpTo)}
                           readOnly
                           className="input-field bg-muted"
                         />
@@ -358,23 +494,30 @@ export function EditClientForm({ client }: EditClientFormProps) {
 
                     <div className="space-y-2">
                       <Label>CT Due</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={calculateCTDue(client.nextAccountsDue)}
-                          readOnly
-                          className="input-field bg-muted"
-                        />
-                        {(() => {
-                          const ctDueDate = client.nextAccountsDue ? (() => {
-                            const accountsDate = new Date(client.nextAccountsDue)
-                            const ctDate = new Date(accountsDate)
-                            ctDate.setMonth(ctDate.getMonth() + 9)
-                            return ctDate.toISOString()
-                          })() : null
-                          const status = getDateStatus(ctDueDate)
-                          const Icon = status.icon
-                          return Icon ? <Icon className={`h-4 w-4 ${status.color}`} /> : null
-                        })()}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="date"
+                            value={formData.nextCorporationTaxDue}
+                            onChange={(e) => handleInputChange('nextCorporationTaxDue', e.target.value)}
+                            className="input-field"
+                          />
+                          {(() => {
+                            const status = getDateStatus(formData.nextCorporationTaxDue ? new Date(formData.nextCorporationTaxDue).toISOString() : null)
+                            const Icon = status.icon
+                            return Icon ? <Icon className={`h-4 w-4 ${status.color}`} /> : null
+                          })()}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCalculateCTDue}
+                          className="text-xs"
+                        >
+                          <Calculator className="h-3 w-3 mr-1" />
+                          Calculate from Year End
+                        </Button>
                       </div>
                     </div>
 

@@ -64,7 +64,9 @@ interface Client {
   contactPhone?: string
   nextAccountsDue: string | null
   nextConfirmationDue: string | null
+  nextCorporationTaxDue: string | null
   accountingReferenceDate: string | null
+  lastAccountsMadeUpTo: string | null
   assignedUser?: {
     id: string
     name: string
@@ -72,7 +74,6 @@ interface Client {
   }
   isActive: boolean
   createdAt: string
-
 }
 
 interface User {
@@ -251,33 +252,68 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
     })
   }
 
-  const getYearEnd = (accountingRefDate: string | null) => {
+  const getYearEnd = (accountingRefDate: string | null, lastAccountsMadeUpTo: string | null) => {
+    // If we have last accounts made up to date, calculate next year end from that
+    if (lastAccountsMadeUpTo) {
+      try {
+        const lastAccountsDate = new Date(lastAccountsMadeUpTo)
+        if (!isNaN(lastAccountsDate.getTime())) {
+          // Next year end is one year after last accounts made up to
+          const nextYearEnd = new Date(lastAccountsDate)
+          nextYearEnd.setFullYear(nextYearEnd.getFullYear() + 1)
+          
+          return nextYearEnd.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          })
+        }
+      } catch (e) {
+        // Fall through to accounting reference date calculation
+      }
+    }
+    
+    // Fallback to accounting reference date calculation if no last accounts
     if (!accountingRefDate) return '-'
     try {
       const parsed = JSON.parse(accountingRefDate)
       if (parsed.day && parsed.month) {
-        return `${parsed.day}/${parsed.month}`
+        // Companies House provides day/month only for accounting reference date
+        // We need to calculate the next year end based on current date
+        const today = new Date()
+        const currentYear = today.getFullYear()
+        
+        // Create this year's year end date
+        const thisYearEnd = new Date(currentYear, parsed.month - 1, parsed.day)
+        
+        // If this year's year end has passed, next year end is next year
+        // If this year's year end hasn't passed, next year end is this year
+        const nextYearEnd = thisYearEnd <= today 
+          ? new Date(currentYear + 1, parsed.month - 1, parsed.day)
+          : thisYearEnd
+        
+        // Return the next year end date in full format
+        return nextYearEnd.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        })
       }
     } catch (e) {
+      // Fallback for invalid JSON - treat as date string
       const date = new Date(accountingRefDate)
       if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })
+        return date.toLocaleDateString('en-GB', { 
+          day: '2-digit', 
+          month: '2-digit',
+          year: 'numeric'
+        })
       }
     }
     return '-'
   }
 
-  const calculateCTDue = (nextAccountsDue: string | null) => {
-    if (!nextAccountsDue) return '-'
-    const accountsDate = new Date(nextAccountsDue)
-    const ctDate = new Date(accountsDate)
-    ctDate.setMonth(ctDate.getMonth() + 9)
-    return ctDate.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    })
-  }
+
 
   const isDateOverdue = (dateString: string | null) => {
     if (!dateString) return false
@@ -295,8 +331,6 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays <= daysThreshold && diffDays > 0
   }
-
-
 
   const handleAssignUser = (client: Client) => {
     setClientToAssign(client)
@@ -503,7 +537,7 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
                   </td>
                   <td className="table-body-cell">
                     <span className="text-xs font-mono">
-                      {getYearEnd(client.accountingReferenceDate)}
+                      {getYearEnd(client.accountingReferenceDate, client.lastAccountsMadeUpTo)}
                     </span>
                   </td>
                   <td className="table-body-cell">
@@ -520,11 +554,11 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
                       </span>
                     </div>
                   </td>
-                  <td className="table-body-cell">
-                    <span className="text-xs font-mono text-muted-foreground">
-                      {calculateCTDue(client.nextAccountsDue)}
-                    </span>
-                  </td>
+                                      <td className="table-body-cell">
+                      <span className="text-xs font-mono text-muted-foreground">
+                        {formatDate(client.nextCorporationTaxDue)}
+                      </span>
+                    </td>
                   <td className="table-body-cell">
                     <div className="flex items-center gap-1">
                       {isDateOverdue(client.nextConfirmationDue) && (
@@ -633,8 +667,6 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
           </table>
         </div>
 
-
-
         {/* Mobile View */}
         <div className="block lg:hidden">
           <div className="space-y-3 p-3">
@@ -703,7 +735,7 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Year End:</span>
-                    <span>{getYearEnd(client.accountingReferenceDate)}</span>
+                    <span>{getYearEnd(client.accountingReferenceDate, client.lastAccountsMadeUpTo)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Accounts Due:</span>
@@ -715,10 +747,10 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
                       {formatDate(client.nextAccountsDue)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">CT Due:</span>
-                    <span className="text-muted-foreground">{calculateCTDue(client.nextAccountsDue)}</span>
-                  </div>
+                                      <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">CT Due:</span>
+                      <span className="text-muted-foreground">{formatDate(client.nextCorporationTaxDue)}</span>
+                    </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">CS Due:</span>
                     <span className={`${

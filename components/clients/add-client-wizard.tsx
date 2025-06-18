@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge'
 import { ClientCreatedModal } from './client-created-modal'
 import { ClientPostCreationQuestionnaire } from './client-post-creation-questionnaire'
 import { NonLtdCompanyForm } from './non-ltd-company-form'
+import { calculateCTDueFromYearEnd, calculateCTPeriod } from '@/lib/ct-tracking'
 
 interface CompaniesHouseSearchResult {
   company_number: string
@@ -420,6 +421,26 @@ export function AddClientWizard() {
           nextAccountsDue: companyData.accounts?.next_due ? new Date(companyData.accounts.next_due) : undefined,
           lastAccountsMadeUpTo: companyData.accounts?.last_accounts?.made_up_to ? new Date(companyData.accounts.last_accounts.made_up_to) : undefined,
           accountingReferenceDate: companyData.accounts?.accounting_reference_date ? JSON.stringify(companyData.accounts.accounting_reference_date) : undefined,
+          // 🎯 Auto-calculate CT due from year end (12 months)
+          nextCorporationTaxDue: (() => {
+            if (companyData.accounts?.last_accounts?.made_up_to) {
+              const lastAccountsDate = new Date(companyData.accounts.last_accounts.made_up_to)
+              return calculateCTDueFromYearEnd(lastAccountsDate)
+            }
+            if (companyData.accounts?.accounting_reference_date) {
+              const { day, month } = companyData.accounts.accounting_reference_date
+              if (day && month) {
+                const today = new Date()
+                const currentYear = today.getFullYear()
+                const yearEnd = new Date(currentYear, month - 1, day)
+                if (yearEnd < today) {
+                  yearEnd.setFullYear(currentYear + 1)
+                }
+                return calculateCTDueFromYearEnd(yearEnd)
+              }
+            }
+            return undefined
+          })(),
           nextConfirmationDue: companyData.confirmation_statement?.next_due ? new Date(companyData.confirmation_statement.next_due) : undefined,
           lastConfirmationMadeUpTo: companyData.confirmation_statement?.last_made_up_to ? new Date(companyData.confirmation_statement.last_made_up_to) : undefined,
           jurisdiction: companyData.jurisdiction,
@@ -429,6 +450,23 @@ export function AddClientWizard() {
           // Officers and PSC data
           officers: companyData.officers,
           personsWithSignificantControl: companyData.psc,
+          // 🎯 CT Tracking fields
+          corporationTaxStatus: 'PENDING',
+          corporationTaxPeriodStart: (() => {
+            const { periodStart } = calculateCTPeriod(
+              companyData.accounts?.last_accounts?.made_up_to ? new Date(companyData.accounts.last_accounts.made_up_to) : null,
+              companyData.accounts?.accounting_reference_date ? JSON.stringify(companyData.accounts.accounting_reference_date) : null
+            )
+            return periodStart
+          })(),
+          corporationTaxPeriodEnd: (() => {
+            const { periodEnd } = calculateCTPeriod(
+              companyData.accounts?.last_accounts?.made_up_to ? new Date(companyData.accounts.last_accounts.made_up_to) : null,
+              companyData.accounts?.accounting_reference_date ? JSON.stringify(companyData.accounts.accounting_reference_date) : null
+            )
+            return periodEnd
+          })(),
+          ctDueSource: 'AUTO',
         })
       }
 

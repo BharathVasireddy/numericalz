@@ -51,6 +51,15 @@ model Client {
   accountingReferenceDate       String?
   nextConfirmationDue           DateTime?
   lastConfirmationMadeUpTo      DateTime?
+  nextCorporationTaxDue         DateTime?
+  // Corporation Tax tracking fields
+  corporationTaxStatus          String?         @default("PENDING") // PENDING, FILED, OVERDUE
+  corporationTaxPeriodStart     DateTime?       // Start of current CT period
+  corporationTaxPeriodEnd       DateTime?       // End of current CT period (year end)
+  manualCTDueOverride           DateTime?       // Manual override by accountant
+  ctDueSource                   String?         @default("AUTO") // AUTO, MANUAL
+  lastCTStatusUpdate            DateTime?       // When CT status was last changed
+  ctStatusUpdatedBy             String?         // User who updated CT status
   jurisdiction                  String?
   hasBeenLiquidated             Boolean         @default(false)
   hasCharges                    Boolean         @default(false)
@@ -130,6 +139,10 @@ model Client {
   @@index([companyStatus])
   @@index([nextAccountsDue])
   @@index([nextConfirmationDue])
+  @@index([nextCorporationTaxDue])
+  @@index([corporationTaxStatus])
+  @@index([corporationTaxPeriodEnd])
+  @@index([ctDueSource])
   @@map("clients")
 }
 
