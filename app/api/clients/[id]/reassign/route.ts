@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/clients/[id]/reassign
- * Reassign (reactivate) an inactive client - Manager only
+ * Reassign (reactivate) an inactive client - Partner and Manager access
  */
 export async function POST(
   request: NextRequest,
@@ -24,10 +24,10 @@ export async function POST(
       )
     }
 
-    // Only managers can reassign clients
-    if (session.user.role !== 'MANAGER') {
+    // Only partners and managers can reassign clients
+    if (session.user.role !== 'PARTNER' && session.user.role !== 'MANAGER') {
       return NextResponse.json(
-        { success: false, error: 'Access denied. Manager role required.' },
+        { success: false, error: 'Access denied. Partner or Manager role required.' },
         { status: 403 }
       )
     }

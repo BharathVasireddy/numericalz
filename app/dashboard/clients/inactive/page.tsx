@@ -11,19 +11,19 @@ export const metadata: Metadata = {
 }
 
 /**
- * Inactive clients page - Manager only
+ * Inactive clients page - Partner and Manager access
  * 
  * Features:
  * - View all resigned/inactive clients
  * - Reassign clients back to active status
  * - Delete clients permanently with confirmation
- * - Manager-only access
+ * - Partner and Manager access
  */
 export default async function InactiveClientsPage() {
   const session = await getServerSession(authOptions)
 
-  // Only managers can access this page
-  if (!session || session.user.role !== 'MANAGER') {
+  // Only partners and managers can access this page
+  if (!session || (session.user.role !== 'PARTNER' && session.user.role !== 'MANAGER')) {
     redirect('/dashboard')
   }
 
