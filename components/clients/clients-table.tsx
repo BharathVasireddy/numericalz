@@ -170,7 +170,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
   }, [searchQuery, filters, sortBy, sortOrder, session])
 
   useEffect(() => {
-    if (session?.user?.role === 'MANAGER') {
+    if (session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') {
       fetchUsers()
     }
   }, [session])
@@ -382,7 +382,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
   return (
     <>
       {/* Bulk Operations */}
-      {session?.user?.role === 'MANAGER' && (
+      {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
         <BulkOperations
           selectedClients={selectedClients}
           onClearSelection={handleClearSelection}
@@ -397,7 +397,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
           <table className="w-full text-sm table-fixed">
             <thead className="bg-muted/50 border-b border-border">
               <tr>
-                {session?.user?.role === 'MANAGER' && (
+                {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
                   <th className="text-left p-3 w-12">
                     <Checkbox
                       checked={isAllSelected}
@@ -456,7 +456,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
             <tbody>
               {clients.map((client) => (
                 <tr key={client.id} className="border-b border-border hover:bg-muted/30">
-                  {session?.user?.role === 'MANAGER' && (
+                  {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
                     <td className="p-3">
                       <Checkbox
                         checked={selectedClients.includes(client.id)}
@@ -477,14 +477,21 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                   </td>
                   <td className="p-3">
                     <div className="w-full">
-                      <div className="font-medium text-sm truncate" title={client.companyName}>{client.companyName}</div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' :
-                         client.companyType === 'NON_LIMITED_COMPANY' ? 'Non Ltd' :
-                         client.companyType === 'DIRECTOR' ? 'Director' :
-                         client.companyType === 'SUB_CONTRACTOR' ? 'Sub Con' :
-                         client.companyType}
-                      </div>
+                      <button
+                        onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                        className="text-left w-full hover:bg-accent/50 rounded px-2 py-1 -mx-2 -my-1 transition-colors group"
+                      >
+                        <div className="font-medium text-sm truncate group-hover:text-primary" title={client.companyName}>
+                          {client.companyName}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' :
+                           client.companyType === 'NON_LIMITED_COMPANY' ? 'Non Ltd' :
+                           client.companyType === 'DIRECTOR' ? 'Director' :
+                           client.companyType === 'SUB_CONTRACTOR' ? 'Sub Con' :
+                           client.companyType}
+                        </div>
+                      </button>
                     </div>
                   </td>
                   <td className="p-3">
@@ -575,7 +582,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                           <Eye className="h-4 w-4" />
                           View Details
                         </DropdownMenuItem>
-                        {session?.user?.role === 'MANAGER' && (
+                        {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
                           <>
                             <DropdownMenuItem 
                               onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
@@ -625,12 +632,17 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
             {clients.map((client) => (
               <div key={client.id} className="border rounded-lg p-4 space-y-3">
                 <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <div className="font-medium text-sm">{client.companyName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {client.companyNumber} • {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' : client.companyType}
+                  <button
+                    onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                    className="text-left hover:bg-accent/50 rounded px-2 py-1 -mx-2 -my-1 transition-colors group flex-1"
+                  >
+                    <div className="space-y-1">
+                      <div className="font-medium text-sm group-hover:text-primary">{client.companyName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {client.companyNumber} • {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' : client.companyType}
+                      </div>
                     </div>
-                  </div>
+                  </button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="h-8 w-8 p-0">
@@ -645,7 +657,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                         <Eye className="h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
-                      {session?.user?.role === 'MANAGER' && (
+                      {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
                         <>
                           <DropdownMenuItem 
                             onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
@@ -782,7 +794,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                         <Eye className="h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
-                      {session?.user?.role === 'MANAGER' && (
+                      {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
                         <>
                           <DropdownMenuItem 
                             onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}

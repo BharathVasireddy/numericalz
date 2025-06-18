@@ -15,8 +15,9 @@ export const metadata: Metadata = {
 /**
  * Main dashboard page that redirects users to their role-specific dashboard
  * 
- * - MANAGER users → /dashboard/manager
- * - STAFF users → /dashboard/staff
+ * - PARTNER users → /dashboard/partner (highest level access)
+ * - MANAGER users → /dashboard/manager (management access)
+ * - STAFF users → /dashboard/staff (staff access)
  * - Unauthenticated users → /auth/login
  */
 export default async function DashboardPage() {
@@ -26,8 +27,10 @@ export default async function DashboardPage() {
     redirect('/auth/login')
   }
 
-  // Redirect based on user role
-  if (session.user.role === 'MANAGER') {
+  // Redirect based on user role - each role gets their own dashboard
+  if (session.user.role === 'PARTNER') {
+    redirect('/dashboard/partner')
+  } else if (session.user.role === 'MANAGER') {
     redirect('/dashboard/manager')
   } else if (session.user.role === 'STAFF') {
     redirect('/dashboard/staff')

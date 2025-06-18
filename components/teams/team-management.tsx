@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { showToast } from '@/lib/toast'
 import { 
   Users, 
@@ -15,7 +16,10 @@ import {
   User,
   Clock,
   FileText,
-  CheckCircle
+  CheckCircle,
+  Crown,
+  Activity,
+  Eye
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -41,6 +45,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger
 } from '@/components/ui/dialog'
 import {
   Tooltip,
@@ -51,8 +56,13 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { CreateTeamMemberForm } from './create-team-member-form'
 import { EditTeamMemberForm } from './edit-team-member-form'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { toast } from 'sonner'
 
-interface TeamMember {
+interface StaffMember {
   id: string
   name: string
   email: string
@@ -60,7 +70,7 @@ interface TeamMember {
   isActive: boolean
   lastLoginAt: Date | null
   createdAt: Date
-  assignedClients: Array<{
+  assignedClients?: Array<{
     id: string
     companyName: string
     companyType: string
@@ -77,17 +87,22 @@ interface TeamManagementProps {
 }
 
 export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
+  const { data: session } = useSession()
   const [users, setUsers] = useState<TeamMember[]>(initialUsers)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showUserLog, setShowUserLog] = useState(false)
   const [userToEdit, setUserToEdit] = useState<TeamMember | null>(null)
   const [userToDelete, setUserToDelete] = useState<TeamMember | null>(null)
+  const [userForLog, setUserForLog] = useState<TeamMember | null>(null)
+  const [userActivities, setUserActivities] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingLog, setIsLoadingLog] = useState(false)
 
   const refreshUsers = async () => {
     try {
-      const response = await fetch('/api/users/team')
+      const response = await fetch('/api/users/staff')
       if (response.ok) {
         const data = await response.json()
         setUsers(data.users || [])
@@ -102,6 +117,32 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
     setShowEditForm(true)
   }
 
+  const handleViewUserLog = async (user: TeamMember) => {
+    setUserForLog(user)
+    setShowUserLog(true)
+    setIsLoadingLog(true)
+    
+    try {
+      // Fetch real activity logs from API
+      const response = await fetch(`/api/users/${user.id}/activity-log`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setUserActivities(data.data)
+        } else {
+          setUserActivities([])
+        }
+      } else {
+        setUserActivities([])
+      }
+    } catch (error) {
+      console.error('Failed to fetch user activity log:', error)
+      setUserActivities([])
+    } finally {
+      setIsLoadingLog(false)
+    }
+  }
+
   const handleDeleteUser = async () => {
     if (!userToDelete) return
 
@@ -112,16 +153,16 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
       })
 
       if (response.ok) {
-        showToast.success('Team member deleted successfully')
+        showToast.success('Staff member deleted successfully')
         setUsers(prev => prev.filter(u => u.id !== userToDelete.id))
         setShowDeleteDialog(false)
         setUserToDelete(null)
       } else {
         const data = await response.json()
-        showToast.error(data.error || 'Failed to delete team member')
+        showToast.error(data.error || 'Failed to delete staff member')
       }
     } catch (error) {
-      showToast.error('Failed to delete team member')
+      showToast.error('Failed to delete staff member')
     } finally {
       setIsLoading(false)
     }
@@ -136,15 +177,15 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
       })
 
       if (response.ok) {
-        showToast.success(`Team member ${!isActive ? 'activated' : 'deactivated'} successfully`)
+        showToast.success(`Staff member ${!isActive ? 'activated' : 'deactivated'} successfully`)
         setUsers(prev => prev.map(u => 
           u.id === userId ? { ...u, isActive: !isActive } : u
         ))
       } else {
-        showToast.error('Failed to update team member status')
+        showToast.error('Failed to update staff member status')
       }
     } catch (error) {
-      showToast.error('Failed to update team member status')
+      showToast.error('Failed to update staff member status')
     }
   }
 
@@ -174,278 +215,296 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
     })
   }
 
-  const getUpcomingDeadlines = (user: TeamMember) => {
-    const now = new Date()
-    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-    
-    let overdueAccounts = 0
-    let overdueCS = 0
-    let upcomingAccounts = 0
-    let upcomingCS = 0
-
-    user.assignedClients.forEach(client => {
-      if (client.nextAccountsDue) {
-        const accountsDue = new Date(client.nextAccountsDue)
-        if (accountsDue < now) {
-          overdueAccounts++
-        } else if (accountsDue <= sevenDaysFromNow) {
-          upcomingAccounts++
-        }
-      }
-
-      if (client.nextConfirmationDue) {
-        const confirmationDue = new Date(client.nextConfirmationDue)
-        if (confirmationDue < now) {
-          overdueCS++
-        } else if (confirmationDue <= sevenDaysFromNow) {
-          upcomingCS++
-        }
-      }
-    })
-
-    return { overdueAccounts, overdueCS, upcomingAccounts, upcomingCS }
-  }
-
-  const getClientsDueThisMonth = (user: TeamMember) => {
-    const now = new Date()
-    const currentMonth = now.getMonth()
-    const currentYear = now.getFullYear()
-    
-    const accountsDueThisMonth: Array<{ name: string; dueDate: Date; type: 'accounts' }> = []
-    const confirmationsDueThisMonth: Array<{ name: string; dueDate: Date; type: 'confirmation' }> = []
-
-    user.assignedClients.forEach(client => {
-      if (client.nextAccountsDue) {
-        const accountsDue = new Date(client.nextAccountsDue)
-        if (accountsDue.getMonth() === currentMonth && accountsDue.getFullYear() === currentYear) {
-          accountsDueThisMonth.push({
-            name: client.companyName,
-            dueDate: accountsDue,
-            type: 'accounts'
-          })
-        }
-      }
-
-      if (client.nextConfirmationDue) {
-        const confirmationDue = new Date(client.nextConfirmationDue)
-        if (confirmationDue.getMonth() === currentMonth && confirmationDue.getFullYear() === currentYear) {
-          confirmationsDueThisMonth.push({
-            name: client.companyName,
-            dueDate: confirmationDue,
-            type: 'confirmation'
-          })
-        }
-      }
-    })
-
-    // Sort by due date
-    const allDueThisMonth = [...accountsDueThisMonth, ...confirmationsDueThisMonth]
-      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
-
-    return {
-      accountsDueThisMonth,
-      confirmationsDueThisMonth,
-      allDueThisMonth,
-      totalCount: allDueThisMonth.length
+  const canDeleteUser = (user: TeamMember) => {
+    // PARTNER can delete any account including other PARTNERs
+    if (session?.user?.role === 'PARTNER') {
+      return true
     }
+    
+    // MANAGER can delete STAFF accounts only
+    if (session?.user?.role === 'MANAGER') {
+      return user.role === 'STAFF'
+    }
+    
+    // STAFF cannot delete any accounts
+    return false
   }
-
-  const getDailyWorkload = (user: TeamMember) => {
-    const clientCount = user._count.assignedClients
-    if (clientCount === 0) return 'No clients'
-    if (clientCount <= 5) return 'Light'
-    if (clientCount <= 10) return 'Moderate'
-    return 'Heavy'
-  }
-
-  const getWorkloadColor = (clientCount: number) => {
-    if (clientCount === 0) return 'bg-gray-100 text-gray-800'
-    if (clientCount <= 5) return 'bg-green-100 text-green-800'
-    if (clientCount <= 10) return 'bg-yellow-100 text-yellow-800'
-    return 'bg-red-100 text-red-800'
-  }
-
-  const activeUsers = users.filter(u => u.isActive)
-  const inactiveUsers = users.filter(u => !u.isActive)
-  const totalClients = users.reduce((sum, user) => sum + user._count.assignedClients, 0)
 
   return (
-    <>
-      {/* Header */}
-      <div className="page-header">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold">Team Management</h1>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              Manage team members and view their workload statistics
-            </p>
-          </div>
-          <Button
-            onClick={() => setShowCreateForm(true)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <UserPlus className="h-4 w-4" />
-            Add Team Member
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeUsers.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {inactiveUsers.length} inactive
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalClients}</div>
-            <p className="text-xs text-muted-foreground">
-              Assigned to team members
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Workload</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {activeUsers.length > 0 ? Math.round(totalClients / activeUsers.length) : 0}
+    <div className="page-container">
+      <div className="content-wrapper">
+        <div className="content-sections">
+          {/* Header */}
+          <div className="page-header">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold">Team Management</h1>
+                <p className="text-xs md:text-sm text-muted-foreground">
+                  Manage team members and view their assignments
+                </p>
+              </div>
+              <Button
+                onClick={() => setShowCreateForm(true)}
+                className="btn-primary flex items-center gap-2"
+              >
+                <UserPlus className="h-4 w-4" />
+                Add Team Member
+              </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Clients per active member
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
 
-      {/* Team Members Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Team Members
-          </CardTitle>
-          <CardDescription>
-            Manage team member details, roles, and client assignments
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Desktop Table */}
-          <div className="hidden md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Member</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Clients</TableHead>
-                  <TableHead>Daily Load</TableHead>
-                  <TableHead>Due This Month</TableHead>
-                  <TableHead>Last Login</TableHead>
-                  <TableHead>Deadlines</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          {/* Team Members Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Team Members
+              </CardTitle>
+              <CardDescription>
+                Manage team member details, roles, and client assignments
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Desktop Table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Member</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Clients</TableHead>
+                      <TableHead>Last Login</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => {
+                      return (
+                        <TableRow key={user.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{user.name}</p>
+                              <p className="text-xs text-muted-foreground">{user.email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={user.role === 'PARTNER' ? 'default' : 'secondary'}
+                              className={
+                                user.role === 'PARTNER' 
+                                  ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                                  : user.role === 'MANAGER' 
+                                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                                    : 'bg-gray-600 text-white hover:bg-gray-700'
+                              }
+                            >
+                              {user.role === 'PARTNER' ? (
+                                <Crown className="h-3 w-3 mr-1.5" />
+                              ) : user.role === 'MANAGER' ? (
+                                <Shield className="h-3 w-3 mr-1.5" />
+                              ) : (
+                                <User className="h-3 w-3 mr-1.5" />
+                              )}
+                              {user.role}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={user.isActive ? 'default' : 'secondary'}>
+                              {user.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-medium">{user._count.assignedClients}</span>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`text-sm ${
+                              user.lastLoginAt && new Date(user.lastLoginAt).getTime() > Date.now() - (24 * 60 * 60 * 1000)
+                                ? 'text-green-600' 
+                                : user.lastLoginAt 
+                                  ? 'text-muted-foreground'
+                                  : 'text-red-500'
+                            }`}>
+                              {formatLastLogin(user.lastLoginAt)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-9 w-9 p-1 hover:bg-muted/50 flex items-center justify-center">
+                                  <Settings className="action-trigger-icon" />
+                                  <span className="sr-only">Open menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem 
+                                  onClick={() => handleEditUser(user)}
+                                  className="flex items-center gap-2 cursor-pointer"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                  Edit Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleViewUserLog(user)}
+                                  className="flex items-center gap-2 cursor-pointer"
+                                >
+                                  <Activity className="h-4 w-4" />
+                                  View Log
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => handleToggleUserStatus(user.id, user.isActive)}
+                                  className="flex items-center gap-2 cursor-pointer"
+                                >
+                                  {user.isActive ? (
+                                    <>
+                                      <Trash2 className="h-4 w-4" />
+                                      Deactivate
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserPlus className="h-4 w-4" />
+                                      Activate
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setUserToDelete(user)
+                                    setShowDeleteDialog(true)
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                                  disabled={
+                                    !canDeleteUser(user)
+                                  }
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                  {user.role === 'PARTNER' ? (
+                                    <Crown className="h-3 w-3 ml-1" />
+                                  ) : user.role === 'MANAGER' && user._count.assignedClients > 0 && (
+                                    <AlertTriangle className="h-3 w-3 ml-1" />
+                                  )}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-4">
                 {users.map((user) => {
-                  const deadlines = getUpcomingDeadlines(user)
-                  const dailyLoad = getDailyWorkload(user)
-                  const dueThisMonth = getClientsDueThisMonth(user)
-                  
                   return (
-                    <TableRow key={user.id}>
-                      <TableCell>
+                    <Card key={user.id} className="p-4">
+                      <div className="flex items-start justify-between mb-3">
                         <div>
-                          <p className="font-medium">{user.name}</p>
+                          <h3 className="font-medium">{user.name}</h3>
                           <p className="text-xs text-muted-foreground">{user.email}</p>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={user.role === 'MANAGER' ? 'default' : 'secondary'}>
-                          {user.role === 'MANAGER' ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-9 w-9 p-1 hover:bg-muted/50 flex items-center justify-center">
+                            <Settings className="action-trigger-icon" />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem 
+                            onClick={() => handleEditUser(user)}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <Edit className="h-4 w-4" />
+                            Edit Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleViewUserLog(user)}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <Activity className="h-4 w-4" />
+                            View Log
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleToggleUserStatus(user.id, user.isActive)}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            {user.isActive ? (
+                              <>
+                                <Trash2 className="h-4 w-4" />
+                                Deactivate
+                              </>
+                            ) : (
+                              <>
+                                <UserPlus className="h-4 w-4" />
+                                Activate
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setUserToDelete(user)
+                              setShowDeleteDialog(true)
+                            }}
+                            className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                            disabled={
+                              !canDeleteUser(user)
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                            {user.role === 'PARTNER' ? (
+                              <Crown className="h-3 w-3 ml-1" />
+                            ) : user.role === 'MANAGER' && user._count.assignedClients > 0 && (
+                              <AlertTriangle className="h-3 w-3 ml-1" />
+                            )}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Role:</span>
+                        <Badge 
+                          variant={user.role === 'PARTNER' ? 'default' : 'secondary'}
+                          className={
+                            user.role === 'PARTNER' 
+                              ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                              : user.role === 'MANAGER' 
+                                ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                                : 'bg-gray-600 text-white hover:bg-gray-700'
+                          }
+                        >
+                          {user.role === 'PARTNER' ? (
+                            <Crown className="h-3 w-3 mr-1.5" />
+                          ) : user.role === 'MANAGER' ? (
                             <Shield className="h-3 w-3 mr-1.5" />
                           ) : (
                             <User className="h-3 w-3 mr-1.5" />
                           )}
                           {user.role}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Status:</span>
                         <Badge variant={user.isActive ? 'default' : 'secondary'}>
                           {user.isActive ? 'Active' : 'Inactive'}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Clients:</span>
                         <span className="font-medium">{user._count.assignedClients}</span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getWorkloadColor(user._count.assignedClients)}>
-                          {dailyLoad}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <TooltipProvider>
-                          {dueThisMonth.totalCount > 0 ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1 cursor-help">
-                                  <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                    <Clock className="h-3 w-3 mr-1" />
-                                    {dueThisMonth.totalCount}
-                                  </Badge>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <div className="space-y-2">
-                                  <p className="font-semibold text-sm">Due This Month:</p>
-                                  {dueThisMonth.allDueThisMonth.slice(0, 5).map((item, index) => (
-                                    <div key={index} className="flex items-center justify-between text-xs">
-                                      <span className="truncate max-w-32">{item.name}</span>
-                                      <div className="flex items-center gap-1 ml-2">
-                                        {item.type === 'accounts' ? (
-                                          <FileText className="h-3 w-3 text-blue-500" />
-                                        ) : (
-                                          <CheckCircle className="h-3 w-3 text-green-500" />
-                                        )}
-                                        <span className="text-muted-foreground">
-                                          {item.dueDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                  {dueThisMonth.allDueThisMonth.length > 5 && (
-                                    <p className="text-xs text-muted-foreground">
-                                      +{dueThisMonth.allDueThisMonth.length - 5} more...
-                                    </p>
-                                  )}
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs bg-gray-50 text-gray-600">
-                              None
-                            </Badge>
-                          )}
-                        </TooltipProvider>
-                      </TableCell>
-                      <TableCell>
-                        <span className={`text-sm ${
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Last Login:</span>
+                        <span className={`text-xs ${
                           user.lastLoginAt && new Date(user.lastLoginAt).getTime() > Date.now() - (24 * 60 * 60 * 1000)
                             ? 'text-green-600' 
                             : user.lastLoginAt 
@@ -454,366 +513,214 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                         }`}>
                           {formatLastLogin(user.lastLoginAt)}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          {(() => {
-                            const overdue = deadlines.overdueAccounts + deadlines.overdueCS
-                            const upcoming = deadlines.upcomingAccounts + deadlines.upcomingCS
-                            
-                            if (overdue > 0) {
-                              return (
-                                <Badge variant="destructive" className="text-xs">
-                                  <AlertTriangle className="h-3 w-3 mr-1" />
-                                  {overdue} overdue
-                                </Badge>
-                              )
-                            }
-                            if (upcoming > 0) {
-                              return (
-                                <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">
-                                  <Calendar className="h-3 w-3 mr-1" />
-                                  {upcoming} upcoming
-                                </Badge>
-                              )
-                            }
-                            return (
-                              <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                                All clear
-                              </Badge>
-                            )
-                          })()}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-9 w-9 p-1 hover:bg-muted/50 flex items-center justify-center">
-                              <Settings className="action-trigger-icon" />
-                              <span className="sr-only">Open menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem 
-                              onClick={() => handleEditUser(user)}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <Edit className="h-4 w-4" />
-                              Edit Details
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => handleToggleUserStatus(user.id, user.isActive)}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              {user.isActive ? (
-                                <>
-                                  <Trash2 className="h-4 w-4" />
-                                  Deactivate
-                                </>
-                              ) : (
-                                <>
-                                  <UserPlus className="h-4 w-4" />
-                                  Activate
-                                </>
-                              )}
-                            </DropdownMenuItem>
-                                                  <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setUserToDelete(user)
-                          setShowDeleteDialog(true)
-                        }}
-                        className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                        disabled={user.role === 'MANAGER' && user._count.assignedClients > 0}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete
-                        {user.role === 'MANAGER' && user._count.assignedClients > 0 && (
-                          <AlertTriangle className="h-3 w-3 ml-1" />
-                        )}
-                      </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </div>
+                  </Card>
                   )
                 })}
-              </TableBody>
-            </Table>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Mobile Cards */}
-          <div className="md:hidden space-y-4">
-            {users.map((user) => {
-              const dueThisMonth = getClientsDueThisMonth(user)
+          {/* Create Team Member Dialog */}
+          <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
+            <DialogContent className="max-w-md">
+              <CreateTeamMemberForm
+                onSuccess={() => {
+                  setShowCreateForm(false)
+                  refreshUsers()
+                }}
+                onCancel={() => setShowCreateForm(false)}
+              />
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit Team Member Dialog */}
+          <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+            <DialogContent className="max-w-md">
+              {userToEdit && (
+                <EditTeamMemberForm
+                  user={userToEdit}
+                  onSuccess={() => {
+                    setShowEditForm(false)
+                    setUserToEdit(null)
+                    refreshUsers()
+                  }}
+                  onCancel={() => {
+                    setShowEditForm(false)
+                    setUserToEdit(null)
+                  }}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Confirmation Dialog */}
+          <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Trash2 className="h-5 w-5 text-red-600" />
+                  Delete Team Member
+                </DialogTitle>
+                <DialogDescription className="space-y-2">
+                  <div>
+                    Are you sure you want to delete <strong>{userToDelete?.name}</strong>? 
+                    This action cannot be undone.
+                  </div>
+                  
+                  {userToDelete?.role === 'PARTNER' ? (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
+                      <div className="flex items-center gap-2 text-red-800 mb-2">
+                        <Crown className="h-4 w-4" />
+                        <span className="font-medium">Cannot Delete Partner</span>
+                      </div>
+                      <p className="text-sm text-red-700">
+                        Partner accounts cannot be deleted as they have the highest system privileges. 
+                        Please contact system administrator if you need to remove this account.
+                      </p>
+                    </div>
+                  ) : userToDelete?.role === 'MANAGER' && userToDelete._count.assignedClients > 0 ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
+                      <div className="flex items-center gap-2 text-amber-800 mb-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span className="font-medium">Cannot Delete Manager</span>
+                      </div>
+                      <p className="text-sm text-amber-700">
+                        This manager has <strong>{userToDelete._count.assignedClients} assigned client(s)</strong>. 
+                        Please reassign all clients to another staff member or manager before deletion.
+                      </p>
+                    </div>
+                  ) : userToDelete?.role === 'MANAGER' ? (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
+                      <div className="flex items-center gap-2 text-red-800 mb-2">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span className="font-medium">Deleting Manager Account</span>
+                      </div>
+                      <p className="text-sm text-red-700">
+                        You are about to delete a manager account. This will remove all their permissions and access to the system.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground mt-2">
+                      {userToDelete?._count.assignedClients && userToDelete._count.assignedClients > 0 
+                        ? `All ${userToDelete._count.assignedClients} assigned clients will become unassigned.`
+                        : 'This user has no assigned clients.'
+                      }
+                    </div>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteDialog(false)}
+                  disabled={isLoading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteUser}
+                  disabled={
+                    isLoading || 
+                    (userToDelete?.role === 'PARTNER') ||
+                    (userToDelete?.role === 'MANAGER' && userToDelete._count.assignedClients > 0)
+                  }
+                >
+                  {isLoading ? 'Deleting...' : 'Delete Member'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* User Activity Log Dialog */}
+          <Dialog open={showUserLog} onOpenChange={setShowUserLog}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-blue-600" />
+                  Activity Log - {userForLog?.name}
+                </DialogTitle>
+                <DialogDescription>
+                  Complete activity history for {userForLog?.email}
+                </DialogDescription>
+              </DialogHeader>
               
-              return (
-                <Card key={user.id} className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-medium">{user.name}</h3>
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
+              <div className="flex-1 overflow-y-auto max-h-96">
+                {isLoadingLog ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-muted border-t-primary"></div>
+                      Loading activity log...
                     </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-9 w-9 p-1 hover:bg-muted/50 flex items-center justify-center">
-                        <Settings className="action-trigger-icon" />
-                        <span className="sr-only">Open menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem 
-                        onClick={() => handleEditUser(user)}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <Edit className="h-4 w-4" />
-                        Edit Details
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => handleToggleUserStatus(user.id, user.isActive)}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        {user.isActive ? (
-                          <>
-                            <Trash2 className="h-4 w-4" />
-                            Deactivate
-                          </>
-                        ) : (
-                          <>
-                            <UserPlus className="h-4 w-4" />
-                            Activate
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setUserToDelete(user)
-                          setShowDeleteDialog(true)
-                        }}
-                        className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                        disabled={user.role === 'MANAGER' && user._count.assignedClients > 0}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete
-                        {user.role === 'MANAGER' && user._count.assignedClients > 0 && (
-                          <AlertTriangle className="h-3 w-3 ml-1" />
-                        )}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Role:</span>
-                    <Badge variant={user.role === 'MANAGER' ? 'default' : 'secondary'}>
-                      {user.role === 'MANAGER' ? (
-                        <Shield className="h-3 w-3 mr-1.5" />
-                      ) : (
-                        <User className="h-3 w-3 mr-1.5" />
-                      )}
-                      {user.role}
-                    </Badge>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Status:</span>
-                    <Badge variant={user.isActive ? 'default' : 'secondary'}>
-                      {user.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Clients:</span>
-                    <span className="font-medium">{user._count.assignedClients}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Workload:</span>
-                    <Badge className={getWorkloadColor(user._count.assignedClients)}>
-                      {getDailyWorkload(user)}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Due This Month:</span>
-                    <TooltipProvider>
-                      {dueThisMonth.totalCount > 0 ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center gap-1 cursor-help">
-                              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                <Clock className="h-3 w-3 mr-1" />
-                                {dueThisMonth.totalCount}
-                              </Badge>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <div className="space-y-2">
-                              <p className="font-semibold text-sm">Due This Month:</p>
-                              {dueThisMonth.allDueThisMonth.slice(0, 3).map((item, index) => (
-                                <div key={index} className="flex items-center justify-between text-xs">
-                                  <span className="truncate max-w-24">{item.name}</span>
-                                  <div className="flex items-center gap-1 ml-2">
-                                    {item.type === 'accounts' ? (
-                                      <FileText className="h-3 w-3 text-blue-500" />
-                                    ) : (
-                                      <CheckCircle className="h-3 w-3 text-green-500" />
-                                    )}
-                                    <span className="text-muted-foreground">
-                                      {item.dueDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-                              {dueThisMonth.allDueThisMonth.length > 3 && (
-                                <p className="text-xs text-muted-foreground">
-                                  +{dueThisMonth.allDueThisMonth.length - 3} more...
-                                </p>
-                              )}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <Badge variant="secondary" className="text-xs bg-gray-50 text-gray-600">
-                          None
-                        </Badge>
-                      )}
-                    </TooltipProvider>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Last Login:</span>
-                    <span className={`text-xs ${
-                      user.lastLoginAt && new Date(user.lastLoginAt).getTime() > Date.now() - (24 * 60 * 60 * 1000)
-                        ? 'text-green-600' 
-                        : user.lastLoginAt 
-                          ? 'text-muted-foreground'
-                          : 'text-red-500'
-                    }`}>
-                      {formatLastLogin(user.lastLoginAt)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Deadlines:</span>
-                    <div className="text-xs">
-                      {(() => {
-                        const deadlines = getUpcomingDeadlines(user)
-                        const overdue = deadlines.overdueAccounts + deadlines.overdueCS
-                        const upcoming = deadlines.upcomingAccounts + deadlines.upcomingCS
+                ) : userActivities.length > 0 ? (
+                  <div className="space-y-3">
+                    {userActivities.map((activity) => (
+                      <div key={activity.id} className="border border-border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${
+                              activity.resource === 'Client' ? 'bg-blue-500' :
+                              activity.resource === 'Document' ? 'bg-green-500' :
+                              activity.resource === 'Assignment' ? 'bg-purple-500' :
+                              activity.resource === 'System' ? 'bg-gray-500' :
+                              'bg-orange-500'
+                            }`} />
+                            <span className="font-medium text-sm">{activity.action}</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {activity.resource}
+                          </Badge>
+                        </div>
                         
-                        if (overdue > 0) {
-                          return <span className="text-red-600 font-medium">{overdue} overdue</span>
-                        }
-                        if (upcoming > 0) {
-                          return <span className="text-amber-600">{upcoming} upcoming</span>
-                        }
-                        return <span className="text-green-600">All clear</span>
-                      })()}
-                    </div>
+                        <div className="space-y-1">
+                          <p className="text-sm text-muted-foreground">
+                            <strong>{activity.resourceName}</strong>
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {activity.details}
+                          </p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {new Date(activity.timestamp).toLocaleString('en-GB', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              </Card>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Create Team Member Dialog */}
-      <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
-        <DialogContent className="max-w-md">
-          <CreateTeamMemberForm
-            onSuccess={() => {
-              setShowCreateForm(false)
-              refreshUsers()
-            }}
-            onCancel={() => setShowCreateForm(false)}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Team Member Dialog */}
-      <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
-        <DialogContent className="max-w-md">
-          {userToEdit && (
-            <EditTeamMemberForm
-              user={userToEdit}
-              onSuccess={() => {
-                setShowEditForm(false)
-                setUserToEdit(null)
-                refreshUsers()
-              }}
-              onCancel={() => {
-                setShowEditForm(false)
-                setUserToEdit(null)
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5 text-red-600" />
-              Delete Team Member
-            </DialogTitle>
-            <DialogDescription className="space-y-2">
-              <div>
-                Are you sure you want to delete <strong>{userToDelete?.name}</strong>? 
-                This action cannot be undone.
+                ) : (
+                  <div className="text-center py-8">
+                    <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No activity found for this user</p>
+                  </div>
+                )}
               </div>
               
-              {userToDelete?.role === 'MANAGER' && userToDelete._count.assignedClients > 0 ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
-                  <div className="flex items-center gap-2 text-amber-800 mb-2">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span className="font-medium">Cannot Delete Manager</span>
-                  </div>
-                  <p className="text-sm text-amber-700">
-                    This manager has <strong>{userToDelete._count.assignedClients} assigned client(s)</strong>. 
-                    Please reassign all clients to another staff member or manager before deletion.
-                  </p>
-                </div>
-              ) : userToDelete?.role === 'MANAGER' ? (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
-                  <div className="flex items-center gap-2 text-red-800 mb-2">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span className="font-medium">Deleting Manager Account</span>
-                  </div>
-                  <p className="text-sm text-red-700">
-                    You are about to delete a manager account. This will remove all their permissions and access to the system.
-                  </p>
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground mt-2">
-                  {userToDelete?._count.assignedClients && userToDelete._count.assignedClients > 0 
-                    ? `All ${userToDelete._count.assignedClients} assigned clients will become unassigned.`
-                    : 'This user has no assigned clients.'
-                  }
-                </div>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteUser}
-              disabled={isLoading || (userToDelete?.role === 'MANAGER' && userToDelete._count.assignedClients > 0)}
-            >
-              {isLoading ? 'Deleting...' : 'Delete Member'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowUserLog(false)
+                    setUserForLog(null)
+                    setUserActivities([])
+                  }}
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+    </div>
   )
 } 

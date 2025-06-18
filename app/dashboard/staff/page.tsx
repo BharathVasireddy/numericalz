@@ -1,81 +1,137 @@
 import { Metadata } from 'next'
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Building2, FileText } from 'lucide-react'
+import { Building2, FileText, Plus } from 'lucide-react'
+import Link from 'next/link'
+import { TeamManagement } from '@/components/teams/team-management'
 
 export const metadata: Metadata = {
-  title: 'Staff Dashboard - Numericalz',
-  description: 'Staff dashboard with personal work overview and assigned clients',
+  title: 'Staff - Numericalz',
+  description: 'Staff dashboard and management',
 }
 
 /**
- * Staff dashboard page with limited features focused on assigned work
+ * Staff page - handles both STAFF dashboard and PARTNER staff management
  * 
- * Features:
- * - Personal task overview
- * - Assigned clients
- * - Recent activities
- * - Quick actions for daily work
+ * - PARTNER: Shows staff management interface
+ * - STAFF: Shows personal dashboard
+ * - MANAGER: Redirected to manager dashboard
  */
-export default async function StaffDashboardPage() {
+export default async function StaffPage() {
   const session = await getServerSession(authOptions)
 
-  if (!session) {
+  if (!session?.user) {
     redirect('/auth/login')
   }
 
-  if (session.user.role !== 'STAFF') {
+  // MANAGER users should not access this page - redirect to their dashboard
+  if (session.user.role === 'MANAGER') {
     redirect('/dashboard/manager')
   }
 
-  // Fetch staff-specific data
-  const [assignedClients, recentActivities] = await Promise.all([
-    db.client.findMany({
-      where: { 
-        assignedUserId: session.user.id,
-        isActive: true
-      },
-      take: 6,
-      orderBy: { updatedAt: 'desc' }
-    }),
-    // Mock recent activities for now
-    Promise.resolve([
-      {
-        id: '1',
-        action: 'Updated client information',
-        resource: 'Client',
-        timestamp: new Date(),
-        client: { companyName: 'Example Ltd' }
-      },
-      {
-        id: '2', 
-        action: 'Reviewed documents',
-        resource: 'Document',
-        timestamp: new Date(Date.now() - 86400000),
-        client: { companyName: 'Test Corp' }
-      }
+  // PARTNER users see staff management
+  if (session.user.role === 'PARTNER') {
+    try {
+      // Fetch all users for staff management with proper structure
+      const users = await db.user.findMany({
+        where: { isActive: true },
+        include: {
+          assignedClients: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              companyName: true,
+              companyType: true,
+              nextAccountsDue: true,
+              nextConfirmationDue: true,
+            }
+          },
+          _count: {
+            select: {
+              assignedClients: {
+                where: { isActive: true }
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+
+      return <TeamManagement users={users} />
+    } catch (error) {
+      console.error('Error loading users for staff management:', error)
+      
+      return (
+        <PageLayout>
+          <PageHeader 
+            title="Staff Management"
+            description="Error loading staff data"
+          />
+          <PageContent>
+            <Card>
+              <CardHeader>
+                <CardTitle>Error Loading Staff</CardTitle>
+                <CardDescription>
+                  There was an error loading the staff data. Please try refreshing the page.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild>
+                  <Link href="/dashboard/partner">
+                    Back to Dashboard
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </PageContent>
+        </PageLayout>
+      )
+    }
+  }
+
+  // STAFF users see their personal dashboard
+  try {
+    // Fetch staff-specific data
+    const [assignedClients, recentActivities] = await Promise.all([
+      db.client.findMany({
+        where: { 
+          assignedUserId: session.user.id,
+          isActive: true
+        },
+        take: 6,
+        orderBy: { updatedAt: 'desc' }
+      }),
+      // Mock recent activities for now
+      Promise.resolve([
+        {
+          id: '1',
+          action: 'Updated client information',
+          resource: 'Client',
+          timestamp: new Date(),
+          client: { companyName: 'Example Ltd' }
+        },
+        {
+          id: '2', 
+          action: 'Reviewed documents',
+          resource: 'Document',
+          timestamp: new Date(Date.now() - 86400000),
+          client: { companyName: 'Test Corp' }
+        }
+      ])
     ])
-  ])
 
-  return (
-    <div className="page-container">
-      <div className="content-wrapper">
-        <div className="content-sections">
-          {/* Header */}
-          <div className="page-header">
-            <h1 className="text-xl md:text-2xl font-bold">
-              Staff Dashboard
-            </h1>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              Welcome back, {session.user.name}! Here's your work overview.
-            </p>
-          </div>
-
+    return (
+      <PageLayout maxWidth="xl">
+        <PageHeader 
+          title="Staff Dashboard"
+          description={`Welcome back, ${session.user.name}! Here's your work overview.`}
+        />
+        <PageContent>
           {/* Personal Metrics */}
           <div className="grid gap-3 md:gap-4 grid-cols-2">
             <Card className="hover-lift">
@@ -204,8 +260,36 @@ export default async function StaffDashboardPage() {
               </CardContent>
             </Card>
           </div>
-        </div>
-      </div>
-    </div>
-  )
+        </PageContent>
+      </PageLayout>
+    )
+  } catch (error) {
+    console.error('Error loading staff dashboard:', error)
+    
+    return (
+      <PageLayout>
+        <PageHeader 
+          title="Staff Dashboard"
+          description="Error loading staff data"
+        />
+        <PageContent>
+          <Card>
+            <CardHeader>
+              <CardTitle>Error Loading Staff</CardTitle>
+              <CardDescription>
+                There was an error loading the staff data. Please try refreshing the page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild>
+                <Link href="/dashboard/partner">
+                  Back to Dashboard
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </PageContent>
+      </PageLayout>
+    )
+  }
 } 

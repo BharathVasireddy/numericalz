@@ -7,6 +7,7 @@ import { db } from '@/lib/db'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Building2 } from 'lucide-react'
+import { ManagerDashboard } from '@/components/dashboard/manager-dashboard'
 
 export const metadata: Metadata = {
   title: 'Manager Dashboard - Numericalz',
@@ -21,12 +22,12 @@ export const metadata: Metadata = {
  * - Team performance metrics
  * - Client analytics
  * - Task management overview
- * - Quick actions for managers
+ * - Quick actions for partners and managers
  */
 export default async function ManagerDashboardPage() {
   const session = await getServerSession(authOptions)
 
-  if (!session || session.user.role !== 'MANAGER') {
+  if (!session || (session.user.role !== 'PARTNER' && session.user.role !== 'MANAGER')) {
     redirect('/dashboard/staff')
   }
 
@@ -59,195 +60,67 @@ export default async function ManagerDashboardPage() {
       }
     })
 
-    return (
-      <div className="page-container">
-        <div className="content-wrapper">
-          <div className="content-sections">
-            {/* Header */}
-            <div className="page-header">
-              <h1 className="text-xl md:text-2xl font-bold">
-                Manager Dashboard
-              </h1>
-              <p className="text-xs md:text-sm text-muted-foreground">
-                Welcome back, {session.user.name}! Here's your complete system overview.
-              </p>
-            </div>
+    // Get total client count
+    const totalClients = await db.client.count({
+      where: { isActive: true }
+    }).catch((error: unknown) => {
+      console.error('Error fetching total client count:', error)
+      return 0
+    })
 
-            {/* Client Type Cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card className="hover-lift">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs md:text-sm font-medium">
-                    Ltd Companies
-                  </CardTitle>
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-lg md:text-2xl font-bold">{typeCounts.LIMITED_COMPANY}</div>
-                </CardContent>
-              </Card>
+    // Get user count
+    const totalUsers = await db.user.count({
+      where: { isActive: true }
+    }).catch((error: unknown) => {
+      console.error('Error fetching user count:', error)
+      return 0
+    })
 
-              <Card className="hover-lift">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs md:text-sm font-medium">
-                    Non Ltd Companies
-                  </CardTitle>
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-lg md:text-2xl font-bold">{typeCounts.NON_LIMITED_COMPANY}</div>
-                </CardContent>
-              </Card>
+    // Get recent clients
+    const recentClients = await db.client.findMany({
+      where: { isActive: true },
+      include: {
+        assignedUser: {
+          select: {
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5
+    }).catch((error: unknown) => {
+      console.error('Error fetching recent clients:', error)
+      return []
+    })
 
-              <Card className="hover-lift">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs md:text-sm font-medium">
-                    Directors
-                  </CardTitle>
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-lg md:text-2xl font-bold">{typeCounts.DIRECTOR}</div>
-                </CardContent>
-              </Card>
+    const dashboardData = {
+      typeCounts,
+      totalClients,
+      totalUsers,
+      recentClients,
+      userRole: session.user.role
+    }
 
-              <Card className="hover-lift">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-xs md:text-sm font-medium">
-                    Sub Contractors
-                  </CardTitle>
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-lg md:text-2xl font-bold">{typeCounts.SUB_CONTRACTOR}</div>
-                </CardContent>
-              </Card>
-            </div>
+    return <ManagerDashboard data={dashboardData} />
 
-            {/* Quick Actions */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Team Management</CardTitle>
-                  <CardDescription>
-                    Manage team members and their client assignments
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Link href="/dashboard/manager/teams">
-                    <Button className="w-full">
-                      Manage Teams
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Client Overview</CardTitle>
-                  <CardDescription>
-                    View and manage all clients in the system
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Link href="/dashboard/clients">
-                    <Button className="w-full">
-                      View All Clients
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Deadline Calendar</CardTitle>
-                  <CardDescription>
-                    Visual calendar of all client deadlines
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Link href="/dashboard/calendar">
-                    <Button className="w-full">
-                      View Calendar
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
   } catch (error) {
-    console.error('Error in manager dashboard:', error)
+    console.error('Error loading manager dashboard:', error)
     
-    // Fallback: return basic dashboard
-    return (
-      <div className="page-container">
-        <div className="content-wrapper">
-          <div className="content-sections">
-            <div className="page-header">
-              <h1 className="text-xl md:text-2xl font-bold">
-                Manager Dashboard
-              </h1>
-              <p className="text-xs md:text-sm text-muted-foreground text-red-600">
-                Error loading dashboard data. Please try refreshing the page.
-              </p>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Team Management</CardTitle>
-                  <CardDescription>
-                    Manage team members and their client assignments
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Link href="/dashboard/manager/teams">
-                    <Button className="w-full">
-                      Manage Teams
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Client Overview</CardTitle>
-                  <CardDescription>
-                    View and manage all clients in the system
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Link href="/dashboard/clients">
-                    <Button className="w-full">
-                      View All Clients
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Deadline Calendar</CardTitle>
-                  <CardDescription>
-                    Visual calendar of all client deadlines
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Link href="/dashboard/calendar">
-                    <Button className="w-full">
-                      View Calendar
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+    // Return fallback dashboard with empty data
+    const fallbackData = {
+      typeCounts: {
+        LIMITED_COMPANY: 0,
+        NON_LIMITED_COMPANY: 0,
+        DIRECTOR: 0,
+        SUB_CONTRACTOR: 0
+      },
+      totalClients: 0,
+      totalUsers: 0,
+      recentClients: [],
+      userRole: session.user.role
+    }
+    
+    return <ManagerDashboard data={fallbackData} />
   }
 } 

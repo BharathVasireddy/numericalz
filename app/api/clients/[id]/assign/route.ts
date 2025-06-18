@@ -6,18 +6,22 @@ import { db } from '@/lib/db'
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
 
+interface RouteParams {
+  params: {
+    id: string
+  }
+}
+
 /**
  * POST /api/clients/[id]/assign
  * 
  * Assign a client to a user
+ * Only accessible to partners and managers
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -25,61 +29,42 @@ export async function POST(
       )
     }
 
-    // Only managers can assign clients
-    if (session.user.role !== 'MANAGER') {
+    // Only partners and managers can assign clients
+    if (session.user.role !== 'PARTNER' && session.user.role !== 'MANAGER') {
       return NextResponse.json(
-        { success: false, error: 'Insufficient permissions' },
+        { success: false, error: 'Access denied. Partner or Manager role required.' },
         { status: 403 }
       )
     }
 
-    const { id } = params
     const { userId } = await request.json()
 
-    if (!id) {
+    // Validate userId parameter
+    if (userId !== null && typeof userId !== 'string') {
       return NextResponse.json(
-        { success: false, error: 'Client ID is required' },
+        { success: false, error: 'Invalid userId parameter' },
         { status: 400 }
       )
     }
 
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      )
+    // If userId is provided, verify the user exists
+    if (userId) {
+      const user = await db.user.findUnique({
+        where: { id: userId }
+      })
+
+      if (!user) {
+        return NextResponse.json(
+          { success: false, error: 'User not found' },
+          { status: 404 }
+        )
+      }
     }
 
-    // Check if client exists
-    const client = await db.client.findUnique({
-      where: { id }
-    })
-
-    if (!client) {
-      return NextResponse.json(
-        { success: false, error: 'Client not found' },
-        { status: 404 }
-      )
-    }
-
-    // Check if user exists
-    const user = await db.user.findUnique({
-      where: { id: userId }
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'User not found' },
-        { status: 404 }
-      )
-    }
-
-    // Update client assignment
+    // Update the client assignment
     const updatedClient = await db.client.update({
-      where: { id },
-      data: {
-        assignedUserId: userId,
-      },
+      where: { id: params.id },
+      data: { assignedUserId: userId },
       include: {
         assignedUser: {
           select: {
@@ -91,33 +76,16 @@ export async function POST(
       },
     })
 
-    // Log the assignment activity
-    await db.activityLog.create({
-      data: {
-        clientId: id,
-        userId: session.user.id,
-        action: 'UPDATE',
-        resource: 'client',
-        resourceId: id,
-        newValues: JSON.stringify({
-          assignedUserId: userId,
-        }),
-        metadata: JSON.stringify({
-          action: 'CLIENT_ASSIGNED',
-          assignedUserId: userId,
-          assignedUserName: user.name,
-        }),
-      },
-    })
-
     return NextResponse.json({
       success: true,
       data: updatedClient,
-      message: `Client successfully assigned to ${user.name}`
+      message: userId 
+        ? `Client assigned to ${updatedClient.assignedUser?.name}` 
+        : 'Client unassigned successfully',
     })
 
   } catch (error) {
-    console.error('Client assignment error:', error)
+    console.error('Error assigning client:', error)
     return NextResponse.json(
       { success: false, error: 'Failed to assign client' },
       { status: 500 }

@@ -14,9 +14,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only managers can perform bulk operations
-    if (session.user.role !== 'MANAGER') {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    // Only partners and managers can perform bulk operations
+    if (session.user.role !== 'PARTNER' && session.user.role !== 'MANAGER') {
+      return NextResponse.json({ error: 'Access denied. Partner or Manager role required.' }, { status: 403 })
     }
 
     const { clientIds, assignedUserId } = await request.json()

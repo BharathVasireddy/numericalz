@@ -2,17 +2,17 @@
 
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { showToast } from '@/lib/toast'
-import { Users, UserX, RefreshCw, Mail, X } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+import { Badge } from '@/components/ui/badge'
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
 } from '@/components/ui/select'
-import {
+import { 
   Dialog,
   DialogContent,
   DialogDescription,
@@ -20,17 +20,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-
-interface User {
-  id: string
-  name: string
-  email: string
-  role: string
-}
+import { UserPlus, UserX, RefreshCw, AlertTriangle } from 'lucide-react'
+import { showToast } from '@/lib/toast'
 
 interface BulkOperationsProps {
   selectedClients: string[]
-  users: User[]
+  users: Array<{ id: string; name: string; email: string; role: string }>
   onClearSelection: () => void
   onRefreshClients: () => void
 }
@@ -39,7 +34,7 @@ interface BulkOperationsProps {
  * Bulk operations component for client management
  * 
  * Features:
- * - Manager-only access control
+ * - Partner and Manager access control
  * - Bulk assign clients to team members
  * - Bulk resign clients (move to inactive status)
  * - Bulk refresh Companies House data
@@ -58,8 +53,8 @@ export function BulkOperations({
   const [isLoading, setIsLoading] = useState(false)
   const { data: session } = useSession()
 
-  // Only show for managers
-  if (session?.user?.role !== 'MANAGER' || selectedClients.length === 0) {
+  // Only show for partners and managers
+  if ((session?.user?.role !== 'PARTNER' && session?.user?.role !== 'MANAGER') || selectedClients.length === 0) {
     return null
   }
 
@@ -165,94 +160,93 @@ export function BulkOperations({
 
   return (
     <>
-      {/* Selection Bar */}
-      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
-        <div className="bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-4 min-w-[600px]">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{selectedClients.length} clients selected</span>
+      <Card className="mb-4 bg-blue-50 border-blue-200">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                {selectedClients.length} selected
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                Bulk operations available
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 ml-auto">
+              {/* Bulk Assign */}
+              <div className="flex items-center gap-2">
+                <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Select user to assign" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map(user => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name} ({user.role})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  onClick={handleBulkAssign}
+                  disabled={!selectedUserId || isLoading}
+                  className="flex items-center gap-2"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Assign
+                </Button>
+              </div>
+
+              {/* Bulk Refresh */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleBulkRefresh}
+                disabled={isLoading}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh CH
+              </Button>
+
+              {/* Bulk Resign */}
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setShowResignModal(true)}
+                disabled={isLoading}
+                className="flex items-center gap-2"
+              >
+                <UserX className="h-4 w-4" />
+                Resign
+              </Button>
+
+              {/* Clear Selection */}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onClearSelection}
+                disabled={isLoading}
+              >
+                Clear
+              </Button>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-            {/* Assign to User */}
-            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-              <SelectTrigger className="w-[180px] bg-white text-black">
-                <SelectValue placeholder="Assign to..." />
-              </SelectTrigger>
-              <SelectContent>
-                {users.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Button
-              onClick={handleBulkAssign}
-              disabled={!selectedUserId || isLoading}
-              variant="secondary"
-              size="sm"
-              className="bg-white text-blue-600 hover:bg-gray-100"
-            >
-              <Users className="h-4 w-4 mr-1" />
-              Assign
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setShowResignModal(true)}
-              disabled={isLoading}
-              variant="secondary"
-              size="sm"
-              className="bg-white text-red-600 hover:bg-gray-100"
-            >
-              <UserX className="h-4 w-4 mr-1" />
-              Resign
-            </Button>
-
-            <Button
-              onClick={handleBulkRefresh}
-              disabled={isLoading}
-              variant="secondary"
-              size="sm"
-              className="bg-white text-blue-600 hover:bg-gray-100"
-            >
-              <RefreshCw className="h-4 w-4 mr-1" />
-              Refresh
-            </Button>
-
-            <Button
-              onClick={handleBulkEmail}
-              disabled={isLoading}
-              variant="secondary"
-              size="sm"
-              className="bg-white text-blue-600 hover:bg-gray-100"
-            >
-              <Mail className="h-4 w-4 mr-1" />
-              Email
-            </Button>
-          </div>
-
-          <Button
-            onClick={onClearSelection}
-            variant="ghost"
-            size="sm"
-            className="text-white hover:bg-blue-700 ml-auto"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Resign Confirmation Modal */}
       <Dialog open={showResignModal} onOpenChange={setShowResignModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Bulk Resign</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+              Confirm Bulk Resignation
+            </DialogTitle>
             <DialogDescription>
               Are you sure you want to resign {selectedClients.length} selected clients? 
-              This will move them to inactive status and they will no longer appear in the active clients list.
+              This will move them to inactive status and they will no longer appear in the main clients list.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

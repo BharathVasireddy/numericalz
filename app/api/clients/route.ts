@@ -17,6 +17,7 @@ const createClientSchema = z.object({
   contactName: z.string().min(1, 'Contact name is required'),
   contactEmail: z.string().email('Valid email is required'),
   contactPhone: z.string().optional(),
+  contactFax: z.string().optional(),
   website: z.string().optional(),
   tradingAddress: z.string().optional(),
   yearEstablished: z.number().optional(),
@@ -24,6 +25,8 @@ const createClientSchema = z.object({
   annualTurnover: z.number().optional(),
   assignedUserId: z.string().optional(),
   notes: z.string().optional(),
+  vatNumber: z.string().optional(),
+  paperworkFrequency: z.string().optional(),
   // Companies House data
   registeredOfficeAddress: z.string().optional(),
   sicCodes: z.string().optional(),
@@ -42,6 +45,32 @@ const createClientSchema = z.object({
   hasInsolvencyHistory: z.boolean().optional(),
   officers: z.string().optional(),
   personsWithSignificantControl: z.string().optional(),
+  // Non Ltd Company specific fields
+  natureOfTrade: z.string().optional(),
+  tradingAddressLine1: z.string().optional(),
+  tradingAddressLine2: z.string().optional(),
+  tradingAddressCountry: z.string().optional(),
+  tradingAddressPostCode: z.string().optional(),
+  residentialAddressLine1: z.string().optional(),
+  residentialAddressLine2: z.string().optional(),
+  residentialAddressCountry: z.string().optional(),
+  residentialAddressPostCode: z.string().optional(),
+  vatQuarters: z.string().optional(),
+  nationalInsuranceNumber: z.string().optional(),
+  utrNumber: z.string().optional(),
+  paperWorkReceived: z.boolean().optional(),
+  paperWorkReceivedDate: z.date().optional(),
+  jobCompleted: z.boolean().optional(),
+  jobCompletedDate: z.date().optional(),
+  sa100Filed: z.boolean().optional(),
+  sa100FiledDate: z.date().optional(),
+  workStatus: z.string().optional(),
+  additionalComments: z.string().optional(),
+  staff: z.string().optional(),
+  previousYearEnded: z.date().optional(),
+  previousYearWorkReceivedDate: z.date().optional(),
+  previousYearJobCompletedDate: z.date().optional(),
+  previousYearSA100FiledDate: z.date().optional(),
 })
 
 /**
@@ -132,10 +161,7 @@ export async function GET(request: NextRequest) {
       where.isActive = isActive === 'true'
     }
 
-    // For staff users, only show their assigned clients
-    if (session.user.role === 'STAFF') {
-      where.assignedUserId = session.user.id
-    }
+    // Staff users can see all clients (no restriction)
 
     // Calculate pagination
     const skip = (page - 1) * limit

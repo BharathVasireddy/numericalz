@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { ClientCreatedModal } from './client-created-modal'
+import { NonLtdCompanyForm } from './non-ltd-company-form'
 
 interface CompaniesHouseSearchResult {
   company_number: string
@@ -30,6 +31,11 @@ interface CompaniesHouseSearchResult {
     postal_code?: string
   }
   ownerNames?: string[]
+  ownerDetails?: Array<{
+    name: string
+    status: 'active' | 'resigned'
+    role?: string
+  }>
 }
 
 interface CompaniesHouseCompany {
@@ -60,6 +66,11 @@ interface CompaniesHouseCompany {
   officers?: any[]
   psc?: any[]
   ownerNames?: string[]
+  ownerDetails?: Array<{
+    name: string
+    status: 'active' | 'resigned'
+    role?: string
+  }>
 }
 
 export function AddClientWizard() {
@@ -78,6 +89,41 @@ export function AddClientWizard() {
     clientCode: '',
     companyType: '',
     companyNumber: '',
+  })
+
+  // Non Ltd Company form data
+  const [nonLtdFormData, setNonLtdFormData] = useState({
+    clientName: '',
+    contactEmail: '',
+    contactPhone: '',
+    contactFax: '',
+    natureOfTrade: '',
+    tradingAddressLine1: '',
+    tradingAddressLine2: '',
+    tradingAddressCountry: '',
+    tradingAddressPostCode: '',
+    residentialAddressLine1: '',
+    residentialAddressLine2: '',
+    residentialAddressCountry: '',
+    residentialAddressPostCode: '',
+    vatNumber: '',
+    vatQuarters: '',
+    nationalInsuranceNumber: '',
+    utrNumber: '',
+    paperworkFrequency: '',
+    paperWorkReceived: false,
+    paperWorkReceivedDate: '',
+    jobCompleted: false,
+    jobCompletedDate: '',
+    sa100Filed: false,
+    sa100FiledDate: '',
+    workStatus: '',
+    additionalComments: '',
+    staff: '',
+    previousYearEnded: '',
+    previousYearWorkReceivedDate: '',
+    previousYearJobCompletedDate: '',
+    previousYearSA100FiledDate: '',
   })
 
   // Auto-fetch company details when company number changes for Limited Companies
@@ -140,30 +186,47 @@ export function AddClientWizard() {
                 
                 // Add directors/officers names
                 if (detailData.data.officers?.items) {
-                  console.log(`👔 Processing ${detailData.data.officers.items.length} officers for ${company.company_number}`)
                   detailData.data.officers.items.forEach((officer: any) => {
-                    console.log('Officer:', officer)
+                    const status = officer.resigned_on ? 'resigned' : 'active'
+                    const role = officer.officer_role
+                    
+                    (company as any).ownerDetails = (company as any).ownerDetails || []
+                    ;(company as any).ownerDetails.push({
+                      name: officer.name,
+                      status,
+                      role
+                    })
+                    
+                    // Add ALL officers to ownerNames (both active and resigned)
                     if (officer.name && !ownerNames.includes(officer.name)) {
                       ownerNames.push(officer.name)
-                      console.log('✅ Added officer name:', officer.name)
                     }
                   })
                 }
                 
                 // Add PSC (People with Significant Control) names
                 if (detailData.data.psc?.items) {
-                  console.log(`🎯 Processing ${detailData.data.psc.items.length} PSC for ${company.company_number}`)
                   detailData.data.psc.items.forEach((person: any) => {
-                    console.log('PSC person:', person)
+                    const status = person.ceased_on ? 'resigned' : 'active'
+                    const role = person.kind || 'Person with Significant Control'
+                    
+                    (company as any).ownerDetails = (company as any).ownerDetails || []
+                    ;(company as any).ownerDetails.push({
+                      name: person.name,
+                      status,
+                      role
+                    })
+                    
+                    // Add ALL PSC to ownerNames (both active and ceased)
                     if (person.name && !ownerNames.includes(person.name)) {
                       ownerNames.push(person.name)
-                      console.log('✅ Added PSC name:', person.name)
                     }
                   })
                 }
                 
                 console.log(`🎉 Final owner names for ${company.company_number}:`, ownerNames)
-                return { ...company, ownerNames }
+                console.log(`📋 Final owner details for ${company.company_number}:`, (company as any).ownerDetails)
+                return { ...company, ownerNames, ownerDetails: (company as any).ownerDetails }
               } else {
                 console.error(`❌ Failed to fetch details for ${company.company_number}:`, detailResponse.status)
               }
@@ -202,12 +265,23 @@ export function AddClientWizard() {
         if (data.success && data.data) {
           // Use owner names from search results if available, otherwise extract from detail data
           let ownerNames: string[] = searchResult?.ownerNames || []
+          let ownerDetails = searchResult?.ownerDetails || []
           
           // If we don't have owner names from search, extract them from detail data
           if (ownerNames.length === 0) {
             // Add directors/officers names
             if (data.data.officers?.items) {
               data.data.officers.items.forEach((officer: any) => {
+                const status = officer.resigned_on ? 'resigned' : 'active'
+                const role = officer.officer_role
+                
+                ownerDetails.push({
+                  name: officer.name,
+                  status,
+                  role
+                })
+                
+                // Add ALL officers to ownerNames (both active and resigned)
                 if (officer.name && !ownerNames.includes(officer.name)) {
                   ownerNames.push(officer.name)
                 }
@@ -217,6 +291,16 @@ export function AddClientWizard() {
             // Add PSC (People with Significant Control) names
             if (data.data.psc?.items) {
               data.data.psc.items.forEach((person: any) => {
+                const status = person.ceased_on ? 'resigned' : 'active'
+                const role = person.kind || 'Person with Significant Control'
+                
+                ownerDetails.push({
+                  name: person.name,
+                  status,
+                  role
+                })
+                
+                // Add ALL PSC to ownerNames (both active and ceased)
                 if (person.name && !ownerNames.includes(person.name)) {
                   ownerNames.push(person.name)
                 }
@@ -224,7 +308,7 @@ export function AddClientWizard() {
             }
           }
           
-          setSelectedCompany({ ...data.data, ownerNames })
+          setSelectedCompany({ ...data.data, ownerNames, ownerDetails })
           setFormData(prev => ({
             ...prev,
             companyNumber: data.data.company_number
@@ -259,8 +343,8 @@ export function AddClientWizard() {
     }
   }
 
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Handle form submission for Limited Companies
+  const handleLtdCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!formData.companyType) {
@@ -300,6 +384,8 @@ export function AddClientWizard() {
         companyType: formData.companyType,
         companyNumber: formData.companyNumber || undefined,
         companyName: companyData?.company_name || `${formData.companyType.replace('_', ' ')} Client`,
+        contactName: companyData?.company_name || `${formData.companyType.replace('_', ' ')} Contact`,
+        contactEmail: 'contact@example.com', // This will need to be filled manually later
         isActive: true,
         // Include all Companies House data if available
         ...(companyData && {
@@ -371,6 +457,129 @@ export function AddClientWizard() {
     }
   }
 
+  // Handle form submission for Non Ltd Companies
+  const handleNonLtdCompanySubmit = async () => {
+    if (!nonLtdFormData.clientName || !nonLtdFormData.contactEmail) {
+      showToast.error('Please fill in required fields')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const clientData = {
+        clientCode: formData.clientCode || undefined,
+        companyType: formData.companyType,
+        companyName: nonLtdFormData.clientName,
+        contactName: nonLtdFormData.clientName,
+        contactEmail: nonLtdFormData.contactEmail,
+        contactPhone: nonLtdFormData.contactPhone || undefined,
+        contactFax: nonLtdFormData.contactFax || undefined,
+        vatNumber: nonLtdFormData.vatNumber || undefined,
+        paperworkFrequency: nonLtdFormData.paperworkFrequency || undefined,
+        isActive: true,
+        // Non Ltd Company specific fields
+        natureOfTrade: nonLtdFormData.natureOfTrade || undefined,
+        tradingAddressLine1: nonLtdFormData.tradingAddressLine1 || undefined,
+        tradingAddressLine2: nonLtdFormData.tradingAddressLine2 || undefined,
+        tradingAddressCountry: nonLtdFormData.tradingAddressCountry || undefined,
+        tradingAddressPostCode: nonLtdFormData.tradingAddressPostCode || undefined,
+        residentialAddressLine1: nonLtdFormData.residentialAddressLine1 || undefined,
+        residentialAddressLine2: nonLtdFormData.residentialAddressLine2 || undefined,
+        residentialAddressCountry: nonLtdFormData.residentialAddressCountry || undefined,
+        residentialAddressPostCode: nonLtdFormData.residentialAddressPostCode || undefined,
+        vatQuarters: nonLtdFormData.vatQuarters || undefined,
+        nationalInsuranceNumber: nonLtdFormData.nationalInsuranceNumber || undefined,
+        utrNumber: nonLtdFormData.utrNumber || undefined,
+        paperWorkReceived: nonLtdFormData.paperWorkReceived,
+        paperWorkReceivedDate: nonLtdFormData.paperWorkReceivedDate ? new Date(nonLtdFormData.paperWorkReceivedDate) : undefined,
+        jobCompleted: nonLtdFormData.jobCompleted,
+        jobCompletedDate: nonLtdFormData.jobCompletedDate ? new Date(nonLtdFormData.jobCompletedDate) : undefined,
+        sa100Filed: nonLtdFormData.sa100Filed,
+        sa100FiledDate: nonLtdFormData.sa100FiledDate ? new Date(nonLtdFormData.sa100FiledDate) : undefined,
+        workStatus: nonLtdFormData.workStatus || undefined,
+        additionalComments: nonLtdFormData.additionalComments || undefined,
+        staff: nonLtdFormData.staff || undefined,
+        previousYearEnded: nonLtdFormData.previousYearEnded ? new Date(nonLtdFormData.previousYearEnded) : undefined,
+        previousYearWorkReceivedDate: nonLtdFormData.previousYearWorkReceivedDate ? new Date(nonLtdFormData.previousYearWorkReceivedDate) : undefined,
+        previousYearJobCompletedDate: nonLtdFormData.previousYearJobCompletedDate ? new Date(nonLtdFormData.previousYearJobCompletedDate) : undefined,
+        previousYearSA100FiledDate: nonLtdFormData.previousYearSA100FiledDate ? new Date(nonLtdFormData.previousYearSA100FiledDate) : undefined,
+      }
+
+      const response = await fetch('/api/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(clientData),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        showToast.success('Client created successfully')
+        
+        // Store created client data for modal
+        setCreatedClient({
+          id: data.data.id,
+          companyName: data.data.companyName,
+          companyNumber: data.data.companyNumber,
+          clientCode: data.data.clientCode,
+          createdAt: data.data.createdAt
+        })
+        
+        // Show success modal
+        setShowSuccessModal(true)
+        
+        // Reset forms
+        setFormData({
+          clientCode: '',
+          companyType: '',
+          companyNumber: '',
+        })
+        setNonLtdFormData({
+          clientName: '',
+          contactEmail: '',
+          contactPhone: '',
+          contactFax: '',
+          natureOfTrade: '',
+          tradingAddressLine1: '',
+          tradingAddressLine2: '',
+          tradingAddressCountry: '',
+          tradingAddressPostCode: '',
+          residentialAddressLine1: '',
+          residentialAddressLine2: '',
+          residentialAddressCountry: '',
+          residentialAddressPostCode: '',
+          vatNumber: '',
+          vatQuarters: '',
+          nationalInsuranceNumber: '',
+          utrNumber: '',
+          paperworkFrequency: '',
+          paperWorkReceived: false,
+          paperWorkReceivedDate: '',
+          jobCompleted: false,
+          jobCompletedDate: '',
+          sa100Filed: false,
+          sa100FiledDate: '',
+          workStatus: '',
+          additionalComments: '',
+          staff: '',
+          previousYearEnded: '',
+          previousYearWorkReceivedDate: '',
+          previousYearJobCompletedDate: '',
+          previousYearSA100FiledDate: '',
+        })
+      } else {
+        showToast.error(`Failed to create client: ${data.error}`)
+      }
+    } catch (error: any) {
+      showToast.error('Failed to create client. Please try again.')
+      console.error('Error creating client:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="page-container">
       <div className="content-wrapper">
@@ -381,7 +590,7 @@ export function AddClientWizard() {
               <div>
                 <h1 className="text-xl md:text-2xl font-bold">Add New Client</h1>
                 <p className="text-xs md:text-sm text-muted-foreground">
-                  Create a new client record with automatic Companies House integration
+                  Create a new client record with automatic data integration
                 </p>
               </div>
               <Button
@@ -395,241 +604,247 @@ export function AddClientWizard() {
             </div>
           </div>
 
-          {/* Main Form */}
+          {/* Client Type Selection */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
-                Client Information
+                Client Type
               </CardTitle>
               <CardDescription>
-                Enter the basic client details to get started
+                Select the type of client you want to add
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Client Code */}
-                <div className="space-y-2">
-                  <Label htmlFor="clientCode">Client Code (Optional)</Label>
-                  <Input
-                    id="clientCode"
-                    value={formData.clientCode}
-                    onChange={(e) => setFormData(prev => ({ ...prev, clientCode: e.target.value }))}
-                    placeholder="e.g., CLI001, ACME-2024"
-                    className="input-field"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Unique identifier for this client. Leave blank to auto-generate.
-                  </p>
-                </div>
+            <CardContent className="space-y-4">
+              {/* Client Code */}
+              <div className="space-y-2">
+                <Label htmlFor="clientCode">Client Code (Optional)</Label>
+                <Input
+                  id="clientCode"
+                  value={formData.clientCode}
+                  onChange={(e) => setFormData(prev => ({ ...prev, clientCode: e.target.value }))}
+                  placeholder="e.g., CLI001, ACME-2024"
+                  className="input-field"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Unique identifier for this client. Leave blank to auto-generate.
+                </p>
+              </div>
 
-                {/* Company Type */}
-                <div className="space-y-2">
-                  <Label htmlFor="companyType">Client Type *</Label>
-                  <Select
-                    value={formData.companyType}
-                    onValueChange={(value) => {
-                      setFormData(prev => ({ ...prev, companyType: value, companyNumber: '' }))
-                      setSelectedCompany(null)
-                      setShowSearch(value === 'LIMITED_COMPANY')
-                      setSearchResults([])
-                      setCompanySearch('')
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select client type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="LIMITED_COMPANY">Limited Companies</SelectItem>
-                      <SelectItem value="NON_LIMITED_COMPANY">Non Limited Companies</SelectItem>
-                      <SelectItem value="DIRECTOR">Directors</SelectItem>
-                      <SelectItem value="SUB_CONTRACTOR">Sub Contractors</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              {/* Company Type */}
+              <div className="space-y-2">
+                <Label htmlFor="companyType">Client Type *</Label>
+                <Select
+                  value={formData.companyType}
+                  onValueChange={(value) => {
+                    setFormData(prev => ({ ...prev, companyType: value, companyNumber: '' }))
+                    setSelectedCompany(null)
+                    setShowSearch(value === 'LIMITED_COMPANY')
+                    setSearchResults([])
+                    setCompanySearch('')
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select client type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LIMITED_COMPANY">Limited Companies</SelectItem>
+                    <SelectItem value="NON_LIMITED_COMPANY">Non Limited Companies</SelectItem>
+                    <SelectItem value="DIRECTOR">Directors</SelectItem>
+                    <SelectItem value="SUB_CONTRACTOR">Sub Contractors</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
 
-                {/* Company Number or Search for Limited Companies */}
-                {formData.companyType === 'LIMITED_COMPANY' && (
-                  <div className="space-y-4">
-                    {/* Company Search */}
-                    <Card className="border-primary/20">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Search className="h-4 w-4" />
-                          Find Company
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                          Search by company name or enter company number directly
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {/* Search by Name */}
-                        <div className="space-y-2">
-                          <Label>Search by Company Name</Label>
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder="Enter company name..."
-                              value={companySearch}
-                              onChange={(e) => setCompanySearch(e.target.value)}
-                              onKeyPress={(e) => e.key === 'Enter' && searchCompanies(companySearch)}
-                              className="input-field"
-                            />
-                            <Button
-                              type="button"
-                              onClick={() => searchCompanies(companySearch)}
-                              disabled={searchLoading}
-                              size="sm"
-                              className="btn-primary"
-                            >
-                              {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                            </Button>
-                          </div>
-                        </div>
+          {/* Limited Company Form */}
+          {formData.companyType === 'LIMITED_COMPANY' && (
+            <form onSubmit={handleLtdCompanySubmit}>
+              <div className="space-y-4">
+                {/* Company Search */}
+                <Card className="border-primary/20">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Search className="h-4 w-4" />
+                      Find Company
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Search by company name or enter company number directly
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Search by Name */}
+                    <div className="space-y-2">
+                      <Label>Search by Company Name</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Enter company name..."
+                          value={companySearch}
+                          onChange={(e) => setCompanySearch(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && searchCompanies(companySearch)}
+                          className="input-field"
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => searchCompanies(companySearch)}
+                          disabled={searchLoading}
+                          size="sm"
+                          className="btn-primary"
+                        >
+                          {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
 
-                        {/* Search Results */}
-                        {searchResults.length > 0 && (
-                          <div className="space-y-2 max-h-48 overflow-y-auto">
-                            <Label className="text-xs text-muted-foreground">Search Results</Label>
-                            {searchResults.map((company) => (
-                              <div
-                                key={company.company_number}
-                                className="p-3 border rounded-sm cursor-pointer hover:bg-muted/50 transition-colors"
-                                onClick={() => selectCompany(company.company_number)}
-                              >
-                                <div className="flex justify-between items-start">
-                                  <div className="flex-1">
-                                    <p className="font-medium text-sm">{company.title}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {company.company_number} • {company.company_status}
+                    {/* Search Results */}
+                    {searchResults.length > 0 && (
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        <Label className="text-xs text-muted-foreground">Search Results</Label>
+                        {searchResults.map((company) => (
+                          <div
+                            key={company.company_number}
+                            className="p-3 border rounded-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => selectCompany(company.company_number)}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">{company.title}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {company.company_number} • {company.company_status}
+                                </p>
+                                {company.ownerDetails && company.ownerDetails.length > 0 ? (
+                                  <div className="mt-2">
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">Directors/Owners:</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {company.ownerDetails
+                                        .slice(0, 4)
+                                        .map((owner, index) => (
+                                          <Badge 
+                                            key={`owner-${index}`} 
+                                            variant={owner.status === 'active' ? "secondary" : "outline"} 
+                                            className={`text-xs ${owner.status === 'resigned' ? 'opacity-70' : ''}`}
+                                          >
+                                            {owner.name}
+                                            <span className={`ml-1 ${owner.status === 'active' ? 'text-green-600' : 'text-red-500'}`}>●</span>
+                                          </Badge>
+                                        ))}
+                                      {company.ownerDetails.length > 4 && (
+                                        <Badge variant="outline" className="text-xs">
+                                          +{company.ownerDetails.length - 4} more
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      <span className="text-green-600">●</span> Active • <span className="text-red-500">●</span> Resigned
                                     </p>
-                                    {company.ownerNames && company.ownerNames.length > 0 && (
-                                      <div className="mt-2">
-                                        <p className="text-xs font-medium text-muted-foreground mb-1">Directors/Owners:</p>
-                                        <div className="flex flex-wrap gap-1">
-                                          {company.ownerNames.slice(0, 3).map((name, index) => (
-                                            <Badge key={index} variant="secondary" className="text-xs">
-                                              {name}
-                                            </Badge>
-                                          ))}
-                                          {company.ownerNames.length > 3 && (
-                                            <Badge variant="outline" className="text-xs">
-                                              +{company.ownerNames.length - 3} more
-                                            </Badge>
-                                          )}
-                                        </div>
-                                      </div>
-                                    )}
                                   </div>
-                                  <Badge variant="outline" className="text-xs ml-2 flex-shrink-0">
-                                    {company.company_type}
-                                  </Badge>
-                                </div>
+                                ) : company.ownerNames && company.ownerNames.length > 0 && (
+                                  <div className="mt-2">
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">Directors/Owners:</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {company.ownerNames.slice(0, 4).map((name, index) => (
+                                        <Badge key={index} variant="secondary" className="text-xs">
+                                          {name}
+                                        </Badge>
+                                      ))}
+                                      {company.ownerNames.length > 4 && (
+                                        <Badge variant="outline" className="text-xs">
+                                          +{company.ownerNames.length - 4} more
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            ))}
+                              <Badge variant="outline" className="text-xs ml-2 flex-shrink-0">
+                                {company.company_type}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* OR Divider */}
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1 h-px bg-border"></div>
+                      <span className="text-xs text-muted-foreground">OR</span>
+                      <div className="flex-1 h-px bg-border"></div>
+                    </div>
+
+                    {/* Direct Company Number Entry */}
+                    <div className="space-y-2">
+                      <Label htmlFor="companyNumber">Enter Company Number Directly</Label>
+                      <Input
+                        id="companyNumber"
+                        value={formData.companyNumber}
+                        onChange={(e) => setFormData(prev => ({ ...prev, companyNumber: e.target.value }))}
+                        placeholder="e.g., 12345678"
+                        disabled={!!selectedCompany}
+                        className="input-field"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Company details will be automatically fetched
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Selected Company Display */}
+                {selectedCompany && (
+                  <Card className="border-green-200 bg-green-50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 text-sm text-green-700 mb-3">
+                        <CheckCircle className="h-4 w-4" />
+                        Company Found - All Details Will Be Saved
+                      </div>
+                      <div className="grid gap-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Company Name:</span>
+                          <span className="font-medium">{selectedCompany.company_name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Company Number:</span>
+                          <span>{selectedCompany.company_number}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Status:</span>
+                          <span>{selectedCompany.company_status}</span>
+                        </div>
+                        {selectedCompany.date_of_creation && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Incorporated:</span>
+                            <span>{new Date(selectedCompany.date_of_creation).toLocaleDateString()}</span>
                           </div>
                         )}
-
-                        {/* OR Divider */}
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1 h-px bg-border"></div>
-                          <span className="text-xs text-muted-foreground">OR</span>
-                          <div className="flex-1 h-px bg-border"></div>
-                        </div>
-
-                        {/* Direct Company Number Entry */}
-                        <div className="space-y-2">
-                          <Label htmlFor="companyNumber">Enter Company Number Directly</Label>
-                          <Input
-                            id="companyNumber"
-                            value={formData.companyNumber}
-                            onChange={(e) => setFormData(prev => ({ ...prev, companyNumber: e.target.value }))}
-                            placeholder="e.g., 12345678"
-                            disabled={!!selectedCompany}
-                            className="input-field"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Company details will be automatically fetched
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Selected Company Display */}
-                    {selectedCompany && (
-                      <Card className="border-green-200 bg-green-50">
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2 text-sm text-green-700 mb-3">
-                            <CheckCircle className="h-4 w-4" />
-                            Company Found - All Details Will Be Saved
+                        {selectedCompany.ownerNames && selectedCompany.ownerNames.length > 0 && (
+                          <div className="space-y-1">
+                            <span className="text-muted-foreground text-xs font-medium">Directors/Owners:</span>
+                            <div className="flex flex-wrap gap-1">
+                              {selectedCompany.ownerNames.map((name, index) => (
+                                <Badge key={index} variant="secondary" className="text-xs">
+                                  {name}
+                                </Badge>
+                              ))}
+                            </div>
                           </div>
-                          <div className="grid gap-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Company Name:</span>
-                              <span className="font-medium">{selectedCompany.company_name}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Company Number:</span>
-                              <span>{selectedCompany.company_number}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Status:</span>
-                              <span>{selectedCompany.company_status}</span>
-                            </div>
-                            {selectedCompany.date_of_creation && (
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Incorporated:</span>
-                                <span>{new Date(selectedCompany.date_of_creation).toLocaleDateString()}</span>
-                              </div>
-                            )}
-                            {selectedCompany.sic_codes && selectedCompany.sic_codes.length > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">SIC Codes:</span>
-                                <span className="text-xs">{selectedCompany.sic_codes.slice(0, 3).join(', ')}{selectedCompany.sic_codes.length > 3 ? '...' : ''}</span>
-                              </div>
-                            )}
-                            {selectedCompany.ownerNames && selectedCompany.ownerNames.length > 0 && (
-                              <div className="space-y-1">
-                                <span className="text-muted-foreground text-xs font-medium">Directors/Owners:</span>
-                                <div className="flex flex-wrap gap-1">
-                                  {selectedCompany.ownerNames.map((name, index) => (
-                                    <Badge key={index} variant="secondary" className="text-xs">
-                                      {name}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                )}
-
-                {/* Company Number for Non-Limited Companies */}
-                {formData.companyType && formData.companyType !== 'LIMITED_COMPANY' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="companyNumber">Company/Reference Number (Optional)</Label>
-                    <Input
-                      id="companyNumber"
-                      value={formData.companyNumber}
-                      onChange={(e) => setFormData(prev => ({ ...prev, companyNumber: e.target.value }))}
-                      placeholder="Enter reference number if applicable"
-                      className="input-field"
-                    />
-                  </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
 
                 {/* Submit Button */}
                 <div className="flex justify-end pt-4">
                   <Button
                     type="submit"
-                    disabled={loading || !formData.companyType}
+                    disabled={loading || !formData.companyType || (formData.companyType === 'LIMITED_COMPANY' && !formData.companyNumber)}
                     className="btn-primary"
                   >
                     {loading ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Creating Client...
                       </>
                     ) : (
@@ -640,23 +855,63 @@ export function AddClientWizard() {
                     )}
                   </Button>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
+              </div>
+            </form>
+          )}
+
+          {/* Non Limited Company Form */}
+          {formData.companyType === 'NON_LIMITED_COMPANY' && (
+            <NonLtdCompanyForm
+              formData={nonLtdFormData}
+              onFormDataChange={setNonLtdFormData}
+              onSubmit={handleNonLtdCompanySubmit}
+              loading={loading}
+            />
+          )}
+
+          {/* Other Company Types (Directors, Sub Contractors) */}
+          {(formData.companyType === 'DIRECTOR' || formData.companyType === 'SUB_CONTRACTOR') && (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">
+                  {formData.companyType === 'DIRECTOR' ? 'Director' : 'Sub Contractor'} Form
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Form for {formData.companyType === 'DIRECTOR' ? 'directors' : 'sub contractors'} will be implemented based on specific requirements.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => setFormData(prev => ({ ...prev, companyType: '' }))}
+                  className="btn-outline"
+                >
+                  Select Different Type
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Success Modal */}
+          {showSuccessModal && createdClient && (
+            <ClientCreatedModal
+              client={createdClient}
+              isOpen={showSuccessModal}
+              onClose={() => {
+                setShowSuccessModal(false)
+                setCreatedClient(null)
+              }}
+              onViewClient={() => {
+                router.push(`/dashboard/clients/${createdClient.id}`)
+              }}
+              onAddAnother={() => {
+                setShowSuccessModal(false)
+                setCreatedClient(null)
+                // Forms are already reset
+              }}
+            />
+          )}
         </div>
       </div>
-
-      {/* Success Modal */}
-      {createdClient && (
-        <ClientCreatedModal
-          isOpen={showSuccessModal}
-          onClose={() => {
-            setShowSuccessModal(false)
-            setCreatedClient(null)
-          }}
-          client={createdClient}
-        />
-      )}
     </div>
   )
 } 

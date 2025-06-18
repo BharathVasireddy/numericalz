@@ -138,6 +138,9 @@ numericalz/
 │   │   │   └── export/            # Data export
 │   │   ├── companies-house/       # Companies House integration
 │   │   ├── users/                 # User management APIs
+│   │   ├── services/              # Multi-service management APIs (PLANNED)
+│   │   ├── workflows/             # Workflow management APIs (PLANNED)
+│   │   ├── automation/            # Automation trigger APIs (PLANNED)
 │   │   └── auth/                  # Authentication APIs
 │   ├── dashboard/         # Dashboard pages
 │   └── globals.css        # Global styles with layout system
@@ -151,16 +154,34 @@ numericalz/
 │   ├── layout/            # Layout components
 │   │   └── page-layout.tsx        # Standardized page layouts
 │   ├── teams/             # Team management components
+│   ├── services/          # Multi-service components (PLANNED)
+│   ├── workflows/         # Workflow management components (PLANNED)
 │   └── ui/                # Reusable UI components (ShadCN)
 ├── lib/                   # Utility libraries
 │   ├── auth.ts            # Authentication configuration
 │   ├── companies-house.ts # Companies House API client
 │   ├── db.ts              # Database connection with retry logic
+│   ├── services/          # Service management utilities (PLANNED)
+│   ├── workflows/         # Workflow engine utilities (PLANNED)
+│   ├── automation/        # Automation engine utilities (PLANNED)
 │   ├── utils.ts           # General utilities
 │   └── validations.ts     # Zod validation schemas
 ├── prisma/                # Database schema and migrations
 ├── types/                 # TypeScript type definitions
-└── docs/                  # Documentation
+└── docs/                  # Comprehensive documentation
+    ├── DEVELOPMENT_ROADMAP.md     # Multi-service development plan
+    ├── WORKFLOW_SYSTEM.md         # 10-stage workflow documentation
+    ├── SERVICE_ARCHITECTURE.md    # Service architecture specs
+    ├── TECHNICAL_SPECIFICATIONS.md # Technical implementation specs
+    ├── CURRENT_FEATURES.md        # Current system features
+    ├── API_DOCUMENTATION.md       # API reference
+    ├── DATABASE_SCHEMA.md         # Database documentation
+    ├── DESIGN_SYSTEM.md           # UI/UX guidelines
+    ├── LAYOUT_SYSTEM.md           # Layout system documentation
+    ├── SECURITY_GUIDELINES.md     # Security specifications
+    ├── PERFORMANCE_GUIDE.md       # Performance optimization
+    ├── DEPLOYMENT_GUIDE.md        # Deployment procedures
+    └── TROUBLESHOOTING.md         # Common issues and solutions
 ```
 
 ## 🔧 Configuration
@@ -185,7 +206,7 @@ The system uses NextAuth.js with credentials provider:
 
 ## 🎯 Core Functionality
 
-### Client Management Workflow
+### Current Features (v1.0)
 1. **Add Client**: Search Companies House or enter manually
 2. **Auto-populate**: Company data filled automatically from CH API
 3. **Generate Client Code**: Sequential codes (NZ-1, NZ-2, etc.)
@@ -198,6 +219,57 @@ The system uses NextAuth.js with credentials provider:
 - **Email Icons**: Click to open default email client with pre-filled recipient
 - **Phone Icons**: Click to initiate phone calls on mobile devices
 - **Hover Tooltips**: Display full contact information on hover
+
+## 🚀 Development Roadmap
+
+### Next Phase: Multi-Service Workflow System (v2.0)
+
+We are currently developing a comprehensive multi-service workflow management system that will transform Numericalz into a world-class platform for UK accounting firms.
+
+#### 🎯 Vision
+Transform from basic client management to a comprehensive multi-service workflow platform supporting:
+- **Accounts Service**: Ltd and Non-Ltd companies with automated year-end triggers
+- **VAT Service**: Monthly and quarterly patterns with frequency-based automation
+- **PAYE/Pension/CIS**: Future services following the same architecture
+
+#### 🔄 10-Stage Workflow System
+Each service follows a standardized 10-stage workflow:
+1. **Paperwork to chase** (Partner/Manager)
+2. **Paperwork chased** (Manual confirmation)
+3. **Paperwork received** (Auto-assigned to Staff)
+4. **In progress** (Staff working)
+5. **Discuss with manager** (Manager review/approval)
+6. **Review by partner** (Partner final review)
+7. **Approved - Send HelloSign** (Document signing)
+8. **HelloSign sent to client** (Awaiting signature)
+9. **Approved by client** (Client signed)
+10. **Submission approved by partner** (Completion)
+
+#### 🏗️ Key Features in Development
+- **Parallel Service Management**: Multiple services per client running simultaneously
+- **Role-Based Stage Access**: Different permissions for Partners, Managers, Staff
+- **Automated Triggers**: Services start automatically based on dates/frequencies
+- **Real-Time Updates**: Live status updates without manual refresh
+- **Comprehensive Audit Trail**: Complete activity logging and compliance tracking
+- **HelloSign Integration**: Automated document signing workflow
+
+#### 📊 Development Progress
+- ✅ **Planning & Documentation**: Comprehensive technical specifications
+- 🔄 **Phase 1**: Database schema and core architecture (IN PROGRESS)
+- 📅 **Phase 2**: Service selection and client creation enhancement
+- 📅 **Phase 3**: Navigation structure and page architecture
+- 📅 **Phase 4**: Workflow engine core implementation
+- 📅 **Phase 5**: Automation and trigger system
+- 📅 **Phase 6**: Activity logging and audit trail
+- 📅 **Phase 7**: Performance optimization and real-time features
+- 📅 **Phase 8**: Testing, documentation, and deployment
+
+#### 📚 Documentation
+Comprehensive documentation is available in the `/docs` directory:
+- **[Development Roadmap](docs/DEVELOPMENT_ROADMAP.md)**: Complete development plan
+- **[Workflow System](docs/WORKFLOW_SYSTEM.md)**: 10-stage workflow documentation
+- **[Service Architecture](docs/SERVICE_ARCHITECTURE.md)**: Multi-service technical architecture
+- **[Technical Specifications](docs/TECHNICAL_SPECIFICATIONS.md)**: Implementation details
 - **Responsive Design**: Icons work consistently across all device sizes
 
 ### Team Management

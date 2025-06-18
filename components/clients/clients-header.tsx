@@ -8,16 +8,40 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { showToast } from '@/lib/toast'
+import { Badge } from '@/components/ui/badge'
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select'
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { 
+  MoreVertical,
+  Building2,
+  Users,
+  CheckCircle,
+  XCircle
+} from 'lucide-react'
+import Link from 'next/link'
 
 interface ClientsHeaderProps {
   searchQuery: string
-  onSearchChange: (query: string) => void
+  onSearchChange: (value: string) => void
   filters: {
     companyType: string
     assignedUser: string
     status: string
   }
   onFiltersChange: (filters: any) => void
+  totalCount?: number
+  filteredCount?: number
 }
 
 /**
@@ -30,7 +54,14 @@ interface ClientsHeaderProps {
  * - Add new client button
  * - Export functionality
  */
-export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersChange }: ClientsHeaderProps) {
+export function ClientsHeader({
+  searchQuery,
+  onSearchChange,
+  filters,
+  onFiltersChange,
+  totalCount = 0,
+  filteredCount = 0
+}: ClientsHeaderProps) {
   const router = useRouter()
   const [showFilters, setShowFilters] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -44,48 +75,45 @@ export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersC
   }
 
   const handleExport = async () => {
+    setIsExporting(true)
     try {
-      setIsExporting(true)
-      const loadingToast = showToast.loading('Preparing export...')
-      
-      // Build query parameters
       const params = new URLSearchParams()
       if (searchQuery) params.append('search', searchQuery)
       if (filters.companyType) params.append('companyType', filters.companyType)
       if (filters.assignedUser) params.append('assignedUser', filters.assignedUser)
       if (filters.status) params.append('status', filters.status)
-      
+
       const response = await fetch(`/api/clients/export?${params.toString()}`)
       
       if (response.ok) {
-        // Get the CSV content
-        const csvContent = await response.text()
-        
-        // Create a blob and download
-        const blob = new Blob([csvContent], { type: 'text/csv' })
+        const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `clients-export-${new Date().toISOString().split('T')[0]}.csv`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `clients-export-${new Date().toISOString().split('T')[0]}.csv`
+        document.body.appendChild(a)
+        a.click()
         window.URL.revokeObjectURL(url)
-        
-        showToast.dismiss(loadingToast)
-        showToast.success('Clients exported successfully!')
       } else {
-        const error = await response.json()
-        showToast.dismiss(loadingToast)
-        showToast.error(`Export failed: ${error.error || 'Unknown error'}`)
+        console.error('Export failed')
       }
     } catch (error) {
-      console.error('Error exporting clients:', error)
-      showToast.error('Export failed. Please try again.')
+      console.error('Export error:', error)
     } finally {
       setIsExporting(false)
     }
   }
+
+  const clearFilters = () => {
+    onFiltersChange({
+      companyType: '',
+      assignedUser: '',
+      status: ''
+    })
+    onSearchChange('')
+  }
+
+  const hasActiveFilters = searchQuery || filters.companyType || filters.assignedUser || filters.status
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -94,7 +122,11 @@ export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersC
         <div>
           <h1 className="text-xl md:text-2xl font-bold">Clients</h1>
           <p className="text-xs md:text-sm text-muted-foreground">
-            Manage your client relationships and information
+            {hasActiveFilters ? (
+              <>Showing {filteredCount} of {totalCount} clients</>
+            ) : (
+              <>Manage all {totalCount} clients</>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -107,26 +139,38 @@ export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersC
             <Filter className="h-4 w-4 mr-2" />
             Filters
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="btn-outline"
-            onClick={handleExport}
-            disabled={isExporting}
-          >
-            <Download className={`h-4 w-4 mr-2 ${isExporting ? 'animate-spin' : ''}`} />
-            {isExporting ? 'Exporting...' : 'Export'}
-          </Button>
-          {session?.user?.role === 'MANAGER' && (
+          
+          {/* Quick filter for staff users */}
+          {session?.user?.role === 'STAFF' && (
             <Button
+              variant={filters.assignedUser === 'me' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => router.push('/dashboard/clients/add')}
-              className="btn-primary"
+              onClick={() => handleFilterChange('assignedUser', filters.assignedUser === 'me' ? '' : 'me')}
+              className="flex items-center gap-2"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Client
+              <Users className="h-4 w-4" />
+              {filters.assignedUser === 'me' ? 'All Clients' : 'My Clients'}
             </Button>
           )}
+          
+          {session?.user?.role === 'PARTNER' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="btn-outline"
+              onClick={handleExport}
+              disabled={isExporting}
+            >
+              <Download className={`h-4 w-4 mr-2 ${isExporting ? 'animate-spin' : ''}`} />
+              {isExporting ? 'Exporting...' : 'Export'}
+            </Button>
+          )}
+          <Button asChild size="sm" className="flex items-center gap-2">
+            <Link href="/dashboard/clients/add">
+              <Plus className="h-4 w-4" />
+              Add Client
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -154,50 +198,89 @@ export function ClientsHeader({ searchQuery, onSearchChange, filters, onFiltersC
                 <label className="text-xs font-medium text-muted-foreground mb-2 block">
                   Company Type
                 </label>
-                <select 
-                  className="input-field w-full"
+                <Select
                   value={filters.companyType}
-                  onChange={(e) => handleFilterChange('companyType', e.target.value)}
+                  onValueChange={(value) => handleFilterChange('companyType', value)}
                 >
-                  <option value="">All Types</option>
-                  <option value="LIMITED_COMPANY">Limited Companies</option>
-                  <option value="NON_LIMITED_COMPANY">Non Limited Companies</option>
-                  <option value="DIRECTOR">Directors</option>
-                  <option value="SUB_CONTRACTOR">Sub Contractors</option>
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Company Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Types</SelectItem>
+                    <SelectItem value="LIMITED_COMPANY">Limited Company</SelectItem>
+                    <SelectItem value="NON_LIMITED_COMPANY">Non-Limited Company</SelectItem>
+                    <SelectItem value="DIRECTOR">Director</SelectItem>
+                    <SelectItem value="SUB_CONTRACTOR">Sub Contractor</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-2 block">
                   Assigned User
                 </label>
-                <select 
-                  className="input-field w-full"
+                <Select
                   value={filters.assignedUser}
-                  onChange={(e) => handleFilterChange('assignedUser', e.target.value)}
+                  onValueChange={(value) => handleFilterChange('assignedUser', value)}
                 >
-                  <option value="">All Users</option>
-                  <option value="me">Assigned to Me</option>
-                  <option value="unassigned">Unassigned</option>
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Assigned To" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Users</SelectItem>
+                    <SelectItem value="me">My Clients</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-2 block">
                   Status
                 </label>
-                <select 
-                  className="input-field w-full"
+                <Select
                   value={filters.status}
-                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                  onValueChange={(value) => handleFilterChange('status', value)}
                 >
-                  <option value="">All Statuses</option>
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Status</SelectItem>
+                    <SelectItem value="true">Active</SelectItem>
+                    <SelectItem value="false">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
         )}
       </Card>
+
+      {/* Active Filters Display */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap gap-2">
+          {searchQuery && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Search: "{searchQuery}"
+            </Badge>
+          )}
+          {filters.companyType && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Type: {filters.companyType.replace('_', ' ')}
+            </Badge>
+          )}
+          {filters.assignedUser && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Assigned: {filters.assignedUser === 'me' ? 'My Clients' : 
+                         filters.assignedUser === 'unassigned' ? 'Unassigned' : filters.assignedUser}
+            </Badge>
+          )}
+          {filters.status && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Status: {filters.status === 'true' ? 'Active' : 'Inactive'}
+            </Badge>
+          )}
+        </div>
+      )}
     </div>
   )
 } 

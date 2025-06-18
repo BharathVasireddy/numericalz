@@ -15,6 +15,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Only PARTNER can export data
+    if (session.user.role !== 'PARTNER') {
+      return NextResponse.json({ error: 'Access denied. Only Partners can export data.' }, { status: 403 })
+    }
+
     // Get search params
     const { searchParams } = new URL(request.url)
     const searchQuery = searchParams.get('search') || ''
@@ -22,13 +27,8 @@ export async function GET(request: NextRequest) {
     const assignedUser = searchParams.get('assignedUser') || ''
     const status = searchParams.get('status') || ''
 
-    // Build where clause based on user role and filters
+    // Build where clause based on filters (Partners see all data)
     let whereClause: any = {}
-
-    // Role-based filtering
-    if (session.user.role === 'STAFF') {
-      whereClause.assignedUserId = session.user.id
-    }
 
     // Search filtering
     if (searchQuery) {
@@ -68,8 +68,9 @@ export async function GET(request: NextRequest) {
       orderBy: { companyName: 'asc' }
     })
 
-    // Convert to CSV format
-    const csvHeaders = [
+    // Generate CSV headers
+    const headers = [
+      'Client Code',
       'Company Name',
       'Company Number',
       'Company Type',
@@ -77,58 +78,57 @@ export async function GET(request: NextRequest) {
       'Contact Name',
       'Contact Email',
       'Contact Phone',
-      'Assigned User',
-      'Incorporation Date',
+      'VAT Number',
+      'Assigned To',
+      'Assigned Email',
       'Next Accounts Due',
       'Next Confirmation Due',
-      'Status',
-      'Created Date'
+      'Year Established',
+      'Number of Employees',
+      'Annual Turnover',
+      'Is Active',
+      'Created At'
     ]
 
-    const csvRows = clients.map(client => [
-      client.companyName || '',
-      client.companyNumber || '',
-      client.companyType || '',
-      client.companyStatus || '',
-      client.contactName || '',
-      client.contactEmail || '',
-      client.contactPhone || '',
-      client.assignedUser?.name || 'Unassigned',
-      client.incorporationDate ? new Date(client.incorporationDate).toLocaleDateString() : '',
-      client.nextAccountsDue ? new Date(client.nextAccountsDue).toLocaleDateString() : '',
-      client.nextConfirmationDue ? new Date(client.nextConfirmationDue).toLocaleDateString() : '',
-      client.isActive ? 'Active' : 'Inactive',
-      client.createdAt ? new Date(client.createdAt).toLocaleDateString() : ''
-    ])
+    // Generate CSV rows
+    const csvRows = [
+      headers.join(','),
+      ...clients.map(client => [
+        client.clientCode || '',
+        `"${client.companyName}"`,
+        client.companyNumber || '',
+        client.companyType,
+        client.companyStatus || '',
+        `"${client.contactName}"`,
+        client.contactEmail,
+        client.contactPhone || '',
+        client.vatNumber || '',
+        client.assignedUser?.name || '',
+        client.assignedUser?.email || '',
+        client.nextAccountsDue?.toISOString().split('T')[0] || '',
+        client.nextConfirmationDue?.toISOString().split('T')[0] || '',
+        client.yearEstablished || '',
+        client.numberOfEmployees || '',
+        client.annualTurnover || '',
+        client.isActive ? 'Yes' : 'No',
+        client.createdAt.toISOString().split('T')[0]
+      ].join(','))
+    ]
 
-    // Create CSV content
-    const csvContent = [
-      csvHeaders.join(','),
-      ...csvRows.map(row => 
-        row.map(field => 
-          // Escape fields that contain commas, quotes, or newlines
-          typeof field === 'string' && (field.includes(',') || field.includes('"') || field.includes('\n'))
-            ? `"${field.replace(/"/g, '""')}"` 
-            : field
-        ).join(',')
-      )
-    ].join('\n')
+    const csvContent = csvRows.join('\n')
 
-    // Set headers for file download
-    const headers = new Headers({
-      'Content-Type': 'text/csv',
-      'Content-Disposition': `attachment; filename="clients-export-${new Date().toISOString().split('T')[0]}.csv"`,
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
+    return new NextResponse(csvContent, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': `attachment; filename="clients-export-${new Date().toISOString().split('T')[0]}.csv"`
+      }
     })
-
-    return new NextResponse(csvContent, { headers })
 
   } catch (error) {
     console.error('Error exporting clients:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to export clients' },
       { status: 500 }
     )
   }

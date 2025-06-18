@@ -31,8 +31,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Users can only access their own data, managers can access any user
-    if (session.user.role !== 'MANAGER' && session.user.id !== params.id) {
+    // Users can only access their own data, partners and managers can access any user
+    if (session.user.role !== 'PARTNER' && session.user.role !== 'MANAGER' && session.user.id !== params.id) {
       return NextResponse.json(
         { success: false, error: 'Access denied. You can only access your own data.' },
         { status: 403 }
@@ -98,10 +98,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Only managers can update users
-    if (session.user.role !== 'MANAGER') {
+    // Only partners and managers can update users
+    if (session.user.role !== 'PARTNER' && session.user.role !== 'MANAGER') {
       return NextResponse.json(
-        { success: false, error: 'Access denied. Manager role required.' },
+        { success: false, error: 'Access denied. Partner or Manager role required.' },
         { status: 403 }
       )
     }
@@ -175,8 +175,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 /**
  * DELETE /api/users/[id]
  * 
- * Delete a user (only staff members, not managers)
- * Only accessible to managers
+ * Delete a user
+ * PARTNER: Can delete any account including other PARTNERs
+ * MANAGER: Can delete STAFF accounts only
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
@@ -189,10 +190,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Only managers can delete users
-    if (session.user.role !== 'MANAGER') {
+    // Only partners and managers can delete users
+    if (session.user.role !== 'PARTNER' && session.user.role !== 'MANAGER') {
       return NextResponse.json(
-        { success: false, error: 'Access denied. Manager role required.' },
+        { success: false, error: 'Access denied. Partner or Manager role required.' },
         { status: 403 }
       )
     }
@@ -213,6 +214,18 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       )
     }
+
+    // Role-based deletion restrictions
+    if (session.user.role === 'MANAGER') {
+      // MANAGER can only delete STAFF accounts
+      if (existingUser.role !== 'STAFF') {
+        return NextResponse.json(
+          { success: false, error: 'Managers can only delete Staff accounts' },
+          { status: 403 }
+        )
+      }
+    }
+    // PARTNER can delete any account (no restrictions)
 
     // For managers, check if they have assigned clients
     if (existingUser.role === 'MANAGER') {

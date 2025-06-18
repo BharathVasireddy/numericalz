@@ -13,7 +13,7 @@ export const revalidate = 0
  * GET /api/users
  * 
  * Get all users for assignment purposes
- * Only accessible to managers
+ * Only accessible to partners and managers
  * Optimized with caching for better performance
  * 
  * Query parameters:
@@ -30,10 +30,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Only managers can fetch users for assignment
-    if (session.user.role !== 'MANAGER') {
+    // Only partners and managers can fetch users for assignment
+    if (session.user.role !== 'PARTNER' && session.user.role !== 'MANAGER') {
       return NextResponse.json(
-        { success: false, error: 'Access denied. Manager role required.' },
+        { success: false, error: 'Access denied. Partner or Manager role required.' },
         { status: 403 }
       )
     }
@@ -94,8 +94,8 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/users
  * 
- * Create a new user (team member)
- * Only accessible to managers
+ * Create a new user
+ * Only accessible to partners and managers
  */
 export async function POST(request: NextRequest) {
   try {
@@ -108,16 +108,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Only managers can create users
-    if (session.user.role !== 'MANAGER') {
+    // Only partners and managers can create users
+    if (session.user.role !== 'PARTNER' && session.user.role !== 'MANAGER') {
       return NextResponse.json(
-        { success: false, error: 'Access denied. Manager role required.' },
+        { success: false, error: 'Access denied. Partner or Manager role required.' },
         { status: 403 }
       )
     }
 
-    const body = await request.json()
-    const { name, email, password, role } = body
+    const { name, email, password, role } = await request.json()
 
     // Validate required fields
     if (!name || !email || !password) {
@@ -136,7 +135,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate password length
+    // Validate password strength
     if (password.length < 8) {
       return NextResponse.json(
         { success: false, error: 'Password must be at least 8 characters long' },
@@ -144,11 +143,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate role
-    if (role && !['STAFF', 'MANAGER'].includes(role)) {
+    // Validate role - only PARTNER can create other PARTNER users
+    if (role && !['STAFF', 'MANAGER', 'PARTNER'].includes(role)) {
       return NextResponse.json(
-        { success: false, error: 'Invalid role. Must be STAFF or MANAGER' },
+        { success: false, error: 'Invalid role. Must be STAFF, MANAGER, or PARTNER' },
         { status: 400 }
+      )
+    }
+
+    // Only PARTNER can create other PARTNER users
+    if (role === 'PARTNER' && session.user.role !== 'PARTNER') {
+      return NextResponse.json(
+        { success: false, error: 'Only Partners can create other Partner accounts' },
+        { status: 403 }
       )
     }
 
@@ -160,7 +167,7 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       return NextResponse.json(
         { success: false, error: 'User with this email already exists' },
-        { status: 409 }
+        { status: 400 }
       )
     }
 
@@ -186,18 +193,11 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
+      message: 'User created successfully',
       user: newUser,
-      message: 'User created successfully'
     })
-
-    // Disable all caching for real-time updates
-    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
-    response.headers.set('Pragma', 'no-cache')
-    response.headers.set('Expires', '0')
-    
-    return response
 
   } catch (error) {
     console.error('Error creating user:', error)

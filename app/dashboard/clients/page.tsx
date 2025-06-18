@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { PageLayout, PageContent } from '@/components/layout/page-layout'
 import { ClientsHeader } from '@/components/clients/clients-header'
 import { ClientsTable } from '@/components/clients/clients-table'
 
@@ -36,17 +37,15 @@ export default function ClientsPage() {
 
   if (status === 'loading') {
     return (
-      <div className="page-container">
-        <div className="content-wrapper">
-          <div className="content-sections">
-            <div className="animate-pulse space-y-4">
-              <div className="h-8 bg-muted rounded w-1/4"></div>
-              <div className="h-4 bg-muted rounded w-1/2"></div>
-              <div className="h-64 bg-muted rounded"></div>
-            </div>
+      <PageLayout>
+        <PageContent>
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-muted rounded w-1/4"></div>
+            <div className="h-4 bg-muted rounded w-1/2"></div>
+            <div className="h-64 bg-muted rounded"></div>
           </div>
-        </div>
-      </div>
+        </PageContent>
+      </PageLayout>
     )
   }
 
@@ -55,21 +54,19 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="page-container">
-      <div className="content-wrapper">
-        <div className="content-sections">
-          <ClientsHeader 
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            filters={filters}
-            onFiltersChange={setFilters}
-          />
-          <ClientsTable 
-            searchQuery={searchQuery}
-            filters={filters}
-          />
-        </div>
-      </div>
-    </div>
+    <PageLayout maxWidth="2xl">
+      <PageContent>
+        <ClientsHeader 
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          filters={filters}
+          onFiltersChange={setFilters}
+        />
+        <ClientsTable 
+          searchQuery={searchQuery}
+          filters={filters}
+        />
+      </PageContent>
+    </PageLayout>
   )
 } 

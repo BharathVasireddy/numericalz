@@ -694,33 +694,53 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                     try {
                       const officers = JSON.parse(client.officers)
                       if (officers.items && officers.items.length > 0) {
-                        return officers.items.map((officer: any, index: number) => (
-                          <div key={index} className="p-3 border border-border rounded-sm">
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-start">
-                                <h4 className="font-medium text-sm">{officer.name}</h4>
-                                <span className="text-xs bg-muted px-2 py-1 rounded">
-                                  {officer.officer_role?.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                                </span>
+                        return officers.items.map((officer: any, index: number) => {
+                          // Determine officer status
+                          const isResigned = officer.resigned_on
+                          const status = isResigned ? 'Resigned' : 'Active'
+                          const statusColor = isResigned ? 'text-red-600' : 'text-green-600'
+                          const statusBg = isResigned ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
+                          
+                          return (
+                            <div key={index} className={`p-3 border rounded-sm ${statusBg}`}>
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-start">
+                                  <h4 className="font-medium text-sm">{officer.name}</h4>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant={isResigned ? "outline" : "secondary"} className={`text-xs ${statusColor}`}>
+                                      {status}
+                                    </Badge>
+                                    <span className="text-xs bg-muted px-2 py-1 rounded">
+                                      {officer.officer_role?.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                  {officer.appointed_on && (
+                                    <p>
+                                      Appointed: {new Date(officer.appointed_on).toLocaleDateString('en-GB')}
+                                    </p>
+                                  )}
+                                  {officer.resigned_on && (
+                                    <p className="text-red-600">
+                                      Resigned: {new Date(officer.resigned_on).toLocaleDateString('en-GB')}
+                                    </p>
+                                  )}
+                                  {officer.nationality && (
+                                    <p>
+                                      Nationality: {officer.nationality}
+                                    </p>
+                                  )}
+                                  {officer.occupation && (
+                                    <p>
+                                      Occupation: {officer.occupation}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                              {officer.appointed_on && (
-                                <p className="text-xs text-muted-foreground">
-                                  Appointed: {new Date(officer.appointed_on).toLocaleDateString('en-GB')}
-                                </p>
-                              )}
-                              {officer.nationality && (
-                                <p className="text-xs text-muted-foreground">
-                                  Nationality: {officer.nationality}
-                                </p>
-                              )}
-                              {officer.occupation && (
-                                <p className="text-xs text-muted-foreground">
-                                  Occupation: {officer.occupation}
-                                </p>
-                              )}
                             </div>
-                          </div>
-                        ))
+                          )
+                        })
                       } else {
                         return <p className="text-sm text-muted-foreground">No officers found</p>
                       }
@@ -747,33 +767,53 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                     try {
                       const psc = JSON.parse(client.personsWithSignificantControl)
                       if (psc.items && psc.items.length > 0) {
-                        return psc.items.map((person: any, index: number) => (
-                          <div key={index} className="p-3 border border-border rounded-sm">
-                            <div className="space-y-2">
-                              <h4 className="font-medium text-sm">{person.name}</h4>
-                              {person.kind && (
-                                <p className="text-xs text-muted-foreground">
-                                  Type: {person.kind.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                                </p>
-                              )}
-                              {person.notified_on && (
-                                <p className="text-xs text-muted-foreground">
-                                  Notified: {new Date(person.notified_on).toLocaleDateString('en-GB')}
-                                </p>
-                              )}
-                              {person.natures_of_control && person.natures_of_control.length > 0 && (
-                                <div className="text-xs text-muted-foreground">
-                                  <p>Nature of Control:</p>
-                                  <ul className="list-disc list-inside ml-2">
-                                    {person.natures_of_control.map((nature: string, i: number) => (
-                                      <li key={i}>{nature.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</li>
-                                    ))}
-                                  </ul>
+                        return psc.items.map((person: any, index: number) => {
+                          // Determine PSC status
+                          const isCeased = person.ceased_on
+                          const status = isCeased ? 'Ceased' : 'Active'
+                          const statusColor = isCeased ? 'text-red-600' : 'text-green-600'
+                          const statusBg = isCeased ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
+                          
+                          return (
+                            <div key={index} className={`p-3 border rounded-sm ${statusBg}`}>
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-start">
+                                  <h4 className="font-medium text-sm">{person.name}</h4>
+                                  <Badge variant={isCeased ? "outline" : "secondary"} className={`text-xs ${statusColor}`}>
+                                    {status}
+                                  </Badge>
                                 </div>
-                              )}
+                                <div className="grid grid-cols-1 gap-2 text-xs text-muted-foreground">
+                                  {person.kind && (
+                                    <p>
+                                      Type: {person.kind.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                    </p>
+                                  )}
+                                  {person.notified_on && (
+                                    <p>
+                                      Notified: {new Date(person.notified_on).toLocaleDateString('en-GB')}
+                                    </p>
+                                  )}
+                                  {person.ceased_on && (
+                                    <p className="text-red-600">
+                                      Ceased: {new Date(person.ceased_on).toLocaleDateString('en-GB')}
+                                    </p>
+                                  )}
+                                  {person.natures_of_control && person.natures_of_control.length > 0 && (
+                                    <div>
+                                      <p>Nature of Control:</p>
+                                      <ul className="list-disc list-inside ml-2">
+                                        {person.natures_of_control.map((nature: string, i: number) => (
+                                          <li key={i}>{nature.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        ))
+                          )
+                        })
                       } else {
                         return <p className="text-sm text-muted-foreground">No PSC information found</p>
                       }

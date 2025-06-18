@@ -6,8 +6,24 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Starting database seed...')
 
-  // Create a test manager user
+  // Create a test partner user
   const hashedPassword = await bcrypt.hash('password123', 12)
+  
+  const partnerUser = await prisma.user.upsert({
+    where: { email: 'partner@numericalz.co.uk' },
+    update: {},
+    create: {
+      email: 'partner@numericalz.co.uk',
+      name: 'Test Partner',
+      password: hashedPassword,
+      role: 'PARTNER',
+      isActive: true,
+    },
+  })
+
+  console.log('✅ Created partner user:', partnerUser.email)
+
+  // Create a test manager user
   
   const testUser = await prisma.user.upsert({
     where: { email: 'admin@numericalz.co.uk' },
@@ -97,6 +113,7 @@ async function main() {
   console.log('🎉 Database seeded successfully!')
   console.log('')
   console.log('Test credentials:')
+  console.log('Partner: partner@numericalz.co.uk / password123')
   console.log('Manager: admin@numericalz.co.uk / password123')
   console.log('Staff: staff@numericalz.co.uk / password123')
 }

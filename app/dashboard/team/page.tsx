@@ -3,24 +3,28 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
 /**
- * Team management page redirect
+ * Team page - redirects users to appropriate team management
  * 
- * This page redirects users to the appropriate team management location:
- * - Managers: /dashboard/manager/teams (full team management)
- * - Staff: /dashboard (dashboard home, as they can't manage teams)
+ * - Partners: /dashboard/staff (full staff management)
+ * - Managers: /dashboard/manager (manager dashboard)
+ * - Staff: /dashboard/staff (personal dashboard)
  */
 export default async function TeamPage() {
   const session = await getServerSession(authOptions)
 
-  if (!session?.user) {
+  if (!session) {
     redirect('/auth/login')
   }
 
-  // Redirect based on user role
-  if (session.user.role === 'MANAGER') {
-    redirect('/dashboard/manager/teams')
-  } else {
-    // Staff users don't have access to team management
-    redirect('/dashboard')
+  // Redirect to appropriate dashboard based on role
+  if (session.user.role === 'PARTNER') {
+    redirect('/dashboard/staff')
   }
+  
+  if (session.user.role === 'MANAGER') {
+    redirect('/dashboard/manager')
+  }
+  
+  // STAFF users go to their dashboard
+  redirect('/dashboard/staff')
 } 

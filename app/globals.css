@@ -29,7 +29,7 @@
     /* Standardized Layout Spacing System */
     --layout-padding-x: 1rem;        /* 16px - Mobile horizontal padding */
     --layout-padding-x-md: 1.5rem;   /* 24px - Tablet horizontal padding */
-    --layout-padding-x-lg: 2rem;     /* 32px - Desktop horizontal padding */
+    --layout-padding-x-lg: 1.5rem;   /* 24px - Desktop horizontal padding (reduced from 32px) */
     
     --layout-padding-y: 1.5rem;      /* 24px - Mobile vertical padding */
     --layout-padding-y-md: 2rem;     /* 32px - Tablet vertical padding */
@@ -93,6 +93,19 @@
     font-family: var(--font-plus-jakarta-sans), system-ui, -apple-system, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
     line-height: 1.4;
+    /* Prevent horizontal scrolling */
+    overflow-x: hidden;
+  }
+  
+  /* Prevent horizontal scrolling globally */
+  html {
+    overflow-x: hidden;
+  }
+  
+  /* Ensure main content areas don't cause horizontal scroll */
+  main {
+    min-width: 0; /* Allow flex items to shrink below their content size */
+    width: 100%;
   }
   
   /* Modern Typography - Compact & Professional */
@@ -333,6 +346,27 @@
     .action-trigger-icon {
       @apply text-gray-700 hover:text-gray-900;
     }
+  }
+  
+  /* Navigation Menu Enhancements */
+  .nav-section-title {
+    @apply text-[10px] font-medium text-muted-foreground uppercase tracking-wider;
+  }
+  
+  .nav-separator {
+    @apply border-border;
+  }
+  
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 w-full;
+  }
+  
+  .nav-item-active {
+    @apply bg-primary text-primary-foreground;
+  }
+  
+  .nav-item-inactive {
+    @apply text-muted-foreground hover:text-foreground hover:bg-muted;
   }
   
   /* Compact Status System */

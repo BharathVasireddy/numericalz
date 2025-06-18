@@ -19,7 +19,7 @@ model User {
   email     String   @unique
   name      String
   password  String
-  role      String   @default("STAFF") // MANAGER, STAFF
+  role      String   @default("STAFF") // PARTNER, MANAGER, STAFF
   isActive  Boolean  @default(true)
   lastLoginAt DateTime?
   createdAt DateTime @default(now())
@@ -85,11 +85,51 @@ model Client {
   website          String?
   vatNumber        String?     // VAT registration number
   
+  // Non Ltd Company specific fields
+  natureOfTrade    String?     // Nature of Trade
+  tradingAddressLine1 String? // Trading Address Line 1
+  tradingAddressLine2 String? // Trading Address Line 2
+  tradingAddressCountry String? // Trading Address Country
+  tradingAddressPostCode String? // Trading Address Post Code
+  residentialAddressLine1 String? // Residential Address Line 1
+  residentialAddressLine2 String? // Residential Address Line 2
+  residentialAddressCountry String? // Residential Address Country
+  residentialAddressPostCode String? // Residential Address Post Code
+  vatQuarters      String?     // VAT Quarters (Q1, Q2, Q3, Q4)
+  nationalInsuranceNumber String? // National Insurance Number
+  utrNumber        String?     // UTR Number (10 digits)
+  paperWorkReceived Boolean @default(false) // Paper Work Received
+  paperWorkReceivedDate DateTime? // Paper Work Received Date
+  jobCompleted     Boolean @default(false) // Job Completed
+  jobCompletedDate DateTime? // Job Completed Date
+  sa100Filed       Boolean @default(false) // SA100 Filed
+  sa100FiledDate   DateTime? // SA100 Filed Date
+  workStatus       String?     // Work Status
+  additionalComments String?   // Additional Comments
+  staff            String?     // Staff assigned
+  previousYearEnded DateTime?  // Previous Year Ended
+  previousYearWorkReceivedDate DateTime? // Previous Year Work Received Date
+  previousYearJobCompletedDate DateTime? // Previous Year Job Completed Date
+  previousYearSA100FiledDate DateTime? // Previous Year SA100 Filed Date
+  
   // Business Information (User Input)
   yearEstablished  Int?
   numberOfEmployees Int?
   annualTurnover   Float?
   paperworkFrequency String?   // MONTHLY, QUARTERLY, ANNUALLY
+  
+  // Extended VAT and business fields
+  vatFrequency     String?     // MONTHLY, QUARTERLY, ANNUALLY
+  vatScheme        String?     // STANDARD, FLAT_RATE, ANNUAL_ACCOUNTING
+  vatRegistrationDate DateTime?
+  vatDeregistrationDate DateTime?
+  flatRatePercentage Float?
+  annualAccountingScheme Boolean @default(false)
+  businessType     String?     // SOLE_TRADER, PARTNERSHIP, LLP, OTHER
+  numberOfPartners Int?
+  partnershipTaxReturn Boolean @default(false)
+  dormantStatus    Boolean @default(false)
+  smallCompanyExemption Boolean @default(false)
   
   // System Information
   assignedUserId   String?
@@ -172,21 +212,15 @@ model Notification {
 }
 
 model ActivityLog {
-  id         String      @id @default(cuid())
-  action     String      // CREATE, READ, UPDATE, DELETE, LOGIN, LOGOUT, EXPORT
-  resource   String      // e.g., "client", "user"
-  resourceId String?     // ID of the affected resource
-  oldValues  String?     // Previous values (for updates) as JSON string
-  newValues  String?     // New values (for creates/updates) as JSON string
-  metadata   String?     // Additional context as JSON string
-  ipAddress  String?
-  userAgent  String?
-  timestamp  DateTime    @default(now())
-
+  id        String   @id @default(cuid())
+  action    String   // CLIENT_CREATED, CLIENT_UPDATED, CLIENT_ASSIGNED, etc.
+  details   String?  // Additional details as JSON string
+  timestamp DateTime @default(now())
+  
   // Relations
   userId   String?
   clientId String?
-
+  
   user   User?   @relation(fields: [userId], references: [id])
   client Client? @relation(fields: [clientId], references: [id])
 
@@ -198,28 +232,28 @@ model ActivityLog {
 }
 
 model Settings {
-  id    String @id @default(cuid())
-  key   String @unique
-  value String // JSON string
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([key])
   @@map("settings")
 }
 
-// NextAuth.js models
+// NextAuth.js required models
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?
-  access_token      String?
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?
+  id_token          String? @db.Text
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -244,5 +278,5 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
-  @@map("verification_tokens")
+  @@map("verificationtokens")
 } 
