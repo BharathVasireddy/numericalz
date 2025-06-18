@@ -25,6 +25,8 @@ model User {
   sessions           Session[]
   defaultAssigneeFor UserSettings[]  @relation("DefaultAssignee")
   settings           UserSettings?
+  assignedVATQuarters VATQuarter[]
+  vatWorkflowHistory VATWorkflowHistory[]
 
   @@index([email])
   @@index([role])
@@ -113,7 +115,7 @@ model Client {
   utrNumber                     String?
   vatDeregistrationDate         DateTime?
   vatFrequency                  String?
-  vatQuarters                   String?
+  vatQuartersWorkflow           VATQuarter[]
   vatRegistrationDate           DateTime?
   vatScheme                     String?
   workStatus                    String?
@@ -276,4 +278,100 @@ model UserSettings {
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
+}
+
+// VAT Workflow Management
+model VATQuarter {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Quarter Identification (full period)
+  quarterPeriod     String    // e.g., "2023-11-01_to_2024-01-31"
+  quarterStartDate  DateTime
+  quarterEndDate    DateTime
+  filingDueDate     DateTime
+  quarterGroup      String    // "1/4/7/10", "2/5/8/11", "3/6/9/12"
+
+  // Current Status
+  currentStage      VATWorkflowStage @default(CLIENT_BOOKKEEPING)
+  isCompleted       Boolean          @default(false)
+  assignedUserId    String?
+  assignedUser      User?            @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+
+  // Key Milestone Dates with User Tracking
+  chaseStartedDate           DateTime?
+  chaseStartedByUserId       String?
+  chaseStartedByUserName     String?
+  
+  paperworkReceivedDate      DateTime?
+  paperworkReceivedByUserId  String?
+  paperworkReceivedByUserName String?
+  
+  workStartedDate            DateTime?
+  workStartedByUserId        String?
+  workStartedByUserName      String?
+  
+  workFinishedDate           DateTime?
+  workFinishedByUserId       String?
+  workFinishedByUserName     String?
+  
+  sentToClientDate           DateTime?
+  sentToClientByUserId       String?
+  sentToClientByUserName     String?
+  
+  clientApprovedDate         DateTime?
+  clientApprovedByUserId     String?
+  clientApprovedByUserName   String?
+  
+  filedToHMRCDate            DateTime?
+  filedToHMRCByUserId        String?
+  filedToHMRCByUserName      String?
+
+  // Workflow History
+  workflowHistory VATWorkflowHistory[]
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, quarterPeriod])
+  @@map("vat_quarters")
+}
+
+model VATWorkflowHistory {
+  id            String   @id @default(cuid())
+  vatQuarterId  String
+  vatQuarter    VATQuarter @relation(fields: [vatQuarterId], references: [id], onDelete: Cascade)
+
+  // Stage Change Information
+  fromStage            VATWorkflowStage?
+  toStage              VATWorkflowStage
+  stageChangedAt       DateTime
+  daysInPreviousStage  Int?
+
+  // Preserved User Data (even if user is deleted)
+  userId     String?
+  user       User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName   String
+  userEmail  String
+  userRole   String
+
+  // Additional Information
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@map("vat_workflow_history")
+}
+
+enum VATWorkflowStage {
+  CLIENT_BOOKKEEPING
+  WORK_IN_PROGRESS
+  QUERIES_PENDING
+  REVIEW_PENDING_MANAGER
+  REVIEW_PENDING_PARTNER
+  EMAILED_TO_PARTNER
+  EMAILED_TO_CLIENT
+  CLIENT_APPROVED
+  FILED_TO_HMRC
 }
