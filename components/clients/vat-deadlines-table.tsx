@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -165,7 +165,6 @@ export function VATDeadlinesTable() {
   const [activeMonth, setActiveMonth] = useState<string>('')
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
   const [selectedHistoryClient, setSelectedHistoryClient] = useState<VATClient | null>(null)
-  const hasFetchedRef = useRef(false)
 
   // Get current month for default tab
   const currentMonth = new Date().getMonth() + 1
@@ -179,18 +178,13 @@ export function VATDeadlinesTable() {
   }, [currentMonthKey, activeMonth])
 
   const fetchVATClients = useCallback(async () => {
-    if (hasFetchedRef.current && vatClients.length > 0) {
-      return
-    }
-
     try {
       setLoading(true)
       const response = await fetch('/api/clients/vat-clients')
       const data = await response.json()
 
       if (data.success) {
-        setVatClients(data.clients)
-        hasFetchedRef.current = true
+        setVatClients(data.clients || [])
       } else {
         showToast.error('Failed to fetch VAT clients')
       }
@@ -200,7 +194,7 @@ export function VATDeadlinesTable() {
     } finally {
       setLoading(false)
     }
-  }, [vatClients.length])
+  }, [])
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -222,6 +216,8 @@ export function VATDeadlinesTable() {
 
   // Get clients for specific filing month
   const getClientsForMonth = useCallback((monthNumber: number) => {
+    if (!vatClients || !Array.isArray(vatClients)) return []
+    
     return vatClients.filter(client => {
       if (!client.vatQuarterGroup) return false
       
@@ -385,8 +381,7 @@ export function VATDeadlinesTable() {
       setUpdateModalOpen(false)
       
       // Refresh data
-      hasFetchedRef.current = false
-      fetchVATClients()
+      await fetchVATClients()
       
     } catch (error) {
       console.error('Error updating:', error)
@@ -414,8 +409,7 @@ export function VATDeadlinesTable() {
       showToast.success('Assignment updated successfully')
       
       // Refresh data
-      hasFetchedRef.current = false
-      fetchVATClients()
+      await fetchVATClients()
       
     } catch (error) {
       console.error('Error assigning user:', error)
