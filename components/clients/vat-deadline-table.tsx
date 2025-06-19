@@ -31,6 +31,7 @@ interface VATClient {
   vatQuarterGroup?: string
   nextVatReturnDue?: string
   isVatEnabled: boolean
+  createdAt: string // Client creation date
   assignedUser?: {
     id: string
     name: string
@@ -131,6 +132,11 @@ type ComprehensiveStatus =
       type: 'filing_overdue'
       quarterInfo: any
       daysOverdue: number
+    }
+  | {
+      type: 'historical'
+      quarterInfo: any
+      clientCreatedDate: string
     }
   | {
       type: 'basic'
@@ -240,6 +246,12 @@ export function VATDeadlineTable() {
     return 'unknown'
   }
 
+  // Helper function to check if a quarter is historical (before client was added to system)
+  const isHistoricalQuarter = (client: VATClient, quarterEndDate: Date): boolean => {
+    const clientCreatedDate = new Date(client.createdAt)
+    return quarterEndDate < clientCreatedDate
+  }
+
   // Filter clients by selected month with month-specific workflow context
   const getClientsForMonth = (monthNumber: number) => {
     return vatClients.filter(client => {
@@ -267,6 +279,15 @@ export function VATDeadlineTable() {
         
         // Only show workflow status if this month matches the quarter end month
         if (quarterEndMonth === monthNumber) {
+          // Check if this is a historical quarter (before client was added to system)
+          if (isHistoricalQuarter(client, quarterInfo.quarterEndDate)) {
+            return {
+              type: 'historical',
+              quarterInfo,
+              clientCreatedDate: client.createdAt
+            }
+          }
+
           const daysUntilQuarterEnd = calculateDaysBetween(today, quarterInfo.quarterEndDate)
           const daysUntilFiling = calculateDaysBetween(today, quarterInfo.filingDueDate)
           
@@ -581,6 +602,18 @@ export function VATDeadlineTable() {
           </div>
         )
 
+      case 'historical':
+        return (
+          <div className="space-y-1">
+            <Badge variant="outline" className="text-xs bg-gray-100 text-gray-600">
+              Not Applicable
+            </Badge>
+            <div className="text-xs text-muted-foreground">
+              Client added: {formatDate(status.clientCreatedDate)}
+            </div>
+          </div>
+        )
+
       case 'basic':
         return (
           <div className="space-y-1">
@@ -610,6 +643,31 @@ export function VATDeadlineTable() {
   const handleOpenWorkflowModal = async (client: VATClient) => {
     try {
       setLoading(true)
+      
+      // Check if we're trying to open a workflow for a historical quarter
+      // This can happen when clicking "Manage Workflow" from older months
+      const today = new Date()
+      const currentYear = today.getFullYear()
+      const currentMonth = today.getMonth() + 1
+      
+      // For month-specific context, check if the current viewing month is historical
+      if (activeMonth) {
+        const viewingMonth = MONTHS.find(m => m.key === activeMonth)?.number
+        if (viewingMonth && client.vatQuarterGroup) {
+          try {
+            const quarterInfo = calculateVATQuarter(client.vatQuarterGroup, new Date(currentYear, viewingMonth - 1, 1))
+            const quarterEndMonth = new Date(quarterInfo.quarterEndDate).getMonth() + 1
+            
+            // If this month matches the quarter end month and it's historical
+            if (quarterEndMonth === viewingMonth && isHistoricalQuarter(client, quarterInfo.quarterEndDate)) {
+              showToast.error('Cannot manage workflow for historical quarters. This quarter ended before the client was added to the system.')
+              return
+            }
+          } catch (error) {
+            console.error('Error checking historical quarter:', error)
+          }
+        }
+      }
       
       // If client has current VAT quarter, use it
       if (client.currentVATQuarter) {
@@ -748,208 +806,196 @@ export function VATDeadlineTable() {
                 <SortableHeader sortKey="companyName" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-company-name">
                   Company Name
                 </SortableHeader>
-                <SortableHeader sortKey="vatReturnsFrequency" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-frequency">
-                  Frequency
-                </SortableHeader>
-                <SortableHeader sortKey="status" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-status">
-                  Status
-                </SortableHeader>
+                <th className="table-header-cell col-vat-frequency">Freq</th>
+                <th className="table-header-cell col-vat-status">Status</th>
+                <th className="table-header-cell col-vat-contact">Contact</th>
                 <SortableHeader sortKey="assignedUser" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-assigned">
-                  Assigned
+                  Assigned To
                 </SortableHeader>
-                <th className="table-header-cell col-vat-actions text-right">
-                  Actions
-                </th>
+                <th className="table-header-cell col-vat-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {monthClients
-                .sort((a, b) => {
-                  if (!currentSort) {
-                    // Default sort by deadline status priority
-                    const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
-                    const aStatus = getDeadlineStatus(a.nextVatReturnDue)
-                    const bStatus = getDeadlineStatus(b.nextVatReturnDue)
-                    return statusOrder[aStatus as keyof typeof statusOrder] - statusOrder[bStatus as keyof typeof statusOrder]
-                  }
-                  
-                  let aValue: any = a[currentSort as keyof VATClient]
-                  let bValue: any = b[currentSort as keyof VATClient]
-                  
-                  // Handle special sorting cases
-                  if (currentSort === 'assignedUser') {
-                    aValue = a.assignedUser?.name || ''
-                    bValue = b.assignedUser?.name || ''
-                  } else if (currentSort === 'nextVatReturnDue') {
-                    aValue = a.nextVatReturnDue ? new Date(a.nextVatReturnDue).getTime() : 0
-                    bValue = b.nextVatReturnDue ? new Date(b.nextVatReturnDue).getTime() : 0
-                  } else if (currentSort === 'status') {
-                    const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
-                    aValue = statusOrder[getDeadlineStatus(a.nextVatReturnDue) as keyof typeof statusOrder]
-                    bValue = statusOrder[getDeadlineStatus(b.nextVatReturnDue) as keyof typeof statusOrder]
-                  }
-                  
-                  // Convert to string for consistent comparison
-                  if (typeof aValue === 'string' && typeof bValue === 'string') {
-                    aValue = aValue.toLowerCase()
-                    bValue = bValue.toLowerCase()
-                  }
-                  
-                  if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
-                  if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
-                  return 0
-                })
-                .map((client) => (
-                  <tr key={client.id} className="table-body-row">
-                    <td className="table-body-cell">
-                      <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                        {client.clientCode || 'N/A'}
+              {monthClients.map((client) => (
+                <tr key={client.id} className="table-row">
+                  <td className="table-cell col-vat-client-code">
+                    <span className="truncate" title={client.clientCode}>
+                      {client.clientCode}
+                    </span>
+                  </td>
+                  <td className="table-cell col-vat-company-name">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                      <span className="truncate" title={client.companyName}>
+                        {client.companyName}
                       </span>
-                    </td>
-                    <td className="table-body-cell">
-                      <div className="w-full">
-                        <button
-                          onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                          className="text-left w-full hover:bg-accent/50 rounded px-2 py-1 -mx-2 -my-1 transition-colors group"
+                    </div>
+                  </td>
+                  <td className="table-cell col-vat-frequency">
+                    {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
+                  </td>
+                  <td className="table-cell col-vat-status">
+                    {renderStatusDisplay(client, monthNumber)}
+                  </td>
+                  <td className="table-cell col-vat-contact">
+                    <div className="flex items-center gap-1">
+                      {client.contactEmail && (
+                        <a 
+                          href={`mailto:${client.contactEmail}`}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          title={client.contactEmail}
                         >
-                          <div className="font-medium text-sm truncate group-hover:text-primary" title={client.companyName}>
-                            {client.companyName}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' :
-                             client.companyType === 'NON_LIMITED_COMPANY' ? 'Non Ltd' :
-                             client.companyType === 'DIRECTOR' ? 'Director' :
-                             client.companyType === 'SUB_CONTRACTOR' ? 'Sub Con' :
-                             client.companyType}
-                          </div>
-                        </button>
-                      </div>
-                    </td>
-                    <td className="table-body-cell">
-                      {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
-                    </td>
-                    <td className="table-body-cell">
-                      {renderStatusDisplay(client, monthNumber)}
-                    </td>
-                    <td className="table-body-cell">
-                      {client.assignedUser ? (
-                        <div className="text-xs">
-                          <div className="font-medium truncate" title={`${client.assignedUser.name} (${client.assignedUser.email})`}>
-                            {client.assignedUser.name}
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Unassigned</span>
+                          <Mail className="h-3 w-3" />
+                        </a>
                       )}
-                    </td>
-                    <td className="table-actions-cell">
+                      {client.contactPhone && (
+                        <a 
+                          href={`tel:${client.contactPhone}`}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          title={client.contactPhone}
+                        >
+                          <Phone className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
+                  </td>
+                  <td className="table-cell col-vat-assigned">
+                    <span className="truncate text-xs" title={client.assignedUser?.name || 'Unassigned'}>
+                      {client.assignedUser?.name || 'Unassigned'}
+                    </span>
+                  </td>
+                  <td className="table-cell col-vat-actions">
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                        title="View Details"
+                      >
+                        <Eye className="action-trigger-icon" />
+                      </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="action-trigger-button">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            title="More Actions"
+                          >
                             <MoreHorizontal className="action-trigger-icon" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem 
-                            onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <Eye className="h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleOpenWorkflowModal(client)}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <TrendingUp className="h-4 w-4" />
+                          <DropdownMenuItem onClick={() => handleOpenWorkflowModal(client)}>
+                            <TrendingUp className="mr-2 h-4 w-4" />
                             Manage Workflow
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/dashboard/clients/${client.id}/edit`}>
+                              <FileText className="mr-2 h-4 w-4" />
+                              Edit Client
+                            </Link>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
         {/* Mobile Cards */}
-        <div className="block lg:hidden space-y-4 p-4">
+        <div className="lg:hidden space-y-4">
           {monthClients.map((client) => (
-            <Card key={client.id} className="mobile-client-card">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1 min-w-0">
-                    <button
-                      onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                      className="text-left w-full group"
-                    >
-                      <h3 className="font-semibold text-sm truncate group-hover:text-primary" title={client.companyName}>
-                        {client.companyName}
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        {client.clientCode} • {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' : client.companyType}
-                      </p>
-                    </button>
+            <Card key={client.id} className="p-4">
+              <div className="space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="font-medium text-sm">{client.companyName}</h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Code: {client.clientCode}</p>
                   </div>
-                  <div className="ml-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => router.push(`/dashboard/clients/${client.id}`)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleOpenWorkflowModal(client)}>
+                        <TrendingUp className="mr-2 h-4 w-4" />
+                        Manage Workflow
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/dashboard/clients/${client.id}/edit`}>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Edit Client
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Frequency:</span>
+                    <div className="mt-1">
+                      {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Assigned:</span>
+                    <p className="mt-1 truncate">{client.assignedUser?.name || 'Unassigned'}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-muted-foreground text-xs">Status:</span>
+                  <div className="mt-1">
                     {renderStatusDisplay(client, monthNumber)}
                   </div>
                 </div>
 
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Frequency:</span>
-                    {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Next Due:</span>
-                    <span className={`font-mono ${
-                      getDeadlineStatus(client.nextVatReturnDue) === 'overdue' ? 'text-red-600 font-medium' :
-                      getDeadlineStatus(client.nextVatReturnDue) === 'urgent' ? 'text-amber-600 font-medium' :
-                      'text-foreground'
-                    }`}>
-                      {formatDate(client.nextVatReturnDue)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Assigned To:</span>
-                    <span>{client.assignedUser?.name || 'Unassigned'}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                <div className="flex items-center justify-between pt-2 border-t">
                   <div className="flex items-center gap-2">
                     {client.contactEmail && (
-                      <button
-                        onClick={() => window.open(`mailto:${client.contactEmail}`, '_blank')}
-                        className="p-1 hover:bg-accent rounded transition-colors"
+                      <a 
+                        href={`mailto:${client.contactEmail}`}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
                         title={client.contactEmail}
                       >
-                        <Mail className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                      </button>
+                        <Mail className="h-4 w-4" />
+                      </a>
                     )}
                     {client.contactPhone && (
-                      <button
-                        onClick={() => window.open(`tel:${client.contactPhone}`, '_blank')}
-                        className="p-1 hover:bg-accent rounded transition-colors"
+                      <a 
+                        href={`tel:${client.contactPhone}`}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
                         title={client.contactPhone}
                       >
-                        <Phone className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                      </button>
+                        <Phone className="h-4 w-4" />
+                      </a>
                     )}
                   </div>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => handleOpenWorkflowModal(client)}
-                    className="text-xs"
                   >
-                    <TrendingUp className="h-3 w-3 mr-1" />
+                    <TrendingUp className="mr-2 h-3 w-3" />
                     Workflow
                   </Button>
                 </div>
-              </CardContent>
+              </div>
             </Card>
           ))}
         </div>
@@ -958,99 +1004,108 @@ export function VATDeadlineTable() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">VAT Deadline Tracker</h1>
-          <p className="text-muted-foreground">
-            Track VAT deadlines by month for quarterly clients • 
-            {vatClients.length} total clients • 
-            Current month: {MONTHS.find(m => m.number === new Date().getMonth() + 1)?.name}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              hasFetchedRef.current = false
-              fetchVATClients()
-            }}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          <Link href="/dashboard/clients/add">
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Client
-            </Button>
-          </Link>
+    <div className="page-container">
+      <div className="content-wrapper">
+        <div className="content-sections">
+          {/* Page Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">VAT Deadline Tracker</h1>
+              <p className="text-muted-foreground">
+                Track VAT deadlines by month for quarterly clients • 
+                {vatClients.length} total clients • 
+                Current month: {MONTHS.find(m => m.number === new Date().getMonth() + 1)?.name}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  hasFetchedRef.current = false
+                  fetchVATClients()
+                }}
+                disabled={loading}
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <VATBulkOperations 
+                clients={vatClients}
+                availableUsers={availableUsers}
+                onComplete={() => {
+                  hasFetchedRef.current = false
+                  fetchVATClients()
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Month-based Tabs */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle>VAT Deadlines by Month</CardTitle>
+              <CardDescription>
+                Clients are shown in their quarter end months. 
+                3/6/9/12 group appears in Mar/Jun/Sep/Dec, 
+                1/4/7/10 group appears in Jan/Apr/Jul/Oct, 
+                2/5/8/11 group appears in Feb/May/Aug/Nov.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Tabs value={activeMonth} onValueChange={setActiveMonth} className="w-full">
+                {/* Month Tabs - Better Aligned */}
+                <div className="border-b bg-muted/30">
+                  <div className="px-6 py-3">
+                    <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12 h-auto bg-transparent p-0 gap-1">
+                      {MONTHS.map((month) => {
+                        const monthClients = getClientsForMonth(month.number)
+                        return (
+                          <TabsTrigger 
+                            key={month.key} 
+                            value={month.key}
+                            className="flex flex-col items-center gap-1 py-3 px-2 text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md transition-all hover:bg-background/50"
+                          >
+                            <span className="font-semibold text-[11px] leading-tight">
+                              {month.short}
+                            </span>
+                            {monthClients.length > 0 && (
+                              <Badge 
+                                variant="secondary" 
+                                className="h-5 w-auto min-w-[20px] px-1.5 text-[10px] font-medium bg-primary/10 text-primary border-0"
+                              >
+                                {monthClients.length}
+                              </Badge>
+                            )}
+                          </TabsTrigger>
+                        )
+                      })}
+                    </TabsList>
+                  </div>
+                </div>
+                
+                {/* Month Content - Properly Aligned */}
+                {MONTHS.map((month) => (
+                  <TabsContent key={month.key} value={month.key} className="mt-0 focus-visible:outline-none">
+                    <div className="px-6 py-4">
+                      {renderMonthContent(month.number)}
+                    </div>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      {/* Month-based Tabs */}
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>VAT Deadlines by Month</CardTitle>
-          <CardDescription>
-            Clients are shown in their quarter end months. 
-            3/6/9/12 group appears in Mar/Jun/Sep/Dec, 
-            1/4/7/10 group appears in Jan/Apr/Jul/Oct, 
-            2/5/8/11 group appears in Feb/May/Aug/Nov.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Tabs value={activeMonth} onValueChange={setActiveMonth} className="w-full">
-            {/* Month Tabs - Better Aligned */}
-            <div className="border-b bg-muted/30">
-              <div className="px-6 py-3">
-                <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12 h-auto bg-transparent p-0 gap-1">
-                  {MONTHS.map((month) => {
-                    const monthClients = getClientsForMonth(month.number)
-                    return (
-                      <TabsTrigger 
-                        key={month.key} 
-                        value={month.key}
-                        className="flex flex-col items-center gap-1 py-3 px-2 text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md transition-all hover:bg-background/50"
-                      >
-                        <span className="font-semibold text-[11px] leading-tight">
-                          {month.short}
-                        </span>
-                        {monthClients.length > 0 && (
-                          <Badge 
-                            variant="secondary" 
-                            className="h-5 w-auto min-w-[20px] px-1.5 text-[10px] font-medium bg-primary/10 text-primary border-0"
-                          >
-                            {monthClients.length}
-                          </Badge>
-                        )}
-                      </TabsTrigger>
-                    )
-                  })}
-                </TabsList>
-              </div>
-            </div>
-            
-            {/* Month Content - Properly Aligned */}
-            {MONTHS.map((month) => (
-              <TabsContent key={month.key} value={month.key} className="mt-0 focus-visible:outline-none">
-                <div className="px-6 py-4">
-                  {renderMonthContent(month.number)}
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
-        </CardContent>
-      </Card>
-
       {/* VAT Workflow Modal */}
-      {workflowModalOpen && selectedVATQuarter && (
+      {selectedVATQuarter && (
         <VATWorkflowModal
           isOpen={workflowModalOpen}
-          onClose={() => setWorkflowModalOpen(false)}
+          onClose={() => {
+            setWorkflowModalOpen(false)
+            setSelectedVATQuarter(null)
+          }}
           onUpdate={handleWorkflowUpdate}
           vatQuarter={selectedVATQuarter}
           availableUsers={availableUsers}

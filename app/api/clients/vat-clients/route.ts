@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         vatQuarterGroup: true,
         nextVatReturnDue: true,
         isVatEnabled: true,
+        createdAt: true,
         assignedUser: {
           select: {
             id: true,
@@ -115,9 +116,10 @@ export async function GET(request: NextRequest) {
       vatQuarterGroup: client.vatQuarterGroup,
       nextVatReturnDue: client.nextVatReturnDue,
       isVatEnabled: client.isVatEnabled,
+      createdAt: client.createdAt.toISOString(),
       assignedUser: client.assignedUser,
-      // Include current VAT quarter workflow if exists
-      currentVATQuarter: client.vatQuartersWorkflow.length > 0 && client.vatQuartersWorkflow[0] ? {
+      // Include current VAT quarter workflow if exists (safely check for undefined)
+      currentVATQuarter: client.vatQuartersWorkflow && client.vatQuartersWorkflow.length > 0 && client.vatQuartersWorkflow[0] ? {
         id: client.vatQuartersWorkflow[0].id,
         quarterPeriod: client.vatQuartersWorkflow[0].quarterPeriod,
         quarterStartDate: client.vatQuartersWorkflow[0].quarterStartDate.toISOString(),
