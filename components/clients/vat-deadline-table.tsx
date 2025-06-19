@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Plus, Calendar, AlertTriangle, CheckCircle, Clock, Building2, Eye, Mail, Phone, MoreHorizontal, RefreshCw, ChevronUp, ChevronDown, ArrowUpDown, FileText, TrendingUp, Users, Target } from 'lucide-react'
 import {
   DropdownMenu,
@@ -137,6 +138,29 @@ type ComprehensiveStatus =
       nextDue?: string
     }
 
+// Month configuration
+const MONTHS = [
+  { key: 'jan', name: 'January', number: 1 },
+  { key: 'feb', name: 'February', number: 2 },
+  { key: 'mar', name: 'March', number: 3 },
+  { key: 'apr', name: 'April', number: 4 },
+  { key: 'may', name: 'May', number: 5 },
+  { key: 'jun', name: 'June', number: 6 },
+  { key: 'jul', name: 'July', number: 7 },
+  { key: 'aug', name: 'August', number: 8 },
+  { key: 'sep', name: 'September', number: 9 },
+  { key: 'oct', name: 'October', number: 10 },
+  { key: 'nov', name: 'November', number: 11 },
+  { key: 'dec', name: 'December', number: 12 }
+]
+
+// Quarter group to months mapping
+const QUARTER_GROUP_MONTHS: { [key: string]: number[] } = {
+  '1_4_7_10': [1, 4, 7, 10], // Jan, Apr, Jul, Oct
+  '2_5_8_11': [2, 5, 8, 11], // Feb, May, Aug, Nov
+  '3_6_9_12': [3, 6, 9, 12]  // Mar, Jun, Sep, Dec
+}
+
 export function VATDeadlineTable() {
   const { data: session } = useSession()
   const router = useRouter()
@@ -145,12 +169,14 @@ export function VATDeadlineTable() {
   const hasFetchedRef = useRef(false)
   const [currentSort, setCurrentSort] = useState('')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState<string>('all')
-  const [filterFrequency, setFilterFrequency] = useState<string>('all')
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set())
   const [showBulkActions, setShowBulkActions] = useState(false)
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([])
+  
+  // Month tab state - default to current month
+  const currentMonth = new Date().getMonth() + 1 // JavaScript months are 0-indexed
+  const defaultMonth = MONTHS.find(m => m.number === currentMonth)?.key || 'jan'
+  const [activeMonth, setActiveMonth] = useState(defaultMonth)
   
   // Workflow modal state
   const [workflowModalOpen, setWorkflowModalOpen] = useState(false)
@@ -200,89 +226,81 @@ export function VATDeadlineTable() {
   }, [])
 
   useEffect(() => {
-    // Only fetch if we have a session and haven't fetched yet
-    if (session?.user?.id && !hasFetchedRef.current) {
-      fetchVATClients()
-      fetchAvailableUsers()
-    }
-  }, [session?.user?.id, fetchVATClients, fetchAvailableUsers])
-
-  // Function to force refresh data (can be called when needed)
-  const refreshVATClients = useCallback(() => {
-    hasFetchedRef.current = false
     fetchVATClients()
-  }, [fetchVATClients])
+    fetchAvailableUsers()
+  }, [fetchVATClients, fetchAvailableUsers])
+
+  // Filter clients by selected month
+  const getClientsForMonth = (monthNumber: number) => {
+    return vatClients.filter(client => {
+      // Only show quarterly VAT clients with quarter groups
+      if (client.vatReturnsFrequency !== 'QUARTERLY' || !client.vatQuarterGroup) {
+        return false
+      }
+
+      // Check if this client's quarter group includes the selected month
+      const quarterMonths = QUARTER_GROUP_MONTHS[client.vatQuarterGroup] || []
+      return quarterMonths.includes(monthNumber)
+    })
+  }
 
   const getDeadlineStatus = (nextVatReturnDue?: string) => {
     if (!nextVatReturnDue) return 'unknown'
     
-    const dueDate = new Date(nextVatReturnDue)
     const today = new Date()
-    const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-
-    if (daysUntilDue < 0) return 'overdue'
-    if (daysUntilDue <= 7) return 'urgent'
-    if (daysUntilDue <= 30) return 'upcoming'
+    const dueDate = new Date(nextVatReturnDue)
+    const diffTime = dueDate.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays < 0) return 'overdue'
+    if (diffDays <= 7) return 'urgent'
+    if (diffDays <= 30) return 'upcoming'
     return 'future'
   }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'overdue':
-        return <Badge variant="destructive" className="flex items-center gap-1">
-          <AlertTriangle className="h-3 w-3" />
-          Overdue
-        </Badge>
+        return <Badge variant="destructive" className="text-xs">Overdue</Badge>
       case 'urgent':
-        return <Badge variant="destructive" className="flex items-center gap-1 bg-orange-100 text-orange-800 border-orange-200">
-          <Clock className="h-3 w-3" />
-          Due Soon
-        </Badge>
+        return <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800 hover:bg-orange-100">Urgent</Badge>
       case 'upcoming':
-        return <Badge variant="secondary" className="flex items-center gap-1">
-          <Calendar className="h-3 w-3" />
-          Upcoming
-        </Badge>
+        return <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 hover:bg-blue-100">Upcoming</Badge>
       case 'future':
-        return <Badge variant="outline" className="flex items-center gap-1">
-          <CheckCircle className="h-3 w-3" />
-          Future
-        </Badge>
+        return <Badge variant="outline" className="text-xs">Future</Badge>
       default:
-        return <Badge variant="outline">Unknown</Badge>
+        return <Badge variant="outline" className="text-xs">Unknown</Badge>
     }
   }
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Not set'
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })
+    try {
+      return new Date(dateString).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      })
+    } catch {
+      return 'Invalid date'
+    }
   }
 
   const getFrequencyBadge = (frequency?: string, quarterGroup?: string) => {
-    if (!frequency) return <Badge variant="outline" className="text-xs">Not set</Badge>
-    
-    const colors = {
-      'QUARTERLY': 'bg-blue-100 text-blue-800 border-blue-200',
-      'MONTHLY': 'bg-green-100 text-green-800 border-green-200',
-      'ANNUALLY': 'bg-purple-100 text-purple-800 border-purple-200'
+    if (frequency === 'QUARTERLY' && quarterGroup) {
+      return (
+        <Badge variant="outline" className="text-xs">
+          Quarterly
+        </Badge>
+      )
+    } else if (frequency === 'MONTHLY') {
+      return <Badge variant="outline" className="text-xs">Monthly</Badge>
+    } else if (frequency === 'ANNUALLY') {
+      return <Badge variant="outline" className="text-xs">Annually</Badge>
     }
-    
-    // Clean display text without verbose quarter group info
-    const displayText = frequency === 'QUARTERLY' ? 'Quarterly'
-      : frequency === 'MONTHLY' ? 'Monthly'
-      : frequency === 'ANNUALLY' ? 'Annually'
-      : frequency.charAt(0)
-    
-    return <Badge variant="outline" className={`text-xs ${colors[frequency as keyof typeof colors] || ''}`}>
-      {displayText}
-    </Badge>
+    return <Badge variant="outline" className="text-xs">Unknown</Badge>
   }
 
-  // Get comprehensive status information including quarter progress and workflow
   const getComprehensiveStatus = (client: VATClient): ComprehensiveStatus => {
     const today = new Date()
     
@@ -343,68 +361,19 @@ export function VATDeadlineTable() {
     }
   }
 
-  // Format workflow stage for display
   const formatWorkflowStage = (stage: string) => {
-    const stageMap: { [key: string]: { label: string; color: string; icon: React.ReactNode } } = {
-      'CLIENT_BOOKKEEPING': { 
-        label: 'Records', 
-        color: 'bg-gray-100 text-gray-800 border-gray-200',
-        icon: <FileText className="h-3 w-3" />
-      },
-      'WORK_IN_PROGRESS': { 
-        label: 'In Progress', 
-        color: 'bg-blue-100 text-blue-800 border-blue-200',
-        icon: <TrendingUp className="h-3 w-3" />
-      },
-      'QUERIES_PENDING': { 
-        label: 'Queries', 
-        color: 'bg-amber-100 text-amber-800 border-amber-200',
-        icon: <AlertTriangle className="h-3 w-3" />
-      },
-      'REVIEW_PENDING_MANAGER': { 
-        label: 'Manager', 
-        color: 'bg-purple-100 text-purple-800 border-purple-200',
-        icon: <Users className="h-3 w-3" />
-      },
-      'REVIEW_PENDING_PARTNER': { 
-        label: 'Partner', 
-        color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-        icon: <Target className="h-3 w-3" />
-      },
-      'EMAILED_TO_PARTNER': { 
-        label: 'With Partner', 
-        color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-        icon: <Mail className="h-3 w-3" />
-      },
-      'EMAILED_TO_CLIENT': { 
-        label: 'With Client', 
-        color: 'bg-orange-100 text-orange-800 border-orange-200',
-        icon: <Mail className="h-3 w-3" />
-      },
-      'CLIENT_APPROVED': { 
-        label: 'Approved', 
-        color: 'bg-green-100 text-green-800 border-green-200',
-        icon: <CheckCircle className="h-3 w-3" />
-      },
-      'FILED_TO_HMRC': { 
-        label: 'Filed', 
-        color: 'bg-green-100 text-green-800 border-green-200',
-        icon: <CheckCircle className="h-3 w-3" />
-      }
+    const stageMap: { [key: string]: string } = {
+      'CLIENT_BOOKKEEPING': 'Records',
+      'WORK_IN_PROGRESS': 'In Progress',
+      'QUERIES_PENDING': 'Queries',
+      'REVIEW_PENDING_MANAGER': 'Manager Review',
+      'REVIEW_PENDING_PARTNER': 'Partner Review',
+      'EMAILED_TO_PARTNER': 'With Partner',
+      'EMAILED_TO_CLIENT': 'With Client',
+      'CLIENT_APPROVED': 'Approved',
+      'FILED_TO_HMRC': 'Filed'
     }
-    
-    const stageInfo = stageMap[stage] || { 
-      label: stage, 
-      color: 'bg-gray-100 text-gray-800 border-gray-200',
-      icon: <Clock className="h-3 w-3" />
-    }
-    
-    return (
-      <Badge variant="outline" className={`flex items-center gap-1 text-xs ${stageInfo.color}`}>
-        {stageInfo.icon}
-        {stageInfo.label}
-      </Badge>
-    )
+    return stageMap[stage] || stage
   }
 
   // Render the comprehensive status display
@@ -438,72 +407,87 @@ export function VATDeadlineTable() {
         milestones.push(`Filed to HMRC: ${formatDate(currentQuarter.filedToHMRCDate)} (${currentQuarter.filedToHMRCByUserName})`)
       }
       
-      return milestones.length > 0 ? milestones.join('\n') : null
+      if (milestones.length === 0) return null
+      
+      return milestones.join('\n')
     }
-    
+
     switch (status.type) {
       case 'workflow':
         const milestoneTooltip = getMilestoneTooltip(client.currentVATQuarter)
+        const latestMilestone = (() => {
+          const quarter = client.currentVATQuarter
+          if (!quarter) return null
+          
+          // Find the most recent milestone date
+          const milestones = [
+            { date: quarter.filedToHMRCDate, label: 'Filed' },
+            { date: quarter.clientApprovedDate, label: 'Approved' },
+            { date: quarter.sentToClientDate, label: 'Sent' },
+            { date: quarter.workFinishedDate, label: 'Finished' },
+            { date: quarter.workStartedDate, label: 'Started' },
+            { date: quarter.paperworkReceivedDate, label: 'Received' },
+            { date: quarter.chaseStartedDate, label: 'Chase' }
+          ].filter(m => m.date).sort((a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime())
+          
+          return milestones[0] || null
+        })()
+
         return (
           <div className="space-y-1">
-            <div className="flex items-center gap-1">
-              {status.stage && (
-                <div title={milestoneTooltip || undefined}>
-                  {formatWorkflowStage(status.stage)}
-                </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                {formatWorkflowStage(status.stage)}
+              </Badge>
+              {status.workflowAssignee && (
+                <span className="text-xs text-muted-foreground">
+                  ({status.workflowAssignee.name})
+                </span>
               )}
             </div>
             <div className="text-xs text-muted-foreground">
-              Q: {status.daysUntilQuarterEnd}d • Filing: {status.daysUntilFiling}d
+              Q: {status.daysUntilQuarterEnd > 0 ? `${status.daysUntilQuarterEnd}d` : 'Ended'} • 
+              Filing: {status.daysUntilFiling > 0 ? `${status.daysUntilFiling}d` : `${Math.abs(status.daysUntilFiling)}d overdue`}
             </div>
-            {/* Show latest milestone date if available */}
-            {client.currentVATQuarter && (
-              <div className="text-xs text-muted-foreground">
-                {client.currentVATQuarter.workStartedDate && (
-                  <span>Started: {formatDate(client.currentVATQuarter.workStartedDate)}</span>
-                )}
-                {!client.currentVATQuarter.workStartedDate && client.currentVATQuarter.paperworkReceivedDate && (
-                  <span>Received: {formatDate(client.currentVATQuarter.paperworkReceivedDate)}</span>
-                )}
-                {!client.currentVATQuarter.workStartedDate && !client.currentVATQuarter.paperworkReceivedDate && client.currentVATQuarter.chaseStartedDate && (
-                  <span>Chased: {formatDate(client.currentVATQuarter.chaseStartedDate)}</span>
-                )}
+            {latestMilestone && (
+              <div 
+                className="text-xs text-blue-600 cursor-help"
+                title={milestoneTooltip || undefined}
+              >
+                Latest: {latestMilestone.label} ({formatDate(latestMilestone.date)})
               </div>
             )}
           </div>
         )
-      
+
       case 'current_quarter':
         return (
           <div className="space-y-1">
-            <Badge variant="outline" className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-200 text-xs">
-              <Calendar className="h-3 w-3" />
-              Current Q
+            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+              Current Quarter
             </Badge>
             <div className="text-xs text-muted-foreground">
               Q: {status.daysUntilQuarterEnd}d • Filing: {status.daysUntilFiling}d
             </div>
           </div>
         )
-      
+
       case 'filing_period':
         return (
           <div className="space-y-1">
-            <Badge variant="outline" className="flex items-center gap-1 bg-amber-50 text-amber-700 border-amber-200 text-xs">
-              <Clock className="h-3 w-3" />
+            <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800">
               Filing Period
             </Badge>
             <div className="text-xs text-muted-foreground">
-              Due in {status.daysUntilFiling}d
+              Filing: {status.daysUntilFiling}d
             </div>
           </div>
         )
-      
+
       case 'filing_overdue':
         return (
           <div className="space-y-1">
-            <Badge variant="destructive" className="flex items-center gap-1 text-xs">
-              <AlertTriangle className="h-3 w-3" />
+            <Badge variant="destructive" className="text-xs">
               Overdue
             </Badge>
             <div className="text-xs text-red-600">
@@ -511,8 +495,8 @@ export function VATDeadlineTable() {
             </div>
           </div>
         )
-      
-      default:
+
+      case 'basic':
         return (
           <div className="space-y-1">
             {getStatusBadge(status.status)}
@@ -523,483 +507,427 @@ export function VATDeadlineTable() {
             )}
           </div>
         )
+
+      default:
+        return <Badge variant="outline" className="text-xs">Unknown</Badge>
     }
   }
 
   const sortClients = (key: string) => {
     if (currentSort === key) {
-      setSortOrder(prevOrder => prevOrder === 'asc' ? 'desc' : 'asc')
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
     } else {
       setCurrentSort(key)
+      setSortOrder('asc')
     }
   }
 
-  // Handle workflow modal
   const handleOpenWorkflowModal = async (client: VATClient) => {
-    if (!client.currentVATQuarter) {
-      // Create a new VAT quarter if none exists
-      try {
+    try {
+      setLoading(true)
+      
+      // If client has current VAT quarter, use it
+      if (client.currentVATQuarter) {
+        // Fetch full quarter details with workflow history
+        const response = await fetch(`/api/clients/${client.id}/vat-quarters`)
+        const data = await response.json()
+        
+        if (data.success && data.quarters.length > 0) {
+          // Find the current quarter (not completed)
+          const currentQuarter = data.quarters.find((q: any) => !q.isCompleted) || data.quarters[0]
+          setSelectedVATQuarter({
+            ...currentQuarter,
+            client: {
+              id: client.id,
+              companyName: client.companyName,
+              vatQuarterGroup: client.vatQuarterGroup
+            }
+          })
+        } else {
+          throw new Error('No VAT quarters found')
+        }
+      } else {
+        // Create a new VAT quarter for this client
         const response = await fetch(`/api/clients/${client.id}/vat-quarters`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            quarterGroup: client.vatQuarterGroup,
-          }),
+            quarterGroup: client.vatQuarterGroup
+          })
         })
-
+        
         const data = await response.json()
+        
         if (data.success) {
-          // Update the client with the new VAT quarter
-          const updatedClient = {
-            ...client,
-            currentVATQuarter: {
-              id: data.data.id,
-              quarterPeriod: data.data.quarterPeriod,
-              quarterStartDate: data.data.quarterStartDate,
-              quarterEndDate: data.data.quarterEndDate,
-              filingDueDate: data.data.filingDueDate,
-              currentStage: data.data.currentStage,
-              isCompleted: data.data.isCompleted,
-              assignedUser: data.data.assignedUser,
-            }
-          }
-          
           setSelectedVATQuarter({
             ...data.data,
             client: {
               id: client.id,
               companyName: client.companyName,
-              vatQuarterGroup: client.vatQuarterGroup || '',
-            },
-            workflowHistory: []
-          })
-          setWorkflowModalOpen(true)
-          showToast.success('VAT quarter created successfully')
-        } else {
-          showToast.error(data.error || 'Failed to create VAT quarter')
-        }
-      } catch (error) {
-        console.error('Error creating VAT quarter:', error)
-        showToast.error('Failed to create VAT quarter')
-      }
-    } else {
-      // Fetch full VAT quarter details including workflow history
-      try {
-        const response = await fetch(`/api/clients/${client.id}/vat-quarters`)
-        const data = await response.json()
-        
-        if (data.success && data.data.vatQuarters.length > 0) {
-          const latestQuarter = data.data.vatQuarters[0] // Most recent quarter
-          setSelectedVATQuarter({
-            ...latestQuarter,
-            client: {
-              id: client.id,
-              companyName: client.companyName,
-              vatQuarterGroup: client.vatQuarterGroup || '',
+              vatQuarterGroup: client.vatQuarterGroup
             }
           })
-          setWorkflowModalOpen(true)
+          
+          // Refresh the client list to show the new quarter
+          hasFetchedRef.current = false
+          fetchVATClients()
         } else {
-          showToast.error('No VAT quarters found')
+          throw new Error(data.error || 'Failed to create VAT quarter')
         }
-      } catch (error) {
-        console.error('Error fetching VAT quarter details:', error)
-        showToast.error('Failed to load VAT quarter details')
       }
+      
+      setWorkflowModalOpen(true)
+    } catch (error: any) {
+      console.error('Error opening workflow modal:', error)
+      showToast.error(error.message || 'Failed to open workflow modal')
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleWorkflowUpdate = (updatedQuarter: any) => {
-    // Update the client in the table
+    // Update the local state
     setVatClients(prevClients => 
-      prevClients.map(client => 
-        client.id === updatedQuarter.clientId 
-          ? {
-              ...client,
-              currentVATQuarter: {
-                id: updatedQuarter.id,
-                quarterPeriod: updatedQuarter.quarterPeriod,
-                quarterStartDate: updatedQuarter.quarterStartDate,
-                quarterEndDate: updatedQuarter.quarterEndDate,
-                filingDueDate: updatedQuarter.filingDueDate,
-                currentStage: updatedQuarter.currentStage,
-                isCompleted: updatedQuarter.isCompleted,
-                assignedUser: updatedQuarter.assignedUser,
-              }
-            }
-          : client
+      prevClients.map(client => {
+        if (client.id === updatedQuarter.clientId) {
+          return {
+            ...client,
+            currentVATQuarter: updatedQuarter
+          }
+        }
+        return client
+      })
+    )
+    
+    // Update the selected quarter for the modal
+    setSelectedVATQuarter(updatedQuarter)
+    
+    showToast.success('VAT workflow updated successfully')
+  }
+
+  // Render month tab content
+  const renderMonthContent = (monthNumber: number) => {
+    const monthClients = getClientsForMonth(monthNumber)
+    const monthName = MONTHS.find(m => m.number === monthNumber)?.name || 'Unknown'
+
+    if (loading) {
+      return (
+        <div className="text-center py-8 text-muted-foreground">
+          <p>Loading VAT clients...</p>
+        </div>
       )
+    }
+
+    if (monthClients.length === 0) {
+      return (
+        <div className="text-center py-8 text-muted-foreground">
+          <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+          <p className="text-lg font-medium">No VAT clients for {monthName}</p>
+          <p className="text-sm mt-2">
+            Clients with quarterly VAT returns due in {monthName} will appear here.
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="clients-table-container">
+        {/* Desktop Table */}
+        <div className="hidden lg:block">
+          <table className="table-fixed-layout table-compact">
+            <thead>
+              <tr className="table-header-row">
+                <SortableHeader sortKey="clientCode" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-client-code">
+                  Code
+                </SortableHeader>
+                <SortableHeader sortKey="companyName" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-company-name">
+                  Company Name
+                </SortableHeader>
+                <SortableHeader sortKey="vatReturnsFrequency" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-frequency">
+                  Frequency
+                </SortableHeader>
+                <SortableHeader sortKey="status" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-status">
+                  Status
+                </SortableHeader>
+                <SortableHeader sortKey="assignedUser" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-assigned">
+                  Assigned
+                </SortableHeader>
+                <th className="table-header-cell col-vat-actions text-right">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthClients
+                .sort((a, b) => {
+                  if (!currentSort) {
+                    // Default sort by deadline status priority
+                    const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
+                    const aStatus = getDeadlineStatus(a.nextVatReturnDue)
+                    const bStatus = getDeadlineStatus(b.nextVatReturnDue)
+                    return statusOrder[aStatus as keyof typeof statusOrder] - statusOrder[bStatus as keyof typeof statusOrder]
+                  }
+                  
+                  let aValue: any = a[currentSort as keyof VATClient]
+                  let bValue: any = b[currentSort as keyof VATClient]
+                  
+                  // Handle special sorting cases
+                  if (currentSort === 'assignedUser') {
+                    aValue = a.assignedUser?.name || ''
+                    bValue = b.assignedUser?.name || ''
+                  } else if (currentSort === 'nextVatReturnDue') {
+                    aValue = a.nextVatReturnDue ? new Date(a.nextVatReturnDue).getTime() : 0
+                    bValue = b.nextVatReturnDue ? new Date(b.nextVatReturnDue).getTime() : 0
+                  } else if (currentSort === 'status') {
+                    const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
+                    aValue = statusOrder[getDeadlineStatus(a.nextVatReturnDue) as keyof typeof statusOrder]
+                    bValue = statusOrder[getDeadlineStatus(b.nextVatReturnDue) as keyof typeof statusOrder]
+                  }
+                  
+                  // Convert to string for consistent comparison
+                  if (typeof aValue === 'string' && typeof bValue === 'string') {
+                    aValue = aValue.toLowerCase()
+                    bValue = bValue.toLowerCase()
+                  }
+                  
+                  if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
+                  if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
+                  return 0
+                })
+                .map((client) => (
+                  <tr key={client.id} className="table-body-row">
+                    <td className="table-body-cell">
+                      <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
+                        {client.clientCode || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="table-body-cell">
+                      <div className="w-full">
+                        <button
+                          onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                          className="text-left w-full hover:bg-accent/50 rounded px-2 py-1 -mx-2 -my-1 transition-colors group"
+                        >
+                          <div className="font-medium text-sm truncate group-hover:text-primary" title={client.companyName}>
+                            {client.companyName}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' :
+                             client.companyType === 'NON_LIMITED_COMPANY' ? 'Non Ltd' :
+                             client.companyType === 'DIRECTOR' ? 'Director' :
+                             client.companyType === 'SUB_CONTRACTOR' ? 'Sub Con' :
+                             client.companyType}
+                          </div>
+                        </button>
+                      </div>
+                    </td>
+                    <td className="table-body-cell">
+                      {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
+                    </td>
+                    <td className="table-body-cell">
+                      {renderStatusDisplay(client)}
+                    </td>
+                    <td className="table-body-cell">
+                      {client.assignedUser ? (
+                        <div className="text-xs">
+                          <div className="font-medium truncate" title={`${client.assignedUser.name} (${client.assignedUser.email})`}>
+                            {client.assignedUser.name}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Unassigned</span>
+                      )}
+                    </td>
+                    <td className="table-actions-cell">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="action-trigger-button">
+                            <MoreHorizontal className="action-trigger-icon" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem 
+                            onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <Eye className="h-4 w-4" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleOpenWorkflowModal(client)}
+                            className="flex items-center gap-2 cursor-pointer"
+                          >
+                            <TrendingUp className="h-4 w-4" />
+                            Manage Workflow
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="block lg:hidden space-y-4 p-4">
+          {monthClients.map((client) => (
+            <Card key={client.id} className="mobile-client-card">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <button
+                      onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                      className="text-left w-full group"
+                    >
+                      <h3 className="font-semibold text-sm truncate group-hover:text-primary" title={client.companyName}>
+                        {client.companyName}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {client.clientCode} • {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' : client.companyType}
+                      </p>
+                    </button>
+                  </div>
+                  <div className="ml-2">
+                    {renderStatusDisplay(client)}
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Frequency:</span>
+                    {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Next Due:</span>
+                    <span className={`font-mono ${
+                      getDeadlineStatus(client.nextVatReturnDue) === 'overdue' ? 'text-red-600 font-medium' :
+                      getDeadlineStatus(client.nextVatReturnDue) === 'urgent' ? 'text-amber-600 font-medium' :
+                      'text-foreground'
+                    }`}>
+                      {formatDate(client.nextVatReturnDue)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Assigned To:</span>
+                    <span>{client.assignedUser?.name || 'Unassigned'}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                  <div className="flex items-center gap-2">
+                    {client.contactEmail && (
+                      <button
+                        onClick={() => window.open(`mailto:${client.contactEmail}`, '_blank')}
+                        className="p-1 hover:bg-accent rounded transition-colors"
+                        title={client.contactEmail}
+                      >
+                        <Mail className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                      </button>
+                    )}
+                    {client.contactPhone && (
+                      <button
+                        onClick={() => window.open(`tel:${client.contactPhone}`, '_blank')}
+                        className="p-1 hover:bg-accent rounded transition-colors"
+                        title={client.contactPhone}
+                      >
+                        <Phone className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                      </button>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleOpenWorkflowModal(client)}
+                    className="text-xs"
+                  >
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    Workflow
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
     )
   }
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            VAT Deadline Tracker
-          </h1>
-          <p className="text-xs md:text-sm text-muted-foreground">
-            Track VAT deadlines and quarters for all VAT-enabled clients
-          </p>
+          <h1 className="text-2xl font-bold">VAT Deadline Tracker</h1>
+          <p className="text-muted-foreground">Track VAT deadlines by month for quarterly clients</p>
         </div>
         <div className="flex items-center gap-2">
-          <VATBulkOperations 
-            clients={vatClients}
-            availableUsers={availableUsers}
-            onComplete={refreshVATClients}
-          />
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={refreshVATClients}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              hasFetchedRef.current = false
+              fetchVATClients()
+            }}
             disabled={loading}
-            className="flex items-center gap-2"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button asChild size="sm" className="flex items-center gap-2">
-            <Link href="/dashboard/clients/add">
-              <Plus className="h-4 w-4" />
+          <Link href="/dashboard/clients/add">
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-2" />
               Add Client
-            </Link>
-          </Button>
+            </Button>
+          </Link>
         </div>
       </div>
 
-      {/* VAT Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-blue-600" />
-              <div>
-                <p className="text-sm font-medium">Total VAT Clients</p>
-                <p className="text-2xl font-bold">{vatClients.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <div>
-                <p className="text-sm font-medium">Overdue</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {vatClients.filter(c => getDeadlineStatus(c.nextVatReturnDue) === 'overdue').length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-orange-600" />
-              <div>
-                <p className="text-sm font-medium">Due Soon</p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {vatClients.filter(c => getDeadlineStatus(c.nextVatReturnDue) === 'urgent').length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-green-600" />
-              <div>
-                <p className="text-sm font-medium">Upcoming</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {vatClients.filter(c => getDeadlineStatus(c.nextVatReturnDue) === 'upcoming').length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* VAT Deadlines Table */}
+      {/* Month-based Tabs */}
       <Card>
         <CardHeader>
-          <CardTitle>VAT Deadlines</CardTitle>
-          <CardDescription>Upcoming VAT submission deadlines for your clients</CardDescription>
+          <CardTitle>VAT Deadlines by Month</CardTitle>
+          <CardDescription>
+            Clients are shown in their quarter end months. 
+            3/6/9/12 group appears in Mar/Jun/Sep/Dec, 
+            1/4/7/10 group appears in Jan/Apr/Jul/Oct, 
+            2/5/8/11 group appears in Feb/May/Aug/Nov.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>Loading VAT clients...</p>
+          <Tabs value={activeMonth} onValueChange={setActiveMonth} className="w-full">
+            <div className="px-6 pt-2">
+              <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12">
+                {MONTHS.map((month) => {
+                  const monthClients = getClientsForMonth(month.number)
+                  return (
+                    <TabsTrigger 
+                      key={month.key} 
+                      value={month.key}
+                      className="text-xs relative"
+                    >
+                      {month.key.toUpperCase()}
+                      {monthClients.length > 0 && (
+                        <Badge 
+                          variant="secondary" 
+                          className="absolute -top-1 -right-1 h-5 w-5 text-xs p-0 flex items-center justify-center"
+                        >
+                          {monthClients.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
             </div>
-          ) : vatClients.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No VAT-enabled clients found.</p>
-              <p className="text-sm mt-2">
-                VAT clients will appear here when you create clients with VAT enabled in the post-creation questionnaire.
-              </p>
-            </div>
-          ) : (
-            <div className="clients-table-container">
-              {/* Desktop Table */}
-              <div className="hidden lg:block">
-                <table className="table-fixed-layout table-compact">
-                  <thead>
-                    <tr className="table-header-row">
-                      <SortableHeader sortKey="clientCode" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-client-code">
-                        Code
-                      </SortableHeader>
-                      <SortableHeader sortKey="companyName" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-company-name">
-                        Company Name
-                      </SortableHeader>
-                      <SortableHeader sortKey="vatReturnsFrequency" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-frequency">
-                        Frequency
-                      </SortableHeader>
-                      <SortableHeader sortKey="status" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-status">
-                        Status
-                      </SortableHeader>
-                      <SortableHeader sortKey="assignedUser" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-assigned">
-                        Assigned
-                      </SortableHeader>
-                      <th className="table-header-cell col-vat-actions text-right">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {vatClients
-                      .sort((a, b) => {
-                        if (!currentSort) {
-                          // Default sort by deadline status priority
-                          const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
-                          const aStatus = getDeadlineStatus(a.nextVatReturnDue)
-                          const bStatus = getDeadlineStatus(b.nextVatReturnDue)
-                          return statusOrder[aStatus as keyof typeof statusOrder] - statusOrder[bStatus as keyof typeof statusOrder]
-                        }
-                        
-                        let aValue: any = a[currentSort as keyof VATClient]
-                        let bValue: any = b[currentSort as keyof VATClient]
-                        
-                        // Handle special sorting cases
-                        if (currentSort === 'assignedUser') {
-                          aValue = a.assignedUser?.name || ''
-                          bValue = b.assignedUser?.name || ''
-                        } else if (currentSort === 'nextVatReturnDue') {
-                          aValue = a.nextVatReturnDue ? new Date(a.nextVatReturnDue).getTime() : 0
-                          bValue = b.nextVatReturnDue ? new Date(b.nextVatReturnDue).getTime() : 0
-                        } else if (currentSort === 'status') {
-                          const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
-                          aValue = statusOrder[getDeadlineStatus(a.nextVatReturnDue) as keyof typeof statusOrder]
-                          bValue = statusOrder[getDeadlineStatus(b.nextVatReturnDue) as keyof typeof statusOrder]
-                        }
-                        
-                        // Convert to string for consistent comparison
-                        if (typeof aValue === 'string' && typeof bValue === 'string') {
-                          aValue = aValue.toLowerCase()
-                          bValue = bValue.toLowerCase()
-                        }
-                        
-                        if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
-                        if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
-                        return 0
-                      })
-                      .map((client) => (
-                        <tr key={client.id} className="table-body-row">
-                          <td className="table-body-cell">
-                            <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                              {client.clientCode || 'N/A'}
-                            </span>
-                          </td>
-                          <td className="table-body-cell">
-                            <div className="w-full">
-                              <button
-                                onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                                className="text-left w-full hover:bg-accent/50 rounded px-2 py-1 -mx-2 -my-1 transition-colors group"
-                              >
-                                <div className="font-medium text-sm truncate group-hover:text-primary" title={client.companyName}>
-                                  {client.companyName}
-                                </div>
-                                <div className="text-xs text-muted-foreground truncate">
-                                  {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' :
-                                   client.companyType === 'NON_LIMITED_COMPANY' ? 'Non Ltd' :
-                                   client.companyType === 'DIRECTOR' ? 'Director' :
-                                   client.companyType === 'SUB_CONTRACTOR' ? 'Sub Con' :
-                                   client.companyType}
-                                </div>
-                              </button>
-                            </div>
-                          </td>
-                          <td className="table-body-cell">
-                            {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
-                          </td>
-                          <td className="table-body-cell">
-                            {renderStatusDisplay(client)}
-                          </td>
-                          <td className="table-body-cell">
-                            {client.assignedUser ? (
-                              <div className="text-xs">
-                                <div className="font-medium truncate" title={`${client.assignedUser.name} (${client.assignedUser.email})`}>
-                                  {client.assignedUser.name}
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">Unassigned</span>
-                            )}
-                          </td>
-                          <td className="table-actions-cell">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="action-trigger-button">
-                                  <MoreHorizontal className="action-trigger-icon" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem 
-                                  onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                                  className="flex items-center gap-2 cursor-pointer"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => handleOpenWorkflowModal(client)}
-                                  className="flex items-center gap-2 cursor-pointer"
-                                >
-                                  <TrendingUp className="h-4 w-4" />
-                                  Manage Workflow
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile Cards */}
-              <div className="block lg:hidden space-y-4 p-4">
-                {vatClients
-                  .sort((a, b) => {
-                    if (!currentSort) {
-                      // Default sort by deadline status priority
-                      const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
-                      const aStatus = getDeadlineStatus(a.nextVatReturnDue)
-                      const bStatus = getDeadlineStatus(b.nextVatReturnDue)
-                      return statusOrder[aStatus as keyof typeof statusOrder] - statusOrder[bStatus as keyof typeof statusOrder]
-                    }
-                    
-                    let aValue: any = a[currentSort as keyof VATClient]
-                    let bValue: any = b[currentSort as keyof VATClient]
-                    
-                    // Handle special sorting cases
-                    if (currentSort === 'assignedUser') {
-                      aValue = a.assignedUser?.name || ''
-                      bValue = b.assignedUser?.name || ''
-                    } else if (currentSort === 'nextVatReturnDue') {
-                      aValue = a.nextVatReturnDue ? new Date(a.nextVatReturnDue).getTime() : 0
-                      bValue = b.nextVatReturnDue ? new Date(b.nextVatReturnDue).getTime() : 0
-                    } else if (currentSort === 'status') {
-                      const statusOrder = { 'overdue': 0, 'urgent': 1, 'upcoming': 2, 'future': 3, 'unknown': 4 }
-                      aValue = statusOrder[getDeadlineStatus(a.nextVatReturnDue) as keyof typeof statusOrder]
-                      bValue = statusOrder[getDeadlineStatus(b.nextVatReturnDue) as keyof typeof statusOrder]
-                    }
-                    
-                    // Convert to string for consistent comparison
-                    if (typeof aValue === 'string' && typeof bValue === 'string') {
-                      aValue = aValue.toLowerCase()
-                      bValue = bValue.toLowerCase()
-                    }
-                    
-                    if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
-                    if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
-                    return 0
-                  })
-                  .map((client) => (
-                    <Card key={client.id} className="mobile-client-card">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1 min-w-0">
-                            <button
-                              onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                              className="text-left w-full group"
-                            >
-                              <h3 className="font-semibold text-sm truncate group-hover:text-primary" title={client.companyName}>
-                                {client.companyName}
-                              </h3>
-                              <p className="text-xs text-muted-foreground">
-                                {client.clientCode} • {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' : client.companyType}
-                              </p>
-                            </button>
-                          </div>
-                          <div className="ml-2">
-                            {renderStatusDisplay(client)}
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 text-xs">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Frequency:</span>
-                            {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Next Due:</span>
-                            <span className={`font-mono ${
-                              getDeadlineStatus(client.nextVatReturnDue) === 'overdue' ? 'text-red-600 font-medium' :
-                              getDeadlineStatus(client.nextVatReturnDue) === 'urgent' ? 'text-amber-600 font-medium' :
-                              'text-foreground'
-                            }`}>
-                              {formatDate(client.nextVatReturnDue)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Assigned To:</span>
-                            <span>{client.assignedUser?.name || 'Unassigned'}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between mt-3 pt-3 border-t">
-                          <div className="flex items-center gap-2">
-                            {client.contactEmail && (
-                              <button
-                                onClick={() => window.open(`mailto:${client.contactEmail}`, '_blank')}
-                                className="p-1 hover:bg-accent rounded transition-colors"
-                                title={client.contactEmail}
-                              >
-                                <Mail className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                              </button>
-                            )}
-                            {client.contactPhone && (
-                              <button
-                                onClick={() => window.open(`tel:${client.contactPhone}`, '_blank')}
-                                className="p-1 hover:bg-accent rounded transition-colors"
-                                title={client.contactPhone}
-                              >
-                                <Phone className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                              </button>
-                            )}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                            className="text-xs"
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            View
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-              </div>
-            </div>
-          )}
+            
+            {MONTHS.map((month) => (
+              <TabsContent key={month.key} value={month.key} className="mt-0">
+                {renderMonthContent(month.number)}
+              </TabsContent>
+            ))}
+          </Tabs>
         </CardContent>
       </Card>
 
