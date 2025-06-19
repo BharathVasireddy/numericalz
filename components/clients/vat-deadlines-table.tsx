@@ -153,8 +153,8 @@ export function VATDeadlinesTable() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [updateModalOpen, setUpdateModalOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<VATClient | null>(null)
-  const [selectedStage, setSelectedStage] = useState<string>('')
-  const [selectedAssignee, setSelectedAssignee] = useState<string>('')
+  const [selectedStage, setSelectedStage] = useState<string | undefined>(undefined)
+  const [selectedAssignee, setSelectedAssignee] = useState<string>('unassigned')
   const [updateComments, setUpdateComments] = useState<string>('')
   const [updating, setUpdating] = useState(false)
   const [activeMonth, setActiveMonth] = useState<string>('')
@@ -283,14 +283,14 @@ export function VATDeadlinesTable() {
 
   const handleAddUpdate = (client: VATClient) => {
     setSelectedClient(client)
-    setSelectedStage('')
-    setSelectedAssignee(client.vatAssignedUser?.id || '')
+    setSelectedStage(undefined)
+    setSelectedAssignee(client.vatAssignedUser?.id || 'unassigned')
     setUpdateComments('')
     setUpdateModalOpen(true)
   }
 
   const handleSubmitUpdate = async () => {
-    if (!selectedClient || (!selectedStage && selectedAssignee === (selectedClient?.vatAssignedUser?.id || ''))) {
+    if (!selectedClient || (!selectedStage && selectedAssignee === (selectedClient?.vatAssignedUser?.id || 'unassigned'))) {
       showToast.error('Please select a stage to update or assign a user')
       return
     }
@@ -298,12 +298,12 @@ export function VATDeadlinesTable() {
     setUpdating(true)
     try {
       // Handle assignment if assignee changed
-      if (selectedAssignee !== (selectedClient.vatAssignedUser?.id || '')) {
+      if (selectedAssignee !== (selectedClient.vatAssignedUser?.id || 'unassigned')) {
         const assignResponse = await fetch(`/api/clients/${selectedClient.id}/assign`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            userId: selectedAssignee || null,
+            userId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
             assignmentType: 'vat' 
           })
         })
@@ -722,7 +722,7 @@ export function VATDeadlinesTable() {
                     <SelectValue placeholder="Select assignee" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
                     {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         <div className="flex items-center gap-2">
@@ -738,7 +738,7 @@ export function VATDeadlinesTable() {
 
             <div>
               <Label htmlFor="stage">Workflow Stage (Optional)</Label>
-              <Select value={selectedStage} onValueChange={setSelectedStage}>
+              <Select value={selectedStage || undefined} onValueChange={setSelectedStage}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select stage to update" />
                 </SelectTrigger>
@@ -787,7 +787,7 @@ export function VATDeadlinesTable() {
             </Button>
             <Button 
               onClick={handleSubmitUpdate}
-              disabled={updating || (!selectedStage && selectedAssignee === (selectedClient?.vatAssignedUser?.id || ''))}
+              disabled={updating || (!selectedStage && selectedAssignee === (selectedClient?.vatAssignedUser?.id || 'unassigned'))}
             >
               {updating ? 'Updating...' : 'Update'}
             </Button>
