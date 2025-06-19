@@ -62,14 +62,12 @@ const calculateNextVATReturn = (quarterGroup: string): string => {
   // Safety check for TypeScript
   if (!nextEndMonth) return ''
   
-  // VAT return is due by the last day of the month following quarter end
-  // UK VAT Rule: Filing due by the last day of the month following the quarter end
+  // VAT return is due 1 month + 7 days after quarter end
+  // UK VAT Rule: Filing due 1 month and 7 days after quarter end
   const quarterEndDate = new Date(nextYear, nextEndMonth - 1, 0) // Last day of the quarter end month
   const dueDate = new Date(quarterEndDate)
-  dueDate.setMonth(dueDate.getMonth() + 1) // Move to next month
-  dueDate.setDate(1) // Go to first day of next month
-  dueDate.setMonth(dueDate.getMonth() + 1) // Move to month after that
-  dueDate.setDate(0) // Go back to last day of previous month (which is the month we want)
+  dueDate.setMonth(dueDate.getMonth() + 1) // Add 1 month
+  dueDate.setDate(dueDate.getDate() + 7)   // Add 7 days
   
   return dueDate.toISOString().split('T')[0] || '' // Return YYYY-MM-DD format
 }
