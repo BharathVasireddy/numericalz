@@ -73,7 +73,7 @@ interface DashboardData {
     id: string
     action: string
     clientName: string
-    timestamp: Date
+    timestamp: Date | string
     type: 'vat' | 'accounts' | 'ct' | 'general'
   }>
 }
@@ -324,7 +324,7 @@ export function StaffDashboard({ userId }: StaffDashboardProps) {
                         <div className="flex-1">
                           <p className="font-medium text-sm">{activity.action}</p>
                           <p className="text-xs text-muted-foreground">
-                            {activity.clientName} • {activity.timestamp.toLocaleDateString()}
+                            {activity.clientName} • {new Date(activity.timestamp).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
