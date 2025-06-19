@@ -138,20 +138,20 @@ type ComprehensiveStatus =
       nextDue?: string
     }
 
-// Month configuration
+// Month configuration - More compact for better fit
 const MONTHS = [
-  { key: 'jan', name: 'January', number: 1 },
-  { key: 'feb', name: 'February', number: 2 },
-  { key: 'mar', name: 'March', number: 3 },
-  { key: 'apr', name: 'April', number: 4 },
-  { key: 'may', name: 'May', number: 5 },
-  { key: 'jun', name: 'June', number: 6 },
-  { key: 'jul', name: 'July', number: 7 },
-  { key: 'aug', name: 'August', number: 8 },
-  { key: 'sep', name: 'September', number: 9 },
-  { key: 'oct', name: 'October', number: 10 },
-  { key: 'nov', name: 'November', number: 11 },
-  { key: 'dec', name: 'December', number: 12 }
+  { key: 'jan', name: 'January', short: 'Jan', number: 1 },
+  { key: 'feb', name: 'February', short: 'Feb', number: 2 },
+  { key: 'mar', name: 'March', short: 'Mar', number: 3 },
+  { key: 'apr', name: 'April', short: 'Apr', number: 4 },
+  { key: 'may', name: 'May', short: 'May', number: 5 },
+  { key: 'jun', name: 'June', short: 'Jun', number: 6 },
+  { key: 'jul', name: 'July', short: 'Jul', number: 7 },
+  { key: 'aug', name: 'August', short: 'Aug', number: 8 },
+  { key: 'sep', name: 'September', short: 'Sep', number: 9 },
+  { key: 'oct', name: 'October', short: 'Oct', number: 10 },
+  { key: 'nov', name: 'November', short: 'Nov', number: 11 },
+  { key: 'dec', name: 'December', short: 'Dec', number: 12 }
 ]
 
 // Quarter group to months mapping
@@ -230,7 +230,17 @@ export function VATDeadlineTable() {
     fetchAvailableUsers()
   }, [fetchVATClients, fetchAvailableUsers])
 
-  // Filter clients by selected month
+  // Helper function to safely find quarter group
+  const findQuarterGroup = (monthNumber: number): string => {
+    for (const [group, months] of Object.entries(QUARTER_GROUP_MONTHS)) {
+      if (months.includes(monthNumber)) {
+        return group
+      }
+    }
+    return 'unknown'
+  }
+
+  // Filter clients by selected month with month-specific workflow context
   const getClientsForMonth = (monthNumber: number) => {
     return vatClients.filter(client => {
       // Only show quarterly VAT clients with quarter groups
@@ -242,6 +252,81 @@ export function VATDeadlineTable() {
       const quarterMonths = QUARTER_GROUP_MONTHS[client.vatQuarterGroup] || []
       return quarterMonths.includes(monthNumber)
     })
+  }
+
+  // Month-aware comprehensive status - only show workflow for the correct quarter end month
+  const getMonthSpecificStatus = (client: VATClient, monthNumber: number): ComprehensiveStatus => {
+    const today = new Date()
+    
+    // If client has quarterly VAT and quarter group, calculate quarter info for this specific month
+    if (client.vatReturnsFrequency === 'QUARTERLY' && client.vatQuarterGroup) {
+      try {
+        // Calculate quarter info for the specific month being viewed
+        const quarterInfo = calculateVATQuarter(client.vatQuarterGroup, new Date(today.getFullYear(), monthNumber - 1, 1))
+        const quarterEndMonth = new Date(quarterInfo.quarterEndDate).getMonth() + 1
+        
+        // Only show workflow status if this month matches the quarter end month
+        if (quarterEndMonth === monthNumber) {
+          const daysUntilQuarterEnd = calculateDaysBetween(today, quarterInfo.quarterEndDate)
+          const daysUntilFiling = calculateDaysBetween(today, quarterInfo.filingDueDate)
+          
+          // Check if there's an active workflow for this specific quarter
+          const currentWorkflow = client.currentVATQuarter
+          
+          if (currentWorkflow && !currentWorkflow.isCompleted && 
+              currentWorkflow.quarterPeriod === quarterInfo.quarterPeriod) {
+            // Active workflow in progress for this quarter
+            return {
+              type: 'workflow',
+              stage: currentWorkflow.currentStage,
+              quarterInfo,
+              daysUntilQuarterEnd,
+              daysUntilFiling,
+              workflowAssignee: currentWorkflow.assignedUser
+            }
+          } else if (daysUntilQuarterEnd > 0) {
+            // Current quarter is still ongoing
+            return {
+              type: 'current_quarter',
+              quarterInfo,
+              daysUntilQuarterEnd,
+              daysUntilFiling
+            }
+          } else if (daysUntilFiling > 0) {
+            // Quarter ended, filing period active
+            return {
+              type: 'filing_period',
+              quarterInfo,
+              daysUntilFiling
+            }
+          } else {
+            // Filing overdue
+            return {
+              type: 'filing_overdue',
+              quarterInfo,
+              daysOverdue: Math.abs(daysUntilFiling)
+            }
+          }
+        } else {
+          // For non-quarter-end months, show basic upcoming status
+          return {
+            type: 'basic',
+            status: 'upcoming',
+            nextDue: quarterInfo.quarterEndDate.toISOString()
+          }
+        }
+      } catch (error) {
+        console.error('Error calculating quarter info:', error)
+      }
+    }
+    
+    // Fallback to basic deadline status
+    const deadlineStatus = getDeadlineStatus(client.nextVatReturnDue)
+    return {
+      type: 'basic',
+      status: deadlineStatus,
+      nextDue: client.nextVatReturnDue
+    }
   }
 
   const getDeadlineStatus = (nextVatReturnDue?: string) => {
@@ -376,9 +461,9 @@ export function VATDeadlineTable() {
     return stageMap[stage] || stage
   }
 
-  // Render the comprehensive status display
-  const renderStatusDisplay = (client: VATClient) => {
-    const status = getComprehensiveStatus(client)
+  // Render the comprehensive status display with month awareness
+  const renderStatusDisplay = (client: VATClient, monthNumber?: number) => {
+    const status = monthNumber ? getMonthSpecificStatus(client, monthNumber) : getComprehensiveStatus(client)
     
     // Helper function to get milestone tooltip content
     const getMilestoneTooltip = (currentQuarter?: VATClient['currentVATQuarter']) => {
@@ -621,13 +706,31 @@ export function VATDeadlineTable() {
     }
 
     if (monthClients.length === 0) {
+      const isCurrentMonth = monthNumber === new Date().getMonth() + 1
+      const quarterGroup = findQuarterGroup(monthNumber)
+      
       return (
-        <div className="text-center py-8 text-muted-foreground">
-          <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-          <p className="text-lg font-medium">No VAT clients for {monthName}</p>
-          <p className="text-sm mt-2">
-            Clients with quarterly VAT returns due in {monthName} will appear here.
-          </p>
+        <div className="text-center py-12 text-muted-foreground">
+          <Calendar className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
+          <p className="text-lg font-medium mb-2">No VAT clients for {monthName}</p>
+          <div className="space-y-2 text-sm max-w-md mx-auto">
+            <p>
+              Clients with quarterly VAT returns due in {monthName} will appear here.
+            </p>
+            {quarterGroup !== 'unknown' && (
+              <p>
+                This month belongs to the <Badge variant="outline" className="mx-1">{quarterGroup}</Badge> quarter group.
+              </p>
+            )}
+            {isCurrentMonth && quarterGroup !== 'unknown' && (
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border">
+                <p className="text-blue-800 font-medium">📅 Current Month</p>
+                <p className="text-blue-700 text-xs mt-1">
+                  Add clients with {quarterGroup} quarter group to see them here.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )
     }
@@ -726,7 +829,7 @@ export function VATDeadlineTable() {
                       {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
                     </td>
                     <td className="table-body-cell">
-                      {renderStatusDisplay(client)}
+                      {renderStatusDisplay(client, monthNumber)}
                     </td>
                     <td className="table-body-cell">
                       {client.assignedUser ? (
@@ -790,7 +893,7 @@ export function VATDeadlineTable() {
                     </button>
                   </div>
                   <div className="ml-2">
-                    {renderStatusDisplay(client)}
+                    {renderStatusDisplay(client, monthNumber)}
                   </div>
                 </div>
 
@@ -860,7 +963,11 @@ export function VATDeadlineTable() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">VAT Deadline Tracker</h1>
-          <p className="text-muted-foreground">Track VAT deadlines by month for quarterly clients</p>
+          <p className="text-muted-foreground">
+            Track VAT deadlines by month for quarterly clients • 
+            {vatClients.length} total clients • 
+            Current month: {MONTHS.find(m => m.number === new Date().getMonth() + 1)?.name}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -909,8 +1016,8 @@ export function VATDeadlineTable() {
                         value={month.key}
                         className="flex flex-col items-center gap-1 py-3 px-2 text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md transition-all hover:bg-background/50"
                       >
-                        <span className="font-semibold">
-                          {month.key.toUpperCase()}
+                        <span className="font-semibold text-[11px] leading-tight">
+                          {month.short}
                         </span>
                         {monthClients.length > 0 && (
                           <Badge 
