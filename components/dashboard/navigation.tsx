@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { LondonTime } from '@/components/ui/london-time'
 
 /**
  * Dashboard navigation component
@@ -29,7 +30,8 @@ import { Card } from '@/components/ui/card'
  * - Active state highlighting
  * - Mobile hamburger menu
  * - User profile and logout
- * - Logo integration
+ * - Official Numericalz logo integration
+ * - London time display in header
  * - Role-based navigation items
  */
 export function DashboardNavigation() {
@@ -199,13 +201,22 @@ export function DashboardNavigation() {
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
+      {/* Mobile Header */}
+      <div className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-background">
+        <div className="flex items-center gap-2">
+          <Image
+            src="/numericalz-logo-official.png"
+            alt="Numericalz"
+            width={24}
+            height={24}
+            className="flex-shrink-0"
+          />
+          <span className="font-semibold text-lg">Numericalz</span>
+        </div>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="bg-background/95 backdrop-blur-sm border-border"
         >
           {isMobileMenuOpen ? (
             <X className="h-4 w-4" />
@@ -231,10 +242,21 @@ export function DashboardNavigation() {
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center gap-2 p-4 border-b border-border flex-shrink-0">
-            <Building2 className="h-6 w-6 text-primary" />
-            <span className="font-semibold text-lg">Numericalz</span>
+          {/* Logo and Time */}
+          <div className="p-4 border-b border-border flex-shrink-0">
+            <div className="flex items-center gap-2 mb-3">
+              <Image
+                src="/numericalz-logo-official.png"
+                alt="Numericalz"
+                width={28}
+                height={28}
+                className="flex-shrink-0"
+              />
+              <span className="font-semibold text-lg">Numericalz</span>
+            </div>
+            <div className="ml-1">
+              <LondonTime />
+            </div>
           </div>
 
           {/* Navigation Links */}
