@@ -1,6 +1,8 @@
 /**
- * VAT Workflow Utilities
- * Handles UK VAT quarter calculations, deadline management, and workflow automation
+ * VAT Workflow Management System
+ * 
+ * Handles VAT quarter calculations, deadlines, and workflow stages
+ * All dates are calculated in London timezone (Europe/London) for UK compliance
  */
 
 export interface VATQuarterInfo {
@@ -12,20 +14,22 @@ export interface VATQuarterInfo {
 }
 
 /**
- * Calculate VAT quarter information based on quarter group and current date
+ * Calculate VAT quarter information based on quarter group and reference date
+ * All calculations use London timezone for UK compliance
  */
 export function calculateVATQuarter(
   quarterGroup: string,
   referenceDate: Date = new Date()
 ): VATQuarterInfo {
-  const currentDate = new Date(referenceDate)
-  const year = currentDate.getFullYear()
-  const month = currentDate.getMonth() + 1 // JavaScript months are 0-indexed
+  // Convert reference date to London timezone
+  const londonDate = new Date(referenceDate.toLocaleString('en-US', { timeZone: 'Europe/London' }))
+  const year = londonDate.getFullYear()
+  const month = londonDate.getMonth() + 1 // JavaScript months are 0-indexed
 
   let quarterEndMonth: number
   let quarterEndYear = year
 
-  // Handle quarter groups with underscore format (as per database schema)
+  // Handle quarter groups with underscore format
   switch (quarterGroup) {
     case "1_4_7_10":
       if (month <= 1) {
@@ -76,7 +80,7 @@ export function calculateVATQuarter(
       throw new Error(`Invalid quarter group: ${quarterGroup}. Expected format: "1_4_7_10", "2_5_8_11", or "3_6_9_12"`)
   }
 
-  // Calculate quarter end date (last day of the quarter month)
+  // Calculate quarter end date (last day of the quarter month) in London timezone
   const quarterEndDate = new Date(quarterEndYear, quarterEndMonth, 0) // Last day of quarterEndMonth
 
   // Calculate quarter start date (3 months before end date)
@@ -90,7 +94,7 @@ export function calculateVATQuarter(
   const filingDueDate = new Date(quarterEndYear, quarterEndMonth + 1, 0) // Last day of month after quarter end
 
   // Generate quarter period string
-  const quarterPeriod = `${formatDate(quarterStartDate)}_to_${formatDate(quarterEndDate)}`
+  const quarterPeriod = `${formatDateForLondon(quarterStartDate)}_to_${formatDateForLondon(quarterEndDate)}`
 
   return {
     quarterPeriod,
@@ -114,36 +118,45 @@ export function getNextVATQuarter(quarterGroup: string, currentQuarterEndDate: D
 
 /**
  * Check if a VAT quarter is overdue based on filing due date
+ * Uses London timezone for comparison
  */
 export function isVATQuarterOverdue(filingDueDate: Date): boolean {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const londonNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/London' }))
+  londonNow.setHours(0, 0, 0, 0)
   
   const dueDate = new Date(filingDueDate)
   dueDate.setHours(0, 0, 0, 0)
   
-  return today > dueDate
+  return londonNow > dueDate
 }
 
 /**
  * Get days until VAT filing deadline
+ * Uses London timezone for calculation
  */
 export function getDaysUntilVATDeadline(filingDueDate: Date): number {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const londonNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/London' }))
+  londonNow.setHours(0, 0, 0, 0)
   
   const dueDate = new Date(filingDueDate)
   dueDate.setHours(0, 0, 0, 0)
   
-  const diffTime = dueDate.getTime() - today.getTime()
+  const diffTime = dueDate.getTime() - londonNow.getTime()
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 }
 
 /**
- * Format date as YYYY-MM-DD
+ * Format date as YYYY-MM-DD in London timezone
+ */
+function formatDateForLondon(date: Date): string {
+  return date.toLocaleDateString('en-CA', { timeZone: 'Europe/London' }) // en-CA gives YYYY-MM-DD format
+}
+
+/**
+ * Format date as YYYY-MM-DD (legacy function for compatibility)
  */
 function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0]!
+  return formatDateForLondon(date)
 }
 
 /**
@@ -170,9 +183,9 @@ export function parseQuarterPeriod(quarterPeriod: string): {
 export function formatQuarterPeriodForDisplay(quarterPeriod: string): string {
   const { startDate, endDate } = parseQuarterPeriod(quarterPeriod)
   
-  const startMonth = startDate.toLocaleDateString('en-GB', { month: 'short' })
+  const startMonth = startDate.toLocaleDateString('en-GB', { month: 'short', timeZone: 'Europe/London' })
   const startYear = startDate.getFullYear()
-  const endMonth = endDate.toLocaleDateString('en-GB', { month: 'short' })
+  const endMonth = endDate.toLocaleDateString('en-GB', { month: 'short', timeZone: 'Europe/London' })
   const endYear = endDate.getFullYear()
   
   if (startYear === endYear) {
@@ -183,16 +196,17 @@ export function formatQuarterPeriodForDisplay(quarterPeriod: string): string {
 }
 
 /**
- * Calculate days between two dates
+ * Calculate days between two dates using London timezone
  */
 export function calculateDaysBetween(startDate: Date, endDate: Date): number {
-  const start = new Date(startDate)
-  start.setHours(0, 0, 0, 0)
+  // Convert both dates to London timezone for accurate calculation
+  const londonStart = new Date(startDate.toLocaleString('en-US', { timeZone: 'Europe/London' }))
+  londonStart.setHours(0, 0, 0, 0)
   
-  const end = new Date(endDate)
-  end.setHours(0, 0, 0, 0)
+  const londonEnd = new Date(endDate.toLocaleString('en-US', { timeZone: 'Europe/London' }))
+  londonEnd.setHours(0, 0, 0, 0)
   
-  const diffTime = end.getTime() - start.getTime()
+  const diffTime = londonEnd.getTime() - londonStart.getTime()
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 }
 

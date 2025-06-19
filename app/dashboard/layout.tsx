@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { DashboardNavigation } from '@/components/dashboard/navigation'
+import { LondonTime } from '@/components/ui/london-time'
 import { Loader2 } from 'lucide-react'
 
 /**
@@ -13,6 +14,7 @@ import { Loader2 } from 'lucide-react'
  * - Authentication verification before rendering
  * - Prevents layout shifts by showing loading state
  * - Sidebar navigation with full height
+ * - London time display in top-right corner
  * - Responsive design without horizontal scrolling
  * - Consistent layout for all dashboard pages
  * - Proper overflow handling
@@ -55,9 +57,17 @@ export default function DashboardLayout({
   return (
     <div className="h-screen bg-background flex overflow-hidden">
       <DashboardNavigation />
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top bar with London time */}
+        <div className="flex-shrink-0 flex justify-end items-center p-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <LondonTime />
+        </div>
+        
+        {/* Main content */}
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </div>
     </div>
   )
 } 
