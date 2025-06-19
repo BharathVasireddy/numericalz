@@ -16,7 +16,9 @@ import {
   X,
   Calendar,
   Briefcase,
-  BarChart3
+  BarChart3,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -26,13 +28,12 @@ import { LondonTime } from '@/components/ui/london-time'
  * Dashboard navigation component
  * 
  * Features:
- * - Responsive sidebar navigation
- * - Active state highlighting
- * - Mobile hamburger menu
- * - User profile and logout
- * - Official Numericalz logo integration
- * - London time display in header
+ * - Compact categorized navigation with submenus
+ * - Official Numericalz logo only (no text)
+ * - London time display below logo
+ * - Collapsible menu sections
  * - Role-based navigation items
+ * - Non-scrollable compact design
  */
 export function DashboardNavigation() {
   const { data: session, update } = useSession()
@@ -40,6 +41,7 @@ export function DashboardNavigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [currentUserName, setCurrentUserName] = useState<string>('')
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['dashboard', 'clients']))
 
   // Fetch fresh user data when component mounts or session changes
   useEffect(() => {
@@ -80,111 +82,131 @@ export function DashboardNavigation() {
     }
   }, [session?.user?.name])
 
-  // Get role-based navigation items
-  const getNavigationItems = () => {
-    // Each role gets their own specific dashboard URL
+  const toggleSection = (sectionId: string) => {
+    const newExpanded = new Set(expandedSections)
+    if (newExpanded.has(sectionId)) {
+      newExpanded.delete(sectionId)
+    } else {
+      newExpanded.add(sectionId)
+    }
+    setExpandedSections(newExpanded)
+  }
+
+  // Get compact categorized navigation structure
+  const getNavigationStructure = () => {
     const dashboardHref = session?.user?.role === 'PARTNER' 
       ? '/dashboard/partner'
       : session?.user?.role === 'MANAGER' 
         ? '/dashboard/manager'
         : '/dashboard/staff'
 
-    // Core navigation items - available to all users
-    const coreItems = [
+    const structure = [
       {
-        name: 'Dashboard',
-        href: dashboardHref,
+        id: 'dashboard',
+        title: 'Dashboard',
         icon: LayoutDashboard,
+        items: [
+          {
+            name: 'Overview',
+            href: dashboardHref,
+            icon: LayoutDashboard,
+          }
+        ]
+      },
+      {
+        id: 'clients',
+        title: 'Clients',
+        icon: Building2,
+        items: [
+          {
+            name: 'All Clients',
+            href: '/dashboard/clients',
+            icon: Building2,
+          },
+          {
+            name: 'Ltd Companies',
+            href: '/dashboard/clients/ltd-companies',
+            icon: Building2,
+          },
+          {
+            name: 'Non-Ltd Companies',
+            href: '/dashboard/clients/non-ltd-companies',
+            icon: Building2,
+          },
+          ...(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER' ? [{
+            name: 'Inactive Clients',
+            href: '/dashboard/clients/inactive',
+            icon: Building2,
+          }] : [])
+        ]
+      },
+      {
+        id: 'vat',
+        title: 'VAT Management',
+        icon: Calendar,
+        items: [
+          {
+            name: 'VAT Deadlines',
+            href: '/dashboard/clients/vat-dt',
+            icon: Calendar,
+          },
+          {
+            name: 'VAT Analytics',
+            href: '/dashboard/clients/vat-analytics',
+            icon: BarChart3,
+          }
+        ]
+      },
+      {
+        id: 'tools',
+        title: 'Tools',
+        icon: Briefcase,
+        items: [
+          {
+            name: 'Calendar',
+            href: '/dashboard/calendar',
+            icon: Calendar,
+          }
+        ]
       }
     ]
 
-    // Client management items - available to all users
-    const clientItems = [
-      {
-        name: 'All Clients',
-        href: '/dashboard/clients',
-        icon: Building2,
-      },
-      {
-        name: 'Ltd Companies',
-        href: '/dashboard/clients/ltd-companies',
-        icon: Building2,
-      },
-      {
-        name: 'Non Ltd Companies',
-        href: '/dashboard/clients/non-ltd-companies',
-        icon: Building2,
-      },
-      {
-        name: 'VAT Deadlines',
-        href: '/dashboard/clients/vat-dt',
-        icon: Calendar,
-      },
-      {
-        name: 'VAT Analytics',
-        href: '/dashboard/clients/vat-analytics',
-        icon: BarChart3,
-      },
-    ]
-
-    // Tools and utilities - available to all users
-    const toolItems = [
-      {
-        name: 'Deadline Calendar',
-        href: '/dashboard/calendar',
-        icon: Calendar,
-      },
-    ]
-
-    // Management items - Partner and Manager only
-    const managementItems = []
-    if (session?.user?.role === 'PARTNER') {
-      managementItems.push({
-        name: 'Staff Management',
-        href: '/dashboard/staff',
-        icon: Users,
-      })
-    }
-
-    // Settings - Role-based access
-    const settingsItems = []
-    if (session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') {
-      settingsItems.push({
-        name: 'Settings',
-        href: '/dashboard/settings',
-        icon: Settings,
-      })
-    }
-
-    // Build the navigation structure with categories
-    const navigationStructure = [
-      { type: 'section', items: coreItems },
-      { type: 'separator' },
-      { type: 'section', title: 'Clients', items: clientItems },
-      { type: 'separator' },
-      { type: 'section', title: 'Tools', items: toolItems },
-    ]
-
     // Add management section for Partner
-    if (managementItems.length > 0) {
-      navigationStructure.push(
-        { type: 'separator' },
-        { type: 'section', title: 'Management', items: managementItems }
-      )
+    if (session?.user?.role === 'PARTNER') {
+      structure.push({
+        id: 'management',
+        title: 'Management',
+        icon: Users,
+        items: [
+          {
+            name: 'Staff Management',
+            href: '/dashboard/staff',
+            icon: Users,
+          }
+        ]
+      })
     }
 
-    // Add settings section
-    if (settingsItems.length > 0) {
-      navigationStructure.push(
-        { type: 'separator' },
-        { type: 'section', title: 'System', items: settingsItems }
-      )
+    // Add settings section for Partner and Manager
+    if (session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') {
+      structure.push({
+        id: 'settings',
+        title: 'Settings',
+        icon: Settings,
+        items: [
+          {
+            name: 'System Settings',
+            href: '/dashboard/settings',
+            icon: Settings,
+          }
+        ]
+      })
     }
 
-    return navigationStructure
+    return structure
   }
 
-  const navigationStructure = getNavigationItems()
+  const navigationStructure = getNavigationStructure()
 
   const handleSignOut = () => {
     setShowSignOutConfirm(true)
@@ -199,10 +221,33 @@ export function DashboardNavigation() {
     setShowSignOutConfirm(false)
   }
 
+  const isItemActive = (href: string) => {
+    // Exact match
+    if (pathname === href) return true
+    
+    // Special case for dashboard - only exact match
+    if (href.endsWith('/dashboard') || href.endsWith('/dashboard/staff') || 
+        href.endsWith('/dashboard/manager') || href.endsWith('/dashboard/partner')) {
+      return pathname === href
+    }
+    
+    // Special case for main clients page - only exact match
+    if (href === '/dashboard/clients') {
+      return pathname === '/dashboard/clients'
+    }
+    
+    // For sub-pages, check if current path starts with the item href
+    if (pathname.startsWith(href + '/') || pathname.startsWith(href + '?')) {
+      return true
+    }
+    
+    return false
+  }
+
   return (
     <>
       {/* Mobile Header */}
-      <div className="lg:hidden flex items-center justify-between p-4 border-b border-border bg-background">
+      <div className="lg:hidden flex items-center justify-between p-3 border-b border-border bg-background">
         <div className="flex items-center gap-2">
           <Image
             src="/numericalz-logo-official.png"
@@ -211,7 +256,6 @@ export function DashboardNavigation() {
             height={24}
             className="flex-shrink-0"
           />
-          <span className="font-semibold text-lg">Numericalz</span>
         </div>
         <Button
           variant="ghost"
@@ -236,134 +280,101 @@ export function DashboardNavigation() {
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-background border-r border-border
+        fixed inset-y-0 left-0 z-40 w-56 bg-background border-r border-border
         transform transition-transform duration-300 ease-in-out
         lg:translate-x-0 lg:static lg:inset-0 lg:h-screen
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex flex-col h-full">
           {/* Logo and Time */}
-          <div className="p-4 border-b border-border flex-shrink-0">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="p-3 border-b border-border flex-shrink-0">
+            <div className="flex justify-center mb-2">
               <Image
                 src="/numericalz-logo-official.png"
                 alt="Numericalz"
-                width={28}
-                height={28}
+                width={32}
+                height={32}
                 className="flex-shrink-0"
               />
-              <span className="font-semibold text-lg">Numericalz</span>
             </div>
-            <div className="ml-1">
+            <div className="text-center">
               <LondonTime />
             </div>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="flex-1 overflow-y-auto p-4">
-            <ul className="space-y-1">
-              {navigationStructure.map((section, sectionIndex) => {
-                if (section.type === 'separator') {
-                  return (
-                    <li key={`separator-${sectionIndex}`} className="my-3">
-                      <hr className="nav-separator" />
-                    </li>
-                  )
-                }
+          {/* Compact Navigation */}
+          <nav className="flex-1 overflow-y-auto p-2">
+            <div className="space-y-1">
+              {navigationStructure.map((section) => {
+                const SectionIcon = section.icon
+                const isExpanded = expandedSections.has(section.id)
+                const hasActiveItem = section.items.some(item => isItemActive(item.href))
                 
-                if (section.type === 'section') {
-                  return (
-                    <li key={`section-${sectionIndex}`} className="space-y-1">
-                      {/* Section Title */}
-                      {section.title && (
-                        <div className="px-3 py-1">
-                          <p className="nav-section-title">
-                            {section.title}
-                          </p>
-                        </div>
+                return (
+                  <div key={section.id} className="space-y-1">
+                    {/* Section Header */}
+                    <button
+                      onClick={() => toggleSection(section.id)}
+                      className={`
+                        w-full flex items-center gap-2 px-2 py-1.5 text-xs font-medium
+                        rounded-md transition-colors duration-200
+                        ${hasActiveItem || isExpanded
+                          ? 'bg-primary/10 text-primary' 
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                        }
+                      `}
+                    >
+                      <SectionIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate flex-1 text-left">{section.title}</span>
+                      {isExpanded ? (
+                        <ChevronDown className="h-3 w-3 flex-shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-3 w-3 flex-shrink-0" />
                       )}
-                      
-                      {/* Section Items */}
-                      {section.items?.map((item) => {
-                        const Icon = item.icon
-                        // More precise active state detection
-                        const isActive = (() => {
-                          // Exact match
-                          if (pathname === item.href) return true
+                    </button>
+                    
+                    {/* Section Items */}
+                    {isExpanded && (
+                      <div className="ml-4 space-y-0.5">
+                        {section.items.map((item) => {
+                          const ItemIcon = item.icon
+                          const isActive = isItemActive(item.href)
                           
-                          // Special case for dashboard - only exact match
-                          if (item.href.endsWith('/dashboard') || item.href.endsWith('/dashboard/staff') || 
-                              item.href.endsWith('/dashboard/manager') || item.href.endsWith('/dashboard/partner')) {
-                            return pathname === item.href
-                          }
-                          
-                          // Special case for main clients page - only exact match
-                          if (item.href === '/dashboard/clients') {
-                            return pathname === '/dashboard/clients'
-                          }
-                          
-                          // For sub-pages, check if current path starts with the item href
-                          // but ensure we're not matching a parent when a more specific child exists
-                          if (pathname.startsWith(item.href + '/') || pathname.startsWith(item.href + '?')) {
-                            return true
-                          }
-                          
-                          return false
-                        })()
-
-                        return (
-                          <Link
-                            key={item.name}
-                            href={item.href}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                            className={`nav-item ${isActive ? 'nav-item-active' : 'nav-item-inactive'}`}
-                          >
-                            <Icon className="h-4 w-4 flex-shrink-0" />
-                            <span className="truncate">{item.name}</span>
-                          </Link>
-                        )
-                      })}
-                    </li>
-                  )
-                }
-                
-                return null
+                          return (
+                            <Link
+                              key={item.name}
+                              href={item.href}
+                              onClick={() => setIsMobileMenuOpen(false)}
+                              className={`
+                                flex items-center gap-2 px-2 py-1.5 text-xs rounded-md
+                                transition-colors duration-200 w-full
+                                ${isActive
+                                  ? 'bg-primary text-primary-foreground font-medium' 
+                                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                }
+                              `}
+                            >
+                              <ItemIcon className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{item.name}</span>
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
               })}
-            </ul>
+            </div>
           </nav>
 
-          {/* Inactive Clients - Partner and Manager Only (Above separator) */}
-          {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
-            <div className="px-4 flex-shrink-0">
-              <Link
-                href="/dashboard/clients/inactive"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={`
-                  flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium
-                  transition-colors duration-200 w-full
-                  ${pathname === '/dashboard/clients/inactive'
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  }
-                `}
-              >
-                <Building2 className="h-4 w-4 flex-shrink-0" />
-                <span className="truncate">Inactive Clients</span>
-              </Link>
-            </div>
-          )}
-
-          {/* User Actions */}
-          <div className="p-4 border-t border-border space-y-3 flex-shrink-0">
+          {/* Compact User Section */}
+          <div className="p-2 border-t border-border space-y-2 flex-shrink-0">
             {/* User Info */}
-            <div className="px-3 py-2 rounded-sm bg-muted/50">
-              <p className="text-sm font-medium text-foreground truncate">
+            <div className="px-2 py-1.5 rounded-sm bg-muted/30">
+              <p className="text-xs font-medium text-foreground truncate">
                 {currentUserName || session?.user?.name || 'User'}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {session?.user?.email || 'No email'}
-              </p>
-              <p className="text-xs text-muted-foreground capitalize">
                 {session?.user?.role?.toLowerCase() || 'staff'}
               </p>
             </div>
@@ -373,9 +384,9 @@ export function DashboardNavigation() {
               variant="outline"
               size="sm"
               onClick={handleSignOut}
-              className="w-full border-orange-700 text-orange-700 hover:bg-orange-50 hover:text-orange-800 hover:border-orange-800"
+              className="w-full h-7 text-xs border-orange-700 text-orange-700 hover:bg-orange-50 hover:text-orange-800 hover:border-orange-800"
             >
-              <LogOut className="h-4 w-4 mr-2 flex-shrink-0" />
+              <LogOut className="h-3 w-3 mr-1.5 flex-shrink-0" />
               <span className="truncate">Sign Out</span>
             </Button>
           </div>
