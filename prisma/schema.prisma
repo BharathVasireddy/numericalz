@@ -19,7 +19,13 @@ model User {
   updatedAt          DateTime        @updatedAt
   accounts           Account[]
   activityLogs       ActivityLog[]
-  assignedClients    Client[]
+  
+  // ENHANCED ASSIGNMENT RELATIONS - Different client assignments for different work types
+  assignedClients           Client[]  @relation("ClientAssignedUser")
+  ltdCompanyAssignedClients Client[]  @relation("ClientLtdAssignedUser")
+  nonLtdCompanyAssignedClients Client[] @relation("ClientNonLtdAssignedUser")
+  vatAssignedClients        Client[]  @relation("ClientVATAssignedUser")
+  
   sentCommunications Communication[]
   notifications      Notification[]
   sessions           Session[]
@@ -36,18 +42,23 @@ model User {
 
 model Client {
   id                            String          @id @default(cuid())
-  clientCode                    String?         @unique
-  companyName                   String
+  clientCode                    String          @unique
   companyNumber                 String?         @unique
-  companyType                   String
+  companyName                   String
+  companyType                   String?
   companyStatus                 String?
   companyStatusDetail           String?
   incorporationDate             DateTime?
   cessationDate                 DateTime?
   registeredOfficeAddress       String?
-  tradingAddress                String?
-  residentialAddress            String?
+  registeredOfficeAddressLine1  String?
+  registeredOfficeAddressLine2  String?
+  registeredOfficeAddressCity   String?
+  registeredOfficeAddressCounty String?
+  registeredOfficeAddressPostCode String?
+  registeredOfficeAddressCountry String?
   sicCodes                      String?
+  natureOfBusiness              String?
   nextAccountsDue               DateTime?
   lastAccountsMadeUpTo          DateTime?
   accountingReferenceDate       String?
@@ -55,7 +66,7 @@ model Client {
   lastConfirmationMadeUpTo      DateTime?
   nextCorporationTaxDue         DateTime?
   // Corporation Tax tracking fields
-  corporationTaxStatus          String?         @default("PENDING") // PENDING, FILED, OVERDUE
+  corporationTaxStatus          String?         @default("UNKNOWN") // UNKNOWN, CURRENT, OVERDUE, DORMANT
   corporationTaxPeriodStart     DateTime?       // Start of current CT period
   corporationTaxPeriodEnd       DateTime?       // End of current CT period (year end)
   manualCTDueOverride           DateTime?       // Manual override by accountant
@@ -78,7 +89,13 @@ model Client {
   numberOfEmployees             Int?
   annualTurnover                Float?
   paperworkFrequency            String?
-  assignedUserId                String?
+  
+  // ENHANCED ASSIGNMENT SYSTEM - Different staff for different work types
+  assignedUserId                String?         // General assignment (legacy, kept for compatibility)
+  ltdCompanyAssignedUserId      String?         // Staff assigned for Ltd company accounts work
+  nonLtdCompanyAssignedUserId   String?         // Staff assigned for Non-Ltd company accounts work
+  vatAssignedUserId             String?         // Staff assigned for VAT work
+  
   isActive                      Boolean         @default(true)
   notes                         String?
   createdAt                     DateTime        @default(now())
@@ -132,11 +149,20 @@ model Client {
   // Service management fields
   handlesAnnualAccounts         Boolean         @default(true)  // Whether we handle their annual accounts
   activityLogs                  ActivityLog[]
-  assignedUser                  User?           @relation(fields: [assignedUserId], references: [id])
+  
+  // ENHANCED ASSIGNMENT RELATIONS
+  assignedUser                  User?           @relation("ClientAssignedUser", fields: [assignedUserId], references: [id])
+  ltdCompanyAssignedUser        User?           @relation("ClientLtdAssignedUser", fields: [ltdCompanyAssignedUserId], references: [id])
+  nonLtdCompanyAssignedUser     User?           @relation("ClientNonLtdAssignedUser", fields: [nonLtdCompanyAssignedUserId], references: [id])
+  vatAssignedUser               User?           @relation("ClientVATAssignedUser", fields: [vatAssignedUserId], references: [id])
+  
   communications                Communication[]
 
   @@index([companyNumber])
   @@index([assignedUserId])
+  @@index([ltdCompanyAssignedUserId])
+  @@index([nonLtdCompanyAssignedUserId])
+  @@index([vatAssignedUserId])
   @@index([isActive])
   @@index([companyType])
   @@index([companyStatus])

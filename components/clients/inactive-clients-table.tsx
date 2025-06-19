@@ -28,7 +28,7 @@ interface InactiveClient {
   id: string
   clientCode: string | null
   companyName: string
-  companyType: string
+  companyType: string | null
   companyNumber: string | null
   updatedAt: Date
   assignedUser: {
@@ -178,7 +178,9 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
     }
   }
 
-  const getCompanyTypeLabel = (type: string) => {
+  const getCompanyTypeLabel = (type: string | null) => {
+    if (!type) return 'Unknown'
+    
     switch (type) {
       case 'LIMITED_COMPANY':
         return 'Ltd'

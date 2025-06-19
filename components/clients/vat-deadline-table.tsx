@@ -18,7 +18,7 @@ import Link from 'next/link'
 import { showToast } from '@/lib/toast'
 import { calculateVATQuarter, getDaysUntilVATDeadline, calculateDaysBetween } from '@/lib/vat-workflow'
 import { VATWorkflowModal } from './vat-workflow-modal'
-import { VATBulkOperations } from './vat-bulk-operations'
+
 
 interface VATClient {
   id: string
@@ -32,11 +32,15 @@ interface VATClient {
   nextVatReturnDue?: string
   isVatEnabled: boolean
   createdAt: string // Client creation date
-  assignedUser?: {
+  
+  // ENHANCED ASSIGNMENT - Show VAT-specific assignee
+  vatAssignedUser?: {
     id: string
     name: string
     email: string
+    role: string
   }
+  
   // Current VAT quarter workflow info
   currentVATQuarter?: {
     id: string
@@ -50,6 +54,7 @@ interface VATClient {
       id: string
       name: string
       email: string
+      role: string
     }
     // Milestone dates
     chaseStartedDate?: string
@@ -83,42 +88,48 @@ function SortableHeader({ children, sortKey, currentSort, sortOrder, onSort, cla
   const isActive = currentSort === sortKey
   
   return (
-    <th 
-      className={`table-header-cell cursor-pointer hover:text-foreground ${className}`}
+    <button
       onClick={() => onSort(sortKey)}
+      className={`flex items-center gap-1 hover:text-foreground transition-colors ${className} ${
+        isActive ? 'text-foreground' : 'text-muted-foreground'
+      }`}
     >
-      <div className="flex items-center gap-1">
-        <span>{children}</span>
-        {isActive ? (
-          sortOrder === 'asc' ? (
-            <ChevronUp className="h-3 w-3" />
-          ) : (
-            <ChevronDown className="h-3 w-3" />
-          )
-        ) : (
-          <ArrowUpDown className="h-3 w-3 opacity-50" />
-        )}
-      </div>
-    </th>
+      {children}
+      {isActive && (
+        sortOrder === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+      )}
+    </button>
   )
 }
 
 // Define types for comprehensive status
 type ComprehensiveStatus = 
   | {
-      type: 'workflow'
+      type: 'quarter_end_month'
       stage: string
       quarterInfo: any
       daysUntilQuarterEnd: number
+      workflowAssignee?: {
+        id: string
+        name: string
+        email: string
+        role: string
+      }
+    }
+  | {
+      type: 'filing_month'
+      stage: string
+      quarterInfo: any
       daysUntilFiling: number
       workflowAssignee?: {
         id: string
         name: string
         email: string
+        role: string
       }
     }
   | {
-      type: 'current_quarter'
+      type: 'quarter_ongoing'
       quarterInfo: any
       daysUntilQuarterEnd: number
       daysUntilFiling: number
@@ -160,7 +171,14 @@ const MONTHS = [
   { key: 'dec', name: 'December', short: 'Dec', number: 12 }
 ]
 
-// Quarter group to months mapping
+// Quarter group to filing months mapping (month AFTER quarter end)
+const QUARTER_GROUP_FILING_MONTHS: { [key: string]: number[] } = {
+  '1_4_7_10': [2, 5, 8, 11], // Feb, May, Aug, Nov (filing months after Jan, Apr, Jul, Oct)
+  '2_5_8_11': [3, 6, 9, 12], // Mar, Jun, Sep, Dec (filing months after Feb, May, Aug, Nov)
+  '3_6_9_12': [4, 7, 10, 1]  // Apr, Jul, Oct, Jan (filing months after Mar, Jun, Sep, Dec)
+}
+
+// Quarter group to quarter end months mapping (for reference)
 const QUARTER_GROUP_MONTHS: { [key: string]: number[] } = {
   '1_4_7_10': [1, 4, 7, 10], // Jan, Apr, Jul, Oct
   '2_5_8_11': [2, 5, 8, 11], // Feb, May, Aug, Nov
@@ -252,7 +270,7 @@ export function VATDeadlineTable() {
     return quarterEndDate < clientCreatedDate
   }
 
-  // Filter clients by selected month with month-specific workflow context
+  // Filter clients by selected month - show clients in their FILING MONTH (month after quarter end)
   const getClientsForMonth = (monthNumber: number) => {
     return vatClients.filter(client => {
       // Only show quarterly VAT clients with quarter groups
@@ -260,25 +278,56 @@ export function VATDeadlineTable() {
         return false
       }
 
-      // Check if this client's quarter group includes the selected month
-      const quarterMonths = QUARTER_GROUP_MONTHS[client.vatQuarterGroup] || []
-      return quarterMonths.includes(monthNumber)
+      // Check if this client's quarter group includes the selected month as a FILING MONTH
+      const filingMonths = QUARTER_GROUP_FILING_MONTHS[client.vatQuarterGroup] || []
+      return filingMonths.includes(monthNumber)
     })
   }
 
-  // Month-aware comprehensive status - only show workflow for the correct quarter end month
+  // Get filing due count for a specific month
+  const getFilingDueCount = (monthNumber: number) => {
+    return getClientsForMonth(monthNumber).length
+  }
+
+  // Get stage analytics for all clients
+  const getStageAnalytics = () => {
+    const analytics: { [key: string]: number } = {}
+    
+    vatClients.forEach(client => {
+      if (client.currentVATQuarter && !client.currentVATQuarter.isCompleted) {
+        const stage = client.currentVATQuarter.currentStage || 'unknown'
+        analytics[stage] = (analytics[stage] || 0) + 1
+      } else {
+        analytics['no_active_workflow'] = (analytics['no_active_workflow'] || 0) + 1
+      }
+    })
+    
+    return analytics
+  }
+
+  // Month-aware comprehensive status - show workflow for filing months (month after quarter end)
   const getMonthSpecificStatus = (client: VATClient, monthNumber: number): ComprehensiveStatus => {
     const today = new Date()
     
     // If client has quarterly VAT and quarter group, calculate quarter info for this specific month
     if (client.vatReturnsFrequency === 'QUARTERLY' && client.vatQuarterGroup) {
       try {
-        // Calculate quarter info for the specific month being viewed
-        const quarterInfo = calculateVATQuarter(client.vatQuarterGroup, new Date(today.getFullYear(), monthNumber - 1, 1))
-        const quarterEndMonth = new Date(quarterInfo.quarterEndDate).getMonth() + 1
+        // Find the quarter group that ends in the month before this filing month
+        const quarterEndMonth = QUARTER_GROUP_MONTHS[client.vatQuarterGroup]?.find(m => {
+          // Filing month is the month after quarter end
+          return (m % 12) + 1 === monthNumber || (m === 12 && monthNumber === 1)
+        })
         
-        // Only show workflow status if this month matches the quarter end month
-        if (quarterEndMonth === monthNumber) {
+        if (quarterEndMonth !== undefined) {
+          // Calculate quarter info for the quarter that ends in the corresponding month
+          // Handle year wraparound for January filing (December quarter end)
+          let quarterYear = today.getFullYear()
+          if (monthNumber === 1 && quarterEndMonth === 12) {
+            quarterYear = today.getFullYear() - 1
+          }
+          
+          const quarterInfo = calculateVATQuarter(client.vatQuarterGroup, new Date(quarterYear, quarterEndMonth - 1, 1))
+          
           // Check if this is a historical quarter (before client was added to system)
           if (isHistoricalQuarter(client, quarterInfo.quarterEndDate)) {
             return {
@@ -288,7 +337,6 @@ export function VATDeadlineTable() {
             }
           }
 
-          const daysUntilQuarterEnd = calculateDaysBetween(today, quarterInfo.quarterEndDate)
           const daysUntilFiling = calculateDaysBetween(today, quarterInfo.filingDueDate)
           
           // Check if there's an active workflow for this specific quarter
@@ -296,22 +344,13 @@ export function VATDeadlineTable() {
           
           if (currentWorkflow && !currentWorkflow.isCompleted && 
               currentWorkflow.quarterPeriod === quarterInfo.quarterPeriod) {
-            // Active workflow in progress for this quarter
+            // Active workflow in progress for this quarter - show in filing month
             return {
-              type: 'workflow',
+              type: 'filing_month',
               stage: currentWorkflow.currentStage,
               quarterInfo,
-              daysUntilQuarterEnd,
               daysUntilFiling,
               workflowAssignee: currentWorkflow.assignedUser
-            }
-          } else if (daysUntilQuarterEnd > 0) {
-            // Current quarter is still ongoing
-            return {
-              type: 'current_quarter',
-              quarterInfo,
-              daysUntilQuarterEnd,
-              daysUntilFiling
             }
           } else if (daysUntilFiling > 0) {
             // Quarter ended, filing period active
@@ -329,11 +368,10 @@ export function VATDeadlineTable() {
             }
           }
         } else {
-          // For non-quarter-end months, show basic upcoming status
+          // Not a filing month for this client
           return {
             type: 'basic',
-            status: 'upcoming',
-            nextDue: quarterInfo.quarterEndDate.toISOString()
+            status: 'not_applicable'
           }
         }
       } catch (error) {
@@ -423,17 +461,16 @@ export function VATDeadlineTable() {
         if (currentWorkflow && !currentWorkflow.isCompleted) {
           // Active workflow in progress
           return {
-            type: 'workflow',
+            type: 'quarter_end_month',
             stage: currentWorkflow.currentStage,
             quarterInfo,
             daysUntilQuarterEnd,
-            daysUntilFiling,
             workflowAssignee: currentWorkflow.assignedUser
           }
         } else if (daysUntilQuarterEnd > 0) {
           // Current quarter is still ongoing
           return {
-            type: 'current_quarter',
+            type: 'quarter_ongoing',
             quarterInfo,
             daysUntilQuarterEnd,
             daysUntilFiling
@@ -519,7 +556,7 @@ export function VATDeadlineTable() {
     }
 
     switch (status.type) {
-      case 'workflow':
+      case 'quarter_end_month':
         const milestoneTooltip = getMilestoneTooltip(client.currentVATQuarter)
         const latestMilestone = (() => {
           const quarter = client.currentVATQuarter
@@ -542,8 +579,8 @@ export function VATDeadlineTable() {
         return (
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {formatWorkflowStage(status.stage)}
+              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                Quarter End Month
               </Badge>
               {status.workflowAssignee && (
                 <span className="text-xs text-muted-foreground">
@@ -552,8 +589,7 @@ export function VATDeadlineTable() {
               )}
             </div>
             <div className="text-xs text-muted-foreground">
-              Q: {status.daysUntilQuarterEnd > 0 ? `${status.daysUntilQuarterEnd}d` : 'Ended'} • 
-              Filing: {status.daysUntilFiling > 0 ? `${status.daysUntilFiling}d` : `${Math.abs(status.daysUntilFiling)}d overdue`}
+              {formatWorkflowStage(status.stage)} • Q: {status.daysUntilQuarterEnd > 0 ? `${status.daysUntilQuarterEnd}d` : 'Ended'}
             </div>
             {latestMilestone && (
               <div 
@@ -566,7 +602,53 @@ export function VATDeadlineTable() {
           </div>
         )
 
-      case 'current_quarter':
+      case 'filing_month':
+        const filingMilestoneTooltip = getMilestoneTooltip(client.currentVATQuarter)
+        const filingLatestMilestone = (() => {
+          const quarter = client.currentVATQuarter
+          if (!quarter) return null
+          
+          // Find the most recent milestone date
+          const milestones = [
+            { date: quarter.filedToHMRCDate, label: 'Filed' },
+            { date: quarter.clientApprovedDate, label: 'Approved' },
+            { date: quarter.sentToClientDate, label: 'Sent' },
+            { date: quarter.workFinishedDate, label: 'Finished' },
+            { date: quarter.workStartedDate, label: 'Started' },
+            { date: quarter.paperworkReceivedDate, label: 'Received' },
+            { date: quarter.chaseStartedDate, label: 'Chase' }
+          ].filter(m => m.date).sort((a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime())
+          
+          return milestones[0] || null
+        })()
+
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700">
+                Filing Month
+              </Badge>
+              {status.workflowAssignee && (
+                <span className="text-xs text-muted-foreground">
+                  ({status.workflowAssignee.name})
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {formatWorkflowStage(status.stage)} • Filing: {status.daysUntilFiling > 0 ? `${status.daysUntilFiling}d` : 'Due'}
+            </div>
+            {filingLatestMilestone && (
+              <div 
+                className="text-xs text-orange-600 cursor-help"
+                title={filingMilestoneTooltip || undefined}
+              >
+                Latest: {filingLatestMilestone.label} ({formatDate(filingLatestMilestone.date)})
+              </div>
+            )}
+          </div>
+        )
+
+      case 'quarter_ongoing':
         return (
           <div className="space-y-1">
             <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
@@ -810,7 +892,7 @@ export function VATDeadlineTable() {
                 <th className="table-header-cell col-vat-status">Status</th>
                 <th className="table-header-cell col-vat-contact">Contact</th>
                 <SortableHeader sortKey="assignedUser" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-assigned">
-                  Assigned To
+                  VAT Assigned
                 </SortableHeader>
                 <th className="table-header-cell col-vat-actions">Actions</th>
               </tr>
@@ -860,8 +942,8 @@ export function VATDeadlineTable() {
                     </div>
                   </td>
                   <td className="table-cell col-vat-assigned">
-                    <span className="truncate text-xs" title={client.assignedUser?.name || 'Unassigned'}>
-                      {client.assignedUser?.name || 'Unassigned'}
+                    <span className="truncate text-xs" title={client.vatAssignedUser?.name || 'Unassigned'}>
+                      {client.vatAssignedUser?.name || 'Unassigned'}
                     </span>
                   </td>
                   <td className="table-cell col-vat-actions">
@@ -953,8 +1035,8 @@ export function VATDeadlineTable() {
                     </div>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Assigned:</span>
-                    <p className="mt-1 truncate">{client.assignedUser?.name || 'Unassigned'}</p>
+                    <span className="text-muted-foreground">VAT Assigned:</span>
+                    <p className="mt-1 truncate">{client.vatAssignedUser?.name || 'Unassigned'}</p>
                   </div>
                 </div>
 
@@ -1030,36 +1112,70 @@ export function VATDeadlineTable() {
                 <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
-              <VATBulkOperations 
-                clients={vatClients}
-                availableUsers={availableUsers}
-                onComplete={() => {
-                  hasFetchedRef.current = false
-                  fetchVATClients()
-                }}
-              />
             </div>
           </div>
+
+          {/* Stage Analytics Dashboard */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                VAT Workflow Analytics
+              </CardTitle>
+              <CardDescription>
+                Current workflow stage distribution across all VAT clients
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {(() => {
+                  const analytics = getStageAnalytics()
+                  const stageLabels: { [key: string]: { label: string; color: string } } = {
+                    'CHASE_STARTED': { label: 'Chase Started', color: 'bg-blue-100 text-blue-800' },
+                    'PAPERWORK_RECEIVED': { label: 'Paperwork Received', color: 'bg-green-100 text-green-800' },
+                    'WORK_STARTED': { label: 'Work Started', color: 'bg-yellow-100 text-yellow-800' },
+                    'WORK_FINISHED': { label: 'Work Finished', color: 'bg-purple-100 text-purple-800' },
+                    'SENT_TO_CLIENT': { label: 'Sent to Client', color: 'bg-orange-100 text-orange-800' },
+                    'CLIENT_APPROVED': { label: 'Client Approved', color: 'bg-indigo-100 text-indigo-800' },
+                    'FILED_TO_HMRC': { label: 'Filed to HMRC', color: 'bg-emerald-100 text-emerald-800' },
+                    'no_active_workflow': { label: 'No Active Workflow', color: 'bg-gray-100 text-gray-800' }
+                  }
+                  
+                  return Object.entries(analytics).map(([stage, count]) => {
+                    const stageInfo = stageLabels[stage] || { label: stage, color: 'bg-gray-100 text-gray-800' }
+                    return (
+                      <div key={stage} className="text-center">
+                        <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full ${stageInfo.color} font-bold text-lg`}>
+                          {count}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2 leading-tight">
+                          {stageInfo.label}
+                        </p>
+                      </div>
+                    )
+                  })
+                })()}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Month-based Tabs */}
           <Card>
             <CardHeader className="pb-4">
-              <CardTitle>VAT Deadlines by Month</CardTitle>
+              <CardTitle>VAT Filing Schedule</CardTitle>
               <CardDescription>
-                Clients are shown in their quarter end months. 
-                3/6/9/12 group appears in Mar/Jun/Sep/Dec, 
-                1/4/7/10 group appears in Jan/Apr/Jul/Oct, 
-                2/5/8/11 group appears in Feb/May/Aug/Nov.
+                Clients shown in their VAT filing months (month after quarter end). 
+                Example: Quarter ending June 30th → Filing due in July.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <Tabs value={activeMonth} onValueChange={setActiveMonth} className="w-full">
-                {/* Month Tabs - Better Aligned */}
+                {/* Month Tabs with Filing Due Counts */}
                 <div className="border-b bg-muted/30">
                   <div className="px-6 py-3">
                     <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12 h-auto bg-transparent p-0 gap-1">
                       {MONTHS.map((month) => {
-                        const monthClients = getClientsForMonth(month.number)
+                        const filingDueCount = getFilingDueCount(month.number)
                         return (
                           <TabsTrigger 
                             key={month.key} 
@@ -1069,13 +1185,20 @@ export function VATDeadlineTable() {
                             <span className="font-semibold text-[11px] leading-tight">
                               {month.short}
                             </span>
-                            {monthClients.length > 0 && (
-                              <Badge 
-                                variant="secondary" 
-                                className="h-5 w-auto min-w-[20px] px-1.5 text-[10px] font-medium bg-primary/10 text-primary border-0"
-                              >
-                                {monthClients.length}
-                              </Badge>
+                            {filingDueCount > 0 ? (
+                              <div className="flex flex-col items-center gap-0.5">
+                                <Badge 
+                                  variant="secondary" 
+                                  className="h-5 w-auto min-w-[20px] px-1.5 text-[10px] font-medium bg-orange-100 text-orange-800 border-0"
+                                >
+                                  {filingDueCount}
+                                </Badge>
+                                <span className="text-[9px] text-muted-foreground leading-none">
+                                  filing{filingDueCount !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="h-5" />
                             )}
                           </TabsTrigger>
                         )

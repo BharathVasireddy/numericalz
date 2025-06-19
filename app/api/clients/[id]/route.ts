@@ -88,6 +88,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const body = await request.json()
     
+    // 🛡️ CRITICAL PROTECTION: Client codes can NEVER be modified
+    if (body.clientCode !== undefined) {
+      return NextResponse.json(
+        { success: false, error: 'Client codes cannot be modified once assigned' },
+        { status: 400 }
+      )
+    }
+
     // Debug logging
     console.log('🔍 PUT /api/clients/[id] - Received body:', JSON.stringify(body, null, 2))
     console.log('🔍 PUT /api/clients/[id] - Client ID:', params.id)

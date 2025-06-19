@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
-import { VATDeadlineTable } from '@/components/clients/vat-deadline-table'
+import { VATDeadlinesTable } from '@/components/clients/vat-deadlines-table'
 
 export const metadata = {
   title: 'VAT Deadline Tracker | Numericalz',
@@ -17,22 +17,8 @@ export default async function VATDeadlineTrackerPage() {
   }
 
   return (
-    <div className="page-container">
-      <div className="content-wrapper">
-        <div className="content-sections">
-          <Suspense fallback={<div>Loading...</div>}>
-            <VATDeadlineContent />
-          </Suspense>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function VATDeadlineContent() {
-  return (
-    <div className="space-y-6">
-      <VATDeadlineTable />
-    </div>
+    <Suspense fallback={<div>Loading...</div>}>
+      <VATDeadlinesTable />
+    </Suspense>
   )
 } 

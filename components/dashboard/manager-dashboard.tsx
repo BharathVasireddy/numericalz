@@ -34,7 +34,7 @@ interface ManagerDashboardProps {
       id: string
       clientCode: string
       companyName: string
-      companyType: string
+      companyType: string | null
       createdAt: string
       assignedUser?: {
         name: string
@@ -281,7 +281,7 @@ export function ManagerDashboard({ data }: ManagerDashboardProps) {
                         <div>
                           <p className="font-medium text-sm">{client.companyName}</p>
                           <p className="text-xs text-muted-foreground">
-                            {client.clientCode} • {client.companyType.replace('_', ' ')}
+                            {client.clientCode} • {client.companyType?.replace('_', ' ') || 'Unknown'}
                           </p>
                         </div>
                       </div>

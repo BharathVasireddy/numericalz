@@ -72,7 +72,7 @@ interface StaffMember {
   assignedClients?: Array<{
     id: string
     companyName: string
-    companyType: string
+    companyType: string | null
     nextAccountsDue: Date | null
     nextConfirmationDue: Date | null
   }>

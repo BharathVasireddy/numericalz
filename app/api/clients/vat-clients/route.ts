@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
  * GET /api/clients/vat-clients
  * 
  * Get all clients with VAT enabled for the VAT deadline tracker
- * Includes current VAT quarter workflow information
+ * Includes current VAT quarter workflow information and VAT-specific assignee
  */
 export async function GET(request: NextRequest) {
   try {
@@ -29,9 +29,12 @@ export async function GET(request: NextRequest) {
       isActive: true
     }
 
-    // Staff can only see their assigned clients
+    // Staff can only see their assigned clients (check both general and VAT-specific assignment)
     if (session.user.role === 'STAFF') {
-      whereClause.assignedUserId = session.user.id
+      whereClause.OR = [
+        { assignedUserId: session.user.id },
+        { vatAssignedUserId: session.user.id }
+      ]
     }
 
     // Fetch VAT-enabled clients with current quarter workflow info
@@ -49,13 +52,25 @@ export async function GET(request: NextRequest) {
         nextVatReturnDue: true,
         isVatEnabled: true,
         createdAt: true,
+        
+        // ENHANCED ASSIGNMENT - Include VAT-specific assignee
         assignedUser: {
           select: {
             id: true,
             name: true,
-            email: true
+            email: true,
+            role: true
           },
         },
+        vatAssignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          },
+        },
+        
         // Include current VAT quarter workflow
         vatQuartersWorkflow: {
           where: {
@@ -73,7 +88,8 @@ export async function GET(request: NextRequest) {
               select: {
                 id: true,
                 name: true,
-                email: true
+                email: true,
+                role: true
               }
             },
             // Include milestone dates
@@ -104,7 +120,7 @@ export async function GET(request: NextRequest) {
       ]
     })
 
-    // Transform the data to include current VAT quarter info
+    // Transform the data to include current VAT quarter info and VAT assignee
     const transformedClients = vatClients.map(client => ({
       id: client.id,
       clientCode: client.clientCode,
@@ -117,7 +133,11 @@ export async function GET(request: NextRequest) {
       nextVatReturnDue: client.nextVatReturnDue,
       isVatEnabled: client.isVatEnabled,
       createdAt: client.createdAt.toISOString(),
+      
+      // ENHANCED ASSIGNMENT - Show VAT-specific assignee
       assignedUser: client.assignedUser,
+      vatAssignedUser: client.vatAssignedUser,
+      
       // Include current VAT quarter workflow if exists (safely check for undefined)
       currentVATQuarter: client.vatQuartersWorkflow && client.vatQuartersWorkflow.length > 0 && client.vatQuartersWorkflow[0] ? {
         id: client.vatQuartersWorkflow[0].id,

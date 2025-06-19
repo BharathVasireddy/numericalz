@@ -3,6 +3,32 @@ import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
+/**
+ * Generate a unique client code with retry logic
+ */
+async function generateClientCode(): Promise<string> {
+  const lastClient = await prisma.client.findFirst({
+    where: {
+      clientCode: {
+        startsWith: 'NZ-'
+      }
+    },
+    orderBy: {
+      clientCode: 'desc'
+    }
+  })
+
+  let nextNumber = 1
+  if (lastClient?.clientCode) {
+    const match = lastClient.clientCode.match(/NZ-(\d+)/)
+    if (match && match[1]) {
+      nextNumber = parseInt(match[1]) + 1
+    }
+  }
+
+  return `NZ-${nextNumber}`
+}
+
 async function main() {
   console.log('🌱 Starting database seed...')
 
@@ -54,11 +80,15 @@ async function main() {
 
   console.log('✅ Created staff user:', staffUser.email)
 
+  // Generate a unique client code for the test client
+  const clientCode = await generateClientCode()
+
   // Create a test client
   const testClient = await prisma.client.upsert({
     where: { companyNumber: '12345678' },
     update: {},
     create: {
+      clientCode: clientCode, // Use generated client code
       companyName: 'Test Company Ltd',
       companyNumber: '12345678',
       companyType: 'LIMITED_COMPANY',
@@ -78,7 +108,7 @@ async function main() {
     },
   })
 
-  console.log('✅ Created test client:', testClient.companyName)
+  console.log('✅ Created test client:', testClient.companyName, `(${testClient.clientCode})`)
 
   // Create a test communication
   const testCommunication = await prisma.communication.create({
