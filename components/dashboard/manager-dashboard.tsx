@@ -1,313 +1,550 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
+import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { DeadlineSummaryCard } from './widgets/deadline-summary-card'
+import { WorkReviewWidget } from './widgets/work-review-widget'
+import { WorkloadDistributionWidget } from './widgets/workload-distribution-widget'
+import { WorkflowStageWidget } from './widgets/workflow-stage-widget'
+import { NotificationWidget } from './widgets/notification-widget'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useRouter } from 'next/navigation'
 import { 
-  Building2, 
   Users, 
+  FileCheck, 
   TrendingUp, 
-  Calendar,
   AlertTriangle,
-  CheckCircle,
-  Clock,
-  Plus,
+  Calendar,
+  RefreshCw,
   BarChart3,
-  PieChart,
-  FileText
+  CheckCircle2,
+  Clock
 } from 'lucide-react'
 
 interface ManagerDashboardProps {
-  data: {
-    typeCounts: {
-      LIMITED_COMPANY: number
-      NON_LIMITED_COMPANY: number
-      DIRECTOR: number
-      SUB_CONTRACTOR: number
-    }
-    totalClients: number
-    totalUsers: number
-    recentClients: Array<{
-      id: string
-      clientCode: string
-      companyName: string
-      companyType: string | null
-      createdAt: string
-      assignedUser?: {
-        name: string
-        email: string
-      }
+  userId: string
+}
+
+interface ManagerDashboardData {
+  teamOverview: {
+    totalTeamMembers: number
+    activeMembers: number
+    overloadedMembers: number
+    totalClientsManaged: number
+  }
+  workReview: Array<{
+    id: string
+    clientName: string
+    clientCode: string
+    type: 'vat' | 'accounts' | 'ct'
+    stage: string
+    submittedBy: string
+    submittedDate: Date
+    daysWaiting: number
+    priority: 'high' | 'medium' | 'low'
+  }>
+  teamMembers: Array<{
+    id: string
+    name: string
+    role: 'PARTNER' | 'MANAGER' | 'STAFF'
+    email: string
+    clientCount: number
+    overdueCount: number
+    completedThisMonth: number
+    workloadPercentage: number
+    status: 'available' | 'busy' | 'overloaded'
+  }>
+  workflowStages: {
+    vat: Array<{
+      stage: string
+      label: string
+      count: number
+      percentage: number
+      color: string
+      icon: React.ReactNode
+      avgDaysInStage: number
     }>
-    userRole: string
+    accounts: Array<{
+      stage: string
+      label: string
+      count: number
+      percentage: number
+      color: string
+      icon: React.ReactNode
+      avgDaysInStage: number
+    }>
+  }
+  deadlines: {
+    vat: {
+      overdue: number
+      dueSoon: number
+      upcoming: number
+      completed: number
+    }
+    accounts: {
+      overdue: number
+      dueSoon: number
+      upcoming: number
+      completed: number
+    }
+    ct: {
+      overdue: number
+      dueSoon: number
+      upcoming: number
+      completed: number
+    }
+    confirmation: {
+      overdue: number
+      dueSoon: number
+      upcoming: number
+      completed: number
+    }
+  }
+  notifications: Array<{
+    id: string
+    type: 'deadline' | 'review' | 'assignment' | 'completion' | 'overdue' | 'system'
+    title: string
+    message: string
+    clientName?: string
+    clientCode?: string
+    priority: 'high' | 'medium' | 'low'
+    read: boolean
+    createdAt: Date
+    actionUrl?: string
+  }>
+  analytics: {
+    completionRate: number
+    averageProcessingTime: number
+    teamEfficiency: number
+    clientSatisfaction: number
   }
 }
 
-/**
- * Manager Dashboard Component for Partners and Managers
- * 
- * Features:
- * - System overview with key metrics
- * - Client type distribution
- * - Recent activity
- * - Quick actions
- * - Team performance insights
- * - Role-based feature access
- */
-export function ManagerDashboard({ data }: ManagerDashboardProps) {
-  const [selectedPeriod, setSelectedPeriod] = useState('30d')
+export function ManagerDashboard({ userId }: ManagerDashboardProps) {
+  const { data: session } = useSession()
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<ManagerDashboardData | null>(null)
 
-  const { typeCounts, totalClients, totalUsers, recentClients, userRole } = data
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/dashboard/manager/${userId}`)
+      const result = await response.json()
+      
+      if (result.success) {
+        setData(result.data)
+      }
+    } catch (error) {
+      console.error('Error fetching manager dashboard data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  // Calculate percentages for client types
-  const getTypePercentage = (count: number) => {
-    return totalClients > 0 ? Math.round((count / totalClients) * 100) : 0
+  useEffect(() => {
+    fetchDashboardData()
+  }, [userId])
+
+  const handleMarkNotificationRead = async (notificationId: string) => {
+    try {
+      await fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'PATCH'
+      })
+      
+      if (data) {
+        setData({
+          ...data,
+          notifications: data.notifications.map(n => 
+            n.id === notificationId ? { ...n, read: true } : n
+          )
+        })
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+    }
+  }
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await fetch('/api/notifications/mark-all-read', {
+        method: 'PATCH'
+      })
+      
+      if (data) {
+        setData({
+          ...data,
+          notifications: data.notifications.map(n => ({ ...n, read: true }))
+        })
+      }
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <PageLayout maxWidth="2xl">
+        <PageHeader 
+          title="Manager Dashboard"
+          description="Loading your management overview..."
+        />
+        <PageContent>
+          <div className="flex items-center justify-center py-12">
+            <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </PageContent>
+      </PageLayout>
+    )
+  }
+
+  if (!data) {
+    return (
+      <PageLayout maxWidth="2xl">
+        <PageHeader 
+          title="Manager Dashboard"
+          description="Error loading dashboard data"
+        />
+        <PageContent>
+          <Card>
+            <CardContent className="text-center py-8">
+              <p className="text-muted-foreground mb-4">Failed to load dashboard data</p>
+              <Button onClick={fetchDashboardData}>
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
+        </PageContent>
+      </PageLayout>
+    )
   }
 
   return (
-    <PageLayout>
+    <PageLayout maxWidth="2xl">
       <PageHeader 
-        title={`${userRole === 'PARTNER' ? 'Partner' : 'Manager'} Dashboard`}
-        description={userRole === 'PARTNER' 
-          ? 'Complete system overview and management controls' 
-          : 'Team and client management overview'
-        }
+        title={`Manager Dashboard - ${session?.user?.name}`}
+        description="Team oversight, work review, and performance analytics"
       >
-        <Button asChild size="sm">
-          <Link href="/dashboard/clients/add" className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Add Client
-          </Link>
+        <Button 
+          variant="outline" 
+          onClick={fetchDashboardData}
+          disabled={loading}
+        >
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
         </Button>
       </PageHeader>
+
       <PageContent>
-        <div className="content-sections">
-          {/* Key Metrics */}
-          <div className="grid gap-4 md:gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalClients}</div>
-                <p className="text-xs text-muted-foreground">
-                  Active client accounts
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Team Members</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalUsers}</div>
-                <p className="text-xs text-muted-foreground">
-                  Active team members
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ltd Companies</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{typeCounts.LIMITED_COMPANY}</div>
-                <p className="text-xs text-muted-foreground">
-                  {getTypePercentage(typeCounts.LIMITED_COMPANY)}% of total clients
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Non-Ltd Companies</CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{typeCounts.NON_LIMITED_COMPANY}</div>
-                <p className="text-xs text-muted-foreground">
-                  {getTypePercentage(typeCounts.NON_LIMITED_COMPANY)}% of total clients
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Client Type Distribution */}
-          <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <PieChart className="h-5 w-5" />
-                  Client Type Distribution
-                </CardTitle>
-                <CardDescription>
-                  Breakdown of clients by company type
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                      <span className="text-sm">Limited Companies</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{typeCounts.LIMITED_COMPANY}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {getTypePercentage(typeCounts.LIMITED_COMPANY)}%
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                      <span className="text-sm">Non-Limited Companies</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{typeCounts.NON_LIMITED_COMPANY}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {getTypePercentage(typeCounts.NON_LIMITED_COMPANY)}%
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                      <span className="text-sm">Directors</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{typeCounts.DIRECTOR}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {getTypePercentage(typeCounts.DIRECTOR)}%
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                      <span className="text-sm">Sub Contractors</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{typeCounts.SUB_CONTRACTOR}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {getTypePercentage(typeCounts.SUB_CONTRACTOR)}%
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5" />
-                  Quick Actions
-                </CardTitle>
-                <CardDescription>
-                  Common management tasks
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/dashboard/clients" className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    View All Clients
-                  </Link>
-                </Button>
-                
-                <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/dashboard/clients/ltd-companies" className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    Ltd Companies
-                  </Link>
-                </Button>
-                
-                <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/dashboard/clients/non-ltd-companies" className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    Non-Ltd Companies
-                  </Link>
-                </Button>
-                
-                <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/dashboard/clients/vat-dt" className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    VAT Deadline Tracker
-                  </Link>
-                </Button>
-                
-                <Button asChild variant="outline" className="w-full justify-start">
-                  <Link href="/dashboard/staff" className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Staff Management
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Recent Clients */}
+        {/* Key Metrics Row */}
+        <div className="grid gap-4 md:grid-cols-4 mb-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Recent Clients
-              </CardTitle>
-              <CardDescription>
-                Latest client additions to the system
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Team Members</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              {recentClients.length > 0 ? (
-                <div className="space-y-3">
-                  {recentClients.map((client) => (
-                    <div key={client.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                          <Building2 className="h-4 w-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{client.companyName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {client.clientCode} • {client.companyType?.replace('_', ' ') || 'Unknown'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        {client.assignedUser ? (
-                          <p className="text-xs text-muted-foreground">
-                            Assigned to {client.assignedUser.name}
-                          </p>
-                        ) : (
-                          <Badge variant="outline" className="text-xs">
-                            Unassigned
-                          </Badge>
-                        )}
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(client.createdAt).toLocaleDateString()}
-                        </p>
+              <div className="text-2xl font-bold">{data.teamOverview.totalTeamMembers}</div>
+              <p className="text-xs text-muted-foreground">
+                {data.teamOverview.activeMembers} active
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Work Pending Review</CardTitle>
+              <FileCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{data.workReview.length}</div>
+              <p className="text-xs text-muted-foreground">
+                {data.workReview.filter(w => w.priority === 'high').length} high priority
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{data.teamOverview.totalClientsManaged}</div>
+              <p className="text-xs text-muted-foreground">
+                Under management
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Team Efficiency</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{data.analytics.teamEfficiency}%</div>
+              <p className="text-xs text-muted-foreground">
+                Overall performance
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Alerts Row */}
+        {data.teamOverview.overloadedMembers > 0 && (
+          <div className="mb-6">
+            <Card className="border-orange-200 bg-orange-50">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="h-5 w-5 text-orange-600" />
+                  <div>
+                    <p className="font-medium text-orange-900">
+                      {data.teamOverview.overloadedMembers} team member(s) are overloaded
+                    </p>
+                    <p className="text-sm text-orange-700">
+                      Consider redistributing workload or providing additional support
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="ml-auto"
+                    onClick={() => router.push('/dashboard/staff')}
+                  >
+                    Manage Team
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Main Dashboard Tabs */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="review">Work Review</TabsTrigger>
+            <TabsTrigger value="team">Team Management</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6">
+            {/* Deadline Cards */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <DeadlineSummaryCard
+                title="VAT Returns"
+                type="vat"
+                stats={data.deadlines.vat}
+                color="blue"
+              />
+              <DeadlineSummaryCard
+                title="Annual Accounts"
+                type="accounts"
+                stats={data.deadlines.accounts}
+                color="green"
+              />
+              <DeadlineSummaryCard
+                title="Corporation Tax"
+                type="ct"
+                stats={data.deadlines.ct}
+                color="purple"
+              />
+              <DeadlineSummaryCard
+                title="Confirmations"
+                type="confirmation"
+                stats={data.deadlines.confirmation}
+                color="orange"
+              />
+            </div>
+
+            {/* Main Content Grid */}
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2">
+                <WorkflowStageWidget
+                  stages={data.workflowStages.vat}
+                  title="VAT Workflow Distribution"
+                  type="vat"
+                  totalClients={data.workflowStages.vat.reduce((sum, stage) => sum + stage.count, 0)}
+                />
+              </div>
+              <div className="lg:col-span-1">
+                <NotificationWidget
+                  notifications={data.notifications.slice(0, 6)}
+                  title="Priority Notifications"
+                  onMarkAsRead={handleMarkNotificationRead}
+                  onMarkAllRead={handleMarkAllNotificationsRead}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Work Review Tab */}
+          <TabsContent value="review" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="lg:col-span-2">
+                <WorkReviewWidget items={data.workReview} />
+              </div>
+              <div className="lg:col-span-1">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold">Review Statistics</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">High Priority</span>
+                      <Badge variant="destructive">
+                        {data.workReview.filter(w => w.priority === 'high').length}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Medium Priority</span>
+                      <Badge variant="secondary">
+                        {data.workReview.filter(w => w.priority === 'medium').length}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Low Priority</span>
+                      <Badge variant="outline">
+                        {data.workReview.filter(w => w.priority === 'low').length}
+                      </Badge>
+                    </div>
+                    <div className="pt-4 border-t">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Avg. Wait Time</span>
+                        <span className="text-sm">
+                          {Math.round(data.workReview.reduce((sum, w) => sum + w.daysWaiting, 0) / data.workReview.length || 0)} days
+                        </span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No recent clients</p>
-                </div>
-              )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Team Management Tab */}
+          <TabsContent value="team" className="space-y-6">
+            <WorkloadDistributionWidget 
+              teamMembers={data.teamMembers}
+              title="Team Workload Overview"
+            />
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
+                  <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{data.analytics.completionRate}%</div>
+                  <p className="text-xs text-muted-foreground">This month</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Avg Processing Time</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{data.analytics.averageProcessingTime}</div>
+                  <p className="text-xs text-muted-foreground">Days per task</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Team Efficiency</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{data.analytics.teamEfficiency}%</div>
+                  <p className="text-xs text-muted-foreground">Overall score</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Client Satisfaction</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{data.analytics.clientSatisfaction}%</div>
+                  <p className="text-xs text-muted-foreground">Satisfaction rate</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              <WorkflowStageWidget
+                stages={data.workflowStages.vat}
+                title="VAT Workflow Analysis"
+                type="vat"
+                totalClients={data.workflowStages.vat.reduce((sum, stage) => sum + stage.count, 0)}
+              />
+              <WorkflowStageWidget
+                stages={data.workflowStages.accounts}
+                title="Accounts Workflow Analysis"
+                type="accounts"
+                totalClients={data.workflowStages.accounts.reduce((sum, stage) => sum + stage.count, 0)}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Quick Actions */}
+        <div className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 md:grid-cols-4">
+                <Button 
+                  variant="outline" 
+                  className="h-16 flex-col gap-2"
+                  onClick={() => router.push('/dashboard/staff')}
+                >
+                  <Users className="h-5 w-5" />
+                  Manage Team
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="h-16 flex-col gap-2"
+                  onClick={() => router.push('/dashboard/clients/vat-dt')}
+                >
+                  <FileCheck className="h-5 w-5" />
+                  Review Work
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="h-16 flex-col gap-2"
+                  onClick={() => router.push('/dashboard/calendar')}
+                >
+                  <Calendar className="h-5 w-5" />
+                  View Calendar
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="h-16 flex-col gap-2"
+                  onClick={() => router.push('/dashboard/clients')}
+                >
+                  <BarChart3 className="h-5 w-5" />
+                  Client Overview
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
