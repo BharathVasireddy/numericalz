@@ -308,4 +308,154 @@ export function getVATFilingMonthsForQuarterGroup(quarterGroup: string): number[
 export function isVATFilingMonth(quarterGroup: string, monthNumber: number): boolean {
   const filingMonths = getVATFilingMonthsForQuarterGroup(quarterGroup)
   return filingMonths.includes(monthNumber)
+}
+
+/**
+ * Calculate total days from start to completion for a VAT quarter
+ * Returns the number of days between the first workflow stage and HMRC filing
+ */
+export function calculateTotalFilingDays(vatQuarter: {
+  chaseStartedDate?: string | Date | null
+  paperworkReceivedDate?: string | Date | null
+  workStartedDate?: string | Date | null
+  filedToHMRCDate?: string | Date | null
+  createdAt?: string | Date
+}): number | null {
+  let startDate: Date | null = null
+  let endDate: Date | null = null
+
+  // Find the earliest milestone date as start
+  const dates = [
+    vatQuarter.chaseStartedDate,
+    vatQuarter.paperworkReceivedDate,
+    vatQuarter.workStartedDate,
+    vatQuarter.createdAt
+  ].filter(Boolean)
+
+  if (dates.length > 0) {
+    const sortedDates = dates.map(d => new Date(d!)).sort((a, b) => a.getTime() - b.getTime())
+    startDate = sortedDates[0] || null
+  }
+
+  // Filing to HMRC is the end date
+  if (vatQuarter.filedToHMRCDate) {
+    endDate = new Date(vatQuarter.filedToHMRCDate)
+  }
+
+  if (startDate && endDate) {
+    return calculateDaysBetween(startDate, endDate)
+  }
+
+  return null
+}
+
+/**
+ * Calculate duration for each stage in a VAT workflow
+ * Returns an object with stage names and their durations in days
+ */
+export function calculateStageDurations(vatQuarter: {
+  chaseStartedDate?: string | Date | null
+  paperworkReceivedDate?: string | Date | null
+  workStartedDate?: string | Date | null
+  workFinishedDate?: string | Date | null
+  sentToClientDate?: string | Date | null
+  clientApprovedDate?: string | Date | null
+  filedToHMRCDate?: string | Date | null
+  createdAt?: string | Date
+}, workflowHistory?: Array<{
+  toStage: string
+  stageChangedAt: string | Date
+  daysInPreviousStage?: number | null
+}>): { [stageName: string]: number | null } {
+  const stageDurations: { [stageName: string]: number | null } = {}
+
+  // Map of milestone dates to calculate stage durations
+  const milestones = [
+    { stage: 'CLIENT_BOOKKEEPING', startDate: vatQuarter.createdAt, endDate: vatQuarter.paperworkReceivedDate || vatQuarter.workStartedDate },
+    { stage: 'PAPERWORK_RECEIVED', startDate: vatQuarter.paperworkReceivedDate, endDate: vatQuarter.workStartedDate },
+    { stage: 'WORK_IN_PROGRESS', startDate: vatQuarter.workStartedDate, endDate: vatQuarter.workFinishedDate },
+    { stage: 'WORK_FINISHED', startDate: vatQuarter.workFinishedDate, endDate: vatQuarter.sentToClientDate },
+    { stage: 'SENT_TO_CLIENT', startDate: vatQuarter.sentToClientDate, endDate: vatQuarter.clientApprovedDate },
+    { stage: 'CLIENT_APPROVED', startDate: vatQuarter.clientApprovedDate, endDate: vatQuarter.filedToHMRCDate }
+  ]
+
+  // Calculate duration for each stage
+  milestones.forEach(({ stage, startDate, endDate }) => {
+    if (startDate && endDate) {
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      stageDurations[stage] = calculateDaysBetween(start, end)
+    } else {
+      stageDurations[stage] = null
+    }
+  })
+
+  // If workflow history is available, use it for more accurate stage durations
+  if (workflowHistory && workflowHistory.length > 0) {
+    workflowHistory.forEach(entry => {
+      if (entry.daysInPreviousStage !== null && entry.daysInPreviousStage !== undefined) {
+        const stageName = VAT_WORKFLOW_STAGE_NAMES[entry.toStage as keyof typeof VAT_WORKFLOW_STAGE_NAMES] || entry.toStage
+        stageDurations[stageName] = entry.daysInPreviousStage
+      }
+    })
+  }
+
+  return stageDurations
+}
+
+/**
+ * Get a human-readable summary of VAT workflow progress
+ */
+export function getVATWorkflowProgressSummary(vatQuarter: {
+  currentStage: string
+  isCompleted: boolean
+  chaseStartedDate?: string | Date | null
+  paperworkReceivedDate?: string | Date | null
+  workStartedDate?: string | Date | null
+  workFinishedDate?: string | Date | null
+  sentToClientDate?: string | Date | null
+  clientApprovedDate?: string | Date | null
+  filedToHMRCDate?: string | Date | null
+  createdAt?: string | Date
+}): {
+  totalDays: number | null
+  stageDurations: { [stageName: string]: number | null }
+  progressPercentage: number
+  currentStageDisplay: string
+  timeToCompletion: string | null
+} {
+  const totalDays = calculateTotalFilingDays(vatQuarter)
+  const stageDurations = calculateStageDurations(vatQuarter)
+  
+  // Calculate progress percentage based on current stage
+  const stageProgressMap: { [key: string]: number } = {
+    'CLIENT_BOOKKEEPING': 10,
+    'WORK_IN_PROGRESS': 30,
+    'QUERIES_PENDING': 40,
+    'REVIEW_PENDING_MANAGER': 60,
+    'REVIEW_PENDING_PARTNER': 70,
+    'EMAILED_TO_PARTNER': 80,
+    'EMAILED_TO_CLIENT': 85,
+    'CLIENT_APPROVED': 95,
+    'FILED_TO_HMRC': 100
+  }
+  
+  const progressPercentage = stageProgressMap[vatQuarter.currentStage] || 0
+  const currentStageDisplay = VAT_WORKFLOW_STAGE_NAMES[vatQuarter.currentStage as keyof typeof VAT_WORKFLOW_STAGE_NAMES] || vatQuarter.currentStage
+  
+  // Calculate time to completion estimate
+  let timeToCompletion: string | null = null
+  if (vatQuarter.isCompleted && totalDays) {
+    timeToCompletion = `Completed in ${totalDays} days`
+  } else if (totalDays && !vatQuarter.isCompleted) {
+    timeToCompletion = `${totalDays} days in progress`
+  }
+  
+  return {
+    totalDays,
+    stageDurations,
+    progressPercentage,
+    currentStageDisplay,
+    timeToCompletion
+  }
 } 

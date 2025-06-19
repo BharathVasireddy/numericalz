@@ -29,7 +29,7 @@ import {
   Building2
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
-import { VAT_WORKFLOW_STAGE_NAMES } from '@/lib/vat-workflow'
+import { VAT_WORKFLOW_STAGE_NAMES, calculateTotalFilingDays, calculateStageDurations, getVATWorkflowProgressSummary } from '@/lib/vat-workflow'
 
 interface VATWorkflowModalProps {
   isOpen: boolean
@@ -280,6 +280,99 @@ export function VATWorkflowModal({
               </div>
             </CardContent>
           </Card>
+
+          {/* Duration Tracking Summary */}
+          {(() => {
+            const progressSummary = getVATWorkflowProgressSummary(vatQuarter)
+            const stageDurations = calculateStageDurations(vatQuarter, vatQuarter.workflowHistory)
+            const totalDays = calculateTotalFilingDays(vatQuarter)
+
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Duration Tracking
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    {/* Total Time */}
+                    <div className="text-center p-4 bg-blue-50 rounded-lg border">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {totalDays !== null ? `${totalDays}` : '—'}
+                      </div>
+                      <div className="text-sm text-blue-700 font-medium">
+                        {vatQuarter.isCompleted ? 'Total Days to Complete' : 'Days in Progress'}
+                      </div>
+                    </div>
+
+                    {/* Progress Percentage */}
+                    <div className="text-center p-4 bg-green-50 rounded-lg border">
+                      <div className="text-2xl font-bold text-green-600">
+                        {progressSummary.progressPercentage}%
+                      </div>
+                      <div className="text-sm text-green-700 font-medium">
+                        Workflow Progress
+                      </div>
+                    </div>
+
+                    {/* Current Stage Time */}
+                    <div className="text-center p-4 bg-amber-50 rounded-lg border">
+                      <div className="text-2xl font-bold text-amber-600">
+                        {vatQuarter.workflowHistory?.[0]?.daysInPreviousStage !== undefined 
+                          ? vatQuarter.workflowHistory[0].daysInPreviousStage 
+                          : '—'}
+                      </div>
+                      <div className="text-sm text-amber-700 font-medium">
+                        Days in Current Stage
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stage Duration Breakdown */}
+                  {vatQuarter.workflowHistory && vatQuarter.workflowHistory.length > 0 && (
+                    <div>
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Stage Duration History
+                      </h4>
+                      <div className="space-y-2">
+                        {vatQuarter.workflowHistory
+                          .slice()
+                          .reverse()
+                          .map((entry, index) => (
+                          <div key={entry.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                              <div>
+                                <p className="font-medium text-sm">
+                                  {VAT_WORKFLOW_STAGE_NAMES[entry.toStage as keyof typeof VAT_WORKFLOW_STAGE_NAMES] || entry.toStage}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(entry.stageChangedAt).toLocaleDateString('en-GB')} by {entry.userName}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium text-sm">
+                                {entry.daysInPreviousStage !== null && entry.daysInPreviousStage !== undefined
+                                  ? `${entry.daysInPreviousStage} days`
+                                  : '—'}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {index === 0 ? 'Current' : 'Previous stage'}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })()}
 
           {/* Milestone Dates */}
           <Card>

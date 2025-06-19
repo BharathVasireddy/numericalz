@@ -232,6 +232,14 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(`/dashboard/clients/${client.id}/filing-history`)}
+                  className="btn-outline"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Filing History
+                </Button>
                 {client.companyNumber && (
                   <Button
                     variant="outline"
@@ -632,6 +640,98 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                   </CardContent>
                 </Card>
               )}
+
+              {/* Filing History Card */}
+              <Card className="shadow-professional border-primary/20 bg-primary/5">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-primary" />
+                        Filing History
+                      </CardTitle>
+                      <CardDescription>View complete filing history and compliance status</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {client.isVatEnabled && (
+                      <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Calendar className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">VAT Returns</p>
+                            <p className="text-xs text-muted-foreground">
+                              {client.vatReturnsFrequency ? `${client.vatReturnsFrequency.charAt(0) + client.vatReturnsFrequency.slice(1).toLowerCase()} returns` : 'Not configured'}
+                            </p>
+                          </div>
+                        </div>
+                        {client.nextVatReturnDue && (
+                          <span className="text-xs text-muted-foreground">
+                            Next: {formatDate(client.nextVatReturnDue)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {client.companyType !== 'SOLE_TRADER' && (
+                      <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                            <FileText className="h-4 w-4 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">Annual Accounts</p>
+                            <p className="text-xs text-muted-foreground">
+                              Companies House filing
+                            </p>
+                          </div>
+                        </div>
+                        {client.nextAccountsDue && (
+                          <span className="text-xs text-muted-foreground">
+                            Due: {formatDate(client.nextAccountsDue)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {client.companyType === 'LIMITED_COMPANY' && (
+                      <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+                            <Building2 className="h-4 w-4 text-purple-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">Corporation Tax</p>
+                            <p className="text-xs text-muted-foreground">
+                              CT600 return filing
+                            </p>
+                          </div>
+                        </div>
+                        {client.nextCorporationTaxDue && (
+                          <span className="text-xs text-muted-foreground">
+                            Due: {formatDate(client.nextCorporationTaxDue)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="mt-4">
+                    <Button 
+                      onClick={() => router.push(`/dashboard/clients/${client.id}/filing-history`)}
+                      className="w-full"
+                      variant="default"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      View Complete Filing History
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Companies House Data */}
               {client.companyNumber && (

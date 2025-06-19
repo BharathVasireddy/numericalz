@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { calculateVATQuarter } from '@/lib/vat-workflow'
+import { calculateVATQuarter, getNextVATQuarter } from '@/lib/vat-workflow'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -13,6 +13,7 @@ export const dynamic = 'force-dynamic'
  * Get all clients with VAT enabled for the VAT deadline tracker
  * Includes current VAT quarter workflow information and VAT-specific assignee
  * Automatically creates current quarter if it doesn't exist
+ * Fixed: Properly handles completed quarters and creates next quarters
  */
 export async function GET(request: NextRequest) {
   try {
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    // Fetch VAT-enabled clients with current quarter workflow info
+    // Fetch VAT-enabled clients with ALL recent quarter workflow info
     const vatClients = await db.client.findMany({
       where: whereClause,
       select: {
@@ -73,11 +74,8 @@ export async function GET(request: NextRequest) {
           },
         },
         
-        // Include current VAT quarter workflow
+        // Include recent VAT quarters (both completed and incomplete)
         vatQuartersWorkflow: {
-          where: {
-            isCompleted: false
-          },
           select: {
             id: true,
             quarterPeriod: true,
@@ -113,7 +111,7 @@ export async function GET(request: NextRequest) {
           orderBy: {
             quarterEndDate: 'desc'
           },
-          take: 1 // Get the most recent incomplete quarter
+          take: 3 // Get the 3 most recent quarters to handle transitions
         }
       },
       orderBy: [
@@ -127,17 +125,17 @@ export async function GET(request: NextRequest) {
       // Skip if client doesn't have a quarter group
       if (!client.vatQuarterGroup) {
         return {
-          id: client.id,
-          clientCode: client.clientCode,
-          companyName: client.companyName,
-          companyType: client.companyType,
-          contactEmail: client.contactEmail,
-          contactPhone: client.contactPhone,
-          vatReturnsFrequency: client.vatReturnsFrequency,
-          vatQuarterGroup: client.vatQuarterGroup,
-          nextVatReturnDue: client.nextVatReturnDue,
-          isVatEnabled: client.isVatEnabled,
-          createdAt: client.createdAt.toISOString(),
+      id: client.id,
+      clientCode: client.clientCode,
+      companyName: client.companyName,
+      companyType: client.companyType,
+      contactEmail: client.contactEmail,
+      contactPhone: client.contactPhone,
+      vatReturnsFrequency: client.vatReturnsFrequency,
+      vatQuarterGroup: client.vatQuarterGroup,
+      nextVatReturnDue: client.nextVatReturnDue,
+      isVatEnabled: client.isVatEnabled,
+      createdAt: client.createdAt.toISOString(),
           assignedUser: client.assignedUser,
           vatAssignedUser: client.vatAssignedUser,
           currentVATQuarter: undefined
@@ -148,36 +146,22 @@ export async function GET(request: NextRequest) {
       const currentDate = new Date()
       const currentQuarterInfo = calculateVATQuarter(client.vatQuarterGroup, currentDate)
 
-      // Check if we have an existing quarter that matches the current period
-      const existingQuarter = client.vatQuartersWorkflow?.[0]
-      const hasCurrentQuarter = existingQuarter && 
-        existingQuarter.quarterPeriod === currentQuarterInfo.quarterPeriod
+      // Find the incomplete quarter that matches current period
+      let currentQuarter = client.vatQuartersWorkflow?.find(q => 
+        q.quarterPeriod === currentQuarterInfo.quarterPeriod && !q.isCompleted
+      )
 
-      if (!hasCurrentQuarter) {
-        // Check if current quarter already exists
-        try {
-          let quarter = await db.vATQuarter.findUnique({
-            where: {
-              clientId_quarterPeriod: {
-                clientId: client.id,
-                quarterPeriod: currentQuarterInfo.quarterPeriod
-              }
-            },
-            include: {
-              assignedUser: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  role: true
-                }
-              }
-            }
-          })
+      // If no current incomplete quarter exists, check if we need to create it
+      if (!currentQuarter) {
+        // Check if current quarter already exists (maybe completed)
+        const existingQuarter = client.vatQuartersWorkflow?.find(q => 
+          q.quarterPeriod === currentQuarterInfo.quarterPeriod
+        )
 
-          if (!quarter) {
-            // Create current quarter if it doesn't exist
-            quarter = await db.vATQuarter.create({
+        if (!existingQuarter) {
+          // Create current quarter if it doesn't exist at all
+          try {
+            const quarter = await db.vATQuarter.create({
               data: {
                 clientId: client.id,
                 quarterPeriod: currentQuarterInfo.quarterPeriod,
@@ -215,75 +199,124 @@ export async function GET(request: NextRequest) {
               }
             })
             
-            console.log(`Created new VAT quarter for client ${client.clientCode}: ${currentQuarterInfo.quarterPeriod}`)
-          } else {
-            console.log(`VAT quarter already exists for client ${client.clientCode}: ${currentQuarterInfo.quarterPeriod}`)
-          }
-
-          // Return client with the quarter
-          return {
-            id: client.id,
-            clientCode: client.clientCode,
-            companyName: client.companyName,
-            companyType: client.companyType,
-            contactEmail: client.contactEmail,
-            contactPhone: client.contactPhone,
-            vatReturnsFrequency: client.vatReturnsFrequency,
-            vatQuarterGroup: client.vatQuarterGroup,
-            nextVatReturnDue: client.nextVatReturnDue,
-            isVatEnabled: client.isVatEnabled,
-            createdAt: client.createdAt.toISOString(),
-            assignedUser: client.assignedUser,
-            vatAssignedUser: client.vatAssignedUser,
-            currentVATQuarter: {
+            currentQuarter = {
               id: quarter.id,
               quarterPeriod: quarter.quarterPeriod,
-              quarterStartDate: quarter.quarterStartDate.toISOString(),
-              quarterEndDate: quarter.quarterEndDate.toISOString(),
-              filingDueDate: quarter.filingDueDate.toISOString(),
+              quarterStartDate: quarter.quarterStartDate,
+              quarterEndDate: quarter.quarterEndDate,
+              filingDueDate: quarter.filingDueDate,
               currentStage: quarter.currentStage,
               isCompleted: quarter.isCompleted,
               assignedUser: quarter.assignedUser,
               // Include milestone dates
-              chaseStartedDate: quarter.chaseStartedDate?.toISOString(),
+              chaseStartedDate: quarter.chaseStartedDate,
               chaseStartedByUserName: quarter.chaseStartedByUserName,
-              paperworkReceivedDate: quarter.paperworkReceivedDate?.toISOString(),
+              paperworkReceivedDate: quarter.paperworkReceivedDate,
               paperworkReceivedByUserName: quarter.paperworkReceivedByUserName,
-              workStartedDate: quarter.workStartedDate?.toISOString(),
+              workStartedDate: quarter.workStartedDate,
               workStartedByUserName: quarter.workStartedByUserName,
-              workFinishedDate: quarter.workFinishedDate?.toISOString(),
+              workFinishedDate: quarter.workFinishedDate,
               workFinishedByUserName: quarter.workFinishedByUserName,
-              sentToClientDate: quarter.sentToClientDate?.toISOString(),
+              sentToClientDate: quarter.sentToClientDate,
               sentToClientByUserName: quarter.sentToClientByUserName,
-              clientApprovedDate: quarter.clientApprovedDate?.toISOString(),
+              clientApprovedDate: quarter.clientApprovedDate,
               clientApprovedByUserName: quarter.clientApprovedByUserName,
-              filedToHMRCDate: quarter.filedToHMRCDate?.toISOString(),
+              filedToHMRCDate: quarter.filedToHMRCDate,
               filedToHMRCByUserName: quarter.filedToHMRCByUserName
             }
+            
+            console.log(`Created new VAT quarter for client ${client.clientCode}: ${currentQuarterInfo.quarterPeriod}`)
+          } catch (error) {
+            console.error(`Failed to create quarter for client ${client.id}:`, error)
           }
-        } catch (error) {
-          console.error(`Failed to create quarter for client ${client.id}:`, error)
-          // Return client without quarter on error
-          return {
-            id: client.id,
-            clientCode: client.clientCode,
-            companyName: client.companyName,
-            companyType: client.companyType,
-            contactEmail: client.contactEmail,
-            contactPhone: client.contactPhone,
-            vatReturnsFrequency: client.vatReturnsFrequency,
-            vatQuarterGroup: client.vatQuarterGroup,
-            nextVatReturnDue: client.nextVatReturnDue,
-            isVatEnabled: client.isVatEnabled,
-            createdAt: client.createdAt.toISOString(),
-            assignedUser: client.assignedUser,
-            vatAssignedUser: client.vatAssignedUser,
-            currentVATQuarter: undefined
+        } else if (existingQuarter.isCompleted) {
+          // The current quarter is completed, need to check if next quarter exists
+          const nextQuarterInfo = getNextVATQuarter(client.vatQuarterGroup, existingQuarter.quarterEndDate)
+          
+          // Check if the next quarter is actually the "current" quarter now
+          if (nextQuarterInfo.quarterPeriod === currentQuarterInfo.quarterPeriod) {
+            // The "next" quarter is actually what should be current now
+            currentQuarter = client.vatQuartersWorkflow?.find(q => 
+              q.quarterPeriod === nextQuarterInfo.quarterPeriod && !q.isCompleted
+            )
+            
+            if (!currentQuarter) {
+              // Create the next quarter
+              try {
+                const quarter = await db.vATQuarter.create({
+                  data: {
+                    clientId: client.id,
+                    quarterPeriod: nextQuarterInfo.quarterPeriod,
+                    quarterStartDate: nextQuarterInfo.quarterStartDate,
+                    quarterEndDate: nextQuarterInfo.quarterEndDate,
+                    filingDueDate: nextQuarterInfo.filingDueDate,
+                    quarterGroup: nextQuarterInfo.quarterGroup,
+                    assignedUserId: client.vatAssignedUser?.id || client.assignedUser?.id || null,
+                    currentStage: 'CLIENT_BOOKKEEPING',
+                    isCompleted: false
+                  },
+                  include: {
+                    assignedUser: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        role: true
+                      }
+                    }
+                  }
+                })
+                
+                // Create initial workflow history entry
+                await db.vATWorkflowHistory.create({
+                  data: {
+                    vatQuarterId: quarter.id,
+                    toStage: 'CLIENT_BOOKKEEPING',
+                    stageChangedAt: new Date(),
+                    userId: session.user.id,
+                    userName: session.user.name || session.user.email || 'System',
+                    userEmail: session.user.email || '',
+                    userRole: session.user.role || 'SYSTEM',
+                    notes: 'VAT quarter automatically created - previous quarter completed',
+                  }
+                })
+                
+                currentQuarter = {
+                  id: quarter.id,
+                  quarterPeriod: quarter.quarterPeriod,
+                  quarterStartDate: quarter.quarterStartDate,
+                  quarterEndDate: quarter.quarterEndDate,
+                  filingDueDate: quarter.filingDueDate,
+                  currentStage: quarter.currentStage,
+                  isCompleted: quarter.isCompleted,
+                  assignedUser: quarter.assignedUser,
+                  // Include milestone dates (all null for new quarter)
+                  chaseStartedDate: null,
+                  chaseStartedByUserName: null,
+                  paperworkReceivedDate: null,
+                  paperworkReceivedByUserName: null,
+                  workStartedDate: null,
+                  workStartedByUserName: null,
+                  workFinishedDate: null,
+                  workFinishedByUserName: null,
+                  sentToClientDate: null,
+                  sentToClientByUserName: null,
+                  clientApprovedDate: null,
+                  clientApprovedByUserName: null,
+                  filedToHMRCDate: null,
+                  filedToHMRCByUserName: null
+                }
+                
+                console.log(`Created next VAT quarter for client ${client.clientCode}: ${nextQuarterInfo.quarterPeriod} (previous quarter completed)`)
+              } catch (error) {
+                console.error(`Failed to create next quarter for client ${client.id}:`, error)
+              }
+            }
           }
         }
       }
 
-      // Return client with existing quarter
+      // Return client with the current quarter
       return {
         id: client.id,
         clientCode: client.clientCode,
@@ -298,47 +331,38 @@ export async function GET(request: NextRequest) {
         createdAt: client.createdAt.toISOString(),
         assignedUser: client.assignedUser,
         vatAssignedUser: client.vatAssignedUser,
-        currentVATQuarter: existingQuarter ? {
-          id: existingQuarter.id,
-          quarterPeriod: existingQuarter.quarterPeriod,
-          quarterStartDate: existingQuarter.quarterStartDate.toISOString(),
-          quarterEndDate: existingQuarter.quarterEndDate.toISOString(),
-          filingDueDate: existingQuarter.filingDueDate.toISOString(),
-          currentStage: existingQuarter.currentStage,
-          isCompleted: existingQuarter.isCompleted,
-          assignedUser: existingQuarter.assignedUser,
+        currentVATQuarter: currentQuarter ? {
+          id: currentQuarter.id,
+          quarterPeriod: currentQuarter.quarterPeriod,
+          quarterStartDate: currentQuarter.quarterStartDate.toISOString(),
+          quarterEndDate: currentQuarter.quarterEndDate.toISOString(),
+          filingDueDate: currentQuarter.filingDueDate.toISOString(),
+          currentStage: currentQuarter.currentStage,
+          isCompleted: currentQuarter.isCompleted,
+          assignedUser: currentQuarter.assignedUser,
           // Include milestone dates
-          chaseStartedDate: existingQuarter.chaseStartedDate?.toISOString(),
-          chaseStartedByUserName: existingQuarter.chaseStartedByUserName,
-          paperworkReceivedDate: existingQuarter.paperworkReceivedDate?.toISOString(),
-          paperworkReceivedByUserName: existingQuarter.paperworkReceivedByUserName,
-          workStartedDate: existingQuarter.workStartedDate?.toISOString(),
-          workStartedByUserName: existingQuarter.workStartedByUserName,
-          workFinishedDate: existingQuarter.workFinishedDate?.toISOString(),
-          workFinishedByUserName: existingQuarter.workFinishedByUserName,
-          sentToClientDate: existingQuarter.sentToClientDate?.toISOString(),
-          sentToClientByUserName: existingQuarter.sentToClientByUserName,
-          clientApprovedDate: existingQuarter.clientApprovedDate?.toISOString(),
-          clientApprovedByUserName: existingQuarter.clientApprovedByUserName,
-          filedToHMRCDate: existingQuarter.filedToHMRCDate?.toISOString(),
-          filedToHMRCByUserName: existingQuarter.filedToHMRCByUserName
+          chaseStartedDate: currentQuarter.chaseStartedDate?.toISOString(),
+          chaseStartedByUserName: currentQuarter.chaseStartedByUserName,
+          paperworkReceivedDate: currentQuarter.paperworkReceivedDate?.toISOString(),
+          paperworkReceivedByUserName: currentQuarter.paperworkReceivedByUserName,
+          workStartedDate: currentQuarter.workStartedDate?.toISOString(),
+          workStartedByUserName: currentQuarter.workStartedByUserName,
+          workFinishedDate: currentQuarter.workFinishedDate?.toISOString(),
+          workFinishedByUserName: currentQuarter.workFinishedByUserName,
+          sentToClientDate: currentQuarter.sentToClientDate?.toISOString(),
+          sentToClientByUserName: currentQuarter.sentToClientByUserName,
+          clientApprovedDate: currentQuarter.clientApprovedDate?.toISOString(),
+          clientApprovedByUserName: currentQuarter.clientApprovedByUserName,
+          filedToHMRCDate: currentQuarter.filedToHMRCDate?.toISOString(),
+          filedToHMRCByUserName: currentQuarter.filedToHMRCByUserName
         } : undefined
       }
     }))
 
-    // Return real-time data with no caching
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
-      clients: processedClients,
-      count: processedClients.length
+      data: processedClients
     })
-
-    // Disable all caching for real-time updates
-    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
-    response.headers.set('Pragma', 'no-cache')
-    response.headers.set('Expires', '0')
-    
-    return response
 
   } catch (error) {
     console.error('Error fetching VAT clients:', error)

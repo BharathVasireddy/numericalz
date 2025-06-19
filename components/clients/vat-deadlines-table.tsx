@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -150,6 +151,7 @@ const MONTHS = [
 
 export function VATDeadlinesTable() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [vatClients, setVatClients] = useState<VATClient[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -646,18 +648,30 @@ export function VATDeadlinesTable() {
                   </Button>
                 </TableCell>
                 <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => toggleRowExpansion(client.id)}
-                  >
-                    {expandedRows.has(client.id) ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => router.push(`/dashboard/clients/${client.id}/filing-history`)}
+                      title="View Full Filing History"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => toggleRowExpansion(client.id)}
+                      title="Expand Timeline"
+                    >
+                      {expandedRows.has(client.id) ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
               
