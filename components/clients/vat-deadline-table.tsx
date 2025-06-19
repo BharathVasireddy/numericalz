@@ -886,7 +886,7 @@ export function VATDeadlineTable() {
 
       {/* Month-based Tabs */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-4">
           <CardTitle>VAT Deadlines by Month</CardTitle>
           <CardDescription>
             Clients are shown in their quarter end months. 
@@ -897,34 +897,42 @@ export function VATDeadlineTable() {
         </CardHeader>
         <CardContent className="p-0">
           <Tabs value={activeMonth} onValueChange={setActiveMonth} className="w-full">
-            <div className="px-6 pt-2">
-              <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12">
-                {MONTHS.map((month) => {
-                  const monthClients = getClientsForMonth(month.number)
-                  return (
-                    <TabsTrigger 
-                      key={month.key} 
-                      value={month.key}
-                      className="text-xs relative"
-                    >
-                      {month.key.toUpperCase()}
-                      {monthClients.length > 0 && (
-                        <Badge 
-                          variant="secondary" 
-                          className="absolute -top-1 -right-1 h-5 w-5 text-xs p-0 flex items-center justify-center"
-                        >
-                          {monthClients.length}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                  )
-                })}
-              </TabsList>
+            {/* Month Tabs - Better Aligned */}
+            <div className="border-b bg-muted/30">
+              <div className="px-6 py-3">
+                <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12 h-auto bg-transparent p-0 gap-1">
+                  {MONTHS.map((month) => {
+                    const monthClients = getClientsForMonth(month.number)
+                    return (
+                      <TabsTrigger 
+                        key={month.key} 
+                        value={month.key}
+                        className="flex flex-col items-center gap-1 py-3 px-2 text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md transition-all hover:bg-background/50"
+                      >
+                        <span className="font-semibold">
+                          {month.key.toUpperCase()}
+                        </span>
+                        {monthClients.length > 0 && (
+                          <Badge 
+                            variant="secondary" 
+                            className="h-5 w-auto min-w-[20px] px-1.5 text-[10px] font-medium bg-primary/10 text-primary border-0"
+                          >
+                            {monthClients.length}
+                          </Badge>
+                        )}
+                      </TabsTrigger>
+                    )
+                  })}
+                </TabsList>
+              </div>
             </div>
             
+            {/* Month Content - Properly Aligned */}
             {MONTHS.map((month) => (
-              <TabsContent key={month.key} value={month.key} className="mt-0">
-                {renderMonthContent(month.number)}
+              <TabsContent key={month.key} value={month.key} className="mt-0 focus-visible:outline-none">
+                <div className="px-6 py-4">
+                  {renderMonthContent(month.number)}
+                </div>
               </TabsContent>
             ))}
           </Tabs>
