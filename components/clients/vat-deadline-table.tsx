@@ -256,12 +256,10 @@ export function VATDeadlineTable() {
       'ANNUALLY': 'bg-purple-100 text-purple-800 border-purple-200'
     }
     
-    // Compact display text
-    const displayText = frequency === 'QUARTERLY' && quarterGroup 
-      ? `Q (${quarterGroup.replace('_', '/')})`
-      : frequency === 'QUARTERLY' ? 'Q'
-      : frequency === 'MONTHLY' ? 'M'
-      : frequency === 'ANNUALLY' ? 'A'
+    // Clean display text without verbose quarter group info
+    const displayText = frequency === 'QUARTERLY' ? 'Quarterly'
+      : frequency === 'MONTHLY' ? 'Monthly'
+      : frequency === 'ANNUALLY' ? 'Annually'
       : frequency.charAt(0)
     
     return <Badge variant="outline" className={`text-xs ${colors[frequency as keyof typeof colors] || ''}`}>
