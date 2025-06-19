@@ -45,10 +45,18 @@ import {
   UserCheck,
   Building,
   RefreshCw,
-  Users
+  Users,
+  Phone,
+  History
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
-import { calculateVATQuarter } from '@/lib/vat-workflow'
+import { 
+  calculateVATQuarter, 
+  getVATFilingMonthName, 
+  getVATQuarterEndMonthName,
+  isVATFilingMonth 
+} from '@/lib/vat-workflow'
+import { VATQuartersHistoryModal } from './vat-quarters-history-modal'
 
 interface VATClient {
   id: string
@@ -113,13 +121,15 @@ interface User {
 }
 
 const WORKFLOW_STAGES: WorkflowStage[] = [
-  { key: 'CHASE_STARTED', label: 'Chase Started', icon: <User className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
-  { key: 'PAPERWORK_RECEIVED', label: 'Paperwork Received', icon: <FileText className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
-  { key: 'WORK_STARTED', label: 'Work Started', icon: <Clock className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-800' },
-  { key: 'WORK_FINISHED', label: 'Work Finished', icon: <CheckCircle className="h-4 w-4" />, color: 'bg-purple-100 text-purple-800' },
-  { key: 'SENT_TO_CLIENT', label: 'Sent to Client', icon: <Send className="h-4 w-4" />, color: 'bg-orange-100 text-orange-800' },
-  { key: 'CLIENT_APPROVED', label: 'Client Approved', icon: <UserCheck className="h-4 w-4" />, color: 'bg-indigo-100 text-indigo-800' },
-  { key: 'FILED_TO_HMRC', label: 'Filed to HMRC', icon: <Building className="h-4 w-4" />, color: 'bg-emerald-100 text-emerald-800' }
+  { key: 'CLIENT_BOOKKEEPING', label: 'Client to do bookkeeping', icon: <User className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
+  { key: 'WORK_IN_PROGRESS', label: 'Work in progress', icon: <FileText className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
+  { key: 'QUERIES_PENDING', label: 'Queries pending', icon: <Clock className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-800' },
+  { key: 'REVIEW_PENDING_MANAGER', label: 'Review pending by manager', icon: <UserCheck className="h-4 w-4" />, color: 'bg-orange-100 text-orange-800' },
+  { key: 'REVIEW_PENDING_PARTNER', label: 'Review pending by partner', icon: <UserCheck className="h-4 w-4" />, color: 'bg-purple-100 text-purple-800' },
+  { key: 'EMAILED_TO_PARTNER', label: 'Emailed to partner', icon: <Send className="h-4 w-4" />, color: 'bg-indigo-100 text-indigo-800' },
+  { key: 'EMAILED_TO_CLIENT', label: 'Emailed to client', icon: <Send className="h-4 w-4" />, color: 'bg-cyan-100 text-cyan-800' },
+  { key: 'CLIENT_APPROVED', label: 'Client approved', icon: <CheckCircle className="h-4 w-4" />, color: 'bg-emerald-100 text-emerald-800' },
+  { key: 'FILED_TO_HMRC', label: 'Filed to HMRC', icon: <Building className="h-4 w-4" />, color: 'bg-green-100 text-green-800' }
 ]
 
 // Month configuration for tabs
@@ -138,13 +148,6 @@ const MONTHS = [
   { key: 'dec', name: 'December', short: 'Dec', number: 12 }
 ]
 
-// Quarter group to filing months mapping
-const QUARTER_GROUP_FILING_MONTHS = {
-  '1_4_7_10': [2, 5, 8, 11], // Filing months: Feb, May, Aug, Nov
-  '2_5_8_11': [3, 6, 9, 12], // Filing months: Mar, Jun, Sep, Dec
-  '3_6_9_12': [4, 7, 10, 1]  // Filing months: Apr, Jul, Oct, Jan
-}
-
 export function VATDeadlinesTable() {
   const { data: session } = useSession()
   const [vatClients, setVatClients] = useState<VATClient[]>([])
@@ -158,6 +161,8 @@ export function VATDeadlinesTable() {
   const [updateComments, setUpdateComments] = useState<string>('')
   const [updating, setUpdating] = useState(false)
   const [activeMonth, setActiveMonth] = useState<string>('')
+  const [historyModalOpen, setHistoryModalOpen] = useState(false)
+  const [selectedHistoryClient, setSelectedHistoryClient] = useState<VATClient | null>(null)
   const hasFetchedRef = useRef(false)
 
   // Get current month for default tab
@@ -218,8 +223,7 @@ export function VATDeadlinesTable() {
     return vatClients.filter(client => {
       if (!client.vatQuarterGroup) return false
       
-      const filingMonths = QUARTER_GROUP_FILING_MONTHS[client.vatQuarterGroup as keyof typeof QUARTER_GROUP_FILING_MONTHS]
-      return filingMonths?.includes(monthNumber)
+      return isVATFilingMonth(client.vatQuarterGroup, monthNumber)
     })
   }, [vatClients])
 
@@ -241,16 +245,56 @@ export function VATDeadlinesTable() {
   }
 
   const getFilingMonth = (client: VATClient) => {
-    if (!client.vatQuarterGroup || !client.currentVATQuarter) return '-'
+    if (!client.currentVATQuarter) return '-'
     
     try {
-      const quarterEndDate = new Date(client.currentVATQuarter.quarterEndDate)
-      const filingMonth = new Date(quarterEndDate)
-      filingMonth.setMonth(filingMonth.getMonth() + 1)
-      
-      return filingMonth.toLocaleDateString('en-GB', { month: 'long' })
+      return getVATFilingMonthName(client.currentVATQuarter)
     } catch {
       return '-'
+    }
+  }
+
+  const getQuarterEndMonth = (client: VATClient) => {
+    if (!client.currentVATQuarter) return '-'
+    
+    try {
+      return getVATQuarterEndMonthName(client.currentVATQuarter)
+    } catch {
+      return '-'
+    }
+  }
+
+  const getQuarterStatus = (client: VATClient) => {
+    if (!client.currentVATQuarter) return { label: 'No Quarter', color: 'text-gray-500' }
+    
+    const quarterEndDate = new Date(client.currentVATQuarter.quarterEndDate)
+    const filingDueDate = new Date(client.currentVATQuarter.filingDueDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    // If quarter hasn't ended yet
+    if (today <= quarterEndDate) {
+      const daysUntilEnd = Math.ceil((quarterEndDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+      return { 
+        label: `Quarter ends in ${daysUntilEnd} day${daysUntilEnd !== 1 ? 's' : ''}`, 
+        color: 'text-blue-600' 
+      }
+    }
+    
+    // If quarter ended but filing not due yet
+    if (today <= filingDueDate) {
+      const daysUntilFiling = Math.ceil((filingDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+      return { 
+        label: `Filing due in ${daysUntilFiling} day${daysUntilFiling !== 1 ? 's' : ''}`, 
+        color: daysUntilFiling <= 7 ? 'text-amber-600' : 'text-green-600' 
+      }
+    }
+    
+    // Filing is overdue
+    const daysOverdue = Math.ceil((today.getTime() - filingDueDate.getTime()) / (1000 * 60 * 60 * 24))
+    return { 
+      label: `${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue`, 
+      color: 'text-red-600' 
     }
   }
 
@@ -284,13 +328,18 @@ export function VATDeadlinesTable() {
   const handleAddUpdate = (client: VATClient) => {
     setSelectedClient(client)
     setSelectedStage('')
-    setSelectedAssignee(client.vatAssignedUser?.id || '')
+    setSelectedAssignee(client.vatAssignedUser?.id || 'unassigned')
     setUpdateComments('')
     setUpdateModalOpen(true)
   }
 
+  const handleOpenHistory = (client: VATClient) => {
+    setSelectedHistoryClient(client)
+    setHistoryModalOpen(true)
+  }
+
   const handleSubmitUpdate = async () => {
-    if (!selectedClient || (!selectedStage && selectedAssignee === (selectedClient?.vatAssignedUser?.id || ''))) {
+    if (!selectedClient || (!selectedStage && selectedAssignee === (selectedClient?.vatAssignedUser?.id || 'unassigned'))) {
       showToast.error('Please select a stage to update or assign a user')
       return
     }
@@ -298,12 +347,12 @@ export function VATDeadlinesTable() {
     setUpdating(true)
     try {
       // Handle assignment if assignee changed
-      if (selectedAssignee !== (selectedClient.vatAssignedUser?.id || '')) {
+      if (selectedAssignee !== (selectedClient.vatAssignedUser?.id || 'unassigned')) {
         const assignResponse = await fetch(`/api/clients/${selectedClient.id}/assign`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            userId: selectedAssignee || null,
+            userId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
             assignmentType: 'vat' 
           })
         })
@@ -316,12 +365,12 @@ export function VATDeadlinesTable() {
       // Handle workflow stage update if stage selected
       if (selectedStage && selectedClient.currentVATQuarter) {
         const workflowResponse = await fetch(`/api/vat-quarters/${selectedClient.currentVATQuarter.id}/workflow`, {
-          method: 'POST',
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             stage: selectedStage,
             comments: updateComments,
-            userId: session?.user?.id
+            assignedUserId: session?.user?.id
           })
         })
 
@@ -378,46 +427,53 @@ export function VATDeadlinesTable() {
 
     const milestones = [
       { 
-        stage: 'CHASE_STARTED', 
+        id: 'CHASE_STARTED', 
         date: quarter.chaseStartedDate, 
         user: quarter.chaseStartedByUserName,
-        label: 'Chase Started'
+        label: 'Chase Started',
+        icon: <Phone className="h-4 w-4" />
       },
       { 
-        stage: 'PAPERWORK_RECEIVED', 
+        id: 'PAPERWORK_RECEIVED', 
         date: quarter.paperworkReceivedDate, 
         user: quarter.paperworkReceivedByUserName,
-        label: 'Paperwork Received'
+        label: 'Paperwork Received',
+        icon: <FileText className="h-4 w-4" />
       },
       { 
-        stage: 'WORK_STARTED', 
+        id: 'WORK_STARTED', 
         date: quarter.workStartedDate, 
         user: quarter.workStartedByUserName,
-        label: 'Work Started'
+        label: 'Work Started',
+        icon: <Clock className="h-4 w-4" />
       },
       { 
-        stage: 'WORK_FINISHED', 
+        id: 'WORK_FINISHED', 
         date: quarter.workFinishedDate, 
         user: quarter.workFinishedByUserName,
-        label: 'Work Finished'
+        label: 'Work Finished',
+        icon: <CheckCircle className="h-4 w-4" />
       },
       { 
-        stage: 'SENT_TO_CLIENT', 
+        id: 'SENT_TO_CLIENT', 
         date: quarter.sentToClientDate, 
         user: quarter.sentToClientByUserName,
-        label: 'Sent to Client'
+        label: 'Sent to Client',
+        icon: <Send className="h-4 w-4" />
       },
       { 
-        stage: 'CLIENT_APPROVED', 
+        id: 'CLIENT_APPROVED', 
         date: quarter.clientApprovedDate, 
         user: quarter.clientApprovedByUserName,
-        label: 'Client Approved'
+        label: 'Client Approved',
+        icon: <UserCheck className="h-4 w-4" />
       },
       { 
-        stage: 'FILED_TO_HMRC', 
+        id: 'FILED_TO_HMRC', 
         date: quarter.filedToHMRCDate, 
         user: quarter.filedToHMRCByUserName,
-        label: 'Filed to HMRC'
+        label: 'Filed to HMRC',
+        icon: <Building className="h-4 w-4" />
       }
     ]
 
@@ -434,10 +490,9 @@ export function VATDeadlinesTable() {
           <div className="flex justify-between items-start">
             {milestones.map((milestone, index) => {
               const isCompleted = !!milestone.date
-              const stageInfo = WORKFLOW_STAGES.find(s => s.key === milestone.stage)
               
               return (
-                <div key={milestone.stage} className="flex flex-col items-center text-center min-w-0 flex-1">
+                <div key={milestone.id} className="flex flex-col items-center text-center min-w-0 flex-1">
                   {/* Timeline Node */}
                   <div className={`
                     relative z-10 w-12 h-12 rounded-full border-2 flex items-center justify-center
@@ -446,7 +501,7 @@ export function VATDeadlinesTable() {
                       : 'bg-gray-100 border-gray-300 text-gray-400'
                     }
                   `}>
-                    {stageInfo?.icon || <Clock className="h-4 w-4" />}
+                    {milestone.icon}
                   </div>
                   
                   {/* Stage Label */}
@@ -498,15 +553,16 @@ export function VATDeadlinesTable() {
             <TableHead className="w-24">Client Code</TableHead>
             <TableHead className="w-64">Company Name</TableHead>
             <TableHead className="w-24">Frequency</TableHead>
-            <TableHead className="w-32">Quarter End</TableHead>
-            <TableHead className="w-32">Filing Month</TableHead>
+            <TableHead className="w-48">VAT Status</TableHead>
             <TableHead className="w-40">Assigned To</TableHead>
             <TableHead className="w-32">Add Update</TableHead>
             <TableHead className="w-16">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {monthClients.map((client) => (
+          {monthClients.map((client) => {
+            const quarterStatus = getQuarterStatus(client)
+            return (
             <>
               {/* Main Row */}
               <TableRow key={client.id} className="hover:bg-muted/50">
@@ -528,16 +584,28 @@ export function VATDeadlinesTable() {
                   {client.clientCode}
                 </TableCell>
                 <TableCell className="font-medium">
-                  {client.companyName}
+                  <button
+                    onClick={() => handleOpenHistory(client)}
+                    className="flex items-center gap-2 text-left hover:text-primary transition-colors cursor-pointer group"
+                  >
+                    <span className="hover:underline">{client.companyName}</span>
+                    <History className="h-3 w-3 text-muted-foreground group-hover:text-primary" />
+                  </button>
                 </TableCell>
                 <TableCell>
                   {getFrequencyBadge(client.vatReturnsFrequency)}
                 </TableCell>
                 <TableCell>
-                  {formatDate(client.currentVATQuarter?.quarterEndDate)}
-                </TableCell>
-                <TableCell>
-                  {getFilingMonth(client)}
+                  <div className="space-y-1">
+                    <p className={`font-medium ${quarterStatus.color}`}>
+                      {quarterStatus.label}
+                    </p>
+                    {client.currentVATQuarter && (
+                      <p className="text-xs text-muted-foreground">
+                        Quarter: {getQuarterEndMonth(client)} → Filing: {getFilingMonth(client)}
+                      </p>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   {(session?.user?.role === 'MANAGER' || session?.user?.role === 'PARTNER') ? (
@@ -596,13 +664,14 @@ export function VATDeadlinesTable() {
               {/* Expanded Row - Workflow Timeline */}
               {expandedRows.has(client.id) && (
                 <TableRow>
-                  <TableCell colSpan={9} className="p-0">
+                  <TableCell colSpan={8} className="p-0">
                     {renderWorkflowTimeline(client)}
                   </TableCell>
                 </TableRow>
               )}
             </>
-          ))}
+            )
+          })}
         </TableBody>
       </Table>
     )
@@ -722,7 +791,7 @@ export function VATDeadlinesTable() {
                     <SelectValue placeholder="Select assignee" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
                     {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         <div className="flex items-center gap-2">
@@ -787,13 +856,27 @@ export function VATDeadlinesTable() {
             </Button>
             <Button 
               onClick={handleSubmitUpdate}
-              disabled={updating || (!selectedStage && selectedAssignee === (selectedClient?.vatAssignedUser?.id || ''))}
+              disabled={updating || (!selectedStage && selectedAssignee === (selectedClient?.vatAssignedUser?.id || 'unassigned'))}
             >
               {updating ? 'Updating...' : 'Update'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* VAT Quarters History Modal */}
+      {selectedHistoryClient && (
+        <VATQuartersHistoryModal
+          isOpen={historyModalOpen}
+          onClose={() => {
+            setHistoryModalOpen(false)
+            setSelectedHistoryClient(null)
+          }}
+          clientId={selectedHistoryClient.id}
+          clientCode={selectedHistoryClient.clientCode}
+          companyName={selectedHistoryClient.companyName}
+        />
+      )}
     </div>
   )
 } 

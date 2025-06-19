@@ -43,6 +43,7 @@
     "db:migrate-safe": "node scripts/safe-migrate.js",
     "db:audit": "node scripts/database-audit.js",
     "db:monitor": "node scripts/monitor-database.js",
+    "fix:vat-dates": "node scripts/fix-vat-return-dates.js",
     "force-logout-all": "node scripts/force-logout-all.js",
     "invalidate-jwt-tokens": "node scripts/invalidate-jwt-tokens.js",
     "performance:test": "node scripts/performance-test.js",

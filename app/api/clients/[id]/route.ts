@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { VAT_QUARTER_GROUPS } from '@/lib/vat-workflow'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -166,7 +167,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         )
       }
       
-      if (body.vatQuarterGroup && !['1_4_7_10', '2_5_8_11', '3_6_9_12'].includes(body.vatQuarterGroup)) {
+      if (body.vatQuarterGroup && !Object.keys(VAT_QUARTER_GROUPS).includes(body.vatQuarterGroup)) {
         return NextResponse.json(
           { success: false, error: 'Invalid VAT quarter group' },
           { status: 400 }

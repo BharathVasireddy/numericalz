@@ -5,6 +5,15 @@
  * All dates are calculated in London timezone (Europe/London) for UK compliance
  */
 
+// Valid VAT quarter groups
+export const VAT_QUARTER_GROUPS = {
+  '1_4_7_10': 'Jan/Apr/Jul/Oct',
+  '2_5_8_11': 'Feb/May/Aug/Nov', 
+  '3_6_9_12': 'Mar/Jun/Sep/Dec'
+} as const
+
+export type VATQuarterGroup = keyof typeof VAT_QUARTER_GROUPS
+
 export interface VATQuarterInfo {
   quarterPeriod: string
   quarterStartDate: Date
@@ -92,8 +101,8 @@ export function calculateVATQuarter(
   // UK VAT Rule: Filing due by last day of month following quarter end
   // Example: June 30th quarter end → July 31st filing deadline
   const filingDueDate = new Date(quarterEndDate)
-  filingDueDate.setMonth(filingDueDate.getMonth() + 1) // Add 1 month
-  filingDueDate.setDate(0) // Set to last day of the month (0 gives last day of previous month)
+  filingDueDate.setMonth(filingDueDate.getMonth() + 2) // Add 2 months to get to month after filing month
+  filingDueDate.setDate(0) // Set to day 0 which gives last day of previous month (the filing month)
 
   // Generate quarter period string
   const quarterPeriod = `${formatDateForLondon(quarterStartDate)}_to_${formatDateForLondon(quarterEndDate)}`
@@ -251,4 +260,52 @@ export function stageRequiresNotification(stage: string): boolean {
     'EMAILED_TO_PARTNER',
     'EMAILED_TO_CLIENT'
   ].includes(stage)
+}
+
+/**
+ * Get the filing month name from a VAT quarter
+ * Returns the month name when filing is due (month after quarter end)
+ */
+export function getVATFilingMonthName(quarterInfo: VATQuarterInfo | { filingDueDate: Date | string }): string {
+  const filingDate = quarterInfo.filingDueDate instanceof Date 
+    ? quarterInfo.filingDueDate 
+    : new Date(quarterInfo.filingDueDate)
+    
+  return filingDate.toLocaleDateString('en-GB', { month: 'long', timeZone: 'Europe/London' })
+}
+
+/**
+ * Get the quarter end month name from a VAT quarter
+ */
+export function getVATQuarterEndMonthName(quarterInfo: VATQuarterInfo | { quarterEndDate: Date | string }): string {
+  const endDate = quarterInfo.quarterEndDate instanceof Date 
+    ? quarterInfo.quarterEndDate 
+    : new Date(quarterInfo.quarterEndDate)
+    
+  return endDate.toLocaleDateString('en-GB', { month: 'long', timeZone: 'Europe/London' })
+}
+
+/**
+ * Get filing months for a quarter group
+ * Returns array of month numbers (1-12) when filing is due for this quarter group
+ */
+export function getVATFilingMonthsForQuarterGroup(quarterGroup: string): number[] {
+  switch (quarterGroup) {
+    case '1_4_7_10':
+      return [2, 5, 8, 11] // Feb, May, Aug, Nov
+    case '2_5_8_11':
+      return [3, 6, 9, 12] // Mar, Jun, Sep, Dec
+    case '3_6_9_12':
+      return [4, 7, 10, 1]  // Apr, Jul, Oct, Jan
+    default:
+      return []
+  }
+}
+
+/**
+ * Check if a given month is a filing month for a quarter group
+ */
+export function isVATFilingMonth(quarterGroup: string, monthNumber: number): boolean {
+  const filingMonths = getVATFilingMonthsForQuarterGroup(quarterGroup)
+  return filingMonths.includes(monthNumber)
 } 

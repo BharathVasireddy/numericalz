@@ -13,6 +13,7 @@ import {
   Info
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
+import { calculateVATQuarter, VAT_QUARTER_GROUPS } from '@/lib/vat-workflow'
 
 interface ClientPostCreationQuestionnaireProps {
   isOpen: boolean
@@ -33,45 +34,6 @@ interface VATData {
   nextVatReturnDue?: string
 }
 
-// Helper function to calculate next VAT return date based on UK VAT rules
-const calculateNextVATReturn = (quarterGroup: string): string => {
-  const now = new Date()
-  const currentYear = now.getFullYear()
-  const currentMonth = now.getMonth() + 1 // JavaScript months are 0-indexed
-  
-  // Define quarter end months for each group
-  const quarterEndMonths: { [key: string]: number[] } = {
-    '1_4_7_10': [1, 4, 7, 10], // Jan, Apr, Jul, Oct
-    '2_5_8_11': [2, 5, 8, 11], // Feb, May, Aug, Nov
-    '3_6_9_12': [3, 6, 9, 12]  // Mar, Jun, Sep, Dec
-  }
-  
-  const endMonths = quarterEndMonths[quarterGroup]
-  if (!endMonths) return ''
-  
-  // Find the next quarter end month
-  let nextEndMonth = endMonths.find(month => month > currentMonth)
-  let nextYear = currentYear
-  
-  // If no month found in current year, take first month of next year
-  if (!nextEndMonth) {
-    nextEndMonth = endMonths[0]
-    nextYear = currentYear + 1
-  }
-  
-  // Safety check for TypeScript
-  if (!nextEndMonth) return ''
-  
-  // VAT return is due 1 month + 7 days after quarter end
-  // UK VAT Rule: Filing due 1 month and 7 days after quarter end
-  const quarterEndDate = new Date(nextYear, nextEndMonth - 1, 0) // Last day of the quarter end month
-  const dueDate = new Date(quarterEndDate)
-  dueDate.setMonth(dueDate.getMonth() + 1) // Add 1 month
-  dueDate.setDate(dueDate.getDate() + 7)   // Add 7 days
-  
-  return dueDate.toISOString().split('T')[0] || '' // Return YYYY-MM-DD format
-}
-
 export function ClientPostCreationQuestionnaire({ 
   isOpen, 
   onComplete, 
@@ -90,8 +52,9 @@ export function ClientPostCreationQuestionnaire({
   // Auto-calculate next VAT return date when quarter group changes
   useEffect(() => {
     if (vatData.vatQuarterGroup && vatData.vatReturnsFrequency === 'QUARTERLY') {
-      const nextDate = calculateNextVATReturn(vatData.vatQuarterGroup)
-      setVatData(prev => ({ ...prev, nextVatReturnDue: nextDate }))
+      const quarterInfo = calculateVATQuarter(vatData.vatQuarterGroup)
+      const filingDueDateString = quarterInfo.filingDueDate.toISOString().split('T')[0]
+      setVatData(prev => ({ ...prev, nextVatReturnDue: filingDueDateString }))
     }
   }, [vatData.vatQuarterGroup, vatData.vatReturnsFrequency])
 
@@ -249,9 +212,11 @@ export function ClientPostCreationQuestionnaire({
                           <SelectValue placeholder="Select quarter group" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="1_4_7_10">1/4/7/10 (Jan/Apr/Jul/Oct)</SelectItem>
-                          <SelectItem value="2_5_8_11">2/5/8/11 (Feb/May/Aug/Nov)</SelectItem>
-                          <SelectItem value="3_6_9_12">3/6/9/12 (Mar/Jun/Sep/Dec)</SelectItem>
+                          {Object.entries(VAT_QUARTER_GROUPS).map(([key, label]) => (
+                            <SelectItem key={key} value={key}>
+                              {key.replace(/_/g, '/')} ({label})
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -268,7 +233,7 @@ export function ClientPostCreationQuestionnaire({
                         {formatDateForDisplay(vatData.nextVatReturnDue)}
                       </p>
                       <p className="text-xs text-blue-600 mt-1">
-                        Automatically calculated based on UK VAT rules
+                        Automatically calculated based on UK VAT rules (last day of month following quarter end)
                       </p>
                     </div>
                   )}
