@@ -158,8 +158,8 @@ export function VATDeadlinesTable() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [updateModalOpen, setUpdateModalOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<VATClient | null>(null)
-  const [selectedStage, setSelectedStage] = useState<string>('')
-  const [selectedAssignee, setSelectedAssignee] = useState<string>('')
+  const [selectedStage, setSelectedStage] = useState<string | undefined>(undefined)
+  const [selectedAssignee, setSelectedAssignee] = useState<string>('unassigned')
   const [updateComments, setUpdateComments] = useState<string>('')
   const [updating, setUpdating] = useState(false)
   const [activeMonth, setActiveMonth] = useState<string>('')
@@ -329,7 +329,7 @@ export function VATDeadlinesTable() {
 
   const handleAddUpdate = (client: VATClient) => {
     setSelectedClient(client)
-    setSelectedStage('')
+    setSelectedStage(undefined)
     setSelectedAssignee(client.vatAssignedUser?.id || 'unassigned')
     setUpdateComments('')
     setUpdateModalOpen(true)
@@ -821,7 +821,7 @@ export function VATDeadlinesTable() {
 
             <div>
               <Label htmlFor="stage">Workflow Stage (Optional)</Label>
-              <Select value={selectedStage} onValueChange={setSelectedStage}>
+              <Select value={selectedStage || undefined} onValueChange={setSelectedStage}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select stage to update" />
                 </SelectTrigger>
