@@ -18,7 +18,10 @@ import {
   Briefcase,
   BarChart3,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Crown,
+  Shield,
+  User
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -159,8 +162,8 @@ export function DashboardNavigation() {
       },
       {
         id: 'tools',
-        title: 'Tools',
-        icon: Briefcase,
+        title: 'Deadline Calendar',
+        icon: Calendar,
         items: [
           {
             name: 'Calendar',
@@ -171,11 +174,11 @@ export function DashboardNavigation() {
       }
     ]
 
-    // Add management section for Partner
+    // Add staff section for Partner
     if (session?.user?.role === 'PARTNER') {
       structure.push({
-        id: 'management',
-        title: 'Management',
+        id: 'staff',
+        title: 'Staff',
         icon: Users,
         items: [
           {
@@ -286,9 +289,9 @@ export function DashboardNavigation() {
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex flex-col h-full">
-          {/* Logo and Time */}
+          {/* Logo and Time - Inline */}
           <div className="p-4 border-b border-border flex-shrink-0">
-            <div className="flex justify-center mb-3">
+            <div className="flex items-center justify-between">
               <Image
                 src="/numericalz-logo-official.png"
                 alt="Numericalz"
@@ -296,9 +299,9 @@ export function DashboardNavigation() {
                 height={36}
                 className="flex-shrink-0"
               />
-            </div>
-            <div className="text-center">
-              <LondonTime />
+              <div className="text-right">
+                <LondonTime />
+              </div>
             </div>
           </div>
 
@@ -389,16 +392,35 @@ export function DashboardNavigation() {
             </div>
           </nav>
 
-          {/* Compact User Section */}
+          {/* Enhanced User Section */}
           <div className="p-3 border-t border-border space-y-2 flex-shrink-0">
-            {/* User Info */}
+            {/* User Info - Inline Name and Role */}
             <div className="px-3 py-2 rounded-sm bg-muted/30">
-              <p className="text-sm font-medium text-foreground truncate">
-                {currentUserName || session?.user?.name || 'User'}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {session?.user?.role?.toLowerCase() || 'staff'}
-              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-foreground truncate">
+                  {currentUserName || session?.user?.name || 'User'}
+                </span>
+                <div className="flex items-center gap-1">
+                  {session?.user?.role === 'PARTNER' && (
+                    <>
+                      <Crown className="h-3.5 w-3.5 text-purple-600" />
+                      <span className="text-xs font-medium text-purple-600">Partner</span>
+                    </>
+                  )}
+                  {session?.user?.role === 'MANAGER' && (
+                    <>
+                      <Shield className="h-3.5 w-3.5 text-blue-600" />
+                      <span className="text-xs font-medium text-blue-600">Manager</span>
+                    </>
+                  )}
+                  {session?.user?.role === 'STAFF' && (
+                    <>
+                      <User className="h-3.5 w-3.5 text-gray-600" />
+                      <span className="text-xs font-medium text-gray-600">Staff</span>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
             
             {/* Sign Out Button */}
