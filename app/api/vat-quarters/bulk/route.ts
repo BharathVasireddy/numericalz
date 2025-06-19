@@ -171,6 +171,41 @@ async function bulkCreateQuarters(data: any, userId: string) {
 }
 
 /**
+ * Map workflow stages to their corresponding milestone date fields
+ */
+const STAGE_TO_MILESTONE_MAP: { [key: string]: string } = {
+  'CLIENT_BOOKKEEPING': 'chaseStartedDate',
+  'WORK_IN_PROGRESS': 'workStartedDate',
+  'QUERIES_PENDING': 'workStartedDate', // Still working, just with queries
+  'REVIEW_PENDING_MANAGER': 'workFinishedDate',
+  'REVIEW_PENDING_PARTNER': 'workFinishedDate', 
+  'EMAILED_TO_PARTNER': 'sentToClientDate', // Sent to partner first
+  'EMAILED_TO_CLIENT': 'sentToClientDate',
+  'CLIENT_APPROVED': 'clientApprovedDate',
+  'FILED_TO_HMRC': 'filedToHMRCDate'
+}
+
+/**
+ * Get milestone update data for a given stage and user
+ */
+function getMilestoneUpdateData(stage: string, userId: string, userName: string) {
+  const milestoneField = STAGE_TO_MILESTONE_MAP[stage]
+  if (!milestoneField) return {}
+
+  const now = new Date()
+  const updateData: any = {}
+  
+  // Set the milestone date
+  updateData[milestoneField] = now
+  
+  // Set the corresponding user ID and name fields
+  updateData[`${milestoneField.replace('Date', 'ByUserId')}`] = userId
+  updateData[`${milestoneField.replace('Date', 'ByUserName')}`] = userName
+  
+  return updateData
+}
+
+/**
  * Bulk update workflow stages
  */
 async function bulkUpdateStages(data: any, user: any) {
@@ -193,12 +228,16 @@ async function bulkUpdateStages(data: any, user: any) {
 
   for (const vatQuarterId of vatQuarterIds) {
     try {
-      // Update VAT quarter
+      // Get milestone update data
+      const milestoneData = getMilestoneUpdateData(stage, user.id, user.name || user.email || 'Unknown User')
+
+      // Update VAT quarter with stage and milestone data in single transaction
       const updatedQuarter = await prisma.vATQuarter.update({
         where: { id: vatQuarterId },
         data: {
           currentStage: stage,
           isCompleted: stage === 'FILED_TO_HMRC',
+          ...milestoneData
         }
       })
 
@@ -211,12 +250,12 @@ async function bulkUpdateStages(data: any, user: any) {
           userId: user.id,
           userName: user.name || user.email || 'Unknown User',
           userEmail: user.email || '',
-          userRole: 'USER',
+          userRole: user.role || 'USER',
           notes: comments || `Bulk update to: ${VAT_WORKFLOW_STAGE_NAMES[stage as keyof typeof VAT_WORKFLOW_STAGE_NAMES]}`,
         }
       })
 
-      results.push({ vatQuarterId, stage })
+      results.push({ vatQuarterId, stage, milestonesUpdated: Object.keys(milestoneData) })
 
     } catch (error) {
       console.error(`Error updating quarter ${vatQuarterId}:`, error)

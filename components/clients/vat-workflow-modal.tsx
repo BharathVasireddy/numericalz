@@ -53,6 +53,21 @@ interface VATWorkflowModalProps {
       companyName: string
       vatQuarterGroup: string
     }
+    // Milestone dates
+    chaseStartedDate?: string
+    chaseStartedByUserName?: string
+    paperworkReceivedDate?: string
+    paperworkReceivedByUserName?: string
+    workStartedDate?: string
+    workStartedByUserName?: string
+    workFinishedDate?: string
+    workFinishedByUserName?: string
+    sentToClientDate?: string
+    sentToClientByUserName?: string
+    clientApprovedDate?: string
+    clientApprovedByUserName?: string
+    filedToHMRCDate?: string
+    filedToHMRCByUserName?: string
     workflowHistory?: Array<{
       id: string
       fromStage?: string
@@ -263,6 +278,105 @@ export function VATWorkflowModal({
                   </Badge>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Milestone Dates */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Key Milestone Dates
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Chase Started */}
+                {vatQuarter.chaseStartedDate && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium text-muted-foreground">Chase Started</Label>
+                    <p className="font-medium">{new Date(vatQuarter.chaseStartedDate).toLocaleDateString('en-GB')}</p>
+                    {vatQuarter.chaseStartedByUserName && (
+                      <p className="text-xs text-muted-foreground">by {vatQuarter.chaseStartedByUserName}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Paperwork Received */}
+                {vatQuarter.paperworkReceivedDate && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium text-muted-foreground">Paperwork Received</Label>
+                    <p className="font-medium">{new Date(vatQuarter.paperworkReceivedDate).toLocaleDateString('en-GB')}</p>
+                    {vatQuarter.paperworkReceivedByUserName && (
+                      <p className="text-xs text-muted-foreground">by {vatQuarter.paperworkReceivedByUserName}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Work Started */}
+                {vatQuarter.workStartedDate && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium text-muted-foreground">Work Started</Label>
+                    <p className="font-medium">{new Date(vatQuarter.workStartedDate).toLocaleDateString('en-GB')}</p>
+                    {vatQuarter.workStartedByUserName && (
+                      <p className="text-xs text-muted-foreground">by {vatQuarter.workStartedByUserName}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Work Finished */}
+                {vatQuarter.workFinishedDate && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium text-muted-foreground">Work Finished</Label>
+                    <p className="font-medium">{new Date(vatQuarter.workFinishedDate).toLocaleDateString('en-GB')}</p>
+                    {vatQuarter.workFinishedByUserName && (
+                      <p className="text-xs text-muted-foreground">by {vatQuarter.workFinishedByUserName}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Sent to Client */}
+                {vatQuarter.sentToClientDate && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium text-muted-foreground">Sent to Client</Label>
+                    <p className="font-medium">{new Date(vatQuarter.sentToClientDate).toLocaleDateString('en-GB')}</p>
+                    {vatQuarter.sentToClientByUserName && (
+                      <p className="text-xs text-muted-foreground">by {vatQuarter.sentToClientByUserName}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Client Approved */}
+                {vatQuarter.clientApprovedDate && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium text-muted-foreground">Client Approved</Label>
+                    <p className="font-medium">{new Date(vatQuarter.clientApprovedDate).toLocaleDateString('en-GB')}</p>
+                    {vatQuarter.clientApprovedByUserName && (
+                      <p className="text-xs text-muted-foreground">by {vatQuarter.clientApprovedByUserName}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Filed to HMRC */}
+                {vatQuarter.filedToHMRCDate && (
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium text-muted-foreground">Filed to HMRC</Label>
+                    <p className="font-medium">{new Date(vatQuarter.filedToHMRCDate).toLocaleDateString('en-GB')}</p>
+                    {vatQuarter.filedToHMRCByUserName && (
+                      <p className="text-xs text-muted-foreground">by {vatQuarter.filedToHMRCByUserName}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* Show message if no milestones yet */}
+              {!vatQuarter.chaseStartedDate && !vatQuarter.paperworkReceivedDate && !vatQuarter.workStartedDate && (
+                <div className="text-center py-4 text-muted-foreground">
+                  <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No milestone dates recorded yet</p>
+                  <p className="text-sm">Dates will appear as workflow progresses</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 

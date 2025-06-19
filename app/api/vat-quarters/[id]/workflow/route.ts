@@ -5,8 +5,43 @@ import { db as prisma } from '@/lib/db'
 import { getNextVATWorkflowStage, VAT_WORKFLOW_STAGE_NAMES, calculateDaysBetween } from '@/lib/vat-workflow'
 
 /**
+ * Map workflow stages to their corresponding milestone date fields
+ */
+const STAGE_TO_MILESTONE_MAP: { [key: string]: string } = {
+  'CLIENT_BOOKKEEPING': 'chaseStartedDate',
+  'WORK_IN_PROGRESS': 'workStartedDate',
+  'QUERIES_PENDING': 'workStartedDate', // Still working, just with queries
+  'REVIEW_PENDING_MANAGER': 'workFinishedDate',
+  'REVIEW_PENDING_PARTNER': 'workFinishedDate', 
+  'EMAILED_TO_PARTNER': 'sentToClientDate', // Sent to partner first
+  'EMAILED_TO_CLIENT': 'sentToClientDate',
+  'CLIENT_APPROVED': 'clientApprovedDate',
+  'FILED_TO_HMRC': 'filedToHMRCDate'
+}
+
+/**
+ * Get milestone update data for a given stage and user
+ */
+function getMilestoneUpdateData(stage: string, userId: string, userName: string) {
+  const milestoneField = STAGE_TO_MILESTONE_MAP[stage]
+  if (!milestoneField) return {}
+
+  const now = new Date()
+  const updateData: any = {}
+  
+  // Set the milestone date
+  updateData[milestoneField] = now
+  
+  // Set the corresponding user ID and name fields
+  updateData[`${milestoneField.replace('Date', 'ByUserId')}`] = userId
+  updateData[`${milestoneField.replace('Date', 'ByUserName')}`] = userName
+  
+  return updateData
+}
+
+/**
  * PUT /api/vat-quarters/[id]/workflow
- * Update VAT quarter workflow stage
+ * Update VAT quarter workflow stage with milestone date tracking
  */
 export async function PUT(
   request: NextRequest,
@@ -66,13 +101,28 @@ export async function PUT(
       ? calculateDaysBetween(currentHistory.createdAt, new Date())
       : 0
 
-    // Update VAT quarter
+    // Prepare milestone update data
+    const milestoneUpdateData = getMilestoneUpdateData(
+      stage, 
+      session.user.id, 
+      session.user.name || session.user.email || 'Unknown User'
+    )
+
+    // Special handling for paperwork received - set when moving from CLIENT_BOOKKEEPING
+    if (vatQuarter.currentStage === 'CLIENT_BOOKKEEPING' && stage !== 'CLIENT_BOOKKEEPING') {
+      milestoneUpdateData.paperworkReceivedDate = new Date()
+      milestoneUpdateData.paperworkReceivedByUserId = session.user.id
+      milestoneUpdateData.paperworkReceivedByUserName = session.user.name || session.user.email || 'Unknown User'
+    }
+
+    // Update VAT quarter with milestone dates
     const updatedVatQuarter = await prisma.vATQuarter.update({
       where: { id: vatQuarterId },
       data: {
         currentStage: stage,
         assignedUserId: assignedUserId || vatQuarter.assignedUserId,
         isCompleted: stage === 'FILED_TO_HMRC',
+        ...milestoneUpdateData
       },
       include: {
         assignedUser: {
@@ -103,7 +153,7 @@ export async function PUT(
         userId: session.user.id,
         userName: session.user.name || session.user.email || 'Unknown User',
         userEmail: session.user.email || '',
-        userRole: 'USER',
+        userRole: session.user.role || 'USER',
         notes: comments || `Stage updated to: ${VAT_WORKFLOW_STAGE_NAMES[stage as keyof typeof VAT_WORKFLOW_STAGE_NAMES]}`,
       }
     })
@@ -112,7 +162,8 @@ export async function PUT(
       success: true,
       data: {
         vatQuarter: updatedVatQuarter,
-        workflowHistory
+        workflowHistory,
+        milestonesUpdated: Object.keys(milestoneUpdateData)
       },
       message: `Workflow stage updated to: ${VAT_WORKFLOW_STAGE_NAMES[stage as keyof typeof VAT_WORKFLOW_STAGE_NAMES]}`
     })

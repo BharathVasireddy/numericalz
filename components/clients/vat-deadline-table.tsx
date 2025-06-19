@@ -49,6 +49,21 @@ interface VATClient {
       name: string
       email: string
     }
+    // Milestone dates
+    chaseStartedDate?: string
+    chaseStartedByUserName?: string
+    paperworkReceivedDate?: string
+    paperworkReceivedByUserName?: string
+    workStartedDate?: string
+    workStartedByUserName?: string
+    workFinishedDate?: string
+    workFinishedByUserName?: string
+    sentToClientDate?: string
+    sentToClientByUserName?: string
+    clientApprovedDate?: string
+    clientApprovedByUserName?: string
+    filedToHMRCDate?: string
+    filedToHMRCByUserName?: string
   }
 }
 
@@ -396,16 +411,65 @@ export function VATDeadlineTable() {
   const renderStatusDisplay = (client: VATClient) => {
     const status = getComprehensiveStatus(client)
     
+    // Helper function to get milestone tooltip content
+    const getMilestoneTooltip = (currentQuarter?: VATClient['currentVATQuarter']) => {
+      if (!currentQuarter) return null
+      
+      const milestones = []
+      if (currentQuarter.chaseStartedDate) {
+        milestones.push(`Chase Started: ${formatDate(currentQuarter.chaseStartedDate)} (${currentQuarter.chaseStartedByUserName})`)
+      }
+      if (currentQuarter.paperworkReceivedDate) {
+        milestones.push(`Paperwork Received: ${formatDate(currentQuarter.paperworkReceivedDate)} (${currentQuarter.paperworkReceivedByUserName})`)
+      }
+      if (currentQuarter.workStartedDate) {
+        milestones.push(`Work Started: ${formatDate(currentQuarter.workStartedDate)} (${currentQuarter.workStartedByUserName})`)
+      }
+      if (currentQuarter.workFinishedDate) {
+        milestones.push(`Work Finished: ${formatDate(currentQuarter.workFinishedDate)} (${currentQuarter.workFinishedByUserName})`)
+      }
+      if (currentQuarter.sentToClientDate) {
+        milestones.push(`Sent to Client: ${formatDate(currentQuarter.sentToClientDate)} (${currentQuarter.sentToClientByUserName})`)
+      }
+      if (currentQuarter.clientApprovedDate) {
+        milestones.push(`Client Approved: ${formatDate(currentQuarter.clientApprovedDate)} (${currentQuarter.clientApprovedByUserName})`)
+      }
+      if (currentQuarter.filedToHMRCDate) {
+        milestones.push(`Filed to HMRC: ${formatDate(currentQuarter.filedToHMRCDate)} (${currentQuarter.filedToHMRCByUserName})`)
+      }
+      
+      return milestones.length > 0 ? milestones.join('\n') : null
+    }
+    
     switch (status.type) {
       case 'workflow':
+        const milestoneTooltip = getMilestoneTooltip(client.currentVATQuarter)
         return (
           <div className="space-y-1">
             <div className="flex items-center gap-1">
-              {status.stage && formatWorkflowStage(status.stage)}
+              {status.stage && (
+                <div title={milestoneTooltip || undefined}>
+                  {formatWorkflowStage(status.stage)}
+                </div>
+              )}
             </div>
             <div className="text-xs text-muted-foreground">
               Q: {status.daysUntilQuarterEnd}d • Filing: {status.daysUntilFiling}d
             </div>
+            {/* Show latest milestone date if available */}
+            {client.currentVATQuarter && (
+              <div className="text-xs text-muted-foreground">
+                {client.currentVATQuarter.workStartedDate && (
+                  <span>Started: {formatDate(client.currentVATQuarter.workStartedDate)}</span>
+                )}
+                {!client.currentVATQuarter.workStartedDate && client.currentVATQuarter.paperworkReceivedDate && (
+                  <span>Received: {formatDate(client.currentVATQuarter.paperworkReceivedDate)}</span>
+                )}
+                {!client.currentVATQuarter.workStartedDate && !client.currentVATQuarter.paperworkReceivedDate && client.currentVATQuarter.chaseStartedDate && (
+                  <span>Chased: {formatDate(client.currentVATQuarter.chaseStartedDate)}</span>
+                )}
+              </div>
+            )}
           </div>
         )
       

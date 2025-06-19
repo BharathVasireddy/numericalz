@@ -74,7 +74,22 @@ export async function GET(request: NextRequest) {
                 name: true,
                 email: true
               }
-            }
+            },
+            // Include milestone dates
+            chaseStartedDate: true,
+            chaseStartedByUserName: true,
+            paperworkReceivedDate: true,
+            paperworkReceivedByUserName: true,
+            workStartedDate: true,
+            workStartedByUserName: true,
+            workFinishedDate: true,
+            workFinishedByUserName: true,
+            sentToClientDate: true,
+            sentToClientByUserName: true,
+            clientApprovedDate: true,
+            clientApprovedByUserName: true,
+            filedToHMRCDate: true,
+            filedToHMRCByUserName: true
           },
           orderBy: {
             quarterEndDate: 'desc'
@@ -110,7 +125,22 @@ export async function GET(request: NextRequest) {
         filingDueDate: client.vatQuartersWorkflow[0].filingDueDate.toISOString(),
         currentStage: client.vatQuartersWorkflow[0].currentStage,
         isCompleted: client.vatQuartersWorkflow[0].isCompleted,
-        assignedUser: client.vatQuartersWorkflow[0].assignedUser
+        assignedUser: client.vatQuartersWorkflow[0].assignedUser,
+        // Include milestone dates
+        chaseStartedDate: client.vatQuartersWorkflow[0].chaseStartedDate?.toISOString(),
+        chaseStartedByUserName: client.vatQuartersWorkflow[0].chaseStartedByUserName,
+        paperworkReceivedDate: client.vatQuartersWorkflow[0].paperworkReceivedDate?.toISOString(),
+        paperworkReceivedByUserName: client.vatQuartersWorkflow[0].paperworkReceivedByUserName,
+        workStartedDate: client.vatQuartersWorkflow[0].workStartedDate?.toISOString(),
+        workStartedByUserName: client.vatQuartersWorkflow[0].workStartedByUserName,
+        workFinishedDate: client.vatQuartersWorkflow[0].workFinishedDate?.toISOString(),
+        workFinishedByUserName: client.vatQuartersWorkflow[0].workFinishedByUserName,
+        sentToClientDate: client.vatQuartersWorkflow[0].sentToClientDate?.toISOString(),
+        sentToClientByUserName: client.vatQuartersWorkflow[0].sentToClientByUserName,
+        clientApprovedDate: client.vatQuartersWorkflow[0].clientApprovedDate?.toISOString(),
+        clientApprovedByUserName: client.vatQuartersWorkflow[0].clientApprovedByUserName,
+        filedToHMRCDate: client.vatQuartersWorkflow[0].filedToHMRCDate?.toISOString(),
+        filedToHMRCByUserName: client.vatQuartersWorkflow[0].filedToHMRCByUserName
       } : undefined
     }))
 
