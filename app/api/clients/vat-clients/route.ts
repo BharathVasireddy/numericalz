@@ -329,8 +329,8 @@ export async function GET(request: NextRequest) {
         nextVatReturnDue: client.nextVatReturnDue,
         isVatEnabled: client.isVatEnabled,
         createdAt: client.createdAt.toISOString(),
-        assignedUser: client.assignedUser,
-        vatAssignedUser: client.vatAssignedUser,
+      assignedUser: client.assignedUser,
+      vatAssignedUser: client.vatAssignedUser,
         currentVATQuarter: currentQuarter ? {
           id: currentQuarter.id,
           quarterPeriod: currentQuarter.quarterPeriod,
@@ -340,7 +340,7 @@ export async function GET(request: NextRequest) {
           currentStage: currentQuarter.currentStage,
           isCompleted: currentQuarter.isCompleted,
           assignedUser: currentQuarter.assignedUser,
-          // Include milestone dates
+        // Include milestone dates
           chaseStartedDate: currentQuarter.chaseStartedDate?.toISOString(),
           chaseStartedByUserName: currentQuarter.chaseStartedByUserName,
           paperworkReceivedDate: currentQuarter.paperworkReceivedDate?.toISOString(),
@@ -355,7 +355,7 @@ export async function GET(request: NextRequest) {
           clientApprovedByUserName: currentQuarter.clientApprovedByUserName,
           filedToHMRCDate: currentQuarter.filedToHMRCDate?.toISOString(),
           filedToHMRCByUserName: currentQuarter.filedToHMRCByUserName
-        } : undefined
+      } : undefined
       }
     }))
 

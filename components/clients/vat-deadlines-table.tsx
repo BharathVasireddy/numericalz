@@ -727,10 +727,7 @@ export function VATDeadlinesTable() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    hasFetchedRef.current = false
-                    fetchVATClients()
-                  }}
+                  onClick={() => fetchVATClients()}
                   disabled={loading}
                   className="bg-white/10 border-white/30 text-white hover:bg-white/20"
                 >
