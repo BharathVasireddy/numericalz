@@ -25,7 +25,7 @@ interface Notification {
   clientCode?: string
   priority: 'high' | 'medium' | 'low'
   read: boolean
-  createdAt: Date
+  createdAt: Date | string
   actionUrl?: string
 }
 
@@ -80,9 +80,10 @@ export function NotificationWidget({
     }
   }
 
-  const formatTimeAgo = (date: Date) => {
+  const formatTimeAgo = (date: Date | string) => {
     const now = new Date()
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
+    const dateObj = new Date(date)
+    const diffInMinutes = Math.floor((now.getTime() - dateObj.getTime()) / (1000 * 60))
     
     if (diffInMinutes < 1) return 'Just now'
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`
@@ -93,7 +94,7 @@ export function NotificationWidget({
     const diffInDays = Math.floor(diffInHours / 24)
     if (diffInDays < 7) return `${diffInDays}d ago`
     
-    return date.toLocaleDateString()
+    return dateObj.toLocaleDateString()
   }
 
   const handleNotificationClick = (notification: Notification) => {
