@@ -280,20 +280,20 @@ export function DashboardNavigation() {
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-40 w-56 bg-background border-r border-border
+        fixed inset-y-0 left-0 z-40 w-72 bg-background border-r border-border
         transform transition-transform duration-300 ease-in-out
         lg:translate-x-0 lg:static lg:inset-0 lg:h-screen
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex flex-col h-full">
           {/* Logo and Time */}
-          <div className="p-3 border-b border-border flex-shrink-0">
-            <div className="flex justify-center mb-2">
+          <div className="p-4 border-b border-border flex-shrink-0">
+            <div className="flex justify-center mb-3">
               <Image
                 src="/numericalz-logo-official.png"
                 alt="Numericalz"
-                width={32}
-                height={32}
+                width={36}
+                height={36}
                 className="flex-shrink-0"
               />
             </div>
@@ -303,63 +303,85 @@ export function DashboardNavigation() {
           </div>
 
           {/* Compact Navigation */}
-          <nav className="flex-1 overflow-y-auto p-2">
+          <nav className="flex-1 overflow-y-auto p-3">
             <div className="space-y-1">
               {navigationStructure.map((section) => {
                 const SectionIcon = section.icon
                 const isExpanded = expandedSections.has(section.id)
                 const hasActiveItem = section.items.some(item => isItemActive(item.href))
+                const hasSingleItem = section.items.length === 1
                 
                 return (
                   <div key={section.id} className="space-y-1">
-                    {/* Section Header */}
-                    <button
-                      onClick={() => toggleSection(section.id)}
-                      className={`
-                        w-full flex items-center gap-2 px-2 py-1.5 text-xs font-medium
-                        rounded-md transition-colors duration-200
-                        ${hasActiveItem || isExpanded
-                          ? 'bg-primary/10 text-primary' 
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                        }
-                      `}
-                    >
-                      <SectionIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                      <span className="truncate flex-1 text-left">{section.title}</span>
-                      {isExpanded ? (
-                        <ChevronDown className="h-3 w-3 flex-shrink-0" />
-                      ) : (
-                        <ChevronRight className="h-3 w-3 flex-shrink-0" />
-                      )}
-                    </button>
-                    
-                    {/* Section Items */}
-                    {isExpanded && (
-                      <div className="ml-4 space-y-0.5">
-                        {section.items.map((item) => {
-                          const ItemIcon = item.icon
-                          const isActive = isItemActive(item.href)
-                          
-                          return (
-                            <Link
-                              key={item.name}
-                              href={item.href}
-                              onClick={() => setIsMobileMenuOpen(false)}
-                              className={`
-                                flex items-center gap-2 px-2 py-1.5 text-xs rounded-md
-                                transition-colors duration-200 w-full
-                                ${isActive
-                                  ? 'bg-primary text-primary-foreground font-medium' 
-                                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                                }
-                              `}
-                            >
-                              <ItemIcon className="h-3 w-3 flex-shrink-0" />
-                              <span className="truncate">{item.name}</span>
-                            </Link>
-                          )
-                        })}
-                      </div>
+                    {hasSingleItem && section.items[0] ? (
+                      // Direct link for single-item sections
+                      <Link
+                        href={section.items[0].href}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={`
+                          w-full flex items-center gap-3 px-3 py-2 text-sm font-medium
+                          rounded-md transition-colors duration-200
+                          ${isItemActive(section.items[0].href)
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                          }
+                        `}
+                      >
+                        <SectionIcon className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{section.title}</span>
+                      </Link>
+                    ) : (
+                      <>
+                        {/* Section Header for multi-item sections */}
+                        <button
+                          onClick={() => toggleSection(section.id)}
+                          className={`
+                            w-full flex items-center gap-3 px-3 py-2 text-sm font-medium
+                            rounded-md transition-colors duration-200
+                            ${hasActiveItem || isExpanded
+                              ? 'bg-primary/10 text-primary' 
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                            }
+                          `}
+                        >
+                          <SectionIcon className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate flex-1 text-left">{section.title}</span>
+                          {isExpanded ? (
+                            <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" />
+                          ) : (
+                            <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
+                          )}
+                        </button>
+                        
+                        {/* Section Items */}
+                        {isExpanded && (
+                          <div className="ml-6 space-y-0.5">
+                            {section.items.map((item) => {
+                              const ItemIcon = item.icon
+                              const isActive = isItemActive(item.href)
+                              
+                              return (
+                                <Link
+                                  key={item.name}
+                                  href={item.href}
+                                  onClick={() => setIsMobileMenuOpen(false)}
+                                  className={`
+                                    flex items-center gap-2 px-3 py-1.5 text-sm rounded-md
+                                    transition-colors duration-200 w-full
+                                    ${isActive
+                                      ? 'bg-primary text-primary-foreground font-medium' 
+                                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                    }
+                                  `}
+                                >
+                                  <ItemIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                                  <span className="truncate">{item.name}</span>
+                                </Link>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )
@@ -368,10 +390,10 @@ export function DashboardNavigation() {
           </nav>
 
           {/* Compact User Section */}
-          <div className="p-2 border-t border-border space-y-2 flex-shrink-0">
+          <div className="p-3 border-t border-border space-y-2 flex-shrink-0">
             {/* User Info */}
-            <div className="px-2 py-1.5 rounded-sm bg-muted/30">
-              <p className="text-xs font-medium text-foreground truncate">
+            <div className="px-3 py-2 rounded-sm bg-muted/30">
+              <p className="text-sm font-medium text-foreground truncate">
                 {currentUserName || session?.user?.name || 'User'}
               </p>
               <p className="text-xs text-muted-foreground truncate">
@@ -384,9 +406,9 @@ export function DashboardNavigation() {
               variant="outline"
               size="sm"
               onClick={handleSignOut}
-              className="w-full h-7 text-xs border-orange-700 text-orange-700 hover:bg-orange-50 hover:text-orange-800 hover:border-orange-800"
+              className="w-full h-8 text-sm border-orange-700 text-orange-700 hover:bg-orange-50 hover:text-orange-800 hover:border-orange-800"
             >
-              <LogOut className="h-3 w-3 mr-1.5 flex-shrink-0" />
+              <LogOut className="h-4 w-4 mr-2 flex-shrink-0" />
               <span className="truncate">Sign Out</span>
             </Button>
           </div>
