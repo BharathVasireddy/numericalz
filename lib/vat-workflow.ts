@@ -89,8 +89,8 @@ export function calculateVATQuarter(
       throw new Error(`Invalid quarter group: ${quarterGroup}. Expected format: "1_4_7_10", "2_5_8_11", or "3_6_9_12"`)
   }
 
-  // Calculate quarter end date (last day of the quarter month) in London timezone
-  const quarterEndDate = new Date(quarterEndYear, quarterEndMonth, 0) // Last day of quarterEndMonth
+  // Calculate quarter end date (last day of the quarter month) in UTC
+  const quarterEndDate = new Date(Date.UTC(quarterEndYear, quarterEndMonth, 0)) // Last day of quarterEndMonth
 
   // Calculate quarter start date (first day of the quarter)
   // For 3_6_9_12: Apr-Jun, Jul-Sep, Oct-Dec, Jan-Mar
@@ -98,12 +98,12 @@ export function calculateVATQuarter(
   const quarterStartMonth = quarterEndMonth - 2 // 2 months before end, not 3
   const quarterStartYear = quarterStartMonth > 0 ? quarterEndYear : quarterEndYear - 1
   const adjustedStartMonth = quarterStartMonth > 0 ? quarterStartMonth : quarterStartMonth + 12
-  const quarterStartDate = new Date(quarterStartYear, adjustedStartMonth - 1, 1) // -1 because JS months are 0-indexed
+  const quarterStartDate = new Date(Date.UTC(quarterStartYear, adjustedStartMonth - 1, 1)) // -1 because JS months are 0-indexed
 
   // Calculate filing due date (last day of month following quarter end)
   // UK VAT Rule: Filing due by last day of month following quarter end
   // Example: June 30th quarter end → July 31st filing deadline
-  const filingDueDate = new Date(quarterEndYear, quarterEndMonth + 1, 0) // Month after quarter end, day 0 = last day
+  const filingDueDate = new Date(Date.UTC(quarterEndYear, quarterEndMonth + 1, 0)) // Month after quarter end, day 0 = last day
 
   // Generate quarter period string
   const quarterPeriod = `${formatDateForLondon(quarterStartDate)}_to_${formatDateForLondon(quarterEndDate)}`

@@ -52,6 +52,26 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
           email: true,
         },
       },
+      vatAssignedUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      vatQuartersWorkflow: {
+        orderBy: { quarterEndDate: 'desc' },
+        take: 1, // Get the most recent quarter
+        include: {
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
       communications: {
         orderBy: { createdAt: 'desc' },
         take: 10,

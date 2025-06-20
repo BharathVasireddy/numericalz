@@ -17,8 +17,10 @@ import {
   RefreshCw,
   FileText,
   Clock,
-  User
+  User,
+  TrendingUp
 } from 'lucide-react'
+import { VAT_WORKFLOW_STAGE_NAMES, formatQuarterPeriodForDisplay } from '@/lib/vat-workflow'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -637,6 +639,49 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                         </div>
                       )}
                     </div>
+                    
+                    {/* Current VAT Workflow Status */}
+                    {client.vatQuartersWorkflow && client.vatQuartersWorkflow.length > 0 && (
+                      <>
+                        <Separator />
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-blue-600" />
+                            <span className="text-sm font-medium text-gray-900">Current Workflow</span>
+                          </div>
+                          {(() => {
+                            const currentQuarter = client.vatQuartersWorkflow[0]
+                            const displayPeriod = formatQuarterPeriodForDisplay(currentQuarter.quarterPeriod)
+                            const stageName = VAT_WORKFLOW_STAGE_NAMES[currentQuarter.currentStage as keyof typeof VAT_WORKFLOW_STAGE_NAMES] || currentQuarter.currentStage
+                            
+                            return (
+                              <div className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-muted-foreground">Quarter Period:</span>
+                                  <span className="text-sm font-medium">{displayPeriod}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-muted-foreground">Current Stage:</span>
+                                  <Badge variant="outline" className={
+                                    currentQuarter.isCompleted 
+                                      ? 'bg-green-100 text-green-800 border-green-200'
+                                      : 'bg-blue-100 text-blue-800 border-blue-200'
+                                  }>
+                                    {currentQuarter.isCompleted ? 'Completed' : stageName}
+                                  </Badge>
+                                </div>
+                                {currentQuarter.assignedUser && (
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-muted-foreground">Assigned To:</span>
+                                    <span className="text-sm font-medium">{currentQuarter.assignedUser.name}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })()}
+                        </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               )}

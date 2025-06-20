@@ -2,29 +2,22 @@
 
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { ClientsHeader } from '@/components/clients/clients-header'
-import { LegacyClientsTable } from '@/components/clients/legacy-clients-table'
+import { useEffect } from 'react'
+import { LtdCompaniesDeadlinesTable } from '@/components/clients/ltd-companies-deadlines-table'
 
 /**
- * Limited Companies listing page
+ * Limited Companies deadlines page
  * 
  * Features:
- * - View all Limited Company clients in a table
- * - Search and filter clients
- * - Add new clients
- * - Quick actions (edit, view, assign)
- * - Companies House integration
+ * - View all Limited Company clients with filing deadlines
+ * - Track accounts, CT, and CS due dates
+ * - Workflow management for accounts filing process
+ * - Assignment filters (assigned to me / all clients)
+ * - Update workflow stages with milestone tracking
  */
 export default function LtdCompaniesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filters, setFilters] = useState({
-    companyType: 'LIMITED_COMPANY',
-    assignedUser: '',
-    status: ''
-  })
 
   useEffect(() => {
     if (status === 'loading') return // Still loading
@@ -54,25 +47,5 @@ export default function LtdCompaniesPage() {
     return null
   }
 
-  return (
-    <div className="page-container">
-      <div className="content-wrapper">
-        <div className="content-sections">
-          <ClientsHeader 
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            filters={filters}
-            onFiltersChange={setFilters}
-            pageTitle="Ltd Companies"
-            pageDescription="Manage all Limited Company clients"
-          />
-          
-          <LegacyClientsTable 
-            searchQuery={searchQuery}
-            filters={filters}
-          />
-        </div>
-      </div>
-    </div>
-  )
+  return <LtdCompaniesDeadlinesTable />
 } 

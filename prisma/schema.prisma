@@ -33,6 +33,8 @@ model User {
   settings           UserSettings?
   assignedVATQuarters VATQuarter[]
   vatWorkflowHistory VATWorkflowHistory[]
+  assignedLtdAccountsWorkflows LtdAccountsWorkflow[]
+  ltdAccountsWorkflowHistory LtdAccountsWorkflowHistory[]
 
   @@index([email])
   @@index([role])
@@ -136,6 +138,7 @@ model Client {
   vatRegistrationDate           DateTime?
   vatScheme                     String?
   workStatus                    String?
+  ltdAccountsWorkflows          LtdAccountsWorkflow[]
   // Post-creation questionnaire fields
   isVatEnabled                  Boolean         @default(false)
   vatReturnsFrequency           String?
@@ -402,4 +405,119 @@ enum VATWorkflowStage {
   EMAILED_TO_CLIENT
   CLIENT_APPROVED
   FILED_TO_HMRC
+}
+
+// Ltd Company Accounts Workflow Management
+model LtdAccountsWorkflow {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Filing Period Identification
+  filingPeriodStart    DateTime   // Start of accounting period (year end + 1 day of previous year)
+  filingPeriodEnd      DateTime   // End of accounting period (year end date)
+  accountsDueDate      DateTime   // 9 months after year end
+  ctDueDate            DateTime   // 12 months after year end  
+  csDueDate            DateTime   // Companies House confirmation statement due
+  
+  // Current Status
+  currentStage         LtdAccountsWorkflowStage @default(PAPERWORK_PENDING_CHASE)
+  isCompleted          Boolean                   @default(false)
+  assignedUserId       String?
+  assignedUser         User?                    @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+
+  // Key Milestone Dates with User Tracking
+  chaseStartedDate              DateTime?
+  chaseStartedByUserId          String?
+  chaseStartedByUserName        String?
+  
+  paperworkReceivedDate         DateTime?
+  paperworkReceivedByUserId     String?
+  paperworkReceivedByUserName   String?
+  
+  workStartedDate               DateTime?
+  workStartedByUserId           String?
+  workStartedByUserName         String?
+  
+  managerDiscussionDate         DateTime?
+  managerDiscussionByUserId     String?
+  managerDiscussionByUserName   String?
+  
+  partnerReviewDate             DateTime?
+  partnerReviewByUserId         String?
+  partnerReviewByUserName       String?
+  
+  reviewCompletedDate           DateTime?
+  reviewCompletedByUserId       String?
+  reviewCompletedByUserName     String?
+  
+  sentToClientDate              DateTime?
+  sentToClientByUserId          String?
+  sentToClientByUserName        String?
+  
+  clientApprovedDate            DateTime?
+  clientApprovedByUserId        String?
+  clientApprovedByUserName      String?
+  
+  partnerApprovedDate           DateTime?
+  partnerApprovedByUserId       String?
+  partnerApprovedByUserName     String?
+  
+  filedDate                     DateTime?
+  filedByUserId                 String?
+  filedByUserName               String?
+  
+  clientSelfFilingDate          DateTime?
+  clientSelfFilingByUserId      String?
+  clientSelfFilingByUserName    String?
+
+  // Workflow History
+  workflowHistory LtdAccountsWorkflowHistory[]
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, filingPeriodEnd])
+  @@map("ltd_accounts_workflows")
+}
+
+model LtdAccountsWorkflowHistory {
+  id                    String   @id @default(cuid())
+  ltdAccountsWorkflowId String
+  ltdAccountsWorkflow   LtdAccountsWorkflow @relation(fields: [ltdAccountsWorkflowId], references: [id], onDelete: Cascade)
+
+  // Stage Change Information
+  fromStage            LtdAccountsWorkflowStage?
+  toStage              LtdAccountsWorkflowStage
+  stageChangedAt       DateTime
+  daysInPreviousStage  Int?
+
+  // Preserved User Data (even if user is deleted)
+  userId     String?
+  user       User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName   String
+  userEmail  String
+  userRole   String
+
+  // Additional Information
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@map("ltd_accounts_workflow_history")
+}
+
+enum LtdAccountsWorkflowStage {
+  PAPERWORK_PENDING_CHASE
+  PAPERWORK_CHASED
+  PAPERWORK_RECEIVED
+  WORK_IN_PROGRESS
+  DISCUSS_WITH_MANAGER
+  REVIEW_BY_PARTNER
+  REVIEW_DONE_HELLO_SIGN
+  SENT_TO_CLIENT_HELLO_SIGN
+  APPROVED_BY_CLIENT
+  SUBMISSION_APPROVED_PARTNER
+  FILED_CH_HMRC
+  CLIENT_SELF_FILING
 }

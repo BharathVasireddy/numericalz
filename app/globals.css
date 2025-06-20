@@ -727,4 +727,45 @@
 
 .table-compact .table-header-cell {
   @apply py-2 px-2; /* Reduced padding */
+}
+
+/* ===== LTD COMPANIES DEADLINE TABLE COLUMNS (COMPACT LAYOUT) ===== */
+.col-ltd-client-code {
+  @apply w-16; /* Compact client codes */
+}
+
+.col-ltd-company-number {
+  @apply w-20; /* Company number */
+}
+
+.col-ltd-company-name {
+  @apply w-48; /* Company names with truncation */
+}
+
+.col-ltd-year-end {
+  @apply w-20; /* Year end month */
+}
+
+.col-ltd-accounts-due {
+  @apply w-24; /* Accounts due date */
+}
+
+.col-ltd-ct-due {
+  @apply w-20; /* CT due */
+}
+
+.col-ltd-cs-due {
+  @apply w-20; /* CS due */
+}
+
+.col-ltd-status {
+  @apply w-32; /* Workflow status badge */
+}
+
+.col-ltd-update {
+  @apply w-20; /* Update button */
+}
+
+.col-ltd-action {
+  @apply w-12; /* Action expand/collapse */
 } 

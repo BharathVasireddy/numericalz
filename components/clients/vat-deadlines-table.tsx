@@ -181,6 +181,7 @@ export function VATDeadlinesTable() {
   const [sortColumn, setSortColumn] = useState<string>('')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [showClientSelfFilingConfirm, setShowClientSelfFilingConfirm] = useState(false)
+  const [showFiledToHMRCConfirm, setShowFiledToHMRCConfirm] = useState(false)
 
   // Get current month for default tab
   const currentMonth = new Date().getMonth() + 1
@@ -504,6 +505,12 @@ export function VATDeadlinesTable() {
       return
     }
 
+    // If FILED_TO_HMRC is selected, show confirmation dialog
+    if (selectedStage === 'FILED_TO_HMRC') {
+      setShowFiledToHMRCConfirm(true)
+      return
+    }
+
     setUpdating(true)
     try {
       let assignmentUpdated = false
@@ -625,6 +632,78 @@ export function VATDeadlinesTable() {
     } catch (error) {
       console.error('Error updating workflow:', error)
       showToast.error('Failed to update workflow')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleFiledToHMRCConfirm = async () => {
+    if (!selectedClient || !selectedStage) {
+      return
+    }
+
+    setUpdating(true)
+    try {
+      let assignmentUpdated = false
+      
+      // Handle assignment if assignee changed
+      if (selectedAssignee !== (selectedClient.vatAssignedUser?.id || 'unassigned')) {
+        const assignResponse = await fetch(`/api/clients/${selectedClient.id}/assign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            userId: selectedAssignee === 'unassigned' ? null : selectedAssignee
+          })
+        })
+
+        if (!assignResponse.ok) {
+          throw new Error('Failed to assign user')
+        }
+        
+        assignmentUpdated = true
+        
+        // Update local state immediately for responsive UI
+        const assignedUser = selectedAssignee === 'unassigned' ? null : users.find(u => u.id === selectedAssignee)
+        setVatClients(prevClients => 
+          prevClients.map(client => {
+            if (client.id === selectedClient.id) {
+              return {
+                ...client,
+                vatAssignedUser: assignedUser || undefined
+              }
+            }
+            return client
+          })
+        )
+      }
+
+      // Handle workflow stage update
+      if (selectedClient.currentVATQuarter) {
+        const workflowResponse = await fetch(`/api/vat-quarters/${selectedClient.currentVATQuarter.id}/workflow`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stage: selectedStage,
+            comments: updateComments || 'Filed to HMRC - VAT return completed',
+            assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee
+          })
+        })
+
+        if (!workflowResponse.ok) {
+          throw new Error('Failed to update workflow stage')
+        }
+      }
+
+      showToast.success('VAT return successfully filed to HMRC')
+      setUpdateModalOpen(false)
+      setShowFiledToHMRCConfirm(false)
+      
+      // Force refresh data from server to ensure consistency
+      await fetchVATClients(true)
+      
+    } catch (error) {
+      console.error('Error filing to HMRC:', error)
+      showToast.error('Failed to file to HMRC. Please try again.')
     } finally {
       setUpdating(false)
     }
@@ -912,15 +991,19 @@ export function VATDeadlinesTable() {
                 </TableCell>
                 <TableCell className="p-2">
                   {isApplicable ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAddUpdate(client)}
-                      className="flex items-center gap-1 h-6 px-2 text-xs"
-                    >
-                      <Plus className="h-3 w-3" />
-                      Update
-                    </Button>
+                    monthQuarter?.isCompleted || monthQuarter?.currentStage === 'FILED_TO_HMRC' ? (
+                      <span className="text-xs text-green-600 font-medium">Complete</span>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAddUpdate(client)}
+                        className="flex items-center gap-1 h-6 px-2 text-xs"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Update
+                      </Button>
+                    )
                   ) : (
                     <span className="text-xs text-gray-400">—</span>
                   )}
@@ -930,14 +1013,14 @@ export function VATDeadlinesTable() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0 hover:bg-muted/50"
+                      className="h-8 w-8 p-0 hover:bg-muted/50 transition-colors"
                       onClick={() => toggleRowExpansion(client.id, monthNumber)}
-                      title="Expand Timeline"
+                      title="Show/Hide Workflow Timeline"
                     >
                       {expandedRows.has(rowKey) ? (
-                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                        <ChevronDown className="h-4 w-4 text-foreground" />
                       ) : (
-                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                        <ChevronRight className="h-4 w-4 text-foreground" />
                       )}
                     </Button>
                   ) : (
@@ -1279,6 +1362,71 @@ export function VATDeadlinesTable() {
                 <>
                   <CheckCircle className="h-4 w-4" />
                   Confirm
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Filed to HMRC Confirmation Dialog */}
+      <Dialog open={showFiledToHMRCConfirm} onOpenChange={setShowFiledToHMRCConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building className="h-5 w-5 text-green-600" />
+              Confirm Filing to HMRC
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to mark this VAT return as "Filed to HMRC"?
+            </p>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-green-800">
+                  <p className="font-medium">Final Step:</p>
+                  <p>This will complete the VAT workflow and mark the quarter as filed. The Update button will be disabled after confirmation.</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium">Please ensure:</p>
+                  <ul className="list-disc list-inside mt-1 space-y-1">
+                    <li>VAT return has been successfully submitted to HMRC</li>
+                    <li>All supporting documentation is properly filed</li>
+                    <li>Client has been notified of the submission</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowFiledToHMRCConfirm(false)}
+              disabled={updating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleFiledToHMRCConfirm}
+              disabled={updating}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+            >
+              {updating ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Filing...
+                </>
+              ) : (
+                <>
+                  <Building className="h-4 w-4" />
+                  Confirm Filing
                 </>
               )}
             </Button>
