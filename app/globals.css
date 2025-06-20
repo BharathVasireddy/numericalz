@@ -685,7 +685,7 @@
 }
 
 .col-vat-company-name {
-  @apply w-40; /* Company names - reduced to fit new column */
+  @apply w-48; /* Company names - main content column */
 }
 
 .col-vat-frequency {
@@ -693,27 +693,23 @@
 }
 
 .col-vat-quarter-end {
-  @apply w-20; /* Quarter end month */
+  @apply w-24; /* Quarter end month */
 }
 
 .col-vat-filing-month {
-  @apply w-20; /* Filing month */
+  @apply w-24; /* Filing month */
 }
 
-.col-vat-workflow-stage {
-  @apply w-32; /* Current workflow stage */
-}
-
-.col-vat-status {
-  @apply w-28; /* Status display - reduced */
-}
-
-.col-vat-contact {
-  @apply w-16; /* Contact icons - reduced */
+.col-vat-due {
+  @apply w-32; /* Due status with days count */
 }
 
 .col-vat-assigned {
-  @apply w-28; /* Assigned user - reduced */
+  @apply w-32; /* Assigned user */
+}
+
+.col-vat-add-update {
+  @apply w-24; /* Add Update button */
 }
 
 .col-vat-actions {
