@@ -92,10 +92,11 @@ export function calculateVATQuarter(
   // Calculate quarter end date (last day of the quarter month) in London timezone
   const quarterEndDate = new Date(quarterEndYear, quarterEndMonth, 0) // Last day of quarterEndMonth
 
-  // Calculate quarter start date (3 months before end date)
-  const quarterStartDate = new Date(quarterEndDate)
-  quarterStartDate.setMonth(quarterStartDate.getMonth() - 2)
-  quarterStartDate.setDate(1) // First day of the month
+  // Calculate quarter start date (first day of the quarter)
+  // For 3_6_9_12: Mar-May (Q1), Jun-Aug (Q2), Sep-Nov (Q3), Dec-Feb (Q4)
+  const quarterStartMonth = quarterEndMonth - 2 // 3 months before end
+  const quarterStartYear = quarterStartMonth > 0 ? quarterEndYear : quarterEndYear - 1
+  const quarterStartDate = new Date(quarterStartYear, quarterStartMonth > 0 ? quarterStartMonth - 1 : quarterStartMonth + 11, 1)
 
   // Calculate filing due date (last day of month following quarter end)
   // UK VAT Rule: Filing due by last day of month following quarter end

@@ -53,7 +53,14 @@ export function ClientPostCreationQuestionnaire({
   useEffect(() => {
     if (vatData.vatQuarterGroup && vatData.vatReturnsFrequency === 'QUARTERLY') {
       const quarterInfo = calculateVATQuarter(vatData.vatQuarterGroup)
-      const filingDueDateString = quarterInfo.filingDueDate.toISOString().split('T')[0]
+      // Ensure we get the correct date by using the date components directly
+      const filingDueDate = quarterInfo.filingDueDate
+      const year = filingDueDate.getFullYear()
+      const month = filingDueDate.getMonth()
+      const day = filingDueDate.getDate()
+      // Create a new date with explicit values to avoid timezone issues
+      const correctDate = new Date(year, month, day)
+      const filingDueDateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
       setVatData(prev => ({ ...prev, nextVatReturnDue: filingDueDateString }))
     }
   }, [vatData.vatQuarterGroup, vatData.vatReturnsFrequency])
