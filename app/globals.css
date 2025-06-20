@@ -679,45 +679,45 @@
   animation: toast-progress 3s linear;
 }
 
-/* ===== VAT DEADLINE TABLE COLUMNS (OPTIMIZED WIDTH) ===== */
+/* ===== VAT DEADLINE TABLE COLUMNS (COMPACT LAYOUT) ===== */
 .col-vat-client-code {
-  @apply w-16; /* Fixed width for client codes */
+  @apply w-14; /* Compact client codes */
 }
 
 .col-vat-company-name {
-  @apply w-48; /* Company names - main content column */
+  @apply w-44; /* Company names - reduced width with truncation */
 }
 
 .col-vat-frequency {
-  @apply w-20; /* Compact frequency badges */
+  @apply w-12; /* Very compact frequency badges (Q/M/A) */
 }
 
 .col-vat-quarter-end {
-  @apply w-24; /* Quarter end month */
+  @apply w-16; /* Compact quarter end month */
 }
 
 .col-vat-filing-month {
-  @apply w-24; /* Filing month */
+  @apply w-16; /* Compact filing month */
 }
 
 .col-vat-due {
-  @apply w-32; /* Due status with days count */
+  @apply w-24; /* Compact due status */
 }
 
 .col-vat-status {
-  @apply w-40; /* Workflow status badge */
+  @apply w-36; /* Compact workflow status badge */
 }
 
 .col-vat-assigned {
-  @apply w-32; /* Assigned user */
+  @apply w-28; /* Compact assigned user */
 }
 
 .col-vat-add-update {
-  @apply w-24; /* Add Update button */
+  @apply w-20; /* Compact update button */
 }
 
 .col-vat-actions {
-  @apply w-16; /* Fixed small width for actions */
+  @apply w-16; /* Compact actions */
 }
 
 /* ===== COMPACT TABLE UTILITIES ===== */

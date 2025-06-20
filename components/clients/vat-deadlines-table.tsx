@@ -790,7 +790,7 @@ export function VATDeadlinesTable() {
     <TableHead className={className}>
       <button
         onClick={() => handleSort(column)}
-        className="flex items-center gap-1 hover:text-primary transition-colors"
+        className="flex items-center gap-1 hover:text-primary transition-colors text-xs font-medium"
       >
         {children}
         <ArrowUpDown className="h-3 w-3" />
@@ -813,18 +813,18 @@ export function VATDeadlinesTable() {
     return (
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead className="w-16"></TableHead>
-            <SortableHeader column="clientCode" className="col-vat-client-code">Client Code</SortableHeader>
-            <SortableHeader column="companyName" className="col-vat-company-name">Company Name</SortableHeader>
-            <SortableHeader column="frequency" className="col-vat-frequency">Frequency</SortableHeader>
-            <SortableHeader column="quarterEnd" className="col-vat-quarter-end">Quarter End</SortableHeader>
-            <SortableHeader column="filingMonth" className="col-vat-filing-month">Filing Month</SortableHeader>
-            <SortableHeader column="due" className="col-vat-due">Due</SortableHeader>
-            <SortableHeader column="status" className="col-vat-status">Status</SortableHeader>
-            <SortableHeader column="assignedTo" className="col-vat-assigned">Assigned To</SortableHeader>
-            <TableHead className="col-vat-add-update">Add Update</TableHead>
-            <TableHead className="col-vat-actions">Action</TableHead>
+          <TableRow className="border-b">
+            <TableHead className="w-12 p-2"></TableHead>
+            <SortableHeader column="clientCode" className="col-vat-client-code p-2">Code</SortableHeader>
+            <SortableHeader column="companyName" className="col-vat-company-name p-2">Company</SortableHeader>
+            <SortableHeader column="frequency" className="col-vat-frequency p-2">Freq</SortableHeader>
+            <SortableHeader column="quarterEnd" className="col-vat-quarter-end p-2">Q.End</SortableHeader>
+            <SortableHeader column="filingMonth" className="col-vat-filing-month p-2">Filing</SortableHeader>
+            <SortableHeader column="due" className="col-vat-due p-2">Due</SortableHeader>
+            <SortableHeader column="status" className="col-vat-status p-2">Status</SortableHeader>
+            <SortableHeader column="assignedTo" className="col-vat-assigned p-2">Assigned</SortableHeader>
+            <TableHead className="col-vat-add-update p-2">Update</TableHead>
+            <TableHead className="col-vat-actions p-2">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -838,98 +838,105 @@ export function VATDeadlinesTable() {
             return (
             <>
               {/* Main Row */}
-              <TableRow key={rowKey} className="hover:bg-muted/50">
-                <TableCell>
+              <TableRow key={rowKey} className="hover:bg-muted/50 h-12">
+                <TableCell className="p-2">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0"
+                    className="h-6 w-6 p-0"
                     onClick={() => toggleRowExpansion(client.id, monthNumber)}
                   >
                     {expandedRows.has(rowKey) ? (
-                      <ChevronDown className="h-4 w-4" />
+                      <ChevronDown className="h-3 w-3" />
                     ) : (
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-3 w-3" />
                     )}
                   </Button>
                 </TableCell>
-                <TableCell className="font-mono text-sm">
+                <TableCell className="font-mono text-xs p-2">
                   {client.clientCode}
                 </TableCell>
-                <TableCell className="font-medium">
+                <TableCell className="font-medium p-2">
                   <button
                     onClick={() => handleOpenHistory(client)}
-                    className="flex items-center gap-2 text-left hover:text-primary transition-colors cursor-pointer group"
+                    className="flex items-center gap-1 text-left hover:text-primary transition-colors cursor-pointer group text-xs truncate max-w-[180px]"
+                    title={client.companyName}
                   >
-                    <span className="hover:underline">{client.companyName}</span>
-                    <History className="h-3 w-3 text-muted-foreground group-hover:text-primary" />
+                    <span className="hover:underline truncate">{client.companyName}</span>
+                    <History className="h-3 w-3 text-muted-foreground group-hover:text-primary flex-shrink-0" />
                   </button>
                 </TableCell>
-                <TableCell>
-                  {getFrequencyBadge(client.vatReturnsFrequency)}
+                <TableCell className="p-2">
+                  <Badge variant="outline" className="text-xs px-1 py-0 h-5">
+                    {client.vatReturnsFrequency === 'QUARTERLY' ? 'Q' : 
+                     client.vatReturnsFrequency === 'MONTHLY' ? 'M' : 
+                     client.vatReturnsFrequency === 'ANNUALLY' ? 'A' : 'U'}
+                  </Badge>
                 </TableCell>
-                <TableCell className="text-sm font-medium">
+                <TableCell className="text-xs font-medium p-2">
                   {getQuarterEndMonth(monthQuarter)}
                 </TableCell>
-                <TableCell className="text-sm font-medium">
+                <TableCell className="text-xs font-medium p-2">
                   {getFilingMonth(monthQuarter)}
                 </TableCell>
-                <TableCell>
-                  <span className={`text-sm font-medium ${dueStatus.color}`}>
+                <TableCell className="p-2">
+                  <span className={`text-xs font-medium ${dueStatus.color}`}>
                     {dueStatus.label}
                   </span>
                 </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className={`text-xs ${workflowStatus.color}`}>
-                    <div className="flex items-center gap-1">
-                      {workflowStatus.icon}
-                      {workflowStatus.label}
+                <TableCell className="p-2">
+                  <Badge variant="outline" className={`text-xs px-1 py-0 h-5 max-w-[140px] ${workflowStatus.color}`}>
+                    <div className="flex items-center gap-1 truncate">
+                      <span className="flex-shrink-0">{workflowStatus.icon}</span>
+                      <span className="truncate text-xs" title={workflowStatus.label}>
+                        {workflowStatus.label.length > 15 ? workflowStatus.label.substring(0, 15) + '...' : workflowStatus.label}
+                      </span>
                     </div>
                   </Badge>
                 </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">
+                <TableCell className="p-2">
+                  <div className="flex items-center gap-1 text-xs truncate max-w-[120px]" title={monthQuarter?.assignedUser?.name || client.vatAssignedUser?.name || 'Unassigned'}>
+                    <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                    <span className="truncate">
                       {monthQuarter?.assignedUser?.name || 
                        client.vatAssignedUser?.name || 
                        'Unassigned'}
                     </span>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="p-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleAddUpdate(client)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-1 h-6 px-2 text-xs"
                   >
                     <Plus className="h-3 w-3" />
                     Update
                   </Button>
                 </TableCell>
-                <TableCell>
+                <TableCell className="p-2">
                   <div className="flex items-center gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0"
+                      className="h-6 w-6 p-0"
                       onClick={() => router.push(`/dashboard/clients/${client.id}/filing-history`)}
                       title="View Full Filing History"
                     >
-                      <FileText className="h-4 w-4" />
+                      <FileText className="h-3 w-3" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0"
+                      className="h-6 w-6 p-0"
                       onClick={() => toggleRowExpansion(client.id, monthNumber)}
                       title="Expand Timeline"
                     >
                       {expandedRows.has(rowKey) ? (
-                        <ChevronDown className="h-4 w-4" />
+                        <ChevronDown className="h-3 w-3" />
                       ) : (
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-3 w-3" />
                       )}
                     </Button>
                   </div>
