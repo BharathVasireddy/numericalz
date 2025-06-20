@@ -60,7 +60,11 @@ export async function GET(request: NextRequest) {
       companyName: client.companyName,
       companyType: client.companyType,
       incorporationDate: client.incorporationDate?.toISOString(),
-      accountingReferenceDate: client.accountingReferenceDate,
+      accountingReferenceDate: client.accountingReferenceDate ? 
+        (client.accountingReferenceDate.includes('T') ? 
+          client.accountingReferenceDate : 
+          new Date(client.accountingReferenceDate).toISOString()
+        ) : null,
       nextAccountsDue: client.nextAccountsDue?.toISOString(),
       nextCorporationTaxDue: client.nextCorporationTaxDue?.toISOString(),
       nextConfirmationDue: client.nextConfirmationDue?.toISOString(),
