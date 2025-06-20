@@ -52,8 +52,12 @@ export async function GET(request: NextRequest) {
       ]
     })
 
+    console.log(`Found ${clients.length} Ltd company clients`)
+    
     // Transform the data to include current workflow
-    const transformedClients = clients.map(client => ({
+    const transformedClients = clients.map(client => {
+      console.log(`Processing client ${client.clientCode}: accountingReferenceDate = ${client.accountingReferenceDate}`)
+      return {
       id: client.id,
       clientCode: client.clientCode,
       companyNumber: client.companyNumber,
@@ -63,7 +67,15 @@ export async function GET(request: NextRequest) {
       accountingReferenceDate: client.accountingReferenceDate ? 
         (client.accountingReferenceDate.includes('T') ? 
           client.accountingReferenceDate : 
-          new Date(client.accountingReferenceDate).toISOString()
+          (() => {
+            try {
+              const date = new Date(client.accountingReferenceDate)
+              return isNaN(date.getTime()) ? null : date.toISOString()
+            } catch (error) {
+              console.warn(`Invalid accountingReferenceDate for client ${client.id}:`, client.accountingReferenceDate)
+              return null
+            }
+          })()
         ) : null,
       nextAccountsDue: client.nextAccountsDue?.toISOString(),
       nextCorporationTaxDue: client.nextCorporationTaxDue?.toISOString(),
@@ -101,7 +113,8 @@ export async function GET(request: NextRequest) {
         filedDate: client.ltdAccountsWorkflows[0].filedDate?.toISOString(),
         filedByUserName: client.ltdAccountsWorkflows[0].filedByUserName,
       } : null
-    }))
+      }
+    })
 
     return NextResponse.json({ 
       success: true, 
