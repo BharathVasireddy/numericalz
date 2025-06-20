@@ -16,15 +16,10 @@ import {
   Building,
   Users, 
   TrendingUp, 
-  DollarSign,
   RefreshCw,
   BarChart3,
   PieChart,
-  Target,
-  Award,
-  Briefcase,
-  ArrowUpRight,
-  ArrowDownRight
+  Briefcase
 } from 'lucide-react'
 
 interface PartnerDashboardProps {
@@ -35,31 +30,23 @@ interface PartnerDashboardData {
   firmOverview: {
     totalClients: number
     activeClients: number
-    totalRevenue: number
-    monthlyGrowth: number
     teamMembers: number
-    averageClientValue: number
   }
   performanceMetrics: {
-    clientRetentionRate: number
     averageCompletionTime: number
     teamUtilization: number
-    profitMargin: number
     clientSatisfactionScore: number
-    monthlyRecurringRevenue: number
   }
   clientDistribution: {
     byType: Array<{
       type: string
       count: number
       percentage: number
-      revenue: number
     }>
     bySize: Array<{
       size: string
       count: number
       percentage: number
-      revenue: number
     }>
   }
   teamPerformance: Array<{
@@ -72,17 +59,8 @@ interface PartnerDashboardData {
     completedThisMonth: number
     workloadPercentage: number
     status: 'available' | 'busy' | 'overloaded'
-    revenue: number
     efficiency: number
   }>
-  financialMetrics: {
-    totalRevenue: number
-    monthlyRevenue: number
-    revenueGrowth: number
-    outstandingInvoices: number
-    averageInvoiceValue: number
-    collectionRate: number
-  }
   workflowAnalytics: {
     vat: Array<{
       stage: string
@@ -102,7 +80,7 @@ interface PartnerDashboardData {
   }
   notifications: Array<{
     id: string
-    type: 'deadline' | 'review' | 'assignment' | 'completion' | 'overdue' | 'system' | 'financial'
+    type: 'deadline' | 'review' | 'assignment' | 'completion' | 'overdue' | 'system'
     title: string
     message: string
     clientName?: string
@@ -159,17 +137,7 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
     }
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-GB', {
-      style: 'currency',
-      currency: 'GBP',
-      minimumFractionDigits: 0
-    }).format(amount)
-  }
 
-  const formatPercentage = (value: number) => {
-    return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
-  }
 
   if (loading) {
     return (
@@ -225,29 +193,8 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
       </PageHeader>
 
       <PageContent>
-        {/* Executive KPIs */}
-        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6 mb-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(data.firmOverview.totalRevenue)}</div>
-              <div className="flex items-center text-xs">
-                {data.firmOverview.monthlyGrowth >= 0 ? (
-                  <ArrowUpRight className="h-3 w-3 text-green-500 mr-1" />
-                ) : (
-                  <ArrowDownRight className="h-3 w-3 text-red-500 mr-1" />
-                )}
-                <span className={data.firmOverview.monthlyGrowth >= 0 ? 'text-green-600' : 'text-red-600'}>
-                  {formatPercentage(data.firmOverview.monthlyGrowth)}
-                </span>
-                <span className="text-muted-foreground ml-1">vs last month</span>
-              </div>
-            </CardContent>
-          </Card>
-
+        {/* Key Operational Metrics */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Clients</CardTitle>
@@ -276,45 +223,22 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Client Value</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(data.firmOverview.averageClientValue)}</div>
-              <p className="text-xs text-muted-foreground">Per client/year</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Client Retention</CardTitle>
-              <Award className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{data.performanceMetrics.clientRetentionRate}%</div>
-              <p className="text-xs text-muted-foreground">Retention rate</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Profit Margin</CardTitle>
+              <CardTitle className="text-sm font-medium">Workflow Efficiency</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{data.performanceMetrics.profitMargin}%</div>
-              <p className="text-xs text-muted-foreground">Gross margin</p>
+              <div className="text-2xl font-bold">{Math.round(data.performanceMetrics.teamUtilization)}%</div>
+              <p className="text-xs text-muted-foreground">Overall efficiency</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Main Dashboard Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="performance">Performance</TabsTrigger>
             <TabsTrigger value="team">Team Analytics</TabsTrigger>
-            <TabsTrigger value="financial">Financial</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -370,7 +294,7 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
                         <div className="text-right">
                           <p className="text-sm font-medium">{item.count} clients</p>
                           <p className="text-xs text-muted-foreground">
-                            {formatCurrency(item.revenue)} revenue
+                            {item.percentage.toFixed(1)}% of total
                           </p>
                         </div>
                       </div>
@@ -396,7 +320,7 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
                         </div>
                         <Progress value={item.percentage} className="h-2" />
                         <p className="text-xs text-muted-foreground">
-                          {formatCurrency(item.revenue)} revenue ({item.percentage.toFixed(1)}%)
+                          {item.percentage.toFixed(1)}% of total clients
                         </p>
                       </div>
                     ))}
@@ -461,54 +385,7 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
             />
           </TabsContent>
 
-          {/* Financial Tab */}
-          <TabsContent value="financial" className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(data.financialMetrics.monthlyRevenue)}</div>
-                  <div className="flex items-center text-xs">
-                    {data.financialMetrics.revenueGrowth >= 0 ? (
-                      <ArrowUpRight className="h-3 w-3 text-green-500 mr-1" />
-                    ) : (
-                      <ArrowDownRight className="h-3 w-3 text-red-500 mr-1" />
-                    )}
-                    <span className={data.financialMetrics.revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {formatPercentage(data.financialMetrics.revenueGrowth)}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Outstanding Invoices</CardTitle>
-                  <Briefcase className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(data.financialMetrics.outstandingInvoices)}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {data.financialMetrics.collectionRate}% collection rate
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Avg Invoice Value</CardTitle>
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(data.financialMetrics.averageInvoiceValue)}</div>
-                  <p className="text-xs text-muted-foreground">Per invoice</p>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
         </Tabs>
 
         {/* Quick Actions */}

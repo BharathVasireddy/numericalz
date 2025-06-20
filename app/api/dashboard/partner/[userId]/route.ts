@@ -84,44 +84,37 @@ export async function GET(
     const firmOverview = {
       totalClients: allClients.length,
       activeClients: allClients.filter(c => c.isActive).length,
-      totalRevenue: 850000, // Mock data - would come from accounting system
-      monthlyGrowth: 12.5, // Mock growth percentage
-      teamMembers: allUsers.length,
-      averageClientValue: allClients.length > 0 ? 850000 / allClients.length : 0
+      teamMembers: allUsers.length
     }
 
     // Calculate performance metrics
     const performanceMetrics = {
-      clientRetentionRate: 94,
       averageCompletionTime: 4.2,
       teamUtilization: 78,
-      profitMargin: 35,
-      clientSatisfactionScore: 92,
-      monthlyRecurringRevenue: 65000
+      clientSatisfactionScore: 92
     }
 
     // Client distribution analysis
     const clientTypeDistribution = allClients.reduce((acc, client) => {
       const type = client.companyType || 'OTHER'
       if (!acc[type]) {
-        acc[type] = { count: 0, revenue: 0 }
+        acc[type] = { count: 0 }
       }
       acc[type].count++
-      acc[type].revenue += 15000 // Mock average client revenue
+
       return acc
-    }, {} as Record<string, { count: number; revenue: number }>)
+    }, {} as Record<string, { count: number }>)
 
     const clientDistribution = {
       byType: Object.entries(clientTypeDistribution).map(([type, data]) => ({
         type: type.replace('_', ' '),
         count: data.count,
-        percentage: (data.count / allClients.length) * 100,
-        revenue: data.revenue
+        percentage: (data.count / allClients.length) * 100
       })),
       bySize: [
-        { size: 'Small (1-10 employees)', count: 25, percentage: 45, revenue: 125000 },
-        { size: 'Medium (11-50 employees)', count: 20, percentage: 36, revenue: 300000 },
-        { size: 'Large (50+ employees)', count: 10, percentage: 19, revenue: 425000 }
+        { size: 'Small (1-10 employees)', count: 25, percentage: 45 },
+        { size: 'Medium (11-50 employees)', count: 20, percentage: 36 },
+        { size: 'Large (50+ employees)', count: 10, percentage: 19 }
       ]
     }
 
@@ -158,20 +151,12 @@ export async function GET(
         completedThisMonth: Math.floor(Math.random() * 10), // Mock data
         workloadPercentage,
         status,
-        revenue: clientCount * 15000, // Mock revenue per client
+
         efficiency: Math.floor(Math.random() * 30) + 70 // Mock efficiency 70-100%
       }
     })
 
-    // Financial metrics
-    const financialMetrics = {
-      totalRevenue: 850000,
-      monthlyRevenue: 71000,
-      revenueGrowth: 8.5,
-      outstandingInvoices: 125000,
-      averageInvoiceValue: 2500,
-      collectionRate: 94
-    }
+
 
     // Workflow analytics
     const workflowAnalytics = {
@@ -350,16 +335,7 @@ export async function GET(
 
     // Executive notifications
     const notifications = [
-      {
-        id: '1',
-        type: 'financial' as const,
-        title: 'Monthly Revenue Target',
-        message: 'Monthly revenue target exceeded by 12.5%',
-        priority: 'medium' as const,
-        read: false,
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        actionUrl: '/dashboard/partner?tab=financial'
-      },
+
       {
         id: '2',
         type: 'system' as const,
@@ -385,18 +361,11 @@ export async function GET(
     // Growth trends (mock data for now)
     const trends = {
       clientGrowth: [
-        { month: 'Jan', count: 45, revenue: 675000 },
-        { month: 'Feb', count: 48, revenue: 720000 },
-        { month: 'Mar', count: 52, revenue: 780000 },
-        { month: 'Apr', count: 55, revenue: 825000 },
-        { month: 'May', count: 58, revenue: 870000 }
-      ],
-      revenueGrowth: [
-        { month: 'Jan', amount: 675000, growth: 5.2 },
-        { month: 'Feb', amount: 720000, growth: 6.7 },
-        { month: 'Mar', amount: 780000, growth: 8.3 },
-        { month: 'Apr', amount: 825000, growth: 5.8 },
-        { month: 'May', amount: 870000, growth: 5.5 }
+        { month: 'Jan', count: 45 },
+        { month: 'Feb', count: 48 },
+        { month: 'Mar', count: 52 },
+        { month: 'Apr', count: 55 },
+        { month: 'May', count: 58 }
       ],
       teamEfficiency: [
         { month: 'Jan', efficiency: 75 },
@@ -412,7 +381,6 @@ export async function GET(
       performanceMetrics,
       clientDistribution,
       teamPerformance,
-      financialMetrics,
       workflowAnalytics,
       deadlines: deadlineStats,
       notifications,
