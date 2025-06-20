@@ -450,6 +450,9 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                 <SortableHeader sortKey="contactEmail" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-contact">
                   Contact
                 </SortableHeader>
+                <SortableHeader sortKey="assignedUser" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-assigned-to">
+                  Assigned To
+                </SortableHeader>
                 <th className="table-header-cell col-actions text-right">
                   Actions
                 </th>
@@ -538,6 +541,11 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
                     </div>
+                  </td>
+                  <td className="table-body-cell">
+                    <span className="text-xs truncate" title={client.assignedUser?.name || 'Unassigned'}>
+                      {client.assignedUser?.name || 'Unassigned'}
+                    </span>
                   </td>
                   <td className="table-actions-cell">
                     <DropdownMenu>
