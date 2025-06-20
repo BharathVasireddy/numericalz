@@ -197,7 +197,7 @@ export function VATFilingHistory({
         id: 'WORK_STARTED', 
         date: quarter.workStartedDate, 
         user: quarter.workStartedByUserName,
-        label: 'Work Started',
+        label: 'Work in progress',
         icon: <Clock className="h-3 w-3" />
       },
       { 

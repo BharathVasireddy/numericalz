@@ -406,10 +406,10 @@ export function VATWorkflowModal({
                   </div>
                 )}
 
-                {/* Work Started */}
+                {/* Work in progress */}
                 {vatQuarter.workStartedDate && (
                   <div className="space-y-1">
-                    <Label className="text-sm font-medium text-muted-foreground">Work Started</Label>
+                    <Label className="text-sm font-medium text-muted-foreground">Work in progress</Label>
                     <p className="font-medium">{new Date(vatQuarter.workStartedDate).toLocaleDateString('en-GB')}</p>
                     {vatQuarter.workStartedByUserName && (
                       <p className="text-xs text-muted-foreground">by {vatQuarter.workStartedByUserName}</p>

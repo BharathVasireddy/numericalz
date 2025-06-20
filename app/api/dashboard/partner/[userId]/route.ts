@@ -181,7 +181,7 @@ export async function GET(
         },
         {
           stage: 'WORK_STARTED',
-          label: 'Work Started',
+          label: 'Work in progress',
           count: 12,
           percentage: 20,
           color: 'yellow',

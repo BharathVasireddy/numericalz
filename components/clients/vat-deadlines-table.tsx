@@ -98,6 +98,7 @@ interface VATClient {
   companyName: string
   vatReturnsFrequency?: string
   vatQuarterGroup?: string
+  createdAt: string // Client creation date to determine if old quarters are applicable
   
   // VAT-specific assignee
   vatAssignedUser?: {
@@ -321,13 +322,29 @@ export function VATDeadlinesTable() {
     }
   }
 
-  const getDueStatus = (quarter: VATQuarter | null) => {
+  const getDueStatus = (quarter: VATQuarter | null, client?: VATClient) => {
     if (!quarter) return { label: 'No Quarter', color: 'text-gray-500' }
     
     const quarterEndDate = new Date(quarter.quarterEndDate)
     const filingDueDate = new Date(quarter.filingDueDate)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
+    
+    // Check if this quarter is from before the client was created
+    // If so, mark as "Not Applicable" instead of overdue
+    if (client?.createdAt) {
+      const clientCreatedDate = new Date(client.createdAt)
+      clientCreatedDate.setHours(0, 0, 0, 0)
+      
+      // If the quarter's filing due date was before the client was created,
+      // then this client was not responsible for this quarter
+      if (filingDueDate < clientCreatedDate) {
+        return { 
+          label: 'Not Applicable', 
+          color: 'text-gray-500' 
+        }
+      }
+    }
     
     // If quarter hasn't ended yet
     if (today <= quarterEndDate) {
@@ -517,7 +534,7 @@ export function VATDeadlinesTable() {
         id: 'WORK_STARTED', 
         date: quarter.workStartedDate, 
         user: quarter.workStartedByUserName,
-        label: 'Work Started',
+        label: 'Work in progress',
         icon: <Clock className="h-4 w-4" />
       },
       { 
@@ -702,7 +719,7 @@ export function VATDeadlinesTable() {
           {monthClients.map((client) => {
             // Get the specific quarter for this month
             const monthQuarter = getQuarterForMonth(client, monthNumber)
-            const dueStatus = getDueStatus(monthQuarter)
+            const dueStatus = getDueStatus(monthQuarter, client)
             const rowKey = `${client.id}-${monthNumber}`
             
             return (
@@ -890,13 +907,13 @@ export function VATDeadlinesTable() {
                           {(() => {
                             const overdue = currentMonthClients.filter(client => {
                               const quarter = getQuarterForMonth(client, currentMonth)
-                              const status = getDueStatus(quarter)
+                              const status = getDueStatus(quarter, client)
                               return status.label.includes('overdue')
                             }).length
                             
                             const dueSoon = currentMonthClients.filter(client => {
                               const quarter = getQuarterForMonth(client, currentMonth)
-                              const status = getDueStatus(quarter)
+                              const status = getDueStatus(quarter, client)
                               return status.color === 'text-amber-600'
                             }).length
                             

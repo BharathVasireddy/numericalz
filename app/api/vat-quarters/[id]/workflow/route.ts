@@ -6,17 +6,18 @@ import { getNextVATWorkflowStage, VAT_WORKFLOW_STAGE_NAMES, calculateDaysBetween
 
 /**
  * Map workflow stages to their corresponding milestone date fields
+ * Based on user requirements for workflow stage → timeline milestone mapping
  */
 const STAGE_TO_MILESTONE_MAP: { [key: string]: string } = {
-  'CLIENT_BOOKKEEPING': 'chaseStartedDate',
-  'WORK_IN_PROGRESS': 'workStartedDate',
-  'QUERIES_PENDING': 'workStartedDate', // Still working, just with queries
-  'REVIEW_PENDING_MANAGER': 'workFinishedDate',
-  'REVIEW_PENDING_PARTNER': 'workFinishedDate', 
-  'EMAILED_TO_PARTNER': 'sentToClientDate', // Sent to partner first
-  'EMAILED_TO_CLIENT': 'sentToClientDate',
-  'CLIENT_APPROVED': 'clientApprovedDate',
-  'FILED_TO_HMRC': 'filedToHMRCDate'
+  'CLIENT_BOOKKEEPING': 'filedToHMRCDate', // Client to do bookkeeping = Filed to HMRC (client handles their own VAT filing)
+  'WORK_IN_PROGRESS': 'workStartedDate', // Work in progress = Work in progress (renamed from Work Started)
+  'QUERIES_PENDING': 'workStartedDate', // Queries pending = Work in progress
+  'REVIEW_PENDING_MANAGER': 'workStartedDate', // Review pending by manager = Work in progress
+  'REVIEW_PENDING_PARTNER': 'workFinishedDate', // Review pending by Partner = Work finished
+  'EMAILED_TO_PARTNER': 'workFinishedDate', // Emailed to partner = Work finished
+  'EMAILED_TO_CLIENT': 'sentToClientDate', // Emailed to client = Sent to client
+  'CLIENT_APPROVED': 'clientApprovedDate', // Client approved = Client approved
+  'FILED_TO_HMRC': 'filedToHMRCDate' // Filed to HMRC = Filed to HMRC
 }
 
 /**
