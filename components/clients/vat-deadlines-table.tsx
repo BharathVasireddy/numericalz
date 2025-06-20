@@ -832,7 +832,7 @@ export function VATDeadlinesTable() {
             return (
             <>
               {/* Main Row */}
-              <TableRow key={rowKey} className="hover:bg-muted/50 h-12">
+              <TableRow key={rowKey} className="hover:bg-muted/50 h-14">
                 <TableCell className="font-mono text-xs p-2">
                   {client.clientCode}
                 </TableCell>
@@ -892,14 +892,14 @@ export function VATDeadlinesTable() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0"
+                    className="h-8 w-8 p-0 hover:bg-muted border border-transparent hover:border-muted-foreground/20"
                     onClick={() => toggleRowExpansion(client.id, monthNumber)}
                     title="Expand Timeline"
                   >
                     {expandedRows.has(rowKey) ? (
-                      <ChevronDown className="h-3 w-3" />
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
                     ) : (
-                      <ChevronRight className="h-3 w-3" />
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     )}
                   </Button>
                 </TableCell>
