@@ -196,7 +196,7 @@ export async function GET(request: NextRequest) {
                 filingDueDate: currentQuarterInfo.filingDueDate,
                 quarterGroup: currentQuarterInfo.quarterGroup,
                 assignedUserId: client.vatAssignedUser?.id || client.assignedUser?.id || null,
-                currentStage: 'CLIENT_BOOKKEEPING',
+                currentStage: 'PAPERWORK_PENDING_CHASE',
                 isCompleted: false
               },
               include: {
@@ -215,7 +215,7 @@ export async function GET(request: NextRequest) {
             await db.vATWorkflowHistory.create({
               data: {
                 vatQuarterId: quarter.id,
-                toStage: 'CLIENT_BOOKKEEPING',
+                toStage: 'PAPERWORK_PENDING_CHASE',
                 stageChangedAt: new Date(),
                 userId: session.user.id,
                 userName: session.user.name || session.user.email || 'System',
@@ -278,7 +278,7 @@ export async function GET(request: NextRequest) {
                     filingDueDate: nextQuarterInfo.filingDueDate,
                     quarterGroup: nextQuarterInfo.quarterGroup,
                     assignedUserId: client.vatAssignedUser?.id || client.assignedUser?.id || null,
-                    currentStage: 'CLIENT_BOOKKEEPING',
+                    currentStage: 'PAPERWORK_PENDING_CHASE',
                     isCompleted: false
                   },
                   include: {
@@ -297,7 +297,7 @@ export async function GET(request: NextRequest) {
                 await db.vATWorkflowHistory.create({
                   data: {
                     vatQuarterId: quarter.id,
-                    toStage: 'CLIENT_BOOKKEEPING',
+                    toStage: 'PAPERWORK_PENDING_CHASE',
                     stageChangedAt: new Date(),
                     userId: session.user.id,
                     userName: session.user.name || session.user.email || 'System',

@@ -167,7 +167,7 @@ export async function POST(
     await prisma.vATWorkflowHistory.create({
       data: {
         vatQuarterId: vatQuarter.id,
-        toStage: 'CLIENT_BOOKKEEPING',
+        toStage: 'PAPERWORK_PENDING_CHASE',
         stageChangedAt: new Date(),
         userId: session.user.id,
         userName: session.user.name || session.user.email || 'Unknown User',

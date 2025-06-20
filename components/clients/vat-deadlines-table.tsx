@@ -50,7 +50,8 @@ import {
   Users,
   Phone,
   History,
-  ArrowUpDown
+  ArrowUpDown,
+  AlertCircle
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
 import { 
@@ -131,8 +132,7 @@ interface User {
 }
 
 const WORKFLOW_STAGES: WorkflowStage[] = [
-  { key: 'CLIENT_BOOKKEEPING', label: 'Self Filing', icon: <User className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
-  { key: 'PENDING_TO_CHASE', label: 'Pending to chase', icon: <Clock className="h-4 w-4" />, color: 'bg-gray-100 text-gray-800' },
+  { key: 'PAPERWORK_PENDING_CHASE', label: 'Pending to chase', icon: <Clock className="h-4 w-4" />, color: 'bg-amber-100 text-amber-800' },
   { key: 'PAPERWORK_CHASED', label: 'Paperwork chased', icon: <Phone className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-800' },
   { key: 'PAPERWORK_RECEIVED', label: 'Paperwork received', icon: <FileText className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
   { key: 'WORK_IN_PROGRESS', label: 'Work in progress', icon: <Clock className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
@@ -180,6 +180,7 @@ export function VATDeadlinesTable() {
   const [selectedHistoryClient, setSelectedHistoryClient] = useState<VATClient | null>(null)
   const [sortColumn, setSortColumn] = useState<string>('')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [showClientSelfFilingConfirm, setShowClientSelfFilingConfirm] = useState(false)
 
   // Get current month for default tab
   const currentMonth = new Date().getMonth() + 1
@@ -286,7 +287,7 @@ export function VATDeadlinesTable() {
       quarterStartDate: quarterInfo.quarterStartDate.toISOString(),
       quarterEndDate: quarterInfo.quarterEndDate.toISOString(),
       filingDueDate: quarterInfo.filingDueDate.toISOString(),
-      currentStage: 'PENDING_TO_CHASE',
+      currentStage: 'PAPERWORK_PENDING_CHASE',
       isCompleted: false,
       assignedUser: client.vatAssignedUser
     }
@@ -590,24 +591,45 @@ export function VATDeadlinesTable() {
     }
   }
 
+  const handleClientSelfFiling = async () => {
+    if (!selectedClient?.currentVATQuarter) {
+      showToast.error('No active VAT quarter found for this client')
+      return
+    }
+
+    setUpdating(true)
+    try {
+      const response = await fetch(`/api/vat-quarters/${selectedClient.currentVATQuarter.id}/client-self-filing`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          comments: 'Client handling their own VAT filing',
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        showToast.success('Quarter marked as client self-filing')
+        setUpdateModalOpen(false)
+        setShowClientSelfFilingConfirm(false)
+        await fetchVATClients(true)
+      } else {
+        showToast.error(data.error || 'Failed to update workflow')
+      }
+    } catch (error) {
+      console.error('Error updating workflow:', error)
+      showToast.error('Failed to update workflow')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   const renderWorkflowTimeline = (client: VATClient, quarter: VATQuarter | null) => {
     if (!quarter) return null
 
-    // Check if this is a client bookkeeping case (simplified workflow)
-    const isClientBookkeeping = quarter.currentStage === 'CLIENT_BOOKKEEPING'
-
-    // Define different milestone sets based on workflow type
-    const milestones = isClientBookkeeping ? [
-      // Simplified timeline for client bookkeeping - only show Filed to HMRC
-      { 
-        id: 'FILED_TO_HMRC', 
-        date: quarter.filedToHMRCDate, 
-        user: quarter.filedToHMRCByUserName,
-        label: 'Client Filed to HMRC',
-        icon: <Building className="h-4 w-4" />
-      }
-    ] : [
-      // Full timeline for normal workflow
+    // Define milestone timeline for normal workflow
+    const milestones = [
       { 
         id: 'CHASE_STARTED', 
         date: quarter.chaseStartedDate, 
@@ -690,7 +712,7 @@ export function VATDeadlinesTable() {
     return (
       <div className="py-4 px-6 bg-gray-50 border-t">
         <h4 className="text-sm font-medium text-gray-900 mb-4">
-          {isClientBookkeeping ? 'Client Self-Filing Status' : 'Workflow Timeline'} - {(() => {
+          Workflow Timeline - {(() => {
             try {
               // Use the proper VAT workflow function to format quarter periods
               return formatQuarterPeriodForDisplay(quarter.quarterPeriod)
@@ -1151,6 +1173,29 @@ export function VATDeadlinesTable() {
                 rows={3}
               />
             </div>
+
+            {/* Client Self-Filing Section */}
+            <div className="pt-4 border-t">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-gray-600" />
+                  <Label className="text-sm font-medium">Alternative Action</Label>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowClientSelfFilingConfirm(true)}
+                  className="w-full flex items-center gap-2 text-gray-700 hover:text-gray-900"
+                  disabled={updating}
+                >
+                  <FileText className="h-4 w-4" />
+                  Client do the bookkeeping
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Use this if the client will handle their own VAT filing for this quarter
+                </p>
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
@@ -1166,6 +1211,58 @@ export function VATDeadlinesTable() {
               disabled={updating || (!selectedStage && selectedAssignee === (selectedClient?.vatAssignedUser?.id || 'unassigned'))}
             >
               {updating ? 'Updating...' : 'Update'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Client Self-Filing Confirmation Dialog */}
+      <Dialog open={showClientSelfFilingConfirm} onOpenChange={setShowClientSelfFilingConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+              Confirm Client Self-Filing
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to mark this quarter as "Client do the bookkeeping"?
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium">Important:</p>
+                  <p>Once confirmed, this quarter filing will be marked as completed and cannot be edited.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowClientSelfFilingConfirm(false)}
+              disabled={updating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleClientSelfFiling}
+              disabled={updating}
+              className="flex items-center gap-2"
+            >
+              {updating ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4" />
+                  Confirm
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

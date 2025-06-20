@@ -9,8 +9,7 @@ import { getNextVATWorkflowStage, VAT_WORKFLOW_STAGE_NAMES, calculateDaysBetween
  * Based on user requirements for workflow stage → timeline milestone mapping
  */
 const STAGE_TO_MILESTONE_MAP: { [key: string]: string } = {
-  'CLIENT_BOOKKEEPING': 'filedToHMRCDate', // Client to do bookkeeping = Filed to HMRC (client handles their own VAT filing)
-  'PENDING_TO_CHASE': 'chaseStartedDate', // Pending to chase = Chase started (preparation stage)
+  'PAPERWORK_PENDING_CHASE': 'chaseStartedDate', // Pending to chase = Chase started (when partner starts chasing)
   'PAPERWORK_CHASED': 'chaseStartedDate', // Paperwork chased = Chase started
   'PAPERWORK_RECEIVED': 'paperworkReceivedDate', // Paperwork received = Paperwork received
   'WORK_IN_PROGRESS': 'workStartedDate', // Work in progress = Work in progress (renamed from Work Started)
@@ -41,6 +40,52 @@ function getMilestoneUpdateData(stage: string, userId: string, userName: string)
   updateData[`${milestoneField.replace('Date', 'ByUserName')}`] = userName
   
   return updateData
+}
+
+/**
+ * Auto-assignment logic based on workflow stage and user roles
+ */
+const getAutoAssigneeForStage = async (stage: string, currentAssigneeId: string | null, prisma: any) => {
+  // Get all users with their roles
+  const users = await prisma.user.findMany({
+    where: { isActive: true },
+    select: { id: true, name: true, email: true, role: true }
+  })
+
+  const partners = users.filter((u: any) => u.role === 'PARTNER')
+  const managers = users.filter((u: any) => u.role === 'MANAGER')  
+  const staff = users.filter((u: any) => u.role === 'STAFF')
+
+  switch (stage) {
+    case 'PAPERWORK_PENDING_CHASE':
+    case 'PAPERWORK_CHASED':
+      // Auto-assign to first available partner
+      return partners.length > 0 ? partners[0].id : currentAssigneeId
+
+    case 'PAPERWORK_RECEIVED':
+    case 'WORK_IN_PROGRESS':
+    case 'QUERIES_PENDING':
+      // Auto-assign to first available staff member
+      return staff.length > 0 ? staff[0].id : currentAssigneeId
+
+    case 'REVIEW_PENDING_MANAGER':
+      // Auto-assign to first available manager
+      return managers.length > 0 ? managers[0].id : currentAssigneeId
+
+    case 'REVIEW_PENDING_PARTNER':
+    case 'EMAILED_TO_PARTNER':
+      // Auto-assign to first available partner
+      return partners.length > 0 ? partners[0].id : currentAssigneeId
+
+    case 'EMAILED_TO_CLIENT':
+    case 'CLIENT_APPROVED':
+    case 'FILED_TO_HMRC':
+      // Keep current assignee or assign to staff
+      return currentAssigneeId || (staff.length > 0 ? staff[0].id : null)
+
+    default:
+      return currentAssigneeId
+  }
 }
 
 /**
@@ -112,21 +157,11 @@ export async function PUT(
       session.user.name || session.user.email || 'Unknown User'
     )
 
-    // Special handling for CLIENT_BOOKKEEPING stage
-    // When set to CLIENT_BOOKKEEPING, automatically complete the workflow
-    // since the client is handling their own VAT filing
-    if (stage === 'CLIENT_BOOKKEEPING') {
-      // Mark as completed and set filed date since client handles filing
-      milestoneUpdateData.filedToHMRCDate = new Date()
-      milestoneUpdateData.filedToHMRCByUserId = session.user.id
-      milestoneUpdateData.filedToHMRCByUserName = session.user.name || session.user.email || 'Unknown User'
-    }
 
-    // Special handling for paperwork received - set when moving from CLIENT_BOOKKEEPING
-    if (vatQuarter.currentStage === 'CLIENT_BOOKKEEPING' && stage !== 'CLIENT_BOOKKEEPING') {
-      milestoneUpdateData.paperworkReceivedDate = new Date()
-      milestoneUpdateData.paperworkReceivedByUserId = session.user.id
-      milestoneUpdateData.paperworkReceivedByUserName = session.user.name || session.user.email || 'Unknown User'
+    // Determine assignee - use provided assignedUserId or auto-assign based on stage
+    let finalAssigneeId = assignedUserId
+    if (!assignedUserId) {
+      finalAssigneeId = await getAutoAssigneeForStage(stage, vatQuarter.assignedUserId, prisma)
     }
 
     // Update VAT quarter with milestone dates
@@ -134,8 +169,8 @@ export async function PUT(
       where: { id: vatQuarterId },
       data: {
         currentStage: stage,
-        assignedUserId: assignedUserId || vatQuarter.assignedUserId,
-        isCompleted: stage === 'FILED_TO_HMRC' || stage === 'CLIENT_BOOKKEEPING',
+        assignedUserId: finalAssigneeId,
+        isCompleted: stage === 'FILED_TO_HMRC',
         ...milestoneUpdateData
       },
       include: {
@@ -144,6 +179,7 @@ export async function PUT(
             id: true,
             name: true,
             email: true,
+            role: true,
           }
         },
         client: {

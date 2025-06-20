@@ -226,8 +226,7 @@ export function calculateDaysBetween(startDate: Date, endDate: Date): number {
  * VAT Workflow Stage Display Names
  */
 export const VAT_WORKFLOW_STAGE_NAMES = {
-  CLIENT_BOOKKEEPING: "Client to do bookkeeping",
-  PENDING_TO_CHASE: "Pending to chase",
+  PAPERWORK_PENDING_CHASE: "Pending to chase",
   PAPERWORK_CHASED: "Paperwork chased",
   PAPERWORK_RECEIVED: "Paperwork received",
   WORK_IN_PROGRESS: "Work in progress",
@@ -241,11 +240,10 @@ export const VAT_WORKFLOW_STAGE_NAMES = {
 } as const
 
 /**
- * Selectable VAT Workflow Stages (excludes CLIENT_BOOKKEEPING)
- * CLIENT_BOOKKEEPING is handled separately as a special action
+ * Selectable VAT Workflow Stages
  */
 export const SELECTABLE_VAT_WORKFLOW_STAGES = {
-  PENDING_TO_CHASE: "Pending to chase",
+  PAPERWORK_PENDING_CHASE: "Pending to chase",
   PAPERWORK_CHASED: "Paperwork chased",
   PAPERWORK_RECEIVED: "Paperwork received",
   WORK_IN_PROGRESS: "Work in progress",
@@ -393,7 +391,8 @@ export function calculateStageDurations(vatQuarter: {
 
   // Map of milestone dates to calculate stage durations
   const milestones = [
-    { stage: 'CLIENT_BOOKKEEPING', startDate: vatQuarter.createdAt, endDate: vatQuarter.paperworkReceivedDate || vatQuarter.workStartedDate },
+    { stage: 'PAPERWORK_PENDING_CHASE', startDate: vatQuarter.createdAt, endDate: vatQuarter.chaseStartedDate },
+    { stage: 'PAPERWORK_CHASED', startDate: vatQuarter.chaseStartedDate, endDate: vatQuarter.paperworkReceivedDate },
     { stage: 'PAPERWORK_RECEIVED', startDate: vatQuarter.paperworkReceivedDate, endDate: vatQuarter.workStartedDate },
     { stage: 'WORK_IN_PROGRESS', startDate: vatQuarter.workStartedDate, endDate: vatQuarter.workFinishedDate },
     { stage: 'WORK_FINISHED', startDate: vatQuarter.workFinishedDate, endDate: vatQuarter.sentToClientDate },
@@ -451,7 +450,9 @@ export function getVATWorkflowProgressSummary(vatQuarter: {
   
   // Calculate progress percentage based on current stage
   const stageProgressMap: { [key: string]: number } = {
-    'CLIENT_BOOKKEEPING': 10,
+    'PAPERWORK_PENDING_CHASE': 5,
+    'PAPERWORK_CHASED': 10,
+    'PAPERWORK_RECEIVED': 20,
     'WORK_IN_PROGRESS': 30,
     'QUERIES_PENDING': 40,
     'REVIEW_PENDING_MANAGER': 60,

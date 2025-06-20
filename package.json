@@ -66,7 +66,9 @@
     "clean:all": "npm run clean && rm -rf node_modules package-lock.json && npm install",
     "precommit": "npm run lint:fix && npm run format && npm run type-check",
     "prepare": "husky install",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "vat:auto-assign": "node scripts/auto-assign-vat-partners.js",
+    "cron:start": "node scripts/setup-cron-jobs.js"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",
