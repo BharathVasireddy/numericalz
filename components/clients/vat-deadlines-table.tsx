@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -55,7 +55,8 @@ import {
   calculateVATQuarter, 
   getVATFilingMonthName, 
   getVATQuarterEndMonthName,
-  isVATFilingMonth 
+  isVATFilingMonth,
+  formatQuarterPeriodForDisplay
 } from '@/lib/vat-workflow'
 import { VATQuartersHistoryModal } from './vat-quarters-history-modal'
 
@@ -177,10 +178,18 @@ export function VATDeadlinesTable() {
     }
   }, [currentMonthKey, activeMonth])
 
-  const fetchVATClients = useCallback(async () => {
+  const fetchVATClients = useCallback(async (forceRefresh: boolean = false) => {
     try {
       setLoading(true)
-      const response = await fetch('/api/clients/vat-clients')
+      const response = await fetch('/api/clients/vat-clients', {
+        // Add timestamp to prevent caching when forcing refresh
+        ...(forceRefresh && {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        })
+      })
       const data = await response.json()
 
       if (data.success) {
@@ -344,20 +353,37 @@ export function VATDeadlinesTable() {
 
     setUpdating(true)
     try {
+      let assignmentUpdated = false
+      
       // Handle assignment if assignee changed
       if (selectedAssignee !== (selectedClient.vatAssignedUser?.id || 'unassigned')) {
         const assignResponse = await fetch(`/api/clients/${selectedClient.id}/assign`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            userId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
-            assignmentType: 'vat' 
+            userId: selectedAssignee === 'unassigned' ? null : selectedAssignee
           })
         })
 
         if (!assignResponse.ok) {
           throw new Error('Failed to assign user')
         }
+        
+        assignmentUpdated = true
+        
+        // Update local state immediately for responsive UI
+        const assignedUser = selectedAssignee === 'unassigned' ? null : users.find(u => u.id === selectedAssignee)
+        setVatClients(prevClients => 
+          prevClients.map(client => {
+            if (client.id === selectedClient.id) {
+              return {
+                ...client,
+                vatAssignedUser: assignedUser || undefined
+              }
+            }
+            return client
+          })
+        )
       }
 
       // Handle workflow stage update if stage selected
@@ -368,7 +394,7 @@ export function VATDeadlinesTable() {
           body: JSON.stringify({
             stage: selectedStage,
             comments: updateComments,
-            assignedUserId: session?.user?.id
+            assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee
           })
         })
 
@@ -380,8 +406,8 @@ export function VATDeadlinesTable() {
       showToast.success('Update completed successfully')
       setUpdateModalOpen(false)
       
-      // Refresh data
-      await fetchVATClients()
+      // Force refresh data from server to ensure consistency
+      await fetchVATClients(true)
       
     } catch (error) {
       console.error('Error updating:', error)
@@ -409,7 +435,7 @@ export function VATDeadlinesTable() {
       showToast.success('Assignment updated successfully')
       
       // Refresh data
-      await fetchVATClients()
+      await fetchVATClients(true)
       
     } catch (error) {
       console.error('Error assigning user:', error)
@@ -473,54 +499,118 @@ export function VATDeadlinesTable() {
       }
     ]
 
+    // Helper function to calculate days between two dates
+    const calculateDaysBetween = (startDate: string, endDate: string): number => {
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      const diffTime = Math.abs(end.getTime() - start.getTime())
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    }
+
+    // Calculate days between consecutive completed milestones
+    const milestonesWithDays = milestones.map((milestone, index) => {
+      let daysBetween = null
+      
+      if (milestone.date && index > 0) {
+        // Find the previous completed milestone
+        const previousMilestones = milestones.slice(0, index).reverse()
+        const previousCompletedMilestone = previousMilestones.find(m => m.date)
+        
+        if (previousCompletedMilestone?.date) {
+          daysBetween = calculateDaysBetween(previousCompletedMilestone.date, milestone.date)
+        }
+      }
+      
+      return {
+        ...milestone,
+        daysBetween
+      }
+    })
+
     return (
       <div className="py-4 px-6 bg-gray-50 border-t">
         <h4 className="text-sm font-medium text-gray-900 mb-4">
-          Workflow Timeline - {quarter.quarterPeriod}
+          Workflow Timeline - {(() => {
+            try {
+              // Use the proper VAT workflow function to format quarter periods
+              return formatQuarterPeriodForDisplay(quarter.quarterPeriod)
+            } catch (error) {
+              // Fallback to original format if parsing fails
+              return quarter.quarterPeriod
+            }
+          })()}
         </h4>
-        <div className="relative">
-          {/* Timeline Line */}
-          <div className="absolute top-6 left-6 right-6 h-0.5 bg-gray-200"></div>
-          
-          {/* Timeline Items */}
-          <div className="flex justify-between items-start">
-            {milestones.map((milestone, index) => {
+        <div className="relative overflow-x-auto">
+          {/* Timeline Items with Connectors */}
+          <div className="flex items-center justify-between min-w-full">
+            {milestonesWithDays.map((milestone, index) => {
               const isCompleted = !!milestone.date
+              const isLastItem = index === milestonesWithDays.length - 1
+              const nextMilestone = milestonesWithDays[index + 1]
               
               return (
-                <div key={milestone.id} className="flex flex-col items-center text-center min-w-0 flex-1">
-                  {/* Timeline Node */}
-                  <div className={`
-                    relative z-10 w-12 h-12 rounded-full border-2 flex items-center justify-center
-                    ${isCompleted 
-                      ? 'bg-green-100 border-green-500 text-green-700' 
-                      : 'bg-gray-100 border-gray-300 text-gray-400'
-                    }
-                  `}>
-                    {milestone.icon}
+                <React.Fragment key={milestone.id}>
+                  {/* Milestone Node and Label */}
+                  <div className="flex flex-col items-center text-center flex-shrink-0">
+                    {/* Timeline Node */}
+                    <div className={`
+                      w-12 h-12 rounded-full border-2 flex items-center justify-center mb-3
+                      ${isCompleted 
+                        ? 'bg-green-100 border-green-500 text-green-700' 
+                        : 'bg-gray-100 border-gray-300 text-gray-400'
+                      }
+                    `}>
+                      {milestone.icon}
+                    </div>
+                    
+                    {/* Stage Label */}
+                    <div className="px-2 w-24">
+                      <p className="text-xs font-medium text-gray-900 leading-tight mb-1">
+                        {milestone.label}
+                      </p>
+                      {isCompleted ? (
+                        <div>
+                          <p className="text-xs text-green-600 font-medium">
+                            {formatDate(milestone.date)}
+                          </p>
+                          {milestone.user && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              by {milestone.user}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">Pending</p>
+                      )}
+                    </div>
                   </div>
                   
-                  {/* Stage Label */}
-                  <div className="mt-2 px-2">
-                    <p className="text-xs font-medium text-gray-900 leading-tight">
-                      {milestone.label}
-                    </p>
-                    {isCompleted ? (
-                      <div className="mt-1">
-                        <p className="text-xs text-green-600 font-medium">
-                          {formatDate(milestone.date)}
-                        </p>
-                        {milestone.user && (
-                          <p className="text-xs text-gray-500">
-                            by {milestone.user}
-                          </p>
+                  {/* Connector with Days Count */}
+                  {!isLastItem && (
+                    <div className="flex-1 flex flex-col items-center px-2 min-w-[60px] max-w-[120px]">
+                      {/* Days Count Badge - Aligned with timeline nodes */}
+                      <div className="h-12 flex items-center mb-3">
+                        {nextMilestone?.daysBetween !== null && nextMilestone && (
+                          <div className="inline-flex items-center justify-center bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap">
+                            {nextMilestone.daysBetween} day{nextMilestone.daysBetween !== 1 ? 's' : ''}
+                          </div>
                         )}
                       </div>
-                    ) : (
-                      <p className="text-xs text-gray-400 mt-1">Pending</p>
-                    )}
-                  </div>
-                </div>
+                      
+                      {/* Connector Line */}
+                      <div className={`
+                        h-0.5 w-full
+                        ${isCompleted && nextMilestone?.date 
+                          ? 'bg-green-400' 
+                          : 'bg-gray-300'
+                        }
+                      `}></div>
+                      
+                      {/* Spacer to match milestone label height */}
+                      <div className="flex-1"></div>
+                    </div>
+                  )}
+                </React.Fragment>
               )
             })}
           </div>
@@ -604,31 +694,14 @@ export function VATDeadlinesTable() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  {(session?.user?.role === 'MANAGER' || session?.user?.role === 'PARTNER') ? (
-                    <Select
-                      value={client.vatAssignedUser?.id || 'unassigned'}
-                      onValueChange={(value) => handleQuickAssign(client.id, value === 'unassigned' ? null : value)}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unassigned">Unassigned</SelectItem>
-                        {users.map(user => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">
-                        {client.vatAssignedUser?.name || 'Unassigned'}
-                      </span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">
+                      {client.currentVATQuarter?.assignedUser?.name || 
+                       client.vatAssignedUser?.name || 
+                       'Unassigned'}
+                    </span>
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Button
@@ -727,7 +800,7 @@ export function VATDeadlinesTable() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => fetchVATClients()}
+                  onClick={() => fetchVATClients(true)}
                   disabled={loading}
                   className="bg-white/10 border-white/30 text-white hover:bg-white/20"
                 >

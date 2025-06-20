@@ -183,6 +183,7 @@ export async function GET(request: NextRequest) {
           accountingReferenceDate: true,
           lastAccountsMadeUpTo: true,
           isActive: true,
+          isVatEnabled: true,
           createdAt: true,
           // Service management fields
           
