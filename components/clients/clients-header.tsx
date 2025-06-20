@@ -72,9 +72,11 @@ export function ClientsHeader({
   const { data: session } = useSession()
 
   const handleFilterChange = (key: string, value: string) => {
+    // Convert "all" to empty string for API compatibility
+    const actualValue = value === 'all' ? '' : value
     onFiltersChange({
       ...filters,
-      [key]: value
+      [key]: actualValue
     })
   }
 
@@ -149,7 +151,7 @@ export function ClientsHeader({
             <Button
               variant={filters.assignedUser === 'me' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => handleFilterChange('assignedUser', filters.assignedUser === 'me' ? '' : 'me')}
+              onClick={() => handleFilterChange('assignedUser', filters.assignedUser === 'me' ? 'all' : 'me')}
               className="flex items-center gap-2"
             >
               <Users className="h-4 w-4" />
@@ -203,14 +205,14 @@ export function ClientsHeader({
                   Company Type
                 </label>
                 <Select
-                  value={filters.companyType}
+                  value={filters.companyType || 'all'}
                   onValueChange={(value) => handleFilterChange('companyType', value)}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Company Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Types</SelectItem>
+                    <SelectItem value="all">All Types</SelectItem>
                     <SelectItem value="LIMITED_COMPANY">Limited Company</SelectItem>
                     <SelectItem value="NON_LIMITED_COMPANY">Non-Limited Company</SelectItem>
                     <SelectItem value="DIRECTOR">Director</SelectItem>
@@ -223,14 +225,14 @@ export function ClientsHeader({
                   Assigned User
                 </label>
                 <Select
-                  value={filters.assignedUser}
+                  value={filters.assignedUser || 'all'}
                   onValueChange={(value) => handleFilterChange('assignedUser', value)}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Assigned To" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Users</SelectItem>
+                    <SelectItem value="all">All Users</SelectItem>
                     <SelectItem value="me">My Clients</SelectItem>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
                   </SelectContent>
@@ -241,14 +243,14 @@ export function ClientsHeader({
                   Status
                 </label>
                 <Select
-                  value={filters.status}
+                  value={filters.status || 'all'}
                   onValueChange={(value) => handleFilterChange('status', value)}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Status</SelectItem>
+                    <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="true">Active</SelectItem>
                     <SelectItem value="false">Inactive</SelectItem>
                   </SelectContent>
