@@ -688,10 +688,6 @@
   @apply w-44; /* Company names - reduced width with truncation */
 }
 
-.col-vat-frequency {
-  @apply w-12; /* Very compact frequency badges (Q/M/A) */
-}
-
 .col-vat-quarter-end {
   @apply w-16; /* Compact quarter end month */
 }

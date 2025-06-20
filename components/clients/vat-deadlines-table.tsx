@@ -436,10 +436,6 @@ export function VATDeadlinesTable() {
           aValue = a.companyName || ''
           bValue = b.companyName || ''
           break
-        case 'frequency':
-          aValue = a.vatReturnsFrequency || ''
-          bValue = b.vatReturnsFrequency || ''
-          break
         case 'quarterEnd':
           aValue = getQuarterEndMonth(aQuarter)
           bValue = getQuarterEndMonth(bQuarter)
@@ -814,10 +810,8 @@ export function VATDeadlinesTable() {
       <Table>
         <TableHeader>
           <TableRow className="border-b">
-            <TableHead className="w-12 p-2"></TableHead>
             <SortableHeader column="clientCode" className="col-vat-client-code p-2">Code</SortableHeader>
             <SortableHeader column="companyName" className="col-vat-company-name p-2">Company</SortableHeader>
-            <SortableHeader column="frequency" className="col-vat-frequency p-2">Freq</SortableHeader>
             <SortableHeader column="quarterEnd" className="col-vat-quarter-end p-2">Q.End</SortableHeader>
             <SortableHeader column="filingMonth" className="col-vat-filing-month p-2">Filing</SortableHeader>
             <SortableHeader column="due" className="col-vat-due p-2">Due</SortableHeader>
@@ -839,20 +833,6 @@ export function VATDeadlinesTable() {
             <>
               {/* Main Row */}
               <TableRow key={rowKey} className="hover:bg-muted/50 h-12">
-                <TableCell className="p-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() => toggleRowExpansion(client.id, monthNumber)}
-                  >
-                    {expandedRows.has(rowKey) ? (
-                      <ChevronDown className="h-3 w-3" />
-                    ) : (
-                      <ChevronRight className="h-3 w-3" />
-                    )}
-                  </Button>
-                </TableCell>
                 <TableCell className="font-mono text-xs p-2">
                   {client.clientCode}
                 </TableCell>
@@ -865,13 +845,6 @@ export function VATDeadlinesTable() {
                     <span className="hover:underline truncate">{client.companyName}</span>
                     <History className="h-3 w-3 text-muted-foreground group-hover:text-primary flex-shrink-0" />
                   </button>
-                </TableCell>
-                <TableCell className="p-2">
-                  <Badge variant="outline" className="text-xs px-1 py-0 h-5">
-                    {client.vatReturnsFrequency === 'QUARTERLY' ? 'Q' : 
-                     client.vatReturnsFrequency === 'MONTHLY' ? 'M' : 
-                     client.vatReturnsFrequency === 'ANNUALLY' ? 'A' : 'U'}
-                  </Badge>
                 </TableCell>
                 <TableCell className="text-xs font-medium p-2">
                   {getQuarterEndMonth(monthQuarter)}
@@ -916,37 +889,26 @@ export function VATDeadlinesTable() {
                   </Button>
                 </TableCell>
                 <TableCell className="p-2">
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={() => router.push(`/dashboard/clients/${client.id}/filing-history`)}
-                      title="View Full Filing History"
-                    >
-                      <FileText className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={() => toggleRowExpansion(client.id, monthNumber)}
-                      title="Expand Timeline"
-                    >
-                      {expandedRows.has(rowKey) ? (
-                        <ChevronDown className="h-3 w-3" />
-                      ) : (
-                        <ChevronRight className="h-3 w-3" />
-                      )}
-                    </Button>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => toggleRowExpansion(client.id, monthNumber)}
+                    title="Expand Timeline"
+                  >
+                    {expandedRows.has(rowKey) ? (
+                      <ChevronDown className="h-3 w-3" />
+                    ) : (
+                      <ChevronRight className="h-3 w-3" />
+                    )}
+                  </Button>
                 </TableCell>
               </TableRow>
               
               {/* Expanded Row - Workflow Timeline */}
               {expandedRows.has(rowKey) && (
                 <TableRow>
-                  <TableCell colSpan={11} className="p-0">
+                  <TableCell colSpan={9} className="p-0">
                     {renderWorkflowTimeline(client, monthQuarter)}
                   </TableCell>
                 </TableRow>
