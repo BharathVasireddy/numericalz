@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
           },
         },
         
-        // Include recent VAT quarters (both completed and incomplete)
+        // Include all VAT quarters (both completed and incomplete) for month-specific workflows
         vatQuartersWorkflow: {
           select: {
             id: true,
@@ -110,8 +110,8 @@ export async function GET(request: NextRequest) {
           },
           orderBy: {
             quarterEndDate: 'desc'
-          },
-          take: 3 // Get the 3 most recent quarters to handle transitions
+          }
+          // Remove take limit to get all quarters for month-specific workflows
         }
       },
       orderBy: [
@@ -342,7 +342,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Return client with the current quarter
+      // Return client with the current quarter and all quarters
       return {
         id: client.id,
         clientCode: client.clientCode,
@@ -355,8 +355,8 @@ export async function GET(request: NextRequest) {
         nextVatReturnDue: client.nextVatReturnDue,
         isVatEnabled: client.isVatEnabled,
         createdAt: client.createdAt.toISOString(),
-      assignedUser: client.assignedUser,
-      vatAssignedUser: client.vatAssignedUser,
+        assignedUser: client.assignedUser,
+        vatAssignedUser: client.vatAssignedUser,
         currentVATQuarter: currentQuarter ? {
           id: currentQuarter.id,
           quarterPeriod: currentQuarter.quarterPeriod,
@@ -366,7 +366,7 @@ export async function GET(request: NextRequest) {
           currentStage: currentQuarter.currentStage,
           isCompleted: currentQuarter.isCompleted,
           assignedUser: currentQuarter.assignedUser,
-        // Include milestone dates
+          // Include milestone dates
           chaseStartedDate: currentQuarter.chaseStartedDate?.toISOString(),
           chaseStartedByUserName: currentQuarter.chaseStartedByUserName,
           paperworkReceivedDate: currentQuarter.paperworkReceivedDate?.toISOString(),
@@ -381,7 +381,33 @@ export async function GET(request: NextRequest) {
           clientApprovedByUserName: currentQuarter.clientApprovedByUserName,
           filedToHMRCDate: currentQuarter.filedToHMRCDate?.toISOString(),
           filedToHMRCByUserName: currentQuarter.filedToHMRCByUserName
-      } : undefined
+        } : undefined,
+        // Include all VAT quarters for month-specific workflows
+        vatQuartersWorkflow: client.vatQuartersWorkflow?.map(q => ({
+          id: q.id,
+          quarterPeriod: q.quarterPeriod,
+          quarterStartDate: q.quarterStartDate.toISOString(),
+          quarterEndDate: q.quarterEndDate.toISOString(),
+          filingDueDate: q.filingDueDate.toISOString(),
+          currentStage: q.currentStage,
+          isCompleted: q.isCompleted,
+          assignedUser: q.assignedUser,
+          // Include milestone dates
+          chaseStartedDate: q.chaseStartedDate?.toISOString(),
+          chaseStartedByUserName: q.chaseStartedByUserName,
+          paperworkReceivedDate: q.paperworkReceivedDate?.toISOString(),
+          paperworkReceivedByUserName: q.paperworkReceivedByUserName,
+          workStartedDate: q.workStartedDate?.toISOString(),
+          workStartedByUserName: q.workStartedByUserName,
+          workFinishedDate: q.workFinishedDate?.toISOString(),
+          workFinishedByUserName: q.workFinishedByUserName,
+          sentToClientDate: q.sentToClientDate?.toISOString(),
+          sentToClientByUserName: q.sentToClientByUserName,
+          clientApprovedDate: q.clientApprovedDate?.toISOString(),
+          clientApprovedByUserName: q.clientApprovedByUserName,
+          filedToHMRCDate: q.filedToHMRCDate?.toISOString(),
+          filedToHMRCByUserName: q.filedToHMRCByUserName
+        })) || []
       }
     }))
 

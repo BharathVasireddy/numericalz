@@ -60,6 +60,37 @@ import {
 } from '@/lib/vat-workflow'
 import { VATQuartersHistoryModal } from './vat-quarters-history-modal'
 
+interface VATQuarter {
+  id: string
+  quarterPeriod: string
+  quarterStartDate: string
+  quarterEndDate: string
+  filingDueDate: string
+  currentStage: string
+  isCompleted: boolean
+  assignedUser?: {
+    id: string
+    name: string
+    email: string
+    role: string
+  }
+  // Milestone dates with user attribution
+  chaseStartedDate?: string
+  chaseStartedByUserName?: string
+  paperworkReceivedDate?: string
+  paperworkReceivedByUserName?: string
+  workStartedDate?: string
+  workStartedByUserName?: string
+  workFinishedDate?: string
+  workFinishedByUserName?: string
+  sentToClientDate?: string
+  sentToClientByUserName?: string
+  clientApprovedDate?: string
+  clientApprovedByUserName?: string
+  filedToHMRCDate?: string
+  filedToHMRCByUserName?: string
+}
+
 interface VATClient {
   id: string
   clientCode: string
@@ -75,37 +106,11 @@ interface VATClient {
     role: string
   }
   
-  // Current VAT quarter workflow info
-  currentVATQuarter?: {
-    id: string
-    quarterPeriod: string
-    quarterStartDate: string
-    quarterEndDate: string
-    filingDueDate: string
-    currentStage: string
-    isCompleted: boolean
-    assignedUser?: {
-      id: string
-      name: string
-      email: string
-      role: string
-    }
-    // Milestone dates with user attribution
-    chaseStartedDate?: string
-    chaseStartedByUserName?: string
-    paperworkReceivedDate?: string
-    paperworkReceivedByUserName?: string
-    workStartedDate?: string
-    workStartedByUserName?: string
-    workFinishedDate?: string
-    workFinishedByUserName?: string
-    sentToClientDate?: string
-    sentToClientByUserName?: string
-    clientApprovedDate?: string
-    clientApprovedByUserName?: string
-    filedToHMRCDate?: string
-    filedToHMRCByUserName?: string
-  }
+  // Current VAT quarter workflow info (for backward compatibility)
+  currentVATQuarter?: VATQuarter
+  
+  // All VAT quarters for this client
+  vatQuartersWorkflow?: VATQuarter[]
 }
 
 interface WorkflowStage {
@@ -234,6 +239,50 @@ export function VATDeadlinesTable() {
     })
   }, [vatClients])
 
+  // Get quarter that files in a specific month for a client
+  const getQuarterForMonth = useCallback((client: VATClient, monthNumber: number): VATQuarter | null => {
+    if (!client.vatQuarterGroup || !isVATFilingMonth(client.vatQuarterGroup, monthNumber)) {
+      return null
+    }
+
+    // Calculate the quarter that files in this month
+    // Filing month is the month AFTER quarter end, so quarter ends in previous month
+    const quarterEndMonth = monthNumber === 1 ? 12 : monthNumber - 1
+    const currentYear = new Date().getFullYear()
+    const quarterEndYear = monthNumber === 1 ? currentYear - 1 : currentYear
+    
+    // Calculate quarter info for the quarter that ends in that month
+    const quarterEndDate = new Date(quarterEndYear, quarterEndMonth - 1, 15) // Mid-month to avoid edge cases
+    const quarterInfo = calculateVATQuarter(client.vatQuarterGroup, quarterEndDate)
+    
+    // First, try to find existing quarter that matches this period from all quarters
+    if (client.vatQuartersWorkflow) {
+      const existingQuarter = client.vatQuartersWorkflow.find(q => 
+        q.quarterPeriod === quarterInfo.quarterPeriod
+      )
+      if (existingQuarter) {
+        return existingQuarter
+      }
+    }
+    
+    // Fallback to current quarter if it matches
+    if (client.currentVATQuarter?.quarterPeriod === quarterInfo.quarterPeriod) {
+      return client.currentVATQuarter
+    }
+    
+    // Return calculated quarter info (quarter doesn't exist yet)
+    return {
+      id: `calculated-${client.id}-${quarterInfo.quarterPeriod}`,
+      quarterPeriod: quarterInfo.quarterPeriod,
+      quarterStartDate: quarterInfo.quarterStartDate.toISOString(),
+      quarterEndDate: quarterInfo.quarterEndDate.toISOString(),
+      filingDueDate: quarterInfo.filingDueDate.toISOString(),
+      currentStage: 'CLIENT_BOOKKEEPING',
+      isCompleted: false,
+      assignedUser: client.vatAssignedUser
+    }
+  }, [vatClients])
+
   // Get current month clients count for prominent display
   const currentMonthClients = getClientsForMonth(currentMonth)
   const currentMonthName = MONTHS.find(m => m.number === currentMonth)?.name || ''
@@ -251,31 +300,31 @@ export function VATDeadlinesTable() {
     }
   }
 
-  const getFilingMonth = (client: VATClient) => {
-    if (!client.currentVATQuarter) return '-'
+  const getFilingMonth = (quarter: VATQuarter | null) => {
+    if (!quarter) return '-'
     
     try {
-      return getVATFilingMonthName(client.currentVATQuarter)
+      return getVATFilingMonthName(quarter)
     } catch {
       return '-'
     }
   }
 
-  const getQuarterEndMonth = (client: VATClient) => {
-    if (!client.currentVATQuarter) return '-'
+  const getQuarterEndMonth = (quarter: VATQuarter | null) => {
+    if (!quarter) return '-'
     
     try {
-      return getVATQuarterEndMonthName(client.currentVATQuarter)
+      return getVATQuarterEndMonthName(quarter)
     } catch {
       return '-'
     }
   }
 
-  const getQuarterStatus = (client: VATClient) => {
-    if (!client.currentVATQuarter) return { label: 'No Quarter', color: 'text-gray-500' }
+  const getQuarterStatus = (quarter: VATQuarter | null) => {
+    if (!quarter) return { label: 'No Quarter', color: 'text-gray-500' }
     
-    const quarterEndDate = new Date(client.currentVATQuarter.quarterEndDate)
-    const filingDueDate = new Date(client.currentVATQuarter.filingDueDate)
+    const quarterEndDate = new Date(quarter.quarterEndDate)
+    const filingDueDate = new Date(quarter.filingDueDate)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     
@@ -322,12 +371,14 @@ export function VATDeadlinesTable() {
     )
   }
 
-  const toggleRowExpansion = (clientId: string) => {
+  const toggleRowExpansion = (clientId: string, monthNumber?: number) => {
+    // Create unique key for client + month combination
+    const key = monthNumber ? `${clientId}-${monthNumber}` : clientId
     const newExpanded = new Set(expandedRows)
-    if (newExpanded.has(clientId)) {
-      newExpanded.delete(clientId)
+    if (newExpanded.has(key)) {
+      newExpanded.delete(key)
     } else {
-      newExpanded.add(clientId)
+      newExpanded.add(key)
     }
     setExpandedRows(newExpanded)
   }
@@ -443,8 +494,7 @@ export function VATDeadlinesTable() {
     }
   }
 
-  const renderWorkflowTimeline = (client: VATClient) => {
-    const quarter = client.currentVATQuarter
+  const renderWorkflowTimeline = (client: VATClient, quarter: VATQuarter | null) => {
     if (!quarter) return null
 
     const milestones = [
@@ -647,19 +697,23 @@ export function VATDeadlinesTable() {
         </TableHeader>
         <TableBody>
           {monthClients.map((client) => {
-            const quarterStatus = getQuarterStatus(client)
+            // Get the specific quarter for this month
+            const monthQuarter = getQuarterForMonth(client, monthNumber)
+            const quarterStatus = getQuarterStatus(monthQuarter)
+            const rowKey = `${client.id}-${monthNumber}`
+            
             return (
             <>
               {/* Main Row */}
-              <TableRow key={client.id} className="hover:bg-muted/50">
+              <TableRow key={rowKey} className="hover:bg-muted/50">
                 <TableCell>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-8 w-8 p-0"
-                    onClick={() => toggleRowExpansion(client.id)}
+                    onClick={() => toggleRowExpansion(client.id, monthNumber)}
                   >
-                    {expandedRows.has(client.id) ? (
+                    {expandedRows.has(rowKey) ? (
                       <ChevronDown className="h-4 w-4" />
                     ) : (
                       <ChevronRight className="h-4 w-4" />
@@ -686,9 +740,9 @@ export function VATDeadlinesTable() {
                     <p className={`font-medium ${quarterStatus.color}`}>
                       {quarterStatus.label}
                     </p>
-                    {client.currentVATQuarter && (
+                    {monthQuarter && (
                       <p className="text-xs text-muted-foreground">
-                        Quarter: {getQuarterEndMonth(client)} → Filing: {getFilingMonth(client)}
+                        Quarter: {getQuarterEndMonth(monthQuarter)} → Filing: {getFilingMonth(monthQuarter)}
                       </p>
                     )}
                   </div>
@@ -697,7 +751,7 @@ export function VATDeadlinesTable() {
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">
-                      {client.currentVATQuarter?.assignedUser?.name || 
+                      {monthQuarter?.assignedUser?.name || 
                        client.vatAssignedUser?.name || 
                        'Unassigned'}
                     </span>
@@ -729,10 +783,10 @@ export function VATDeadlinesTable() {
                       variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0"
-                      onClick={() => toggleRowExpansion(client.id)}
+                      onClick={() => toggleRowExpansion(client.id, monthNumber)}
                       title="Expand Timeline"
                     >
-                      {expandedRows.has(client.id) ? (
+                      {expandedRows.has(rowKey) ? (
                         <ChevronDown className="h-4 w-4" />
                       ) : (
                         <ChevronRight className="h-4 w-4" />
@@ -743,10 +797,10 @@ export function VATDeadlinesTable() {
               </TableRow>
               
               {/* Expanded Row - Workflow Timeline */}
-              {expandedRows.has(client.id) && (
+              {expandedRows.has(rowKey) && (
                 <TableRow>
                   <TableCell colSpan={8} className="p-0">
-                    {renderWorkflowTimeline(client)}
+                    {renderWorkflowTimeline(client, monthQuarter)}
                   </TableCell>
                 </TableRow>
               )}
