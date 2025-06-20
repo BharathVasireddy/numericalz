@@ -206,19 +206,17 @@ export function VATDeadlineTable() {
   const [workflowModalOpen, setWorkflowModalOpen] = useState(false)
   const [selectedVATQuarter, setSelectedVATQuarter] = useState<any>(null)
 
-  const fetchVATClients = useCallback(async () => {
-    // Prevent duplicate fetches
-    if (hasFetchedRef.current && vatClients.length > 0) {
-      return
-    }
-
+  const fetchVATClients = useCallback(async (forceRefresh: boolean = false) => {
     try {
       setLoading(true)
       const response = await fetch('/api/clients/vat-clients', {
-        // Add cache headers to prevent unnecessary requests
-        headers: {
-          'Cache-Control': 'max-age=60', // Cache for 1 minute
-        }
+        // Add timestamp to prevent caching when forcing refresh
+        ...(forceRefresh && {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        })
       })
       const data = await response.json()
 
@@ -234,7 +232,7 @@ export function VATDeadlineTable() {
     } finally {
       setLoading(false)
     }
-  }, [vatClients.length])
+  }, [])
 
   const fetchAvailableUsers = useCallback(async () => {
     try {
@@ -931,8 +929,7 @@ export function VATDeadlineTable() {
           })
           
           // Refresh the client list to show the new quarter
-          hasFetchedRef.current = false
-          fetchVATClients()
+          fetchVATClients(true)
         } else {
           throw new Error(data.error || 'Failed to create VAT quarter')
         }
@@ -948,7 +945,7 @@ export function VATDeadlineTable() {
   }
 
   const handleWorkflowUpdate = (updatedQuarter: any) => {
-    // Update the local state
+    // Update the local state immediately for responsive UI
     setVatClients(prevClients => 
       prevClients.map(client => {
         if (client.id === updatedQuarter.clientId) {
@@ -963,6 +960,9 @@ export function VATDeadlineTable() {
     
     // Update the selected quarter for the modal
     setSelectedVATQuarter(updatedQuarter)
+    
+    // Force refresh from server to ensure data consistency
+    fetchVATClients(true)
     
     showToast.success('VAT workflow updated successfully')
   }
@@ -1300,10 +1300,7 @@ export function VATDeadlineTable() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  hasFetchedRef.current = false
-                  fetchVATClients()
-                }}
+                onClick={() => fetchVATClients(true)}
                 disabled={loading}
               >
                 <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
