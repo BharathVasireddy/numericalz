@@ -46,7 +46,6 @@
     "fix:vat-dates": "node scripts/fix-vat-return-dates.js",
     "force-logout-all": "node scripts/force-logout-all.js",
     "invalidate-jwt-tokens": "node scripts/invalidate-jwt-tokens.js",
-    "performance:test": "node scripts/performance-test.js",
     "analyze": "cross-env ANALYZE=true next build",
     "fix-vat-quarters": "node scripts/fix-vat-quarters.js",
     "analyze:server": "cross-env ANALYZE=true BUNDLE_ANALYZE=server next build",

@@ -26,10 +26,11 @@ import {
   History,
   Save,
   ArrowRight,
-  Building2
+  Building2,
+  AlertCircle
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
-import { VAT_WORKFLOW_STAGE_NAMES, calculateTotalFilingDays, calculateStageDurations, getVATWorkflowProgressSummary } from '@/lib/vat-workflow'
+import { VAT_WORKFLOW_STAGE_NAMES, SELECTABLE_VAT_WORKFLOW_STAGES, calculateTotalFilingDays, calculateStageDurations, getVATWorkflowProgressSummary } from '@/lib/vat-workflow'
 
 interface VATWorkflowModalProps {
   isOpen: boolean
@@ -101,6 +102,7 @@ export function VATWorkflowModal({
   const [comments, setComments] = useState('')
   const [isUpdating, setIsUpdating] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [showClientSelfFilingConfirm, setShowClientSelfFilingConfirm] = useState(false)
 
   // Reset form when modal opens with new data
   useEffect(() => {
@@ -109,6 +111,7 @@ export function VATWorkflowModal({
       setSelectedAssignee(vatQuarter.assignedUser?.id || '')
       setComments('')
       setShowHistory(false)
+      setShowClientSelfFilingConfirm(false)
     }
   }, [isOpen, vatQuarter])
 
@@ -139,6 +142,8 @@ export function VATWorkflowModal({
   const getStageInfo = (stage: string) => {
     const stageMap: { [key: string]: { icon: React.ReactNode; color: string } } = {
       'CLIENT_BOOKKEEPING': { icon: <FileText className="h-4 w-4" />, color: 'text-gray-600' },
+      'PAPERWORK_CHASED': { icon: <AlertCircle className="h-4 w-4" />, color: 'text-yellow-600' },
+      'PAPERWORK_RECEIVED': { icon: <CheckCircle className="h-4 w-4" />, color: 'text-blue-600' },
       'WORK_IN_PROGRESS': { icon: <TrendingUp className="h-4 w-4" />, color: 'text-blue-600' },
       'QUERIES_PENDING': { icon: <AlertTriangle className="h-4 w-4" />, color: 'text-amber-600' },
       'REVIEW_PENDING_MANAGER': { icon: <Users className="h-4 w-4" />, color: 'text-purple-600' },
@@ -200,6 +205,45 @@ export function VATWorkflowModal({
       showToast.error('Failed to update workflow')
     } finally {
       setIsUpdating(false)
+    }
+  }
+
+  // Handle client self-filing
+  const handleClientSelfFiling = async () => {
+    if (!session?.user) {
+      showToast.error('Please log in to update workflow')
+      return
+    }
+
+    setIsUpdating(true)
+
+    try {
+      const response = await fetch(`/api/vat-quarters/${vatQuarter.id}/workflow`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          stage: 'CLIENT_BOOKKEEPING',
+          comments: 'Client handling their own VAT filing',
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        showToast.success('Quarter marked as client self-filing')
+        onUpdate(data.data.vatQuarter)
+        onClose()
+      } else {
+        showToast.error(data.error || 'Failed to update workflow')
+      }
+    } catch (error) {
+      console.error('Error updating workflow:', error)
+      showToast.error('Failed to update workflow')
+    } finally {
+      setIsUpdating(false)
+      setShowClientSelfFilingConfirm(false)
     }
   }
 
@@ -379,95 +423,144 @@ export function VATWorkflowModal({
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Clock className="h-5 w-5" />
-                Key Milestone Dates
+                {vatQuarter.currentStage === 'CLIENT_BOOKKEEPING' ? 'Client Self-Filing Status' : 'Key Milestone Dates'}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Chase Started */}
-                {vatQuarter.chaseStartedDate && (
-                  <div className="space-y-1">
-                    <Label className="text-sm font-medium text-muted-foreground">Chase Started</Label>
-                    <p className="font-medium">{new Date(vatQuarter.chaseStartedDate).toLocaleDateString('en-GB')}</p>
-                    {vatQuarter.chaseStartedByUserName && (
-                      <p className="text-xs text-muted-foreground">by {vatQuarter.chaseStartedByUserName}</p>
+              {vatQuarter.currentStage === 'CLIENT_BOOKKEEPING' ? (
+                // Simplified view for client bookkeeping
+                <div className="text-center py-6">
+                  {vatQuarter.filedToHMRCDate ? (
+                    <div className="space-y-4">
+                      <div className="w-16 h-16 rounded-full bg-green-100 border-2 border-green-500 flex items-center justify-center mx-auto">
+                        <CheckCircle className="h-8 w-8 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-green-700">Client Filed to HMRC</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Filed on {new Date(vatQuarter.filedToHMRCDate).toLocaleDateString('en-GB')}
+                        </p>
+                        {vatQuarter.filedToHMRCByUserName && (
+                          <p className="text-xs text-muted-foreground">
+                            Marked as complete by {vatQuarter.filedToHMRCByUserName}
+                          </p>
+                        )}
+                      </div>
+                      <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <p className="text-sm text-green-800">
+                          This client handles their own VAT filing. The workflow is automatically completed when set to "Client to do bookkeeping".
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="w-16 h-16 rounded-full bg-blue-100 border-2 border-blue-500 flex items-center justify-center mx-auto">
+                        <FileText className="h-8 w-8 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-blue-700">Client Self-Filing</h3>
+                        <p className="text-sm text-muted-foreground">
+                          This client handles their own VAT filing
+                        </p>
+                      </div>
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <p className="text-sm text-blue-800">
+                          No internal workflow steps required. The client will file their VAT return directly with HMRC.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Full milestone view for normal workflow
+                <div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Chase Started */}
+                    {vatQuarter.chaseStartedDate && (
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium text-muted-foreground">Chase Started</Label>
+                        <p className="font-medium">{new Date(vatQuarter.chaseStartedDate).toLocaleDateString('en-GB')}</p>
+                        {vatQuarter.chaseStartedByUserName && (
+                          <p className="text-xs text-muted-foreground">by {vatQuarter.chaseStartedByUserName}</p>
+                        )}
+                      </div>
                     )}
-                  </div>
-                )}
 
-                {/* Paperwork Received */}
-                {vatQuarter.paperworkReceivedDate && (
-                  <div className="space-y-1">
-                    <Label className="text-sm font-medium text-muted-foreground">Paperwork Received</Label>
-                    <p className="font-medium">{new Date(vatQuarter.paperworkReceivedDate).toLocaleDateString('en-GB')}</p>
-                    {vatQuarter.paperworkReceivedByUserName && (
-                      <p className="text-xs text-muted-foreground">by {vatQuarter.paperworkReceivedByUserName}</p>
+                    {/* Paperwork Received */}
+                    {vatQuarter.paperworkReceivedDate && (
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium text-muted-foreground">Paperwork Received</Label>
+                        <p className="font-medium">{new Date(vatQuarter.paperworkReceivedDate).toLocaleDateString('en-GB')}</p>
+                        {vatQuarter.paperworkReceivedByUserName && (
+                          <p className="text-xs text-muted-foreground">by {vatQuarter.paperworkReceivedByUserName}</p>
+                        )}
+                      </div>
                     )}
-                  </div>
-                )}
 
-                {/* Work in progress */}
-                {vatQuarter.workStartedDate && (
-                  <div className="space-y-1">
-                    <Label className="text-sm font-medium text-muted-foreground">Work in progress</Label>
-                    <p className="font-medium">{new Date(vatQuarter.workStartedDate).toLocaleDateString('en-GB')}</p>
-                    {vatQuarter.workStartedByUserName && (
-                      <p className="text-xs text-muted-foreground">by {vatQuarter.workStartedByUserName}</p>
+                    {/* Work in progress */}
+                    {vatQuarter.workStartedDate && (
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium text-muted-foreground">Work in progress</Label>
+                        <p className="font-medium">{new Date(vatQuarter.workStartedDate).toLocaleDateString('en-GB')}</p>
+                        {vatQuarter.workStartedByUserName && (
+                          <p className="text-xs text-muted-foreground">by {vatQuarter.workStartedByUserName}</p>
+                        )}
+                      </div>
                     )}
-                  </div>
-                )}
 
-                {/* Work Finished */}
-                {vatQuarter.workFinishedDate && (
-                  <div className="space-y-1">
-                    <Label className="text-sm font-medium text-muted-foreground">Work Finished</Label>
-                    <p className="font-medium">{new Date(vatQuarter.workFinishedDate).toLocaleDateString('en-GB')}</p>
-                    {vatQuarter.workFinishedByUserName && (
-                      <p className="text-xs text-muted-foreground">by {vatQuarter.workFinishedByUserName}</p>
+                    {/* Work Finished */}
+                    {vatQuarter.workFinishedDate && (
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium text-muted-foreground">Work Finished</Label>
+                        <p className="font-medium">{new Date(vatQuarter.workFinishedDate).toLocaleDateString('en-GB')}</p>
+                        {vatQuarter.workFinishedByUserName && (
+                          <p className="text-xs text-muted-foreground">by {vatQuarter.workFinishedByUserName}</p>
+                        )}
+                      </div>
                     )}
-                  </div>
-                )}
 
-                {/* Sent to Client */}
-                {vatQuarter.sentToClientDate && (
-                  <div className="space-y-1">
-                    <Label className="text-sm font-medium text-muted-foreground">Sent to Client</Label>
-                    <p className="font-medium">{new Date(vatQuarter.sentToClientDate).toLocaleDateString('en-GB')}</p>
-                    {vatQuarter.sentToClientByUserName && (
-                      <p className="text-xs text-muted-foreground">by {vatQuarter.sentToClientByUserName}</p>
+                    {/* Sent to Client */}
+                    {vatQuarter.sentToClientDate && (
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium text-muted-foreground">Sent to Client</Label>
+                        <p className="font-medium">{new Date(vatQuarter.sentToClientDate).toLocaleDateString('en-GB')}</p>
+                        {vatQuarter.sentToClientByUserName && (
+                          <p className="text-xs text-muted-foreground">by {vatQuarter.sentToClientByUserName}</p>
+                        )}
+                      </div>
                     )}
-                  </div>
-                )}
 
-                {/* Client Approved */}
-                {vatQuarter.clientApprovedDate && (
-                  <div className="space-y-1">
-                    <Label className="text-sm font-medium text-muted-foreground">Client Approved</Label>
-                    <p className="font-medium">{new Date(vatQuarter.clientApprovedDate).toLocaleDateString('en-GB')}</p>
-                    {vatQuarter.clientApprovedByUserName && (
-                      <p className="text-xs text-muted-foreground">by {vatQuarter.clientApprovedByUserName}</p>
+                    {/* Client Approved */}
+                    {vatQuarter.clientApprovedDate && (
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium text-muted-foreground">Client Approved</Label>
+                        <p className="font-medium">{new Date(vatQuarter.clientApprovedDate).toLocaleDateString('en-GB')}</p>
+                        {vatQuarter.clientApprovedByUserName && (
+                          <p className="text-xs text-muted-foreground">by {vatQuarter.clientApprovedByUserName}</p>
+                        )}
+                      </div>
                     )}
-                  </div>
-                )}
 
-                {/* Filed to HMRC */}
-                {vatQuarter.filedToHMRCDate && (
-                  <div className="space-y-1">
-                    <Label className="text-sm font-medium text-muted-foreground">Filed to HMRC</Label>
-                    <p className="font-medium">{new Date(vatQuarter.filedToHMRCDate).toLocaleDateString('en-GB')}</p>
-                    {vatQuarter.filedToHMRCByUserName && (
-                      <p className="text-xs text-muted-foreground">by {vatQuarter.filedToHMRCByUserName}</p>
+                    {/* Filed to HMRC */}
+                    {vatQuarter.filedToHMRCDate && (
+                      <div className="space-y-1">
+                        <Label className="text-sm font-medium text-muted-foreground">Filed to HMRC</Label>
+                        <p className="font-medium">{new Date(vatQuarter.filedToHMRCDate).toLocaleDateString('en-GB')}</p>
+                        {vatQuarter.filedToHMRCByUserName && (
+                          <p className="text-xs text-muted-foreground">by {vatQuarter.filedToHMRCByUserName}</p>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-              
-              {/* Show message if no milestones yet */}
-              {!vatQuarter.chaseStartedDate && !vatQuarter.paperworkReceivedDate && !vatQuarter.workStartedDate && (
-                <div className="text-center py-4 text-muted-foreground">
-                  <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No milestone dates recorded yet</p>
-                  <p className="text-sm">Dates will appear as workflow progresses</p>
+                  
+                  {/* Show message if no milestones yet */}
+                  {!vatQuarter.chaseStartedDate && !vatQuarter.paperworkReceivedDate && !vatQuarter.workStartedDate && !vatQuarter.filedToHMRCDate && (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No milestone dates recorded yet</p>
+                      <p className="text-sm">Dates will appear as workflow progresses</p>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -492,7 +585,7 @@ export function VATWorkflowModal({
                         <SelectValue placeholder="Select stage" />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(VAT_WORKFLOW_STAGE_NAMES).map(([key, label]) => (
+                        {Object.entries(SELECTABLE_VAT_WORKFLOW_STAGES).map(([key, label]) => (
                           <SelectItem key={key} value={key}>
                             <div className="flex items-center gap-2">
                               {getStageInfo(key).icon}
@@ -537,9 +630,84 @@ export function VATWorkflowModal({
                     rows={3}
                   />
                 </div>
+
+                {/* Client Self-Filing Section */}
+                <div className="pt-4 border-t">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-gray-600" />
+                      <Label className="text-sm font-medium">Alternative Action</Label>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowClientSelfFilingConfirm(true)}
+                      className="w-full flex items-center gap-2 text-gray-700 hover:text-gray-900"
+                      disabled={isUpdating}
+                    >
+                      <FileText className="h-4 w-4" />
+                      Client to do bookkeeping
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Use this if the client will handle their own VAT filing for this quarter
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
+
+          {/* Client Self-Filing Confirmation Dialog */}
+          <Dialog open={showClientSelfFilingConfirm} onOpenChange={setShowClientSelfFilingConfirm}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                  Confirm Client Self-Filing
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Are you sure you want to mark this quarter as "Client to do bookkeeping"?
+                </p>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-amber-800">
+                      <p className="font-medium">Important:</p>
+                      <p>Once confirmed, this quarter filing will be marked as completed and cannot be edited.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowClientSelfFilingConfirm(false)}
+                  disabled={isUpdating}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleClientSelfFiling}
+                  disabled={isUpdating}
+                  className="flex items-center gap-2"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      Confirm
+                    </>
+                  )}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Workflow History */}
           <Card>

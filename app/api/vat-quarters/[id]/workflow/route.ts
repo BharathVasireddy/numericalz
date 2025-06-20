@@ -10,6 +10,8 @@ import { getNextVATWorkflowStage, VAT_WORKFLOW_STAGE_NAMES, calculateDaysBetween
  */
 const STAGE_TO_MILESTONE_MAP: { [key: string]: string } = {
   'CLIENT_BOOKKEEPING': 'filedToHMRCDate', // Client to do bookkeeping = Filed to HMRC (client handles their own VAT filing)
+  'PAPERWORK_CHASED': 'chaseStartedDate', // Paperwork chased = Chase started
+  'PAPERWORK_RECEIVED': 'paperworkReceivedDate', // Paperwork received = Paperwork received
   'WORK_IN_PROGRESS': 'workStartedDate', // Work in progress = Work in progress (renamed from Work Started)
   'QUERIES_PENDING': 'workStartedDate', // Queries pending = Work in progress
   'REVIEW_PENDING_MANAGER': 'workStartedDate', // Review pending by manager = Work in progress
@@ -109,6 +111,16 @@ export async function PUT(
       session.user.name || session.user.email || 'Unknown User'
     )
 
+    // Special handling for CLIENT_BOOKKEEPING stage
+    // When set to CLIENT_BOOKKEEPING, automatically complete the workflow
+    // since the client is handling their own VAT filing
+    if (stage === 'CLIENT_BOOKKEEPING') {
+      // Mark as completed and set filed date since client handles filing
+      milestoneUpdateData.filedToHMRCDate = new Date()
+      milestoneUpdateData.filedToHMRCByUserId = session.user.id
+      milestoneUpdateData.filedToHMRCByUserName = session.user.name || session.user.email || 'Unknown User'
+    }
+
     // Special handling for paperwork received - set when moving from CLIENT_BOOKKEEPING
     if (vatQuarter.currentStage === 'CLIENT_BOOKKEEPING' && stage !== 'CLIENT_BOOKKEEPING') {
       milestoneUpdateData.paperworkReceivedDate = new Date()
@@ -122,7 +134,7 @@ export async function PUT(
       data: {
         currentStage: stage,
         assignedUserId: assignedUserId || vatQuarter.assignedUserId,
-        isCompleted: stage === 'FILED_TO_HMRC',
+        isCompleted: stage === 'FILED_TO_HMRC' || stage === 'CLIENT_BOOKKEEPING',
         ...milestoneUpdateData
       },
       include: {

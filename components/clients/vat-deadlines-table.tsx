@@ -131,7 +131,7 @@ interface User {
 }
 
 const WORKFLOW_STAGES: WorkflowStage[] = [
-  { key: 'CLIENT_BOOKKEEPING', label: 'Client to do bookkeeping', icon: <User className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
+  { key: 'CLIENT_BOOKKEEPING', label: 'Self Filing', icon: <User className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
   { key: 'PAPERWORK_CHASED', label: 'Paperwork chased', icon: <Phone className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-800' },
   { key: 'PAPERWORK_RECEIVED', label: 'Paperwork received', icon: <FileText className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
   { key: 'WORK_IN_PROGRESS', label: 'Work in progress', icon: <Clock className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
