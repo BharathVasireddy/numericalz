@@ -142,9 +142,35 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Calculate what the current quarter should be based on today's date
+      // Calculate what quarter should be shown/worked on based on filing deadlines
+      // We want the quarter that files in the current month or next month, not the current quarter
       const currentDate = new Date()
-      const currentQuarterInfo = calculateVATQuarter(client.vatQuarterGroup, currentDate)
+      const currentMonth = currentDate.getMonth() + 1 // 1-based month
+      
+      // Find which quarter files in the current month
+      const quarterGroups = {
+        '1_4_7_10': [2, 5, 8, 11], // Files in Feb, May, Aug, Nov
+        '2_5_8_11': [3, 6, 9, 12], // Files in Mar, Jun, Sep, Dec  
+        '3_6_9_12': [4, 7, 10, 1]  // Files in Apr, Jul, Oct, Jan
+      }
+      
+      const filingMonths = quarterGroups[client.vatQuarterGroup as keyof typeof quarterGroups] || []
+      
+      // Check if current month is a filing month for this client
+      let targetQuarterInfo
+      if (filingMonths.includes(currentMonth)) {
+        // Current month is a filing month - get the quarter that files this month
+        // Filing month is the month AFTER quarter end, so quarter ends in previous month
+        const quarterEndMonth = currentMonth === 1 ? 12 : currentMonth - 1
+        const quarterEndYear = currentMonth === 1 ? currentDate.getFullYear() - 1 : currentDate.getFullYear()
+        const quarterEndDate = new Date(quarterEndYear, quarterEndMonth - 1, 15) // Mid-month to avoid edge cases
+        targetQuarterInfo = calculateVATQuarter(client.vatQuarterGroup, quarterEndDate)
+      } else {
+        // Not a filing month - get the current quarter
+        targetQuarterInfo = calculateVATQuarter(client.vatQuarterGroup, currentDate)
+      }
+      
+      const currentQuarterInfo = targetQuarterInfo
 
       // Find the incomplete quarter that matches current period
       let currentQuarter = client.vatQuartersWorkflow?.find(q => 

@@ -48,6 +48,7 @@
     "invalidate-jwt-tokens": "node scripts/invalidate-jwt-tokens.js",
     "performance:test": "node scripts/performance-test.js",
     "analyze": "cross-env ANALYZE=true next build",
+    "fix-vat-quarters": "node scripts/fix-vat-quarters.js",
     "analyze:server": "cross-env ANALYZE=true BUNDLE_ANALYZE=server next build",
     "analyze:browser": "cross-env ANALYZE=true BUNDLE_ANALYZE=browser next build",
     "performance:audit": "lighthouse http://localhost:3000 --chrome-flags='--headless' --output=html --output-path=./performance-audit.html",

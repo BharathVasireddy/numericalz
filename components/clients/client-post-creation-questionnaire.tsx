@@ -52,14 +52,53 @@ export function ClientPostCreationQuestionnaire({
   // Auto-calculate next VAT return date when quarter group changes
   useEffect(() => {
     if (vatData.vatQuarterGroup && vatData.vatReturnsFrequency === 'QUARTERLY') {
-      const quarterInfo = calculateVATQuarter(vatData.vatQuarterGroup)
-      // Ensure we get the correct date by using the date components directly
+      // Calculate the NEXT filing quarter (the quarter that files in the current/next month)
+      // For example: If we're in June and client has 2_5_8_11 group:
+      // - Current quarter is Jun-Aug (files in September)
+      // - But we want the NEXT filing which is Mar-May quarter filing in June
+      
+      const today = new Date()
+      const currentMonth = today.getMonth() + 1 // 1-based month
+      
+      // Find the next filing month for this quarter group
+      const quarterGroups = {
+        '1_4_7_10': [2, 5, 8, 11], // Files in Feb, May, Aug, Nov
+        '2_5_8_11': [3, 6, 9, 12], // Files in Mar, Jun, Sep, Dec  
+        '3_6_9_12': [4, 7, 10, 1]  // Files in Apr, Jul, Oct, Jan
+      }
+      
+      const filingMonths = quarterGroups[vatData.vatQuarterGroup as keyof typeof quarterGroups] || []
+      
+      // Find the next filing month (current month or next one)
+      let nextFilingMonth = filingMonths.find(month => month >= currentMonth)
+      let nextFilingYear = today.getFullYear()
+      
+      // If no filing month found this year, use the first one next year
+      if (!nextFilingMonth) {
+        nextFilingMonth = filingMonths[0]
+        nextFilingYear = today.getFullYear() + 1
+      }
+      
+      // Ensure we have a valid filing month (fallback to first month if still undefined)
+      if (!nextFilingMonth) {
+        nextFilingMonth = filingMonths[0] || 1 // Default to January if no filing months
+      }
+      
+      // Calculate the quarter that files in this month
+      // Filing month is the month AFTER quarter end, so quarter ends in previous month
+      const quarterEndMonth = nextFilingMonth === 1 ? 12 : nextFilingMonth - 1
+      const quarterEndYear = nextFilingMonth === 1 ? nextFilingYear - 1 : nextFilingYear
+      
+      // Calculate quarter info for the quarter that ends in that month
+      const quarterEndDate = new Date(quarterEndYear, quarterEndMonth - 1, 15) // Mid-month to avoid edge cases
+      const quarterInfo = calculateVATQuarter(vatData.vatQuarterGroup, quarterEndDate)
+      
+      // Use the filing due date
       const filingDueDate = quarterInfo.filingDueDate
       const year = filingDueDate.getFullYear()
       const month = filingDueDate.getMonth()
       const day = filingDueDate.getDate()
-      // Create a new date with explicit values to avoid timezone issues
-      const correctDate = new Date(year, month, day)
+      
       const filingDueDateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
       setVatData(prev => ({ ...prev, nextVatReturnDue: filingDueDateString }))
     }

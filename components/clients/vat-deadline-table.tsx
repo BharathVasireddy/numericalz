@@ -445,6 +445,109 @@ export function VATDeadlineTable() {
     return <Badge variant="outline" className="text-xs">Unknown</Badge>
   }
 
+  const getQuarterEndMonth = (client: VATClient, monthNumber?: number): string => {
+    // If monthNumber is provided, calculate for that specific month
+    if (monthNumber && client.vatQuarterGroup) {
+      try {
+        const today = new Date()
+        const quarterEndMonth = QUARTER_GROUP_MONTHS[client.vatQuarterGroup]?.find(m => {
+          return (m % 12) + 1 === monthNumber || (m === 12 && monthNumber === 1)
+        })
+        
+        if (quarterEndMonth !== undefined) {
+          let quarterYear = today.getFullYear()
+          if (monthNumber === 1 && quarterEndMonth === 12) {
+            quarterYear = today.getFullYear() - 1
+          }
+          
+          const quarterInfo = calculateVATQuarter(client.vatQuarterGroup, new Date(quarterYear, quarterEndMonth - 1, 1))
+          const endDate = new Date(quarterInfo.quarterEndDate)
+          return endDate.toLocaleDateString('en-GB', { month: 'short', timeZone: 'Europe/London' })
+        }
+      } catch (error) {
+        console.error('Error calculating quarter end month:', error)
+      }
+    }
+    
+    // Fallback to current quarter
+    if (client.currentVATQuarter?.quarterEndDate) {
+      const endDate = new Date(client.currentVATQuarter.quarterEndDate)
+      return endDate.toLocaleDateString('en-GB', { month: 'short', timeZone: 'Europe/London' })
+    }
+    return '-'
+  }
+
+  const getFilingMonth = (client: VATClient, monthNumber?: number): string => {
+    // If monthNumber is provided, calculate for that specific month
+    if (monthNumber && client.vatQuarterGroup) {
+      try {
+        const today = new Date()
+        const quarterEndMonth = QUARTER_GROUP_MONTHS[client.vatQuarterGroup]?.find(m => {
+          return (m % 12) + 1 === monthNumber || (m === 12 && monthNumber === 1)
+        })
+        
+        if (quarterEndMonth !== undefined) {
+          let quarterYear = today.getFullYear()
+          if (monthNumber === 1 && quarterEndMonth === 12) {
+            quarterYear = today.getFullYear() - 1
+          }
+          
+          const quarterInfo = calculateVATQuarter(client.vatQuarterGroup, new Date(quarterYear, quarterEndMonth - 1, 1))
+          const filingDate = new Date(quarterInfo.filingDueDate)
+          return filingDate.toLocaleDateString('en-GB', { month: 'short', timeZone: 'Europe/London' })
+        }
+      } catch (error) {
+        console.error('Error calculating filing month:', error)
+      }
+    }
+    
+    // Fallback to current quarter
+    if (client.currentVATQuarter?.filingDueDate) {
+      const filingDate = new Date(client.currentVATQuarter.filingDueDate)
+      return filingDate.toLocaleDateString('en-GB', { month: 'short', timeZone: 'Europe/London' })
+    }
+    return '-'
+  }
+
+  const getCurrentWorkflowStage = (client: VATClient, monthNumber?: number): string => {
+    // Check if this is a historical quarter (before client was created)
+    if (monthNumber && client.vatQuarterGroup) {
+      try {
+        const today = new Date()
+        const quarterEndMonth = QUARTER_GROUP_MONTHS[client.vatQuarterGroup]?.find(m => {
+          return (m % 12) + 1 === monthNumber || (m === 12 && monthNumber === 1)
+        })
+        
+        if (quarterEndMonth !== undefined) {
+          let quarterYear = today.getFullYear()
+          if (monthNumber === 1 && quarterEndMonth === 12) {
+            quarterYear = today.getFullYear() - 1
+          }
+          
+          const quarterInfo = calculateVATQuarter(client.vatQuarterGroup, new Date(quarterYear, quarterEndMonth - 1, 1))
+          
+          // Check if this is a historical quarter
+          if (isHistoricalQuarter(client, quarterInfo.quarterEndDate)) {
+            return 'Not Applicable'
+          }
+        }
+      } catch (error) {
+        console.error('Error checking historical quarter:', error)
+      }
+    }
+
+    // Check current workflow status
+    if (client.currentVATQuarter) {
+      if (client.currentVATQuarter.isCompleted || client.currentVATQuarter.currentStage === 'FILED_TO_HMRC') {
+        return 'Completed'
+      } else if (client.currentVATQuarter.currentStage) {
+        return formatWorkflowStage(client.currentVATQuarter.currentStage)
+      }
+    }
+    
+    return 'Not Started'
+  }
+
   const getComprehensiveStatus = (client: VATClient): ComprehensiveStatus => {
     const today = new Date()
     
@@ -523,6 +626,38 @@ export function VATDeadlineTable() {
   const renderStatusDisplay = (client: VATClient, monthNumber?: number) => {
     const status = monthNumber ? getMonthSpecificStatus(client, monthNumber) : getComprehensiveStatus(client)
     
+    // For month-specific display, we need to get the quarter data for that specific month
+    let monthSpecificQuarter = client.currentVATQuarter
+    if (monthNumber && client.vatQuarterGroup) {
+      try {
+        const today = new Date()
+        const quarterEndMonth = QUARTER_GROUP_MONTHS[client.vatQuarterGroup]?.find(m => {
+          return (m % 12) + 1 === monthNumber || (m === 12 && monthNumber === 1)
+        })
+        
+        if (quarterEndMonth !== undefined) {
+          let quarterYear = today.getFullYear()
+          if (monthNumber === 1 && quarterEndMonth === 12) {
+            quarterYear = today.getFullYear() - 1
+          }
+          
+          const quarterInfo = calculateVATQuarter(client.vatQuarterGroup, new Date(quarterYear, quarterEndMonth - 1, 1))
+          
+          // Check if client has a quarter matching this period
+          // This would need to be fetched from the server in a real implementation
+          // For now, only use currentVATQuarter if it matches this period
+          if (client.currentVATQuarter && client.currentVATQuarter.quarterPeriod === quarterInfo.quarterPeriod) {
+            monthSpecificQuarter = client.currentVATQuarter
+          } else {
+            // No quarter exists for this month - show as not started
+            monthSpecificQuarter = undefined
+          }
+        }
+      } catch (error) {
+        console.error('Error getting month-specific quarter:', error)
+      }
+    }
+    
     // Helper function to get milestone tooltip content
     const getMilestoneTooltip = (currentQuarter?: VATClient['currentVATQuarter']) => {
       if (!currentQuarter) return null
@@ -557,9 +692,9 @@ export function VATDeadlineTable() {
 
     switch (status.type) {
       case 'quarter_end_month':
-        const milestoneTooltip = getMilestoneTooltip(client.currentVATQuarter)
+        const milestoneTooltip = getMilestoneTooltip(monthSpecificQuarter)
         const latestMilestone = (() => {
-          const quarter = client.currentVATQuarter
+          const quarter = monthSpecificQuarter
           if (!quarter) return null
           
           // Find the most recent milestone date
@@ -603,9 +738,9 @@ export function VATDeadlineTable() {
         )
 
       case 'filing_month':
-        const filingMilestoneTooltip = getMilestoneTooltip(client.currentVATQuarter)
+        const filingMilestoneTooltip = getMilestoneTooltip(monthSpecificQuarter)
         const filingLatestMilestone = (() => {
-          const quarter = client.currentVATQuarter
+          const quarter = monthSpecificQuarter
           if (!quarter) return null
           
           // Find the most recent milestone date
@@ -889,6 +1024,9 @@ export function VATDeadlineTable() {
                   Company Name
                 </SortableHeader>
                 <th className="table-header-cell col-vat-frequency">Freq</th>
+                <th className="table-header-cell col-vat-quarter-end">Quarter End</th>
+                <th className="table-header-cell col-vat-filing-month">Filing Month</th>
+                <th className="table-header-cell col-vat-workflow-stage">Current Stage</th>
                 <th className="table-header-cell col-vat-status">Status</th>
                 <th className="table-header-cell col-vat-contact">Contact</th>
                 <SortableHeader sortKey="assignedUser" currentSort={currentSort} sortOrder={sortOrder} onSort={sortClients} className="col-vat-assigned">
@@ -915,6 +1053,30 @@ export function VATDeadlineTable() {
                   </td>
                   <td className="table-cell col-vat-frequency">
                     {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
+                  </td>
+                  <td className="table-cell col-vat-quarter-end">
+                    <span className="text-xs" title={client.currentVATQuarter?.quarterEndDate ? formatDate(client.currentVATQuarter.quarterEndDate) : undefined}>
+                      {getQuarterEndMonth(client, monthNumber)}
+                    </span>
+                  </td>
+                  <td className="table-cell col-vat-filing-month">
+                    <span className="text-xs" title={client.currentVATQuarter?.filingDueDate ? formatDate(client.currentVATQuarter.filingDueDate) : undefined}>
+                      {getFilingMonth(client, monthNumber)}
+                    </span>
+                  </td>
+                  <td className="table-cell col-vat-workflow-stage">
+                    {(() => {
+                      const stage = getCurrentWorkflowStage(client, monthNumber)
+                      if (stage === 'Not Applicable') {
+                        return <Badge variant="outline" className="text-xs bg-gray-100 text-gray-600">N/A</Badge>
+                      } else if (stage === 'Completed') {
+                        return <Badge variant="outline" className="text-xs bg-green-100 text-green-700">Completed</Badge>
+                      } else if (stage === 'Not Started') {
+                        return <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700">Not Started</Badge>
+                      } else {
+                        return <Badge variant="secondary" className="text-xs">{stage}</Badge>
+                      }
+                    })()}
                   </td>
                   <td className="table-cell col-vat-status">
                     {renderStatusDisplay(client, monthNumber)}
@@ -1038,6 +1200,31 @@ export function VATDeadlineTable() {
                     <span className="text-muted-foreground">Frequency:</span>
                     <div className="mt-1">
                       {getFrequencyBadge(client.vatReturnsFrequency, client.vatQuarterGroup)}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Quarter End:</span>
+                    <p className="mt-1">{getQuarterEndMonth(client, monthNumber)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Filing Month:</span>
+                    <p className="mt-1">{getFilingMonth(client, monthNumber)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Current Stage:</span>
+                    <div className="mt-1">
+                      {(() => {
+                        const stage = getCurrentWorkflowStage(client, monthNumber)
+                        if (stage === 'Not Applicable') {
+                          return <Badge variant="outline" className="text-xs bg-gray-100 text-gray-600">N/A</Badge>
+                        } else if (stage === 'Completed') {
+                          return <Badge variant="outline" className="text-xs bg-green-100 text-green-700">Completed</Badge>
+                        } else if (stage === 'Not Started') {
+                          return <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700">Not Started</Badge>
+                        } else {
+                          return <Badge variant="secondary" className="text-xs">{stage}</Badge>
+                        }
+                      })()}
                     </div>
                   </div>
                   <div>

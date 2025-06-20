@@ -93,10 +93,12 @@ export function calculateVATQuarter(
   const quarterEndDate = new Date(quarterEndYear, quarterEndMonth, 0) // Last day of quarterEndMonth
 
   // Calculate quarter start date (first day of the quarter)
-  // For 3_6_9_12: Mar-May (Q1), Jun-Aug (Q2), Sep-Nov (Q3), Dec-Feb (Q4)
-  const quarterStartMonth = quarterEndMonth - 2 // 3 months before end
+  // For 3_6_9_12: Apr-Jun, Jul-Sep, Oct-Dec, Jan-Mar
+  // Quarter starts 2 months before the end month (June quarter starts in April)
+  const quarterStartMonth = quarterEndMonth - 2 // 2 months before end, not 3
   const quarterStartYear = quarterStartMonth > 0 ? quarterEndYear : quarterEndYear - 1
-  const quarterStartDate = new Date(quarterStartYear, quarterStartMonth > 0 ? quarterStartMonth - 1 : quarterStartMonth + 11, 1)
+  const adjustedStartMonth = quarterStartMonth > 0 ? quarterStartMonth : quarterStartMonth + 12
+  const quarterStartDate = new Date(quarterStartYear, adjustedStartMonth - 1, 1) // -1 because JS months are 0-indexed
 
   // Calculate filing due date (last day of month following quarter end)
   // UK VAT Rule: Filing due by last day of month following quarter end

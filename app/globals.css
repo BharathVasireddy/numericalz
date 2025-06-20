@@ -679,25 +679,41 @@
   animation: toast-progress 3s linear;
 }
 
-/* ===== VAT DEADLINE TABLE COLUMNS (EQUAL WIDTH) ===== */
+/* ===== VAT DEADLINE TABLE COLUMNS (OPTIMIZED WIDTH) ===== */
 .col-vat-client-code {
-  @apply w-1/6; /* Equal width columns - 1/6 each */
+  @apply w-16; /* Fixed width for client codes */
 }
 
 .col-vat-company-name {
-  @apply w-2/6; /* Company name gets 2/6 (double width) for longer names */
+  @apply w-40; /* Company names - reduced to fit new column */
 }
 
 .col-vat-frequency {
-  @apply w-1/6; /* Equal width */
+  @apply w-20; /* Compact frequency badges */
+}
+
+.col-vat-quarter-end {
+  @apply w-20; /* Quarter end month */
+}
+
+.col-vat-filing-month {
+  @apply w-20; /* Filing month */
+}
+
+.col-vat-workflow-stage {
+  @apply w-32; /* Current workflow stage */
 }
 
 .col-vat-status {
-  @apply w-1/6; /* Equal width */
+  @apply w-28; /* Status display - reduced */
+}
+
+.col-vat-contact {
+  @apply w-16; /* Contact icons - reduced */
 }
 
 .col-vat-assigned {
-  @apply w-1/6; /* Equal width */
+  @apply w-28; /* Assigned user - reduced */
 }
 
 .col-vat-actions {

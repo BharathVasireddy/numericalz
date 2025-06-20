@@ -150,7 +150,7 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
   
   // Enhanced output configuration
-  output: 'standalone',
+  // output: 'standalone',
   
   // Advanced headers for performance and security
   async headers() {
