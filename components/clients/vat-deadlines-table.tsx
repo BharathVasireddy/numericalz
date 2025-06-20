@@ -515,7 +515,21 @@ export function VATDeadlinesTable() {
   const renderWorkflowTimeline = (client: VATClient, quarter: VATQuarter | null) => {
     if (!quarter) return null
 
-    const milestones = [
+    // Check if this is a client bookkeeping case (simplified workflow)
+    const isClientBookkeeping = quarter.currentStage === 'CLIENT_BOOKKEEPING'
+
+    // Define different milestone sets based on workflow type
+    const milestones = isClientBookkeeping ? [
+      // Simplified timeline for client bookkeeping - only show Filed to HMRC
+      { 
+        id: 'FILED_TO_HMRC', 
+        date: quarter.filedToHMRCDate, 
+        user: quarter.filedToHMRCByUserName,
+        label: 'Client Filed to HMRC',
+        icon: <Building className="h-4 w-4" />
+      }
+    ] : [
+      // Full timeline for normal workflow
       { 
         id: 'CHASE_STARTED', 
         date: quarter.chaseStartedDate, 
@@ -598,7 +612,7 @@ export function VATDeadlinesTable() {
     return (
       <div className="py-4 px-6 bg-gray-50 border-t">
         <h4 className="text-sm font-medium text-gray-900 mb-4">
-          Workflow Timeline - {(() => {
+          {isClientBookkeeping ? 'Client Self-Filing Status' : 'Workflow Timeline'} - {(() => {
             try {
               // Use the proper VAT workflow function to format quarter periods
               return formatQuarterPeriodForDisplay(quarter.quarterPeriod)
@@ -833,192 +847,159 @@ export function VATDeadlinesTable() {
 
   if (loading) {
     return (
-      <PageLayout maxWidth="xl">
-        <PageContent>
-          <Card>
-            <CardContent className="flex items-center justify-center py-8">
-              <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-              Loading VAT deadlines...
-            </CardContent>
-          </Card>
-        </PageContent>
-      </PageLayout>
+      <div className="page-container">
+        <div className="content-wrapper">
+          <div className="content-sections">
+            <Card>
+              <CardContent className="flex items-center justify-center py-8">
+                <RefreshCw className="h-6 w-6 animate-spin mr-2" />
+                Loading VAT deadlines...
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
     )
   }
 
   return (
     <>
-      <PageLayout maxWidth="xl">
-        <PageHeader 
-          title="VAT Deadline Tracker"
-          description="Track and manage VAT filing deadlines for all VAT-enabled clients"
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchVATClients(true)}
-            disabled={loading}
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Data
-          </Button>
-        </PageHeader>
-
-        <PageContent>
-          {/* Current Month Summary - Prominent Display */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {/* Main Current Month Card */}
-            <div className="md:col-span-2">
-              <Card className="border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50 to-blue-100/50 dark:from-blue-950/50 dark:to-blue-900/30">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-500 rounded-lg">
-                        <Calendar className="h-6 w-6 text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                          {currentMonthName} Filing Period
-                        </h2>
-                        <p className="text-sm text-blue-600 dark:text-blue-400">
-                          Current month active deadlines
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <div className="text-4xl font-bold text-blue-600 dark:text-blue-400">
-                        {currentMonthClients.length}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        client{currentMonthClients.length !== 1 ? 's' : ''}<br />
-                        filing this month
-                      </div>
-                    </div>
-                    
-                    {currentMonthClients.length > 0 && (
-                      <div className="flex-1 ml-6">
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                          Filing status breakdown:
-                        </div>
-                        <div className="flex gap-2 flex-wrap">
-                          {(() => {
-                            const overdue = currentMonthClients.filter(client => {
-                              const quarter = getQuarterForMonth(client, currentMonth)
-                              const status = getDueStatus(quarter, client)
-                              return status.label.includes('overdue')
-                            }).length
-                            
-                            const dueSoon = currentMonthClients.filter(client => {
-                              const quarter = getQuarterForMonth(client, currentMonth)
-                              const status = getDueStatus(quarter, client)
-                              return status.color === 'text-amber-600'
-                            }).length
-                            
-                            const upcoming = currentMonthClients.length - overdue - dueSoon
-                            
-                            return (
-                              <>
-                                {overdue > 0 && (
-                                  <Badge variant="destructive" className="text-xs">
-                                    {overdue} overdue
-                                  </Badge>
-                                )}
-                                {dueSoon > 0 && (
-                                  <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800">
-                                    {dueSoon} due soon
-                                  </Badge>
-                                )}
-                                {upcoming > 0 && (
-                                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                                    {upcoming} upcoming
-                                  </Badge>
-                                )}
-                              </>
-                            )
-                          })()}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+      <div className="page-container">
+        <div className="content-wrapper">
+          <div className="content-sections">
+            {/* Page Header */}
+            <div className="page-header">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h1 className="text-xl md:text-2xl font-bold">VAT Deadline Tracker</h1>
+                  <p className="text-xs md:text-sm text-muted-foreground">
+                    Track and manage VAT filing deadlines for all VAT-enabled clients
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchVATClients(true)}
+                    disabled={loading}
+                  >
+                    <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    Refresh Data
+                  </Button>
+                </div>
+              </div>
             </div>
 
-            {/* Quick Stats Card */}
-            <div>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Quick Overview
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">Total VAT Clients</span>
-                    <span className="font-semibold">{vatClients.length}</span>
+            {/* Current Month Summary */}
+            <Card className="p-6 border-l-4 border-l-blue-500">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {/* Current Filing Month - Most Emphasized */}
+                <div className="md:col-span-1 text-center md:text-left">
+                  <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
+                    <Calendar className="h-6 w-6 text-blue-600" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Current Filing Month</p>
+                      <h2 className="text-3xl font-bold text-blue-600">{currentMonthName}</h2>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">Next Month</span>
-                    <span className="font-semibold">
-                      {getClientsForMonth(currentMonth === 12 ? 1 : currentMonth + 1).length}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">Previous Month</span>
-                    <span className="font-semibold">
-                      {getClientsForMonth(currentMonth === 1 ? 12 : currentMonth - 1).length}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Monthly Tabs */}
-          <Card>
-            <CardContent className="p-0">
-              <Tabs value={activeMonth} onValueChange={setActiveMonth} className="w-full">
-                <div className="border-b px-6 py-4">
-                  <TabsList className="grid grid-cols-6 lg:grid-cols-12 gap-1 h-auto p-1">
-                    {MONTHS.map((month) => {
-                      const monthClients = getClientsForMonth(month.number)
-                      const isCurrentMonth = month.number === currentMonth
-                      return (
-                        <TabsTrigger
-                          key={month.key}
-                          value={month.key}
-                          className={`flex flex-col items-center gap-1 py-2 px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground ${
-                            isCurrentMonth ? 'ring-2 ring-blue-200 ring-offset-1' : ''
-                          }`}
-                        >
-                          <span className="font-medium">{month.short}</span>
-                          <Badge 
-                            variant="secondary" 
-                            className={`text-xs px-1.5 py-0.5 h-auto min-w-[1.5rem] justify-center ${
-                              isCurrentMonth ? 'bg-blue-100 text-blue-800' : ''
-                            }`}
-                          >
-                            {monthClients.length}
-                          </Badge>
-                        </TabsTrigger>
-                      )
-                    })}
-                  </TabsList>
                 </div>
 
-                {MONTHS.map((month) => (
-                  <TabsContent key={month.key} value={month.key} className="mt-0">
-                    {renderMonthContent(month.number)}
-                  </TabsContent>
-                ))}
-              </Tabs>
-            </CardContent>
-          </Card>
-        </PageContent>
-      </PageLayout>
+                {/* Total Clients */}
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{currentMonthClients.length}</div>
+                  <div className="text-sm text-muted-foreground">Total Clients</div>
+                  <div className="text-xs text-muted-foreground mt-1">Filing this month</div>
+                </div>
+
+                {/* Completion Status */}
+                {(() => {
+                  const completed = currentMonthClients.filter(client => {
+                    const quarter = getQuarterForMonth(client, currentMonth)
+                    return quarter?.isCompleted || quarter?.currentStage === 'FILED_TO_HMRC'
+                  }).length
+                  
+                  const stillDue = currentMonthClients.length - completed
+                  
+                  return (
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <div className="text-lg font-bold text-green-600">{completed}</div>
+                        <div className="text-muted-foreground">/</div>
+                        <div className="text-lg font-bold text-orange-600">{stillDue}</div>
+                      </div>
+                      <div className="text-sm text-muted-foreground">Completed / Due</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {currentMonthClients.length > 0 ? Math.round((completed / currentMonthClients.length) * 100) : 0}% complete
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Days Left to File */}
+                {(() => {
+                  const today = new Date()
+                  const currentYear = today.getFullYear()
+                  const currentMonthIndex = today.getMonth()
+                  const lastDayOfMonth = new Date(currentYear, currentMonthIndex + 1, 0).getDate()
+                  const currentDay = today.getDate()
+                  const daysLeft = lastDayOfMonth - currentDay + 1 // +1 to include today
+                  
+                  return (
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{daysLeft}</div>
+                      <div className="text-sm text-muted-foreground">Days Left</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {daysLeft <= 5 ? 'Urgent deadline!' : 'To file this month'}
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </Card>
+
+            {/* Monthly Tabs */}
+            <Card>
+              <CardContent className="p-0">
+                <Tabs value={activeMonth} onValueChange={setActiveMonth} className="w-full">
+                  <div className="border-b px-6 py-4">
+                    <TabsList className="grid grid-cols-6 lg:grid-cols-12 gap-1 h-auto p-1">
+                      {MONTHS.map((month) => {
+                        const monthClients = getClientsForMonth(month.number)
+                        const isCurrentMonth = month.number === currentMonth
+                        return (
+                          <TabsTrigger
+                            key={month.key}
+                            value={month.key}
+                            className={`flex flex-col items-center gap-1 py-2 px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground ${
+                              isCurrentMonth ? 'ring-2 ring-blue-200 ring-offset-1' : ''
+                            }`}
+                          >
+                            <span className="font-medium">{month.short}</span>
+                            <Badge 
+                              variant="secondary" 
+                              className={`text-xs px-1.5 py-0.5 h-auto min-w-[1.5rem] justify-center ${
+                                isCurrentMonth ? 'bg-blue-100 text-blue-800' : ''
+                              }`}
+                            >
+                              {monthClients.length}
+                            </Badge>
+                          </TabsTrigger>
+                        )
+                      })}
+                    </TabsList>
+                  </div>
+
+                  {MONTHS.map((month) => (
+                    <TabsContent key={month.key} value={month.key} className="mt-0">
+                      {renderMonthContent(month.number)}
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
 
       {/* Add Update Modal */}
       <Dialog open={updateModalOpen} onOpenChange={setUpdateModalOpen}>
