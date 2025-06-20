@@ -942,8 +942,14 @@ export function VATDeadlineTable() {
                     </div>
                   </td>
                   <td className="table-cell col-vat-assigned">
-                    <span className="truncate text-xs" title={client.vatAssignedUser?.name || 'Unassigned'}>
-                      {client.vatAssignedUser?.name || 'Unassigned'}
+                    <span className="truncate text-xs" title={
+                      client.currentVATQuarter?.assignedUser?.name || 
+                      client.vatAssignedUser?.name || 
+                      'Unassigned'
+                    }>
+                      {client.currentVATQuarter?.assignedUser?.name || 
+                       client.vatAssignedUser?.name || 
+                       'Unassigned'}
                     </span>
                   </td>
                   <td className="table-cell col-vat-actions">
@@ -1036,7 +1042,11 @@ export function VATDeadlineTable() {
                   </div>
                   <div>
                     <span className="text-muted-foreground">VAT Assigned:</span>
-                    <p className="mt-1 truncate">{client.vatAssignedUser?.name || 'Unassigned'}</p>
+                    <p className="mt-1 truncate">
+                      {client.currentVATQuarter?.assignedUser?.name || 
+                       client.vatAssignedUser?.name || 
+                       'Unassigned'}
+                    </p>
                   </div>
                 </div>
 
