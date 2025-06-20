@@ -49,7 +49,8 @@ import {
   RefreshCw,
   Users,
   Phone,
-  History
+  History,
+  ArrowUpDown
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
 import { 
@@ -131,10 +132,13 @@ interface User {
 
 const WORKFLOW_STAGES: WorkflowStage[] = [
   { key: 'CLIENT_BOOKKEEPING', label: 'Client to do bookkeeping', icon: <User className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
-  { key: 'WORK_IN_PROGRESS', label: 'Work in progress', icon: <FileText className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
+  { key: 'PAPERWORK_CHASED', label: 'Paperwork chased', icon: <Phone className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-800' },
+  { key: 'PAPERWORK_RECEIVED', label: 'Paperwork received', icon: <FileText className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
+  { key: 'WORK_IN_PROGRESS', label: 'Work in progress', icon: <Clock className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
   { key: 'QUERIES_PENDING', label: 'Queries pending', icon: <Clock className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-800' },
   { key: 'REVIEW_PENDING_MANAGER', label: 'Review pending by manager', icon: <UserCheck className="h-4 w-4" />, color: 'bg-orange-100 text-orange-800' },
   { key: 'REVIEW_PENDING_PARTNER', label: 'Review pending by partner', icon: <UserCheck className="h-4 w-4" />, color: 'bg-purple-100 text-purple-800' },
+  { key: 'WORK_FINISHED', label: 'Work finished', icon: <CheckCircle className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
   { key: 'EMAILED_TO_PARTNER', label: 'Emailed to partner', icon: <Send className="h-4 w-4" />, color: 'bg-indigo-100 text-indigo-800' },
   { key: 'EMAILED_TO_CLIENT', label: 'Emailed to client', icon: <Send className="h-4 w-4" />, color: 'bg-cyan-100 text-cyan-800' },
   { key: 'CLIENT_APPROVED', label: 'Client approved', icon: <CheckCircle className="h-4 w-4" />, color: 'bg-emerald-100 text-emerald-800' },
@@ -173,6 +177,8 @@ export function VATDeadlinesTable() {
   const [activeMonth, setActiveMonth] = useState<string>('')
   const [historyModalOpen, setHistoryModalOpen] = useState(false)
   const [selectedHistoryClient, setSelectedHistoryClient] = useState<VATClient | null>(null)
+  const [sortColumn, setSortColumn] = useState<string>('')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
   // Get current month for default tab
   const currentMonth = new Date().getMonth() + 1
@@ -387,6 +393,81 @@ export function VATDeadlinesTable() {
         {label}
       </Badge>
     )
+  }
+
+  const getWorkflowStatus = (quarter: VATQuarter | null) => {
+    if (!quarter) return { label: 'No Quarter', color: 'bg-gray-100 text-gray-800' }
+    
+    const stage = WORKFLOW_STAGES.find(s => s.key === quarter.currentStage)
+    if (!stage) return { label: quarter.currentStage, color: 'bg-gray-100 text-gray-800' }
+    
+    return {
+      label: stage.label,
+      color: stage.color,
+      icon: stage.icon
+    }
+  }
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
+
+  const sortClients = (clients: VATClient[], monthNumber: number) => {
+    if (!sortColumn) return clients
+
+    return [...clients].sort((a, b) => {
+      let aValue: any = ''
+      let bValue: any = ''
+
+      const aQuarter = getQuarterForMonth(a, monthNumber)
+      const bQuarter = getQuarterForMonth(b, monthNumber)
+
+      switch (sortColumn) {
+        case 'clientCode':
+          aValue = a.clientCode || ''
+          bValue = b.clientCode || ''
+          break
+        case 'companyName':
+          aValue = a.companyName || ''
+          bValue = b.companyName || ''
+          break
+        case 'frequency':
+          aValue = a.vatReturnsFrequency || ''
+          bValue = b.vatReturnsFrequency || ''
+          break
+        case 'quarterEnd':
+          aValue = getQuarterEndMonth(aQuarter)
+          bValue = getQuarterEndMonth(bQuarter)
+          break
+        case 'filingMonth':
+          aValue = getFilingMonth(aQuarter)
+          bValue = getFilingMonth(bQuarter)
+          break
+        case 'due':
+          aValue = getDueStatus(aQuarter, a).label
+          bValue = getDueStatus(bQuarter, b).label
+          break
+        case 'status':
+          aValue = getWorkflowStatus(aQuarter).label
+          bValue = getWorkflowStatus(bQuarter).label
+          break
+        case 'assignedTo':
+          aValue = aQuarter?.assignedUser?.name || a.vatAssignedUser?.name || 'Unassigned'
+          bValue = bQuarter?.assignedUser?.name || b.vatAssignedUser?.name || 'Unassigned'
+          break
+        default:
+          return 0
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
+      return 0
+    })
   }
 
   const toggleRowExpansion = (clientId: string, monthNumber?: number) => {
@@ -701,6 +782,22 @@ export function VATDeadlinesTable() {
     )
   }
 
+  const SortableHeader = ({ column, children, className = "" }: { 
+    column: string, 
+    children: React.ReactNode, 
+    className?: string 
+  }) => (
+    <TableHead className={className}>
+      <button
+        onClick={() => handleSort(column)}
+        className="flex items-center gap-1 hover:text-primary transition-colors"
+      >
+        {children}
+        <ArrowUpDown className="h-3 w-3" />
+      </button>
+    </TableHead>
+  )
+
   const renderMonthContent = (monthNumber: number) => {
     const monthClients = getClientsForMonth(monthNumber)
     
@@ -718,22 +815,24 @@ export function VATDeadlinesTable() {
         <TableHeader>
           <TableRow>
             <TableHead className="w-16"></TableHead>
-            <TableHead className="col-vat-client-code">Client Code</TableHead>
-            <TableHead className="col-vat-company-name">Company Name</TableHead>
-            <TableHead className="col-vat-frequency">Frequency</TableHead>
-            <TableHead className="col-vat-quarter-end">Quarter End</TableHead>
-            <TableHead className="col-vat-filing-month">Filing Month</TableHead>
-            <TableHead className="col-vat-due">Due</TableHead>
-            <TableHead className="col-vat-assigned">Assigned To</TableHead>
+            <SortableHeader column="clientCode" className="col-vat-client-code">Client Code</SortableHeader>
+            <SortableHeader column="companyName" className="col-vat-company-name">Company Name</SortableHeader>
+            <SortableHeader column="frequency" className="col-vat-frequency">Frequency</SortableHeader>
+            <SortableHeader column="quarterEnd" className="col-vat-quarter-end">Quarter End</SortableHeader>
+            <SortableHeader column="filingMonth" className="col-vat-filing-month">Filing Month</SortableHeader>
+            <SortableHeader column="due" className="col-vat-due">Due</SortableHeader>
+            <SortableHeader column="status" className="col-vat-status">Status</SortableHeader>
+            <SortableHeader column="assignedTo" className="col-vat-assigned">Assigned To</SortableHeader>
             <TableHead className="col-vat-add-update">Add Update</TableHead>
             <TableHead className="col-vat-actions">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {monthClients.map((client) => {
+          {sortClients(monthClients, monthNumber).map((client) => {
             // Get the specific quarter for this month
             const monthQuarter = getQuarterForMonth(client, monthNumber)
             const dueStatus = getDueStatus(monthQuarter, client)
+            const workflowStatus = getWorkflowStatus(monthQuarter)
             const rowKey = `${client.id}-${monthNumber}`
             
             return (
@@ -779,6 +878,14 @@ export function VATDeadlinesTable() {
                   <span className={`text-sm font-medium ${dueStatus.color}`}>
                     {dueStatus.label}
                   </span>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={`text-xs ${workflowStatus.color}`}>
+                    <div className="flex items-center gap-1">
+                      {workflowStatus.icon}
+                      {workflowStatus.label}
+                    </div>
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -832,7 +939,7 @@ export function VATDeadlinesTable() {
               {/* Expanded Row - Workflow Timeline */}
               {expandedRows.has(rowKey) && (
                 <TableRow>
-                  <TableCell colSpan={10} className="p-0">
+                  <TableCell colSpan={11} className="p-0">
                     {renderWorkflowTimeline(client, monthQuarter)}
                   </TableCell>
                 </TableRow>

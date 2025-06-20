@@ -704,6 +704,10 @@
   @apply w-32; /* Due status with days count */
 }
 
+.col-vat-status {
+  @apply w-40; /* Workflow status badge */
+}
+
 .col-vat-assigned {
   @apply w-32; /* Assigned user */
 }
