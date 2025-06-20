@@ -103,6 +103,7 @@ export function VATWorkflowModal({
   const [isUpdating, setIsUpdating] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [showClientSelfFilingConfirm, setShowClientSelfFilingConfirm] = useState(false)
+  const [showFilingConfirm, setShowFilingConfirm] = useState(false)
 
   // Reset form when modal opens with new data
   useEffect(() => {
@@ -112,6 +113,7 @@ export function VATWorkflowModal({
       setComments('')
       setShowHistory(false)
       setShowClientSelfFilingConfirm(false)
+      setShowFilingConfirm(false)
     }
   }, [isOpen, vatQuarter])
 
@@ -142,6 +144,7 @@ export function VATWorkflowModal({
   const getStageInfo = (stage: string) => {
     const stageMap: { [key: string]: { icon: React.ReactNode; color: string } } = {
       'CLIENT_BOOKKEEPING': { icon: <FileText className="h-4 w-4" />, color: 'text-gray-600' },
+      'PENDING_TO_CHASE': { icon: <Clock className="h-4 w-4" />, color: 'text-gray-600' },
       'PAPERWORK_CHASED': { icon: <AlertCircle className="h-4 w-4" />, color: 'text-yellow-600' },
       'PAPERWORK_RECEIVED': { icon: <CheckCircle className="h-4 w-4" />, color: 'text-blue-600' },
       'WORK_IN_PROGRESS': { icon: <TrendingUp className="h-4 w-4" />, color: 'text-blue-600' },
@@ -176,6 +179,17 @@ export function VATWorkflowModal({
       return
     }
 
+    // Show confirmation for FILED_TO_HMRC
+    if (selectedStage === 'FILED_TO_HMRC') {
+      setShowFilingConfirm(true)
+      return
+    }
+
+    await performWorkflowUpdate()
+  }
+
+  // Perform the actual workflow update
+  const performWorkflowUpdate = async () => {
     setIsUpdating(true)
 
     try {
@@ -205,6 +219,7 @@ export function VATWorkflowModal({
       showToast.error('Failed to update workflow')
     } finally {
       setIsUpdating(false)
+      setShowFilingConfirm(false)
     }
   }
 
@@ -702,6 +717,58 @@ export function VATWorkflowModal({
                     <>
                       <CheckCircle className="h-4 w-4" />
                       Confirm
+                    </>
+                  )}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* HMRC Filing Confirmation Dialog */}
+          <Dialog open={showFilingConfirm} onOpenChange={setShowFilingConfirm}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  Confirm HMRC Filing
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Are you sure you want to mark this quarter as "Filed to HMRC"?
+                </p>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-green-800">
+                      <p className="font-medium">Important:</p>
+                      <p>This will complete the quarter filing and mark it as finished. This action cannot be undone.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFilingConfirm(false)}
+                  disabled={isUpdating}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={performWorkflowUpdate}
+                  disabled={isUpdating}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Filing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      Complete Filing
                     </>
                   )}
                 </Button>

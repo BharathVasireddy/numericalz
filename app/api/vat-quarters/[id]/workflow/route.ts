@@ -10,6 +10,7 @@ import { getNextVATWorkflowStage, VAT_WORKFLOW_STAGE_NAMES, calculateDaysBetween
  */
 const STAGE_TO_MILESTONE_MAP: { [key: string]: string } = {
   'CLIENT_BOOKKEEPING': 'filedToHMRCDate', // Client to do bookkeeping = Filed to HMRC (client handles their own VAT filing)
+  'PENDING_TO_CHASE': 'chaseStartedDate', // Pending to chase = Chase started (preparation stage)
   'PAPERWORK_CHASED': 'chaseStartedDate', // Paperwork chased = Chase started
   'PAPERWORK_RECEIVED': 'paperworkReceivedDate', // Paperwork received = Paperwork received
   'WORK_IN_PROGRESS': 'workStartedDate', // Work in progress = Work in progress (renamed from Work Started)

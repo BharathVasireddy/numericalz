@@ -227,6 +227,7 @@ export function calculateDaysBetween(startDate: Date, endDate: Date): number {
  */
 export const VAT_WORKFLOW_STAGE_NAMES = {
   CLIENT_BOOKKEEPING: "Client to do bookkeeping",
+  PENDING_TO_CHASE: "Pending to chase",
   PAPERWORK_CHASED: "Paperwork chased",
   PAPERWORK_RECEIVED: "Paperwork received",
   WORK_IN_PROGRESS: "Work in progress",
@@ -244,6 +245,7 @@ export const VAT_WORKFLOW_STAGE_NAMES = {
  * CLIENT_BOOKKEEPING is handled separately as a special action
  */
 export const SELECTABLE_VAT_WORKFLOW_STAGES = {
+  PENDING_TO_CHASE: "Pending to chase",
   PAPERWORK_CHASED: "Paperwork chased",
   PAPERWORK_RECEIVED: "Paperwork received",
   WORK_IN_PROGRESS: "Work in progress",

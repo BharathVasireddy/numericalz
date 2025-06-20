@@ -132,6 +132,7 @@ interface User {
 
 const WORKFLOW_STAGES: WorkflowStage[] = [
   { key: 'CLIENT_BOOKKEEPING', label: 'Self Filing', icon: <User className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
+  { key: 'PENDING_TO_CHASE', label: 'Pending to chase', icon: <Clock className="h-4 w-4" />, color: 'bg-gray-100 text-gray-800' },
   { key: 'PAPERWORK_CHASED', label: 'Paperwork chased', icon: <Phone className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-800' },
   { key: 'PAPERWORK_RECEIVED', label: 'Paperwork received', icon: <FileText className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
   { key: 'WORK_IN_PROGRESS', label: 'Work in progress', icon: <Clock className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
@@ -285,7 +286,7 @@ export function VATDeadlinesTable() {
       quarterStartDate: quarterInfo.quarterStartDate.toISOString(),
       quarterEndDate: quarterInfo.quarterEndDate.toISOString(),
       filingDueDate: quarterInfo.filingDueDate.toISOString(),
-      currentStage: 'CLIENT_BOOKKEEPING',
+      currentStage: 'PENDING_TO_CHASE',
       isCompleted: false,
       assignedUser: client.vatAssignedUser
     }
