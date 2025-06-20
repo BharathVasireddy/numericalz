@@ -330,6 +330,18 @@ export function VATDeadlinesTable() {
     }
   }
 
+  // Check if a quarter is applicable for a client (not from before client creation)
+  const isQuarterApplicable = (quarter: VATQuarter | null, client?: VATClient): boolean => {
+    if (!quarter || !client?.createdAt) return true
+    
+    const filingDueDate = new Date(quarter.filingDueDate)
+    const clientCreatedDate = new Date(client.createdAt)
+    clientCreatedDate.setHours(0, 0, 0, 0)
+    
+    // Quarter is applicable if filing due date is on or after client creation date
+    return filingDueDate >= clientCreatedDate
+  }
+
   const getDueStatus = (quarter: VATQuarter | null, client?: VATClient) => {
     if (!quarter) return { label: 'No Quarter', color: 'text-gray-500' }
     
@@ -340,17 +352,10 @@ export function VATDeadlinesTable() {
     
     // Check if this quarter is from before the client was created
     // If so, mark as "Not Applicable" instead of overdue
-    if (client?.createdAt) {
-      const clientCreatedDate = new Date(client.createdAt)
-      clientCreatedDate.setHours(0, 0, 0, 0)
-      
-      // If the quarter's filing due date was before the client was created,
-      // then this client was not responsible for this quarter
-      if (filingDueDate < clientCreatedDate) {
-        return { 
-          label: 'Not Applicable', 
-          color: 'text-gray-500' 
-        }
+    if (!isQuarterApplicable(quarter, client)) {
+      return { 
+        label: 'Not Applicable', 
+        color: 'text-gray-500' 
       }
     }
     
@@ -851,6 +856,7 @@ export function VATDeadlinesTable() {
             const dueStatus = getDueStatus(monthQuarter, client)
             const workflowStatus = getWorkflowStatus(monthQuarter)
             const rowKey = `${client.id}-${monthNumber}`
+            const isApplicable = isQuarterApplicable(monthQuarter, client)
             
             return (
             <>
@@ -891,45 +897,57 @@ export function VATDeadlinesTable() {
                   </Badge>
                 </TableCell>
                 <TableCell className="p-2">
-                  <div className="flex items-center gap-1 text-xs truncate max-w-[120px]" title={monthQuarter?.assignedUser?.name || client.vatAssignedUser?.name || 'Unassigned'}>
-                    <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                    <span className="truncate">
-                      {monthQuarter?.assignedUser?.name || 
-                       client.vatAssignedUser?.name || 
-                       'Unassigned'}
-                    </span>
-                  </div>
+                  {isApplicable ? (
+                    <div className="flex items-center gap-1 text-xs truncate max-w-[120px]" title={monthQuarter?.assignedUser?.name || client.vatAssignedUser?.name || 'Unassigned'}>
+                      <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                      <span className="truncate">
+                        {monthQuarter?.assignedUser?.name || 
+                         client.vatAssignedUser?.name || 
+                         'Unassigned'}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-500">Not Applicable</span>
+                  )}
                 </TableCell>
                 <TableCell className="p-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAddUpdate(client)}
-                    className="flex items-center gap-1 h-6 px-2 text-xs"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Update
-                  </Button>
+                  {isApplicable ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAddUpdate(client)}
+                      className="flex items-center gap-1 h-6 px-2 text-xs"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Update
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-gray-400">—</span>
+                  )}
                 </TableCell>
                 <TableCell className="p-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 hover:bg-muted/50"
-                    onClick={() => toggleRowExpansion(client.id, monthNumber)}
-                    title="Expand Timeline"
-                  >
-                    {expandedRows.has(rowKey) ? (
-                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                    )}
-                  </Button>
+                  {isApplicable ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 hover:bg-muted/50"
+                      onClick={() => toggleRowExpansion(client.id, monthNumber)}
+                      title="Expand Timeline"
+                    >
+                      {expandedRows.has(rowKey) ? (
+                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                      )}
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-gray-400">—</span>
+                  )}
                 </TableCell>
               </TableRow>
               
               {/* Expanded Row - Workflow Timeline */}
-              {expandedRows.has(rowKey) && (
+              {expandedRows.has(rowKey) && isApplicable && (
                 <TableRow>
                   <TableCell colSpan={9} className="p-0">
                     {renderWorkflowTimeline(client, monthQuarter)}
