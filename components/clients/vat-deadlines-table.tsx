@@ -62,6 +62,7 @@ import {
   formatQuarterPeriodForDisplay
 } from '@/lib/vat-workflow'
 import { VATQuartersHistoryModal } from './vat-quarters-history-modal'
+import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 
 interface VATQuarter {
   id: string
@@ -183,6 +184,8 @@ export function VATDeadlinesTable() {
   const [showClientSelfFilingConfirm, setShowClientSelfFilingConfirm] = useState(false)
   const [showFiledToHMRCConfirm, setShowFiledToHMRCConfirm] = useState(false)
   const [showBackwardStageConfirm, setShowBackwardStageConfirm] = useState(false)
+  const [showActivityLogModal, setShowActivityLogModal] = useState(false)
+  const [activityLogClient, setActivityLogClient] = useState<VATClient | null>(null)
 
   // Get current month for default tab
   const currentMonth = new Date().getMonth() + 1
@@ -525,6 +528,11 @@ export function VATDeadlinesTable() {
   const handleOpenHistory = (client: VATClient) => {
     setSelectedHistoryClient(client)
     setHistoryModalOpen(true)
+  }
+
+  const handleViewActivityLog = (client: VATClient) => {
+    setActivityLogClient(client)
+    setShowActivityLogModal(true)
   }
 
   const handleStageChange = (stageKey: string) => {
@@ -991,14 +999,23 @@ export function VATDeadlinesTable() {
                   {client.clientCode}
                 </TableCell>
                 <TableCell className="font-medium p-2">
-                  <button
-                    onClick={() => handleOpenHistory(client)}
-                    className="flex items-center gap-1 text-left hover:text-primary transition-colors cursor-pointer group text-xs truncate max-w-[180px]"
-                    title={client.companyName}
-                  >
-                    <span className="hover:underline truncate">{client.companyName}</span>
-                    <History className="h-3 w-3 text-muted-foreground group-hover:text-primary flex-shrink-0" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleOpenHistory(client)}
+                      className="flex items-center gap-1 text-left hover:text-primary transition-colors cursor-pointer group text-xs truncate max-w-[140px]"
+                      title={client.companyName}
+                    >
+                      <span className="hover:underline truncate">{client.companyName}</span>
+                      <History className="h-3 w-3 text-muted-foreground group-hover:text-primary flex-shrink-0" />
+                    </button>
+                    <button
+                      onClick={() => handleViewActivityLog(client)}
+                      className="flex items-center gap-1 text-left hover:text-primary transition-colors cursor-pointer group text-xs"
+                      title="View Activity Log"
+                    >
+                      <Clock className="h-3 w-3 text-muted-foreground group-hover:text-primary flex-shrink-0" />
+                    </button>
+                  </div>
                 </TableCell>
                 <TableCell className="text-xs font-medium p-2">
                   {getQuarterEndMonth(monthQuarter)}
@@ -1267,12 +1284,29 @@ export function VATDeadlinesTable() {
                     <SelectValue placeholder="Select assignee" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {users.map((user) => (
+                    <SelectItem value="unassigned">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-gray-400" />
+                        <span>Unassigned</span>
+                      </div>
+                    </SelectItem>
+                    {session?.user?.id && (
+                      <SelectItem value={session.user.id}>
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium text-blue-600">Assign to Me</span>
+                          <span className="text-xs text-blue-500">({session.user.role})</span>
+                        </div>
+                      </SelectItem>
+                    )}
+                    {users
+                      .filter(user => user.id !== session?.user?.id)
+                      .map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4" />
-                          {user.name} ({user.role})
+                          <Users className="h-4 w-4 text-gray-600" />
+                          <span>{user.name}</span>
+                          <span className="text-xs text-muted-foreground">({user.role})</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -1552,6 +1586,24 @@ export function VATDeadlinesTable() {
           companyName={selectedHistoryClient.companyName}
         />
       )}
+
+      {/* Activity Log Modal */}
+      <Dialog open={showActivityLogModal} onOpenChange={setShowActivityLogModal}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Activity Log - {activityLogClient?.companyName}</DialogTitle>
+          </DialogHeader>
+          {activityLogClient && (
+            <ActivityLogViewer
+              clientId={activityLogClient.id}
+              title=""
+              showFilters={true}
+              showExport={true}
+              limit={50}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 } 

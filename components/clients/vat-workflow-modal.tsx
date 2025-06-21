@@ -633,12 +633,29 @@ export function VATWorkflowModal({
                         <SelectValue placeholder="Select assignee" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="unassigned">Unassigned</SelectItem>
-                        {availableUsers.map((user) => (
+                        <SelectItem value="unassigned">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-gray-400" />
+                            <span>Unassigned</span>
+                          </div>
+                        </SelectItem>
+                        {session?.user?.id && (
+                          <SelectItem value={session.user.id}>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-blue-600" />
+                              <span className="font-medium text-blue-600">Assign to Me</span>
+                              <span className="text-xs text-blue-500">({session.user.role})</span>
+                            </div>
+                          </SelectItem>
+                        )}
+                        {availableUsers
+                          .filter(user => user.id !== session?.user?.id)
+                          .map((user) => (
                           <SelectItem key={user.id} value={user.id}>
                             <div className="flex items-center gap-2">
-                              <User className="h-4 w-4" />
-                              {user.name} ({user.role})
+                              <User className="h-4 w-4 text-gray-600" />
+                              <span>{user.name}</span>
+                              <span className="text-xs text-muted-foreground">({user.role})</span>
                             </div>
                           </SelectItem>
                         ))}

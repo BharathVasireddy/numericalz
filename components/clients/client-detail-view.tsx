@@ -25,8 +25,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { AssignUserModal } from '@/components/clients/assign-user-modal'
 import { CTStatusManager } from './ct-status-manager'
+import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 
 interface ClientDetailViewProps {
   client: any // Full client object with relations
@@ -48,6 +50,7 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
   const router = useRouter()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showAssignModal, setShowAssignModal] = useState(false)
+  const [showActivityLogModal, setShowActivityLogModal] = useState(false)
   const [users, setUsers] = useState<any[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
 
@@ -842,13 +845,25 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
               )}
 
               {/* Recent Activity */}
-              {client.activityLogs && client.activityLogs.length > 0 && (
-                <Card className="shadow-professional">
-                  <CardHeader>
-                    <CardTitle className="text-base md:text-lg">Recent Activity</CardTitle>
-                    <CardDescription>Latest actions and updates</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+              <Card className="shadow-professional">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base md:text-lg">Recent Activity</CardTitle>
+                      <CardDescription>Latest actions and updates</CardDescription>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowActivityLogModal(true)}
+                    >
+                      <Clock className="mr-2 h-4 w-4" />
+                      View Full Log
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {client.activityLogs && client.activityLogs.length > 0 ? (
                     <div className="space-y-3">
                       {client.activityLogs.slice(0, 5).map((log: any) => (
                         <div key={log.id} className="flex items-start gap-3 p-2 rounded-sm border border-border">
@@ -862,9 +877,14 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                         </div>
                       ))}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                  ) : (
+                    <div className="text-center py-6">
+                      <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">No recent activity</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </div>
 
@@ -1136,6 +1156,24 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
         onClose={() => setShowAssignModal(false)}
         onSuccess={handleAssignSuccess}
       />
+
+      {/* Activity Log Modal */}
+      <Dialog open={showActivityLogModal} onOpenChange={setShowActivityLogModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Client Activity Log - {client.companyName}</DialogTitle>
+          </DialogHeader>
+          <div className="overflow-auto">
+            <ActivityLogViewer 
+              clientId={client.id} 
+              title={`Activity History for ${client.companyName}`}
+              showFilters={true}
+              showExport={true}
+              limit={200}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 

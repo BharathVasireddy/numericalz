@@ -55,6 +55,7 @@ import {
   MessageSquare
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
+import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 
 interface LtdAccountsWorkflow {
   id: string
@@ -166,6 +167,8 @@ export function LtdCompaniesDeadlinesTable() {
   const [showBackwardStageConfirm, setShowBackwardStageConfirm] = useState(false)
   const [filter, setFilter] = useState<'assigned_to_me' | 'all'>('assigned_to_me')
   const [refreshingCompaniesHouse, setRefreshingCompaniesHouse] = useState(false)
+  const [showActivityLogModal, setShowActivityLogModal] = useState(false)
+  const [activityLogClient, setActivityLogClient] = useState<LtdClient | null>(null)
 
   // Get current month for header stats
   const currentMonth = new Date().getMonth() + 1
@@ -344,6 +347,193 @@ export function LtdCompaniesDeadlinesTable() {
     const today = new Date()
     const daysSinceFiled = Math.ceil((today.getTime() - filedDate.getTime()) / (1000 * 60 * 60 * 24))
     return daysSinceFiled <= 30 // Filed within last 30 days
+  }
+
+  const renderLtdWorkflowTimeline = (client: LtdClient) => {
+    const workflow = client.currentLtdAccountsWorkflow
+    if (!workflow) {
+      return <p className="text-sm text-muted-foreground">No workflow started yet</p>
+    }
+
+    // Define milestone timeline for Ltd Companies workflow
+    const milestones = [
+      { 
+        id: 'CHASE_STARTED', 
+        date: workflow.chaseStartedDate, 
+        user: workflow.chaseStartedByUserName,
+        label: 'Chase Started',
+        icon: <Phone className="h-4 w-4" />
+      },
+      { 
+        id: 'PAPERWORK_RECEIVED', 
+        date: workflow.paperworkReceivedDate, 
+        user: workflow.paperworkReceivedByUserName,
+        label: 'Paperwork Received',
+        icon: <FileText className="h-4 w-4" />
+      },
+      { 
+        id: 'WORK_STARTED', 
+        date: workflow.workStartedDate, 
+        user: workflow.workStartedByUserName,
+        label: 'Work Started',
+        icon: <Briefcase className="h-4 w-4" />
+      },
+      { 
+        id: 'MANAGER_DISCUSSION', 
+        date: workflow.managerDiscussionDate, 
+        user: workflow.managerDiscussionByUserName,
+        label: 'Manager Discussion',
+        icon: <MessageSquare className="h-4 w-4" />
+      },
+      { 
+        id: 'PARTNER_REVIEW', 
+        date: workflow.partnerReviewDate, 
+        user: workflow.partnerReviewByUserName,
+        label: 'Partner Review',
+        icon: <Eye className="h-4 w-4" />
+      },
+      { 
+        id: 'REVIEW_COMPLETED', 
+        date: workflow.reviewCompletedDate, 
+        user: workflow.reviewCompletedByUserName,
+        label: 'Review Complete',
+        icon: <CheckCircle className="h-4 w-4" />
+      },
+      { 
+        id: 'SENT_TO_CLIENT', 
+        date: workflow.sentToClientDate, 
+        user: workflow.sentToClientByUserName,
+        label: 'Sent to Client',
+        icon: <Send className="h-4 w-4" />
+      },
+      { 
+        id: 'CLIENT_APPROVED', 
+        date: workflow.clientApprovedDate, 
+        user: workflow.clientApprovedByUserName,
+        label: 'Client Approved',
+        icon: <UserCheck className="h-4 w-4" />
+      },
+      { 
+        id: 'PARTNER_APPROVED', 
+        date: workflow.partnerApprovedDate, 
+        user: workflow.partnerApprovedByUserName,
+        label: 'Partner Approved',
+        icon: <CheckCircle className="h-4 w-4" />
+      },
+      { 
+        id: 'FILED', 
+        date: workflow.filedDate, 
+        user: workflow.filedByUserName,
+        label: 'Filed to CH & HMRC',
+        icon: <Building className="h-4 w-4" />
+      }
+    ]
+
+    // Helper function to calculate days between two dates
+    const calculateDaysBetween = (startDate: string, endDate: string): number => {
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      const diffTime = Math.abs(end.getTime() - start.getTime())
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    }
+
+    // Calculate days between consecutive completed milestones
+    const milestonesWithDays = milestones.map((milestone, index) => {
+      let daysBetween = null
+      
+      if (milestone.date && index > 0) {
+        // Find the previous completed milestone
+        const previousMilestones = milestones.slice(0, index).reverse()
+        const previousCompletedMilestone = previousMilestones.find(m => m.date)
+        
+        if (previousCompletedMilestone?.date) {
+          daysBetween = calculateDaysBetween(previousCompletedMilestone.date, milestone.date)
+        }
+      }
+      
+      return {
+        ...milestone,
+        daysBetween
+      }
+    })
+
+    return (
+      <div className="relative overflow-x-auto">
+        {/* Timeline Items with Connectors */}
+        <div className="flex items-center justify-between min-w-full pb-4">
+          {milestonesWithDays.map((milestone, index) => {
+            const isCompleted = !!milestone.date
+            const isLastItem = index === milestonesWithDays.length - 1
+            const nextMilestone = milestonesWithDays[index + 1]
+            
+            return (
+              <React.Fragment key={milestone.id}>
+                {/* Milestone Node and Label */}
+                <div className="flex flex-col items-center text-center flex-shrink-0">
+                  {/* Timeline Node */}
+                  <div className={`
+                    w-12 h-12 rounded-full border-2 flex items-center justify-center mb-3
+                    ${isCompleted 
+                      ? 'bg-green-100 border-green-500 text-green-700' 
+                      : 'bg-gray-100 border-gray-300 text-gray-400'
+                    }
+                  `}>
+                    {milestone.icon}
+                  </div>
+                  
+                  {/* Stage Label */}
+                  <div className="px-2 w-24">
+                    <p className="text-xs font-medium text-gray-900 leading-tight mb-1">
+                      {milestone.label}
+                    </p>
+                    {isCompleted ? (
+                      <div>
+                        <p className="text-xs text-green-600 font-medium">
+                          {formatDate(milestone.date)}
+                        </p>
+                        {milestone.user && (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            by {milestone.user}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400">Pending</p>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Connector with Days Count */}
+                {!isLastItem && (
+                  <div className="flex-1 flex flex-col items-center px-2 min-w-[60px] max-w-[120px]">
+                    {/* Days Count Badge - Aligned with timeline nodes */}
+                    <div className="h-12 flex items-center mb-3">
+                      {nextMilestone?.daysBetween !== null && nextMilestone && (
+                        <div className="inline-flex items-center justify-center bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap">
+                          {nextMilestone.daysBetween} day{nextMilestone.daysBetween !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Connector Line */}
+                    <div className={`
+                      h-0.5 w-full
+                      ${isCompleted && nextMilestone?.date 
+                        ? 'bg-green-400' 
+                        : 'bg-gray-300'
+                      }
+                    `}></div>
+                    
+                    {/* Spacer to match milestone label height */}
+                    <div className="flex-1"></div>
+                  </div>
+                )}
+              </React.Fragment>
+            )
+          })}
+        </div>
+      </div>
+    )
   }
 
   const getWorkflowStatus = (workflow: LtdAccountsWorkflow | null) => {
@@ -577,6 +767,11 @@ export function LtdCompaniesDeadlinesTable() {
     }
   }
 
+  const handleViewActivityLog = (client: LtdClient) => {
+    setActivityLogClient(client)
+    setShowActivityLogModal(true)
+  }
+
   if (loading) {
     return (
       <div className="page-container">
@@ -745,8 +940,17 @@ export function LtdCompaniesDeadlinesTable() {
                               {client.companyNumber || '—'}
                             </TableCell>
                             <TableCell className="font-medium p-2">
-                              <div className="max-w-[190px] truncate text-sm" title={client.companyName}>
-                                {client.companyName}
+                              <div className="flex items-center gap-2">
+                                <div className="max-w-[150px] truncate text-sm" title={client.companyName}>
+                                  {client.companyName}
+                                </div>
+                                <button
+                                  onClick={() => handleViewActivityLog(client)}
+                                  className="flex items-center gap-1 text-left hover:text-primary transition-colors cursor-pointer group text-xs"
+                                  title="View Activity Log"
+                                >
+                                  <Clock className="h-3 w-3 text-muted-foreground group-hover:text-primary flex-shrink-0" />
+                                </button>
                               </div>
                             </TableCell>
                             <TableCell className="text-xs p-2">
@@ -848,33 +1052,7 @@ export function LtdCompaniesDeadlinesTable() {
                                     <Briefcase className="h-4 w-4" />
                                     Workflow Timeline
                                   </h4>
-                                  {client.currentLtdAccountsWorkflow ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                      {/* Sample timeline - will be expanded with actual milestone data */}
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-medium">Current Stage</p>
-                                        <Badge variant="outline" className={workflowStatus.color}>
-                                          {workflowStatus.label}
-                                        </Badge>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-medium">Assigned To</p>
-                                        <p className="text-sm text-muted-foreground">
-                                          {client.currentLtdAccountsWorkflow.assignedUser?.name || 
-                                           client.ltdCompanyAssignedUser?.name || 
-                                           'Unassigned'}
-                                        </p>
-                                      </div>
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-medium">Last Updated</p>
-                                        <p className="text-sm text-muted-foreground">
-                                          {formatDate(client.currentLtdAccountsWorkflow.filedDate) || 'No updates yet'}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <p className="text-sm text-muted-foreground">No workflow started yet</p>
-                                  )}
+{renderLtdWorkflowTimeline(client)}
                                 </div>
                               </TableCell>
                             </TableRow>
@@ -959,11 +1137,27 @@ export function LtdCompaniesDeadlinesTable() {
                   <SelectValue placeholder="Select assignee..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {users.map((user) => (
+                  <SelectItem value="unassigned">
+                    <div className="flex items-center gap-2">
+                      <User className="h-3 w-3 text-gray-400" />
+                      <span>Unassigned</span>
+                    </div>
+                  </SelectItem>
+                  {session?.user?.id && (
+                    <SelectItem value={session.user.id}>
+                      <div className="flex items-center gap-2">
+                        <User className="h-3 w-3 text-blue-600" />
+                        <span className="font-medium text-blue-600">Assign to Me</span>
+                        <span className="text-xs text-blue-500">({session.user.role})</span>
+                      </div>
+                    </SelectItem>
+                  )}
+                  {users
+                    .filter(user => user.id !== session?.user?.id)
+                    .map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       <div className="flex items-center gap-2">
-                        <User className="h-3 w-3" />
+                        <User className="h-3 w-3 text-gray-600" />
                         <span>{user.name}</span>
                         <span className="text-xs text-muted-foreground">({user.role})</span>
                       </div>
@@ -1176,6 +1370,24 @@ export function LtdCompaniesDeadlinesTable() {
               Confirm Change
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Activity Log Modal */}
+      <Dialog open={showActivityLogModal} onOpenChange={setShowActivityLogModal}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Activity Log - {activityLogClient?.companyName}</DialogTitle>
+          </DialogHeader>
+          {activityLogClient && (
+            <ActivityLogViewer
+              clientId={activityLogClient.id}
+              title=""
+              showFilters={true}
+              showExport={true}
+              limit={50}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>

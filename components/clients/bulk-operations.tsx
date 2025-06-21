@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { UserPlus, UserX, RefreshCw, AlertTriangle } from 'lucide-react'
+import { UserPlus, UserX, RefreshCw, AlertTriangle, Users } from 'lucide-react'
 import { showToast } from '@/lib/toast'
 
 interface BulkOperationsProps {
@@ -180,9 +180,24 @@ export function BulkOperations({
                     <SelectValue placeholder="Select user to assign" />
                   </SelectTrigger>
                   <SelectContent>
-                    {users.map(user => (
+                    {session?.user?.id && (
+                      <SelectItem value={session.user.id}>
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium text-blue-600">Assign to Me</span>
+                          <span className="text-xs text-blue-500">({session.user.role})</span>
+                        </div>
+                      </SelectItem>
+                    )}
+                    {users
+                      .filter(user => user.id !== session?.user?.id)
+                      .map(user => (
                       <SelectItem key={user.id} value={user.id}>
-                        {user.name} ({user.role})
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-gray-600" />
+                          <span>{user.name}</span>
+                          <span className="text-xs text-muted-foreground">({user.role})</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { z } from 'zod'
+import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -366,6 +367,16 @@ export async function POST(request: NextRequest) {
           },
         },
       })
+
+    // Log client creation activity
+    await logActivityEnhanced(request, ActivityHelpers.clientCreated({
+      clientCode: client.clientCode,
+      companyName: client.companyName,
+      companyType: client.companyType,
+      companyNumber: client.companyNumber,
+      assignedUserId: client.assignedUserId,
+      assignedUserName: client.assignedUser?.name
+    }))
 
     // Return real-time response with no caching
     const response = NextResponse.json({

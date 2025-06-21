@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db as prisma } from '@/lib/db'
 import { getNextVATWorkflowStage, VAT_WORKFLOW_STAGE_NAMES, calculateDaysBetween } from '@/lib/vat-workflow'
+import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
 
 /**
  * Map workflow stages to their corresponding milestone date fields
@@ -207,6 +208,42 @@ export async function PUT(
         notes: comments || `Stage updated to: ${VAT_WORKFLOW_STAGE_NAMES[stage as keyof typeof VAT_WORKFLOW_STAGE_NAMES]}`,
       }
     })
+
+    // Log comprehensive activity for VAT workflow updates
+    await logActivityEnhanced(request, ActivityHelpers.workflowStageChanged(
+      'VAT',
+      updatedVatQuarter.clientId,
+      currentHistory?.toStage || 'NOT_STARTED',
+      stage,
+      comments
+    ))
+
+    // Log assignment changes if assignee was updated
+    if (assignedUserId && finalAssigneeId !== updatedVatQuarter.assignedUserId) {
+      const assignedUser = updatedVatQuarter.assignedUser
+      if (assignedUser) {
+        await logActivityEnhanced(request, ActivityHelpers.workflowAssigned(
+          'VAT',
+          updatedVatQuarter.clientId,
+          assignedUser.id,
+          assignedUser.name
+        ))
+      }
+    }
+
+    // Log completion if workflow was completed
+    if (stage === 'FILED_TO_HMRC') {
+      await logActivityEnhanced(request, {
+        action: 'VAT_RETURN_FILED',
+        clientId: updatedVatQuarter.clientId,
+        details: {
+          companyName: updatedVatQuarter.client.companyName,
+          quarterPeriod: updatedVatQuarter.quarterPeriod,
+          filingDueDate: updatedVatQuarter.filingDueDate,
+          daysInWorkflow: daysSinceLastUpdate
+        }
+      })
+    }
 
     return NextResponse.json({
       success: true,

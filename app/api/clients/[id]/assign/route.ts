@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -61,6 +62,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     }
 
+    // Get current client for activity logging
+    const currentClient = await db.client.findUnique({
+      where: { id: params.id },
+      include: { assignedUser: true }
+    })
+
     // Update the client assignment
     const updatedClient = await db.client.update({
       where: { id: params.id },
@@ -75,6 +82,31 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         },
       },
     })
+
+    // Log assignment activity
+    if (userId) {
+      await logActivityEnhanced(request, {
+        action: 'CLIENT_ASSIGNED',
+        clientId: params.id,
+        details: {
+          companyName: updatedClient.companyName,
+          clientCode: updatedClient.clientCode,
+          assigneeId: userId,
+          assigneeName: updatedClient.assignedUser?.name,
+          previousAssignee: currentClient?.assignedUser?.name || 'Unassigned'
+        }
+      })
+    } else {
+      await logActivityEnhanced(request, {
+        action: 'CLIENT_UNASSIGNED',
+        clientId: params.id,
+        details: {
+          companyName: updatedClient.companyName,
+          clientCode: updatedClient.clientCode,
+          previousAssignee: currentClient?.assignedUser?.name || 'Unassigned'
+        }
+      })
+    }
 
     return NextResponse.json({
       success: true,

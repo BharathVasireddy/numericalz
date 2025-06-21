@@ -23,7 +23,8 @@ import {
   ChevronDown,
   Check,
   X,
-  ArrowUpDown
+  ArrowUpDown,
+  Clock
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -47,6 +48,7 @@ import {
 import { BulkOperations } from './bulk-operations'
 import { AssignUserModal } from './assign-user-modal'
 import { Badge } from '@/components/ui/badge'
+import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 
 interface Client {
   id: string
@@ -153,6 +155,10 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
   // Modal state for assign functionality
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [clientToAssign, setClientToAssign] = useState<Client | null>(null)
+  
+  // Modal state for activity log
+  const [showActivityLogModal, setShowActivityLogModal] = useState(false)
+  const [activityLogClient, setActivityLogClient] = useState<Client | null>(null)
 
   const fetchClients = useCallback(async () => {
     if (!session?.user?.id) return
@@ -393,6 +399,11 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
     fetchClients() // Refresh the clients list
   }
 
+  const handleViewActivityLog = (client: Client) => {
+    setActivityLogClient(client)
+    setShowActivityLogModal(true)
+  }
+
   if (loading) {
     return (
       <Card className="p-6">
@@ -554,6 +565,13 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                           <Eye className="h-4 w-4" />
                           View Details
                         </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleViewActivityLog(client)}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <Clock className="h-4 w-4" />
+                          View Log
+                        </DropdownMenuItem>
                         {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') &&
                           <>
                             <DropdownMenuItem 
@@ -623,6 +641,13 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                       >
                         <Eye className="h-4 w-4" />
                         View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleViewActivityLog(client)}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <Clock className="h-4 w-4" />
+                        View Log
                       </DropdownMenuItem>
                       {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
                         <>
@@ -764,6 +789,24 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
               Resign Client
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Activity Log Modal */}
+      <Dialog open={showActivityLogModal} onOpenChange={setShowActivityLogModal}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Activity Log - {activityLogClient?.companyName}</DialogTitle>
+          </DialogHeader>
+          {activityLogClient && (
+            <ActivityLogViewer
+              clientId={activityLogClient.id}
+              title=""
+              showFilters={true}
+              showExport={true}
+              limit={50}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>

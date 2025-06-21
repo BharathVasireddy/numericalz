@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getComprehensiveCompanyData } from '@/lib/companies-house'
+import { logActivityEnhanced } from '@/lib/activity-middleware'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -87,6 +88,22 @@ export async function POST(
         // Officers and PSC data
         officers: officers ? JSON.stringify(officers) : client.officers,
         personsWithSignificantControl: psc ? JSON.stringify(psc) : client.personsWithSignificantControl,
+      }
+    })
+
+    // Log Companies House refresh activity
+    await logActivityEnhanced(request, {
+      action: 'CLIENT_COMPANIES_HOUSE_REFRESH',
+      clientId: id,
+      details: {
+        companyName: updatedClient.companyName,
+        clientCode: updatedClient.clientCode,
+        companyNumber: updatedClient.companyNumber,
+        companyStatus: updatedClient.companyStatus,
+        refreshedFields: [
+          'companyStatus', 'nextAccountsDue', 'nextCorporationTaxDue', 
+          'nextConfirmationDue', 'incorporationDate', 'accountingReferenceDate'
+        ]
       }
     })
 

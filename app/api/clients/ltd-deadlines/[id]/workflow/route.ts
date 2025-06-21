@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import { LtdAccountsWorkflowStage } from '@prisma/client'
+import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -131,6 +132,43 @@ export async function PUT(
           userEmail: session.user.email || '',
           userRole: session.user.role,
           notes: comments || null
+        }
+      })
+    }
+
+    // Log comprehensive activity
+    if (stage) {
+      await logActivityEnhanced(request, ActivityHelpers.workflowStageChanged(
+        'LTD',
+        clientId,
+        currentWorkflow?.currentStage || 'NOT_STARTED',
+        stage,
+        comments
+      ))
+    }
+
+    if (assignedUserId !== undefined) {
+      const assignedUser = workflow.assignedUser
+      if (assignedUser) {
+        await logActivityEnhanced(request, ActivityHelpers.workflowAssigned(
+          'LTD',
+          clientId,
+          assignedUser.id,
+          assignedUser.name
+        ))
+      }
+    }
+
+    // Log workflow creation if it's a new workflow
+    if (!currentWorkflow) {
+      await logActivityEnhanced(request, {
+        action: 'LTD_WORKFLOW_CREATED',
+        clientId,
+        details: {
+          companyName: client.companyName,
+          clientCode: client.clientCode,
+          filingPeriodEnd: workflow.filingPeriodEnd.toISOString(),
+          accountsDueDate: workflow.accountsDueDate.toISOString()
         }
       })
     }

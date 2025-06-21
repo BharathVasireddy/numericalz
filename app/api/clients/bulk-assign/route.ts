@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -48,6 +49,13 @@ export async function POST(request: NextRequest) {
         assignedUserId: assignedUserId
       }
     })
+
+    // Log bulk assignment activity
+    await logActivityEnhanced(request, ActivityHelpers.bulkAssignment(
+      clientIds, 
+      assignedUserId, 
+      assignedUser.name
+    ))
 
     return NextResponse.json({
       success: true,
