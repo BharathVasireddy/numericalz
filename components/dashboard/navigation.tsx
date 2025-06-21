@@ -337,11 +337,10 @@ export function DashboardNavigation() {
                         href={section.items[0].href}
                         onClick={() => setIsMobileMenuOpen(false)}
                         className={`
-                          w-full flex items-center gap-3 px-3 py-2 text-sm font-medium
-                          rounded-md transition-colors duration-200
+                          menu-item
                           ${isItemActive(section.items[0].href)
-                            ? 'bg-primary text-primary-foreground' 
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                            ? 'menu-item-active' 
+                            : 'menu-item-inactive'
                           }
                         `}
                       >
@@ -354,11 +353,10 @@ export function DashboardNavigation() {
                         <button
                           onClick={() => toggleSection(section.id)}
                           className={`
-                            w-full flex items-center gap-3 px-3 py-2 text-sm font-medium
-                            rounded-md transition-colors duration-200
+                            menu-item
                             ${hasActiveItem || isExpanded
-                              ? 'bg-primary/10 text-primary' 
-                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                              ? 'menu-item-active' 
+                              : 'menu-item-inactive'
                             }
                           `}
                         >
@@ -384,11 +382,10 @@ export function DashboardNavigation() {
                                   href={item.href}
                                   onClick={() => setIsMobileMenuOpen(false)}
                                   className={`
-                                    flex items-center gap-2 px-3 py-1.5 text-sm rounded-md
-                                    transition-colors duration-200 w-full
+                                    menu-dropdown-item
                                     ${isActive
-                                      ? 'bg-primary text-primary-foreground font-medium' 
-                                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                      ? 'menu-dropdown-item-active' 
+                                      : 'menu-dropdown-item-inactive'
                                     }
                                   `}
                                 >
