@@ -76,10 +76,23 @@ export async function GET(request: NextRequest) {
             
             if (typeof parsedDate === 'object' && parsedDate && 'day' in parsedDate && 'month' in parsedDate) {
               const companiesHouseDate = parsedDate as CompaniesHouseDate
-              const currentYear = new Date().getFullYear()
+              
+              // Calculate the correct year based on last accounts made up to date + 1 year
+              let yearToUse = new Date().getFullYear() // Default fallback
+              
+              if (client.lastAccountsMadeUpTo) {
+                // Use last accounts made up to date + 1 year
+                const lastAccountsDate = new Date(client.lastAccountsMadeUpTo)
+                yearToUse = lastAccountsDate.getFullYear() + 1
+              } else if (client.nextAccountsDue) {
+                // Fallback: use next accounts due date year - 1 (since accounts are due 9 months after year end)
+                const nextDueDate = new Date(client.nextAccountsDue)
+                yearToUse = nextDueDate.getFullYear() - 1
+              }
+              
               const month = parseInt(companiesHouseDate.month) - 1 // JS months are 0-indexed
               const day = parseInt(companiesHouseDate.day)
-              const date = new Date(currentYear, month, day)
+              const date = new Date(yearToUse, month, day)
               return isNaN(date.getTime()) ? null : date.toISOString()
             }
             // Handle string formats

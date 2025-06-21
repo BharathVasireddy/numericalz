@@ -163,7 +163,9 @@ export function LtdCompaniesDeadlinesTable() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [showClientSelfFilingConfirm, setShowClientSelfFilingConfirm] = useState(false)
   const [showFiledConfirm, setShowFiledConfirm] = useState(false)
+  const [showBackwardStageConfirm, setShowBackwardStageConfirm] = useState(false)
   const [filter, setFilter] = useState<'assigned_to_me' | 'all'>('assigned_to_me')
+  const [refreshingCompaniesHouse, setRefreshingCompaniesHouse] = useState(false)
 
   // Get current month for header stats
   const currentMonth = new Date().getMonth() + 1
@@ -209,14 +211,81 @@ export function LtdCompaniesDeadlinesTable() {
     fetchUsers()
   }, [fetchLtdClients, fetchUsers])
 
-  // Filter clients based on assignment
-  const filteredClients = ltdClients.filter(client => {
-    if (filter === 'assigned_to_me') {
-      return client.ltdCompanyAssignedUser?.id === session?.user?.id ||
-             client.currentLtdAccountsWorkflow?.assignedUser?.id === session?.user?.id
+  // Bulk refresh Companies House data for all filtered clients
+  const handleBulkRefreshCompaniesHouse = async () => {
+    if (filteredClients.length === 0) {
+      showToast.error('No clients to refresh')
+      return
     }
-    return true // Show all clients
-  })
+
+    // Only allow managers and partners
+    if (session?.user?.role !== 'MANAGER' && session?.user?.role !== 'PARTNER') {
+      showToast.error('Only managers and partners can refresh Companies House data')
+      return
+    }
+
+    setRefreshingCompaniesHouse(true)
+    
+    try {
+      const clientIds = filteredClients.map(client => client.id)
+      
+      showToast.info(`Starting refresh for ${clientIds.length} clients...`)
+      
+      const response = await fetch('/api/clients/bulk-refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ clientIds })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to refresh Companies House data')
+      }
+
+      const result = await response.json()
+      
+      // Show detailed results
+      if (result.results.successful.length > 0) {
+        showToast.success(`Successfully refreshed ${result.results.successful.length} clients`)
+      }
+      
+      if (result.results.failed.length > 0) {
+        showToast.error(`Failed to refresh ${result.results.failed.length} clients. Check console for details.`)
+        console.warn('Failed refreshes:', result.results.failed)
+      }
+
+      // Refresh the table data after Companies House refresh
+      await fetchLtdClients(true)
+      
+    } catch (error) {
+      console.error('Error refreshing Companies House data:', error)
+      showToast.error(error instanceof Error ? error.message : 'Failed to refresh Companies House data')
+    } finally {
+      setRefreshingCompaniesHouse(false)
+    }
+  }
+
+  // Filter and sort clients based on assignment and due dates
+  const filteredClients = ltdClients
+    .filter(client => {
+      if (filter === 'assigned_to_me') {
+        return client.ltdCompanyAssignedUser?.id === session?.user?.id ||
+               client.currentLtdAccountsWorkflow?.assignedUser?.id === session?.user?.id
+      }
+      return true // Show all clients
+    })
+    .sort((a, b) => {
+      // Sort by nextAccountsDue (soonest first)
+      if (!a.nextAccountsDue && !b.nextAccountsDue) return 0
+      if (!a.nextAccountsDue) return 1  // No due date goes to end
+      if (!b.nextAccountsDue) return -1 // No due date goes to end
+      
+      const dateA = new Date(a.nextAccountsDue).getTime()
+      const dateB = new Date(b.nextAccountsDue).getTime()
+      return dateA - dateB // Ascending order (soonest first)
+    })
 
   // Calculate header stats for current filing month
   const currentMonthClients = filteredClients.filter(client => {
@@ -267,6 +336,14 @@ export function LtdCompaniesDeadlinesTable() {
     } else {
       return { label: `Due in ${daysDiff} days`, color: 'text-green-600' }
     }
+  }
+
+  const isRecentlyFiled = (workflow: LtdAccountsWorkflow | null) => {
+    if (!workflow?.filedDate || !workflow.isCompleted) return false
+    const filedDate = new Date(workflow.filedDate)
+    const today = new Date()
+    const daysSinceFiled = Math.ceil((today.getTime() - filedDate.getTime()) / (1000 * 60 * 60 * 24))
+    return daysSinceFiled <= 30 // Filed within last 30 days
   }
 
   const getWorkflowStatus = (workflow: LtdAccountsWorkflow | null) => {
@@ -368,6 +445,24 @@ export function LtdCompaniesDeadlinesTable() {
       </div>
     </TableHead>
   )
+
+  const handleStageChange = (stageKey: string) => {
+    if (!selectedClient?.currentLtdAccountsWorkflow?.currentStage) {
+      setSelectedStage(stageKey)
+      return
+    }
+
+    const currentStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === selectedClient.currentLtdAccountsWorkflow?.currentStage)
+    const newStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === stageKey)
+    
+    // If trying to move backwards, show confirmation
+    if (currentStageIndex !== -1 && newStageIndex < currentStageIndex) {
+      setSelectedStage(stageKey)
+      setShowBackwardStageConfirm(true)
+    } else {
+      setSelectedStage(stageKey)
+    }
+  }
 
   const handleSubmitUpdate = async () => {
     if (!selectedClient || (!selectedStage && selectedAssignee === (selectedClient?.ltdCompanyAssignedUser?.id || 'unassigned'))) {
@@ -518,10 +613,20 @@ export function LtdCompaniesDeadlinesTable() {
                     variant="outline"
                     size="sm"
                     onClick={() => fetchLtdClients(true)}
-                    disabled={loading}
+                    disabled={loading || refreshingCompaniesHouse}
                   >
                     <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     Refresh Data
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBulkRefreshCompaniesHouse}
+                    disabled={loading || refreshingCompaniesHouse || filteredClients.length === 0}
+                    className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                  >
+                    <Building className={`mr-2 h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
+                    {refreshingCompaniesHouse ? 'Refreshing CH...' : `Refresh CH Data (${filteredClients.length})`}
                   </Button>
                 </div>
               </div>
@@ -822,19 +927,26 @@ export function LtdCompaniesDeadlinesTable() {
             {/* Workflow Stage Selection */}
             <div className="space-y-2">
               <Label htmlFor="stage-select">Update Workflow Stage</Label>
-              <Select value={selectedStage || ''} onValueChange={setSelectedStage}>
+              <Select value={selectedStage || ''} onValueChange={handleStageChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select stage to update to..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {WORKFLOW_STAGES.map((stage) => (
-                    <SelectItem key={stage.key} value={stage.key}>
-                      <div className="flex items-center gap-2">
-                        {stage.icon}
-                        <span>{stage.label}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {WORKFLOW_STAGES.map((stage) => {
+                    const currentStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === selectedClient?.currentLtdAccountsWorkflow?.currentStage)
+                    const stageIndex = WORKFLOW_STAGES.findIndex(s => s.key === stage.key)
+                    const isCompletedStage = currentStageIndex !== -1 && stageIndex < currentStageIndex
+                    
+                    return (
+                      <SelectItem key={stage.key} value={stage.key}>
+                        <div className={`flex items-center gap-2 ${isCompletedStage ? 'opacity-50' : ''}`}>
+                          {stage.icon}
+                          <span>{stage.label}</span>
+                          {isCompletedStage && <span className="text-xs text-muted-foreground ml-1">(Completed)</span>}
+                        </div>
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -1010,6 +1122,58 @@ export function LtdCompaniesDeadlinesTable() {
               ) : (
                 'Confirm Filing'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Backward Stage Movement Confirmation Dialog */}
+      <Dialog open={showBackwardStageConfirm} onOpenChange={setShowBackwardStageConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+              Confirm Backward Stage Movement
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              You are trying to move back to a previous stage. This is not typically recommended as it reverses progress.
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-amber-800">Stage Change Warning</p>
+                  <p className="text-xs text-amber-700">
+                    Current: {WORKFLOW_STAGES.find(s => s.key === selectedClient?.currentLtdAccountsWorkflow?.currentStage)?.label}
+                    <br />
+                    Moving to: {WORKFLOW_STAGES.find(s => s.key === selectedStage)?.label}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowBackwardStageConfirm(false)
+                setSelectedStage(selectedClient?.currentLtdAccountsWorkflow?.currentStage || '')
+              }}
+              disabled={updating}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                setShowBackwardStageConfirm(false)
+                // Stage change already set, user can now proceed with normal update
+              }}
+              disabled={updating}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              Confirm Change
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,111 +1,103 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { db } from '@/lib/db'
-import { getCompanyDetails, getComprehensiveCompanyData } from '@/lib/companies-house'
+import { z } from 'zod'
+
+const BulkRefreshSchema = z.object({
+  clientIds: z.array(z.string()).min(1, 'At least one client ID is required').max(50, 'Maximum 50 clients can be refreshed at once')
+})
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    // Get session for authentication
     const session = await getServerSession(authOptions)
-    
-    if (!session?.user) {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Only managers and partners can perform bulk operations
+    // Only allow MANAGER and PARTNER roles to bulk refresh
     if (session.user.role !== 'MANAGER' && session.user.role !== 'PARTNER') {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+      return NextResponse.json({ 
+        error: 'Insufficient permissions. Only managers and partners can bulk refresh Companies House data.' 
+      }, { status: 403 })
     }
 
-    const { clientIds } = await request.json()
+    // Parse and validate request body
+    const body = await request.json()
+    const { clientIds } = BulkRefreshSchema.parse(body)
 
-    if (!clientIds || !Array.isArray(clientIds) || clientIds.length === 0) {
-      return NextResponse.json({ error: 'Client IDs are required' }, { status: 400 })
+    console.log(`Starting bulk Companies House refresh for ${clientIds.length} clients by user ${session.user.email}`)
+
+    // Track results
+    const results = {
+      successful: [] as string[],
+      failed: [] as { clientId: string, error: string }[],
+      total: clientIds.length
     }
 
-    // Get clients with company numbers
-    const clients = await db.client.findMany({
-      where: {
-        id: { in: clientIds },
-        isActive: true,
-        companyNumber: { not: null }
-      },
-      select: {
-        id: true,
-        companyNumber: true,
-        companyName: true
-      }
-    })
-
-    if (clients.length === 0) {
-      return NextResponse.json({ error: 'No clients found with valid company numbers' }, { status: 400 })
-    }
-
-    let successCount = 0
-    let errorCount = 0
-    const errors: string[] = []
-
-    // Process each client
-    for (const client of clients) {
+    // Process each client with a small delay to respect API rate limits
+    for (let i = 0; i < clientIds.length; i++) {
+      const clientId = clientIds[i] as string  // Safe because array is validated by Zod
+      
       try {
-        if (!client.companyNumber) continue
-
-        const companyData = await getCompanyDetails(client.companyNumber)
+        console.log(`Refreshing Companies House data for client ${clientId} (${i + 1}/${clientIds.length})`)
         
-        if (companyData) {
-          await db.client.update({
-            where: { id: client.id },
-            data: {
-              companyName: companyData.company_name || client.companyName,
-              companyType: companyData.type || undefined,
-              companyStatus: companyData.company_status || undefined,
-              companyStatusDetail: companyData.company_status_detail || undefined,
-              incorporationDate: companyData.date_of_creation || undefined,
-              cessationDate: companyData.date_of_cessation || undefined,
-              registeredOfficeAddress: companyData.registered_office_address ? JSON.stringify(companyData.registered_office_address) : undefined,
-              sicCodes: companyData.sic_codes ? JSON.stringify(companyData.sic_codes) : undefined,
-              jurisdiction: companyData.jurisdiction || undefined,
-              hasBeenLiquidated: companyData.has_been_liquidated || false,
-              hasCharges: companyData.has_charges || false,
-              hasInsolvencyHistory: companyData.has_insolvency_history || false,
-              // Update accounting dates if available
-              nextAccountsDue: companyData.accounts?.next_due || undefined,
-              lastAccountsMadeUpTo: companyData.accounts?.last_accounts?.made_up_to || undefined,
-              accountingReferenceDate: companyData.accounts?.accounting_reference_date?.day && companyData.accounts?.accounting_reference_date?.month 
-                ? `${companyData.accounts.accounting_reference_date.day.toString().padStart(2, '0')}-${companyData.accounts.accounting_reference_date.month.toString().padStart(2, '0')}`
-                : undefined,
-              nextConfirmationDue: companyData.confirmation_statement?.next_due || undefined,
-              lastConfirmationMadeUpTo: companyData.confirmation_statement?.last_made_up_to || undefined,
-            }
-          })
-          successCount++
+        // Call the individual refresh endpoint
+        const refreshResponse = await fetch(`${request.nextUrl.origin}/api/clients/${clientId}/refresh-companies-house`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': request.headers.get('Cookie') || ''
+          }
+        })
+
+        if (refreshResponse.ok) {
+          results.successful.push(clientId)
+          console.log(`✅ Successfully refreshed client ${clientId}`)
         } else {
-          errorCount++
-          errors.push(`Failed to fetch data for ${client.companyName}`)
+          const errorData = await refreshResponse.json().catch(() => ({ error: 'Unknown error' }))
+          results.failed.push({ 
+            clientId, 
+            error: errorData.error || `HTTP ${refreshResponse.status}` 
+          })
+          console.log(`❌ Failed to refresh client ${clientId}: ${errorData.error}`)
         }
       } catch (error) {
-        console.error(`Error refreshing client ${client.id}:`, error)
-        errorCount++
-        errors.push(`Error refreshing ${client.companyName}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        results.failed.push({ clientId, error: errorMessage })
+        console.log(`❌ Failed to refresh client ${clientId}: ${errorMessage}`)
+      }
+
+      // Add a small delay between requests to respect API rate limits (100ms)
+      if (i < clientIds.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100))
       }
     }
 
+    console.log(`Bulk refresh completed: ${results.successful.length} successful, ${results.failed.length} failed`)
+
+    // Return results
     return NextResponse.json({
       success: true,
-      message: `Bulk refresh completed: ${successCount} successful, ${errorCount} failed`,
-      successCount,
-      errorCount,
-      errors: errors.length > 0 ? errors : undefined
+      message: `Bulk refresh completed: ${results.successful.length}/${results.total} clients updated successfully`,
+      results
     })
 
   } catch (error) {
-    console.error('Error in bulk refresh:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.error('Error in bulk Companies House refresh:', error)
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({
+        error: 'Invalid request data',
+        details: error.errors
+      }, { status: 400 })
+    }
+    
+    return NextResponse.json({
+      error: 'Failed to perform bulk refresh'
+    }, { status: 500 })
   }
 } 

@@ -182,6 +182,7 @@ export function VATDeadlinesTable() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [showClientSelfFilingConfirm, setShowClientSelfFilingConfirm] = useState(false)
   const [showFiledToHMRCConfirm, setShowFiledToHMRCConfirm] = useState(false)
+  const [showBackwardStageConfirm, setShowBackwardStageConfirm] = useState(false)
 
   // Get current month for default tab
   const currentMonth = new Date().getMonth() + 1
@@ -426,9 +427,36 @@ export function VATDeadlinesTable() {
   }
 
   const sortClients = (clients: VATClient[], monthNumber: number) => {
-    if (!sortColumn) return clients
-
     return [...clients].sort((a, b) => {
+      // Default sorting by urgency when no sort column is specified
+      if (!sortColumn) {
+        const aQuarter = getQuarterForMonth(a, monthNumber)
+        const bQuarter = getQuarterForMonth(b, monthNumber)
+        
+        const aDueStatus = getDueStatus(aQuarter, a)
+        const bDueStatus = getDueStatus(bQuarter, b)
+        
+        // Prioritize by urgency level
+        const getUrgencyLevel = (status: any) => {
+          if (status.label.includes('overdue')) return 0  // Most urgent
+          if (status.label.includes('Due today')) return 1
+          if (status.label.match(/^\d+d$/)) return 2  // "7d" format - due soon
+          if (status.label.includes('Q:')) return 3  // Quarter not ended yet
+          return 4  // Not applicable or other
+        }
+        
+        const aUrgency = getUrgencyLevel(aDueStatus)
+        const bUrgency = getUrgencyLevel(bDueStatus)
+        
+        if (aUrgency !== bUrgency) {
+          return aUrgency - bUrgency  // Lower number = higher priority
+        }
+        
+        // If same urgency level, sort by client code for consistency
+        return (a.clientCode || '').localeCompare(b.clientCode || '')
+      }
+
+      // Existing column-based sorting logic
       let aValue: any = ''
       let bValue: any = ''
 
@@ -497,6 +525,24 @@ export function VATDeadlinesTable() {
   const handleOpenHistory = (client: VATClient) => {
     setSelectedHistoryClient(client)
     setHistoryModalOpen(true)
+  }
+
+  const handleStageChange = (stageKey: string) => {
+    if (!selectedClient?.currentVATQuarter?.currentStage) {
+      setSelectedStage(stageKey)
+      return
+    }
+
+    const currentStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === selectedClient.currentVATQuarter!.currentStage)
+    const newStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === stageKey)
+    
+    // If trying to move backwards, show confirmation
+    if (currentStageIndex !== -1 && newStageIndex < currentStageIndex) {
+      setSelectedStage(stageKey)
+      setShowBackwardStageConfirm(true)
+    } else {
+      setSelectedStage(stageKey)
+    }
   }
 
   const handleSubmitUpdate = async () => {
@@ -1237,19 +1283,26 @@ export function VATDeadlinesTable() {
 
             <div>
               <Label htmlFor="stage">Workflow Stage (Optional)</Label>
-              <Select value={selectedStage || undefined} onValueChange={setSelectedStage}>
+              <Select value={selectedStage || undefined} onValueChange={handleStageChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select stage to update" />
                 </SelectTrigger>
                 <SelectContent>
-                  {WORKFLOW_STAGES.map((stage) => (
-                    <SelectItem key={stage.key} value={stage.key}>
-                      <div className="flex items-center gap-2">
-                        {stage.icon}
-                        {stage.label}
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {WORKFLOW_STAGES.map((stage) => {
+                    const currentStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === selectedClient?.currentVATQuarter?.currentStage)
+                    const stageIndex = WORKFLOW_STAGES.findIndex(s => s.key === stage.key)
+                    const isCompletedStage = currentStageIndex !== -1 && stageIndex < currentStageIndex
+                    
+                    return (
+                      <SelectItem key={stage.key} value={stage.key}>
+                        <div className={`flex items-center gap-2 ${isCompletedStage ? 'opacity-50' : ''}`}>
+                          {stage.icon}
+                          <span>{stage.label}</span>
+                          {isCompletedStage && <span className="text-xs text-muted-foreground ml-1">(Completed)</span>}
+                        </div>
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -1429,6 +1482,58 @@ export function VATDeadlinesTable() {
                   Confirm Filing
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Backward Stage Movement Confirmation Dialog */}
+      <Dialog open={showBackwardStageConfirm} onOpenChange={setShowBackwardStageConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+              Confirm Backward Stage Movement
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              You are trying to move back to a previous stage. This is not typically recommended as it reverses progress.
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-amber-800">Stage Change Warning</p>
+                  <p className="text-xs text-amber-700">
+                    Current: {WORKFLOW_STAGES.find(s => s.key === selectedClient?.currentVATQuarter?.currentStage)?.label}
+                    <br />
+                    Moving to: {WORKFLOW_STAGES.find(s => s.key === selectedStage)?.label}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowBackwardStageConfirm(false)
+                setSelectedStage(selectedClient?.currentVATQuarter?.currentStage || '')
+              }}
+              disabled={updating}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                setShowBackwardStageConfirm(false)
+                // Stage change already set, user can now proceed with normal update
+              }}
+              disabled={updating}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              Confirm Change
             </Button>
           </DialogFooter>
         </DialogContent>
