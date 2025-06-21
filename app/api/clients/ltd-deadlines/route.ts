@@ -3,6 +3,12 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
+// Type for Companies House accounting reference date format
+interface CompaniesHouseDate {
+  day: string
+  month: string
+}
+
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
 
@@ -52,12 +58,8 @@ export async function GET(request: NextRequest) {
       ]
     })
 
-    console.log(`Found ${clients.length} Ltd company clients`)
-    
     // Transform the data to include current workflow
-    const transformedClients = clients.map(client => {
-      console.log(`Processing client ${client.clientCode}: accountingReferenceDate = ${client.accountingReferenceDate}`)
-      return {
+    const transformedClients = clients.map(client => ({
       id: client.id,
       clientCode: client.clientCode,
       companyNumber: client.companyNumber,
@@ -65,18 +67,35 @@ export async function GET(request: NextRequest) {
       companyType: client.companyType,
       incorporationDate: client.incorporationDate?.toISOString(),
       accountingReferenceDate: client.accountingReferenceDate ? 
-        (client.accountingReferenceDate.includes('T') ? 
-          client.accountingReferenceDate : 
-          (() => {
-            try {
+        (() => {
+          try {
+            // Handle Companies House format: {"day":"30","month":"09"}
+            const parsedDate = typeof client.accountingReferenceDate === 'string' 
+              ? JSON.parse(client.accountingReferenceDate) 
+              : client.accountingReferenceDate
+            
+            if (typeof parsedDate === 'object' && parsedDate && 'day' in parsedDate && 'month' in parsedDate) {
+              const companiesHouseDate = parsedDate as CompaniesHouseDate
+              const currentYear = new Date().getFullYear()
+              const month = parseInt(companiesHouseDate.month) - 1 // JS months are 0-indexed
+              const day = parseInt(companiesHouseDate.day)
+              const date = new Date(currentYear, month, day)
+              return isNaN(date.getTime()) ? null : date.toISOString()
+            }
+            // Handle string formats
+            if (typeof client.accountingReferenceDate === 'string') {
+              if (client.accountingReferenceDate.includes('T')) {
+                return client.accountingReferenceDate
+              }
               const date = new Date(client.accountingReferenceDate)
               return isNaN(date.getTime()) ? null : date.toISOString()
-            } catch (error) {
-              console.warn(`Invalid accountingReferenceDate for client ${client.id}:`, client.accountingReferenceDate)
-              return null
             }
-          })()
-        ) : null,
+            return null
+          } catch (error) {
+            console.warn(`Invalid accountingReferenceDate for client ${client.id}:`, client.accountingReferenceDate)
+            return null
+          }
+        })() : null,
       nextAccountsDue: client.nextAccountsDue?.toISOString(),
       nextCorporationTaxDue: client.nextCorporationTaxDue?.toISOString(),
       nextConfirmationDue: client.nextConfirmationDue?.toISOString(),
@@ -113,8 +132,7 @@ export async function GET(request: NextRequest) {
         filedDate: client.ltdAccountsWorkflows[0].filedDate?.toISOString(),
         filedByUserName: client.ltdAccountsWorkflows[0].filedByUserName,
       } : null
-      }
-    })
+    }))
 
     return NextResponse.json({ 
       success: true, 
