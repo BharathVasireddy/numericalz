@@ -4,88 +4,22 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { 
   Building,
   Users, 
-  RefreshCw,
   Crown,
   Shield,
   User,
   Building2,
   Receipt,
   FileText,
-  Calendar,
   Calculator,
   TrendingUp,
-  TrendingDown,
-  DollarSign,
-  UserPlus,
-  Target,
   Activity,
-  Clock,
-  CheckCircle,
-  AlertTriangle
+  Target,
+  CheckCircle
 } from 'lucide-react'
-
-// TailAdmin Badge Component (exactly matching their design)
-interface TailAdminBadgeProps {
-  variant?: 'light' | 'solid'
-  color?: 'primary' | 'success' | 'error' | 'warning' | 'info' | 'light' | 'dark'
-  size?: 'sm' | 'md'
-  children: React.ReactNode
-  startIcon?: React.ReactNode
-  endIcon?: React.ReactNode
-}
-
-const TailAdminBadge = ({ 
-  variant = 'light', 
-  color = 'primary', 
-  size = 'md', 
-  children, 
-  startIcon, 
-  endIcon 
-}: TailAdminBadgeProps) => {
-  const baseStyles = "inline-flex items-center px-2.5 py-0.5 justify-center gap-1 rounded-full font-medium"
-  
-  const sizeStyles = {
-    sm: "text-xs",
-    md: "text-sm",
-  }
-  
-  const variants = {
-    light: {
-      primary: "bg-blue-50 text-blue-500 dark:bg-blue-500/15 dark:text-blue-400",
-      success: "bg-green-50 text-green-600 dark:bg-green-500/15 dark:text-green-500",
-      error: "bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-500",
-      warning: "bg-orange-50 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400",
-      info: "bg-cyan-50 text-cyan-500 dark:bg-cyan-500/15 dark:text-cyan-500",
-      light: "bg-gray-100 text-gray-700 dark:bg-white/5 dark:text-white/80",
-      dark: "bg-gray-500 text-white dark:bg-white/5 dark:text-white",
-    },
-    solid: {
-      primary: "bg-blue-500 text-white dark:text-white",
-      success: "bg-green-500 text-white dark:text-white",
-      error: "bg-red-500 text-white dark:text-white",
-      warning: "bg-orange-500 text-white dark:text-white",
-      info: "bg-cyan-500 text-white dark:text-white",
-      light: "bg-gray-400 dark:bg-white/5 text-white dark:text-white/80",
-      dark: "bg-gray-700 text-white dark:text-white",
-    }
-  }
-  
-  const sizeClass = sizeStyles[size]
-  const colorStyles = variants[variant][color]
-  
-  return (
-    <span className={`${baseStyles} ${sizeClass} ${colorStyles}`}>
-      {startIcon && <span className="mr-1">{startIcon}</span>}
-      {children}
-      {endIcon && <span className="ml-1">{endIcon}</span>}
-    </span>
-  )
-}
 
 interface PartnerDashboardProps {
   userId: string
@@ -116,7 +50,6 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
   const { data: session } = useSession()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<'simple' | 'tailadmin'>('tailadmin')
 
   const fetchData = async () => {
     try {
@@ -150,14 +83,14 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
 
   if (loading) {
     return (
-      <PageLayout maxWidth="2xl">
+      <PageLayout maxWidth="xl">
         <PageHeader title="Partner Dashboard" />
         <PageContent>
           <div className="space-y-6">
             <div className="animate-pulse space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="rounded-2xl bg-gray-200 h-32" />
+                  <div key={i} className="rounded-lg bg-muted h-32" />
                 ))}
               </div>
             </div>
@@ -169,7 +102,7 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
 
   if (!data || !data.clientCounts || !data.staffWorkload || !data.monthlyDeadlines) {
     return (
-      <PageLayout maxWidth="2xl">
+      <PageLayout maxWidth="xl">
         <PageHeader title="Partner Dashboard" />
         <PageContent>
           <div className="text-center text-muted-foreground">
@@ -188,361 +121,224 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
     }
   }
 
-  // TailAdmin Style Dashboard
+  const getRoleBadgeVariant = (role: string) => {
+    switch (role.toLowerCase()) {
+      case 'partner': return 'default'
+      case 'manager': return 'secondary'
+      default: return 'outline'
+    }
+  }
+
   return (
-    <PageLayout maxWidth="2xl">
-      <PageHeader title="Partner Dashboard">
-        <div className="flex gap-2">
-          <Button
-            variant={viewMode === 'simple' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('simple')}
-          >
-            Simple View
-          </Button>
-          <Button
-            variant={viewMode === 'tailadmin' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('tailadmin')}
-          >
-            TailAdmin Style
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchData}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-      </PageHeader>
+    <PageLayout maxWidth="xl">
+      <PageHeader title="Partner Dashboard" />
       
       <PageContent>
-        {viewMode === 'tailadmin' ? (
-          // TailAdmin Style Implementation
-          <div className="grid grid-cols-12 gap-4 md:gap-6">
-            {/* Client Overview Section - Exactly matching TailAdmin EcommerceMetrics */}
-            <div className="col-span-12 space-y-6 xl:col-span-8">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 md:gap-6">
-                {/* Total Clients - TailAdmin Style Card */}
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
-                  <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
-                    <Users className="text-gray-800 size-6 dark:text-white/90" />
-                  </div>
-                  <div className="flex items-end justify-between mt-5">
-                    <div>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        Total Clients
-                      </span>
-                      <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
-                        {data.clientCounts.total}
-                      </h4>
+        <div className="content-sections">
+          {/* Client Overview Section */}
+          <section>
+            <div className="page-header">
+              <h2 className="text-xl font-semibold">Client Overview</h2>
+              <p className="text-sm text-muted-foreground">Overview of all clients in the system</p>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Total Clients */}
+              <Card className="card-hover">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">Total Clients</p>
+                      <p className="text-3xl font-bold">{data.clientCounts.total}</p>
                     </div>
-                    <TailAdminBadge color="success" startIcon={<TrendingUp className="h-3 w-3" />}>
-                      8.5%
-                    </TailAdminBadge>
-                  </div>
-                </div>
-
-                {/* Ltd Companies */}
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
-                  <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
-                    <Building2 className="text-gray-800 size-6 dark:text-white/90" />
-                  </div>
-                  <div className="flex items-end justify-between mt-5">
-                    <div>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        Ltd Companies
-                      </span>
-                      <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
-                        {data.clientCounts.ltd}
-                      </h4>
+                    <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Users className="h-6 w-6 text-blue-600" />
                     </div>
-                    <TailAdminBadge color="info" startIcon={<Activity className="h-3 w-3" />}>
-                      12.3%
-                    </TailAdminBadge>
                   </div>
-                </div>
+                  <div className="mt-4 flex items-center text-sm">
+                    <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
+                    <span className="text-green-600 font-medium">8.5%</span>
+                    <span className="text-muted-foreground ml-1">from last month</span>
+                  </div>
+                </CardContent>
+              </Card>
 
-                {/* Non-Limited */}
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
-                  <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
-                    <Building className="text-gray-800 size-6 dark:text-white/90" />
-                  </div>
-                  <div className="flex items-end justify-between mt-5">
-                    <div>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        Non-Limited
-                      </span>
-                      <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
-                        {data.clientCounts.nonLtd}
-                      </h4>
+              {/* Ltd Companies */}
+              <Card className="card-hover">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">Ltd Companies</p>
+                      <p className="text-3xl font-bold">{data.clientCounts.ltd}</p>
                     </div>
-                    <TailAdminBadge color="warning" startIcon={<Target className="h-3 w-3" />}>
-                      5.2%
-                    </TailAdminBadge>
-                  </div>
-                </div>
-
-                {/* VAT Clients */}
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
-                  <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
-                    <Receipt className="text-gray-800 size-6 dark:text-white/90" />
-                  </div>
-                  <div className="flex items-end justify-between mt-5">
-                    <div>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        VAT Clients
-                      </span>
-                      <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
-                        {data.clientCounts.vat}
-                      </h4>
+                    <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                      <Building2 className="h-6 w-6 text-green-600" />
                     </div>
-                    <TailAdminBadge color="success" startIcon={<CheckCircle className="h-3 w-3" />}>
-                      15.8%
-                    </TailAdminBadge>
                   </div>
-                </div>
-              </div>
+                  <div className="mt-4 flex items-center text-sm">
+                    <Activity className="h-4 w-4 text-blue-500 mr-1" />
+                    <span className="text-blue-600 font-medium">12.3%</span>
+                    <span className="text-muted-foreground ml-1">of total</span>
+                  </div>
+                </CardContent>
+              </Card>
 
-              {/* Monthly Deadlines Section */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03]">
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              {/* Non-Limited */}
+              <Card className="card-hover">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">Non-Limited</p>
+                      <p className="text-3xl font-bold">{data.clientCounts.nonLtd}</p>
+                    </div>
+                    <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Building className="h-6 w-6 text-orange-600" />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center text-sm">
+                    <Target className="h-4 w-4 text-orange-500 mr-1" />
+                    <span className="text-orange-600 font-medium">5.2%</span>
+                    <span className="text-muted-foreground ml-1">growth</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* VAT Clients */}
+              <Card className="card-hover">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">VAT Clients</p>
+                      <p className="text-3xl font-bold">{data.clientCounts.vat}</p>
+                    </div>
+                    <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Receipt className="h-6 w-6 text-purple-600" />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center text-sm">
+                    <CheckCircle className="h-4 w-4 text-green-500 mr-1" />
+                    <span className="text-green-600 font-medium">15.8%</span>
+                    <span className="text-muted-foreground ml-1">registered</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          {/* Team Workload & Monthly Deadlines */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Staff Workload Section */}
+            <section>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Team Workload
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Current client distribution across team members
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {data.staffWorkload.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover-lift"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-background rounded-lg flex items-center justify-center shadow-sm">
+                          {getRoleIcon(member.role)}
+                        </div>
+                        <div>
+                          <p className="font-medium">{member.name}</p>
+                          <Badge variant={getRoleBadgeVariant(member.role)} className="text-xs">
+                            {member.role}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold">{member.clientCount}</p>
+                        <p className="text-xs text-muted-foreground">clients</p>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Monthly Deadlines Section */}
+            <section>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5" />
                     This Month's Deadlines
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
                     Overview of upcoming deadlines for current month
                   </p>
-                </div>
-                
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                </CardHeader>
+                <CardContent className="space-y-4">
                   {/* Accounts Due */}
-                  <div className="p-4 bg-gray-50 rounded-xl dark:bg-gray-800/50">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg dark:bg-blue-500/20">
-                        <FileText className="text-blue-600 size-5 dark:text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Accounts</p>
-                        <p className="text-xl font-bold text-gray-800 dark:text-white/90">
-                          {data.monthlyDeadlines.accounts}
-                        </p>
-                      </div>
+                  <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg">
+                    <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">Accounts Due</p>
+                      <p className="text-sm text-muted-foreground">Annual accounts filings</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-blue-600">{data.monthlyDeadlines.accounts}</p>
                     </div>
                   </div>
 
                   {/* VAT Returns Due */}
-                  <div className="p-4 bg-gray-50 rounded-xl dark:bg-gray-800/50">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg dark:bg-green-500/20">
-                        <Receipt className="text-green-600 size-5 dark:text-green-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">VAT Returns</p>
-                        <p className="text-xl font-bold text-gray-800 dark:text-white/90">
-                          {data.monthlyDeadlines.vat}
-                        </p>
-                      </div>
+                  <div className="flex items-center gap-4 p-4 bg-green-50 rounded-lg">
+                    <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <Receipt className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">VAT Returns Due</p>
+                      <p className="text-sm text-muted-foreground">Quarterly VAT submissions</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-green-600">{data.monthlyDeadlines.vat}</p>
                     </div>
                   </div>
 
                   {/* Confirmations Due */}
-                  <div className="p-4 bg-gray-50 rounded-xl dark:bg-gray-800/50">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-lg dark:bg-orange-500/20">
-                        <CheckCircle className="text-orange-600 size-5 dark:text-orange-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Confirmations</p>
-                        <p className="text-xl font-bold text-gray-800 dark:text-white/90">
-                          {data.monthlyDeadlines.cs}
-                        </p>
-                      </div>
+                  <div className="flex items-center gap-4 p-4 bg-orange-50 rounded-lg">
+                    <div className="h-10 w-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">Confirmations Due</p>
+                      <p className="text-sm text-muted-foreground">Company confirmations</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-orange-600">{data.monthlyDeadlines.cs}</p>
                     </div>
                   </div>
 
                   {/* Corporation Tax Due */}
-                  <div className="p-4 bg-gray-50 rounded-xl dark:bg-gray-800/50">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg dark:bg-purple-500/20">
-                        <Calculator className="text-purple-600 size-5 dark:text-purple-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Corp Tax</p>
-                        <p className="text-xl font-bold text-gray-800 dark:text-white/90">
-                          {data.monthlyDeadlines.ct}
-                        </p>
-                      </div>
+                  <div className="flex items-center gap-4 p-4 bg-purple-50 rounded-lg">
+                    <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Calculator className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">Corporation Tax Due</p>
+                      <p className="text-sm text-muted-foreground">CT600 submissions</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-purple-600">{data.monthlyDeadlines.ct}</p>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Staff Workload Section */}
-            <div className="col-span-12 xl:col-span-4">
-              <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-white/[0.03]">
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-                    Team Workload
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Current client distribution across team members
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  {data.staffWorkload.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-xl dark:bg-gray-800/50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-10 h-10 bg-white rounded-lg shadow-sm dark:bg-gray-700">
-                          {getRoleIcon(member.role)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-800 dark:text-white/90">
-                            {member.name}
-                          </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">
-                            {member.role}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-gray-800 dark:text-white/90">
-                          {member.clientCount}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          clients
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          // Simple View (Original)
-          <div className="space-y-6">
-            {/* Client Overview */}
-            <section>
-              <h2 className="text-lg font-semibold mb-4">Client Overview</h2>
-              <div className="partner-metrics-grid">
-                <Card className="partner-metric-card">
-                  <CardContent className="partner-metric-content">
-                    <div className="partner-metric-header">
-                      <Users className="partner-metric-icon text-blue-600" />
-                      <span className="partner-metric-label">Total Clients</span>
-                    </div>
-                    <div className="partner-metric-value">{data.clientCounts.total}</div>
-                  </CardContent>
-                </Card>
-
-                <Card className="partner-metric-card">
-                  <CardContent className="partner-metric-content">
-                    <div className="partner-metric-header">
-                      <Building2 className="partner-metric-icon text-green-600" />
-                      <span className="partner-metric-label">Ltd Companies</span>
-                    </div>
-                    <div className="partner-metric-value">{data.clientCounts.ltd}</div>
-                  </CardContent>
-                </Card>
-
-                <Card className="partner-metric-card">
-                  <CardContent className="partner-metric-content">
-                    <div className="partner-metric-header">
-                      <Building className="partner-metric-icon text-orange-600" />
-                      <span className="partner-metric-label">Non-Limited</span>
-                    </div>
-                    <div className="partner-metric-value">{data.clientCounts.nonLtd}</div>
-                  </CardContent>
-                </Card>
-
-                <Card className="partner-metric-card">
-                  <CardContent className="partner-metric-content">
-                    <div className="partner-metric-header">
-                      <Receipt className="partner-metric-icon text-purple-600" />
-                      <span className="partner-metric-label">VAT Clients</span>
-                    </div>
-                    <div className="partner-metric-value">{data.clientCounts.vat}</div>
-                  </CardContent>
-                </Card>
-              </div>
-            </section>
-
-            {/* Staff Workload */}
-            <section>
-              <h2 className="text-lg font-semibold mb-4">Staff Workload</h2>
-              <div className="partner-staff-grid">
-                {data.staffWorkload.map((member) => (
-                  <Card key={member.id} className="partner-staff-card">
-                    <CardContent className="partner-staff-content">
-                      <div className="partner-staff-header">
-                        {getRoleIcon(member.role)}
-                        <div className="partner-staff-info">
-                          <div className="partner-staff-name">{member.name}</div>
-                          <div className="partner-staff-role">{member.role}</div>
-                        </div>
-                      </div>
-                      <div className="partner-staff-count">{member.clientCount}</div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </section>
-
-            {/* Monthly Deadlines */}
-            <section>
-              <h2 className="text-lg font-semibold mb-4">Monthly Deadlines</h2>
-              <div className="partner-deadlines-grid">
-                <Card className="partner-deadline-card">
-                  <CardContent className="partner-deadline-content">
-                    <div className="partner-deadline-header">
-                      <FileText className="partner-deadline-icon text-blue-600" />
-                      <span className="partner-deadline-label">Accounts</span>
-                    </div>
-                    <div className="partner-deadline-value">{data.monthlyDeadlines.accounts}</div>
-                  </CardContent>
-                </Card>
-
-                <Card className="partner-deadline-card">
-                  <CardContent className="partner-deadline-content">
-                    <div className="partner-deadline-header">
-                      <Receipt className="partner-deadline-icon text-green-600" />
-                      <span className="partner-deadline-label">VAT Returns</span>
-                    </div>
-                    <div className="partner-deadline-value">{data.monthlyDeadlines.vat}</div>
-                  </CardContent>
-                </Card>
-
-                <Card className="partner-deadline-card">
-                  <CardContent className="partner-deadline-content">
-                    <div className="partner-deadline-header">
-                      <CheckCircle className="partner-deadline-icon text-orange-600" />
-                      <span className="partner-deadline-label">Confirmations</span>
-                    </div>
-                    <div className="partner-deadline-value">{data.monthlyDeadlines.cs}</div>
-                  </CardContent>
-                </Card>
-
-                <Card className="partner-deadline-card">
-                  <CardContent className="partner-deadline-content">
-                    <div className="partner-deadline-header">
-                      <Calculator className="partner-deadline-icon text-purple-600" />
-                      <span className="partner-deadline-label">Corp Tax</span>
-                    </div>
-                    <div className="partner-deadline-value">{data.monthlyDeadlines.ct}</div>
-                  </CardContent>
-                </Card>
-              </div>
+                </CardContent>
+              </Card>
             </section>
           </div>
-        )}
+        </div>
       </PageContent>
     </PageLayout>
   )
