@@ -200,253 +200,357 @@
       gap: var(--content-spacing-lg);
     }
   }
+
+  /* DASHBOARD-SPECIFIC STYLES */
   
-  /* Page header section */
+  /* Dashboard grid system - prevents overlapping */
+  .dashboard-metrics-grid {
+    @apply grid gap-4 mb-6;
+    grid-template-columns: 1fr;
+  }
+  
+  @media (min-width: 640px) {
+    .dashboard-metrics-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .dashboard-metrics-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  
+  /* Dashboard deadline cards */
+  .dashboard-deadline-grid {
+    @apply grid gap-4 mb-6;
+    grid-template-columns: 1fr;
+  }
+  
+  @media (min-width: 640px) {
+    .dashboard-deadline-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .dashboard-deadline-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  
+  /* Dashboard content grid */
+  .dashboard-content-grid {
+    @apply grid gap-6 mb-6;
+    grid-template-columns: 1fr;
+  }
+  
+  @media (min-width: 1024px) {
+    .dashboard-content-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  /* Dashboard quick actions */
+  .dashboard-actions-grid {
+    @apply grid gap-3;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  @media (min-width: 640px) {
+    .dashboard-actions-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  
+  /* Critical alert styling */
+  .critical-alert {
+    @apply mb-6 p-4 bg-red-50 border border-red-200 rounded-lg;
+  }
+  
+  .critical-alert-grid {
+    @apply grid gap-2;
+    grid-template-columns: 1fr;
+  }
+  
+  @media (min-width: 640px) {
+    .critical-alert-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .critical-alert-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  /* Team member cards - responsive */
+  .team-member-card {
+    @apply flex items-center justify-between p-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors;
+    min-height: 3rem; /* Prevent collapsing */
+  }
+  
+  .team-member-info {
+    @apply flex items-center gap-2 min-w-0 flex-1;
+  }
+  
+  .team-member-name {
+    @apply font-medium text-sm truncate;
+    max-width: 120px;
+  }
+  
+  @media (min-width: 768px) {
+    .team-member-name {
+      max-width: 160px;
+    }
+  }
+  
+  .team-member-details {
+    @apply flex items-center gap-2 text-xs text-muted-foreground;
+    white-space: nowrap;
+  }
+
+  /* Page header styling */
   .page-header {
-    padding-bottom: var(--content-spacing);
-    border-bottom: 1px solid hsl(var(--border));
+    @apply pb-6 border-b mb-6;
   }
   
   @media (min-width: 768px) {
     .page-header {
-      padding-bottom: var(--content-spacing-md);
+      @apply pb-8 mb-8;
     }
   }
   
   @media (min-width: 1024px) {
     .page-header {
-      padding-bottom: var(--content-spacing-lg);
+      @apply pb-10 mb-10;
     }
   }
   
-  /* Modern Button System */
+  /* Button styles with consistent spacing */
   .btn {
-    @apply inline-flex items-center justify-center whitespace-nowrap text-xs md:text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50;
-    @apply h-8 md:h-9 px-3 md:px-4 rounded-sm;
+    @apply inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
   }
   
   .btn-primary {
-    @apply btn bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/95;
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2;
   }
   
   .btn-secondary {
-    @apply btn bg-secondary text-secondary-foreground hover:bg-secondary/80 active:bg-secondary/90;
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2;
   }
   
   .btn-outline {
-    @apply btn border border-input bg-background hover:bg-accent hover:text-accent-foreground active:bg-accent/80;
+    @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2;
   }
   
   .btn-ghost {
-    @apply btn hover:bg-accent hover:text-accent-foreground active:bg-accent/80;
+    @apply hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2;
   }
   
   .btn-destructive {
-    @apply btn bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/95;
+    @apply bg-destructive text-destructive-foreground hover:bg-destructive/90 h-10 px-4 py-2;
   }
   
-  /* Action Button Styles - Enhanced for better UX */
+  /* Action button styles with consistent sizes */
   .action-btn {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap text-xs md:text-sm font-medium transition-all duration-200;
-    @apply h-8 md:h-9 px-3 md:px-4 rounded-sm;
-    @apply focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring;
-    @apply disabled:pointer-events-none disabled:opacity-50;
-    @apply hover:bg-accent hover:text-accent-foreground;
+    @apply inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground;
+    @apply h-8 w-8 p-0;
   }
   
   .action-btn-icon {
-    @apply h-4 w-4 flex-shrink-0;
+    @apply h-4 w-4;
   }
   
-  /* Dropdown Menu Enhancements */
+  /* Dropdown menu styles */
   .dropdown-menu-item {
-    @apply flex items-center gap-2 cursor-pointer;
-    @apply px-3 py-2 text-sm;
-    @apply transition-colors duration-150;
-    @apply hover:bg-accent hover:text-accent-foreground;
+    @apply relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors;
     @apply focus:bg-accent focus:text-accent-foreground;
-    @apply active:bg-accent/80;
+    @apply data-[disabled]:pointer-events-none data-[disabled]:opacity-50;
   }
   
   .dropdown-menu-item-icon {
-    @apply h-4 w-4 flex-shrink-0;
+    @apply mr-2 h-4 w-4;
   }
   
   .dropdown-menu-separator {
-    @apply my-1 h-px bg-border;
+    @apply -mx-1 my-1 h-px bg-muted;
   }
   
-  /* Icon and Text Spacing Utilities */
+  /* Icon and text spacing helpers */
   .icon-text-gap {
     @apply gap-2;
   }
   
   .icon-text-gap-sm {
-    @apply gap-1.5;
+    @apply gap-1;
   }
   
   .icon-text-gap-lg {
     @apply gap-3;
   }
   
-  /* Badge Enhancements */
+  /* Badge with icon styling */
   .badge-with-icon {
-    @apply inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-sm;
+    @apply inline-flex items-center gap-1;
   }
   
   .badge-icon {
-    @apply h-3 w-3 flex-shrink-0;
+    @apply h-3 w-3;
   }
   
-  /* Form Field System */
+  /* Form styling with consistent spacing */
   .form-field {
     @apply space-y-2;
   }
   
   .form-label {
-    @apply flex items-center gap-2 text-xs md:text-sm font-medium leading-none;
-    @apply peer-disabled:cursor-not-allowed peer-disabled:opacity-70;
+    @apply text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70;
   }
   
   .form-label-icon {
-    @apply h-4 w-4 text-muted-foreground;
+    @apply inline-flex items-center gap-2;
   }
   
   .input-field {
-    @apply flex h-8 md:h-9 w-full rounded-sm border border-input bg-background px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm transition-colors;
-    @apply file:border-0 file:bg-transparent file:text-xs md:file:text-sm file:font-medium;
-    @apply placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring;
+    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background;
+    @apply file:border-0 file:bg-transparent file:text-sm file:font-medium;
+    @apply placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
     @apply disabled:cursor-not-allowed disabled:opacity-50;
   }
   
   .select-field {
-    @apply flex h-8 md:h-9 w-full items-center justify-between rounded-sm border border-input bg-background px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm transition-colors placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
+    @apply flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background;
+    @apply placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+    @apply disabled:cursor-not-allowed disabled:opacity-50;
   }
   
-  /* Table Enhancements */
+  /* Table action styles */
   .table-action-cell {
-    @apply text-right p-3;
+    @apply w-16 text-right;
   }
   
   .table-action-btn {
-    @apply h-8 w-8 p-0 hover:bg-accent transition-colors duration-150;
+    @apply h-8 w-8 p-0;
   }
   
   .table-action-icon {
     @apply h-4 w-4;
   }
   
-  /* Enhanced Table Layout System */
+  /* Fixed table layout to prevent horizontal scrolling */
   .table-fixed-layout {
-    @apply w-full text-sm table-fixed;
+    @apply table-fixed w-full;
   }
   
   .table-header-row {
-    @apply bg-muted/50 border-b border-border;
+    @apply border-b;
   }
   
   .table-header-cell {
-    @apply text-left p-3 text-xs font-medium text-muted-foreground;
+    @apply h-12 px-4 text-left align-middle font-medium text-muted-foreground;
   }
   
   .table-body-row {
-    @apply border-b border-border hover:bg-muted/30 transition-colors duration-150;
+    @apply border-b transition-colors hover:bg-muted/50;
   }
   
   .table-body-cell {
-    @apply p-3 align-middle;
+    @apply p-4 align-middle text-sm;
   }
   
   .table-actions-cell {
-    @apply p-3 text-right align-middle;
+    @apply w-16 text-right;
   }
   
   .table-action-button {
-    @apply h-8 w-8 p-0 inline-flex items-center justify-center rounded-md hover:bg-accent transition-colors duration-150;
+    @apply h-8 w-8 p-0;
   }
   
-  /* Specific column width classes for consistent alignment */
+  /* Team management table column widths */
   .col-member {
-    @apply w-64; /* Member column - wider for name + email */
+    @apply w-48;
   }
   
   .col-role {
-    @apply w-32; /* Role column */
+    @apply w-24;
   }
   
   .col-status {
-    @apply w-24; /* Status column */
+    @apply w-20;
   }
   
   .col-clients {
-    @apply w-20; /* Clients count column */
+    @apply w-20;
   }
   
   .col-last-login {
-    @apply w-32; /* Last login column */
+    @apply w-32;
   }
   
   .col-actions {
-    @apply w-16; /* Actions column - fixed small width */
+    @apply w-16;
   }
   
+  /* Client table column widths */
   .col-client-code {
-    @apply w-20; /* Client code column */
+    @apply w-20;
   }
   
   .col-company-number {
-    @apply w-24; /* Company number column */
+    @apply w-24;
   }
   
   .col-company-name {
-    @apply w-48; /* Company name column - main content */
+    @apply w-48;
   }
   
   .col-date {
-    @apply w-24; /* Date columns */
+    @apply w-24;
   }
   
   .col-contact {
-    @apply w-20; /* Contact icons column */
+    @apply w-20;
   }
   
   .col-assigned-to {
-    @apply w-32; /* Assigned to column */
+    @apply w-32;
   }
   
-  /* Action trigger button icon - consistent with navigation icons */
+  /* Action trigger icon sizing */
   .action-trigger-icon {
-    @apply h-4 w-4 text-gray-600 hover:text-foreground transition-colors duration-200 flex-shrink-0;
+    @apply h-4 w-4;
   }
   
-  /* Ensure icon visibility on desktop with better contrast */
   @media (min-width: 768px) {
     .action-trigger-icon {
-      @apply text-gray-700 hover:text-gray-900;
+      @apply h-4 w-4;
     }
   }
   
-  /* Ensure action buttons are always properly aligned */
+  /* Button with icon alignment */
   .action-trigger-button {
-    @apply h-8 w-8 p-0 inline-flex items-center justify-center hover:bg-accent rounded-md transition-colors duration-150;
+    @apply h-8 w-8 p-0;
   }
   
-  /* Fix for dropdown trigger alignment */
+  /* Dropdown trigger centering */
   .dropdown-trigger-centered {
     @apply flex items-center justify-center;
   }
   
-  /* Navigation Menu Enhancements */
+  /* Navigation styles */
   .nav-section-title {
-    @apply text-[10px] font-medium text-muted-foreground uppercase tracking-wider;
+    @apply px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider;
   }
   
   .nav-separator {
-    @apply border-border;
+    @apply my-2 h-px bg-border;
   }
   
   .nav-item {
-    @apply flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 w-full;
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors;
   }
   
   .nav-item-active {
@@ -454,71 +558,70 @@
   }
   
   .nav-item-inactive {
-    @apply text-muted-foreground hover:text-foreground hover:bg-muted;
+    @apply text-muted-foreground hover:bg-accent hover:text-accent-foreground;
   }
   
-  /* Compact Status System */
+  /* Status badges */
   .status-badge {
-    @apply inline-flex items-center rounded-sm px-1.5 md:px-2 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
   
   .status-pending {
-    @apply bg-muted text-muted-foreground border border-border;
+    @apply bg-yellow-100 text-yellow-800;
   }
   
   .status-in-progress {
-    @apply bg-primary/10 text-primary border border-primary/20;
+    @apply bg-blue-100 text-blue-800;
   }
   
   .status-completed {
-    @apply bg-green-100 text-green-800 border border-green-200;
+    @apply bg-green-100 text-green-800;
   }
   
   .status-overdue {
-    @apply bg-red-100 text-red-800 border border-red-200;
+    @apply bg-red-100 text-red-800;
   }
   
-  /* Priority Indicators */
+  /* Priority indicators */
   .priority-low {
-    @apply bg-gray-100 text-gray-800 border border-gray-200;
+    @apply text-gray-500;
   }
   
   .priority-medium {
-    @apply bg-yellow-100 text-yellow-800 border border-yellow-200;
+    @apply text-yellow-500;
   }
   
   .priority-high {
-    @apply bg-orange-100 text-orange-800 border border-orange-200;
+    @apply text-orange-500;
   }
   
   .priority-urgent {
-    @apply bg-red-100 text-red-800 border border-red-200;
+    @apply text-red-500;
   }
   
-  /* Loading States */
+  /* Loading states */
   .loading-skeleton {
-    @apply animate-pulse bg-muted rounded-sm;
+    @apply animate-pulse bg-muted rounded;
   }
   
   .loading-spinner {
-    @apply animate-spin rounded-full border-2 border-muted border-t-primary;
+    @apply animate-spin;
   }
   
-  /* Interaction Effects */
+  /* Interactive states */
   .hover-lift {
-    @apply transition-all duration-200 hover:shadow-md hover:-translate-y-0.5;
+    @apply transition-transform hover:scale-105;
   }
   
   .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1;
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
   }
   
-  /* Card Hover Effects */
   .card-hover {
-    @apply transition-all duration-200 hover:shadow-md hover:border-accent;
+    @apply transition-all hover:shadow-lg;
   }
   
-  /* DEPRECATED - Use new layout system instead */
+  /* Spacing utilities */
   .container-padding {
     @apply px-4 md:px-6 lg:px-8;
   }
@@ -528,28 +631,26 @@
   }
   
   .content-spacing {
-    @apply space-y-4 md:space-y-6;
+    @apply space-y-6 md:space-y-8 lg:space-y-10;
   }
   
-  /* Professional Table Styles */
+  /* Table responsive design */
   .table-container {
-    @apply border rounded-md;
+    @apply w-full overflow-hidden; /* Changed from overflow-x-auto to overflow-hidden */
   }
   
   .table-header {
-    @apply border-b bg-muted/50;
+    @apply bg-muted/50;
   }
   
   .table-cell {
-    @apply p-3 align-middle;
+    @apply px-3 py-2 text-sm;
   }
   
   .table-cell-compact {
-    @apply p-2 align-middle text-xs md:text-sm;
+    @apply px-2 py-1 text-xs;
   }
-}
-
-@layer utilities {
+  
   /* Text utilities */
   .text-balance {
     text-wrap: balance;
@@ -557,11 +658,11 @@
   
   /* Compact spacing utilities */
   .space-y-compact > * + * {
-    @apply mt-2 md:mt-3;
+    @apply mt-2;
   }
   
   .space-x-compact > * + * {
-    @apply ml-2 md:ml-3;
+    @apply ml-2;
   }
   
   /* Professional shadows */
@@ -570,13 +671,14 @@
   }
   
   .shadow-professional {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   }
 }
 
+/* Print styles */
 @media print {
   .no-print {
-    @apply hidden;
+    display: none !important;
   }
   
   .print-break-before {
@@ -586,186 +688,289 @@
   .print-break-after {
     page-break-after: always;
   }
-}
-
-@layer base {
+  
+  /* Ensure good contrast for printing */
   * {
-    @apply border-border;
+    @apply text-black bg-white;
   }
+  
   body {
-    @apply bg-background text-foreground;
+    @apply text-sm;
   }
 }
 
-/* TOAST ANIMATIONS */
+/* Toast positioning */
 .toast-container {
-  pointer-events: none;
+  @apply fixed top-4 right-4 z-50;
 }
 
 .toast-container > * {
-  pointer-events: auto;
+  @apply mb-2;
 }
 
-/* Custom toast entrance animations */
+/* Toast animations */
 @keyframes toast-enter {
   from {
-    transform: translate3d(0, -100%, 0) scale(0.95);
+    transform: translateX(calc(100% + 1rem));
     opacity: 0;
   }
   to {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translateX(0);
     opacity: 1;
   }
 }
 
 @keyframes toast-exit {
   from {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translateX(0);
     opacity: 1;
   }
   to {
-    transform: translate3d(0, -100%, 0) scale(0.95);
+    transform: translateX(calc(100% + 1rem));
     opacity: 0;
   }
 }
 
 @keyframes toast-bounce-in {
   0% {
-    transform: translate3d(0, -100%, 0) scale(0.8);
+    transform: scale(0.3) translateX(calc(100% + 1rem));
     opacity: 0;
   }
   50% {
-    transform: translate3d(0, -10%, 0) scale(1.05);
+    transform: scale(1.05) translateX(-10px);
     opacity: 0.8;
   }
+  70% {
+    transform: scale(0.95) translateX(5px);
+    opacity: 0.9;
+  }
   100% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: scale(1) translateX(0);
     opacity: 1;
   }
 }
 
 @keyframes toast-fade-scale {
-  from {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
     transform: scale(1);
     opacity: 1;
-  }
-  to {
-    transform: scale(0.95);
-    opacity: 0;
   }
 }
 
 @keyframes toast-fade-scale-out {
-  from {
+  0% {
     transform: scale(1);
     opacity: 1;
   }
-  to {
-    transform: scale(0.9);
+  100% {
+    transform: scale(0.8);
     opacity: 0;
   }
 }
 
 @keyframes toast-progress {
   from {
-    width: 100%;
+    transform: translateX(-100%);
   }
   to {
-    width: 0%;
+    transform: translateX(0%);
   }
 }
 
 .toast-progress-bar {
-  animation: toast-progress 3s linear;
+  animation: toast-progress 5s linear;
 }
 
-/* ===== VAT DEADLINE TABLE COLUMNS (COMPACT LAYOUT) ===== */
+/* VAT Deadline Table Column Widths */
 .col-vat-client-code {
-  @apply w-14; /* Compact client codes */
+  @apply w-16; /* 64px */
 }
 
 .col-vat-company-name {
-  @apply w-44; /* Company names - reduced width with truncation */
+  @apply w-48; /* 192px - Main content */
 }
 
 .col-vat-quarter-end {
-  @apply w-16; /* Compact quarter end month */
+  @apply w-20; /* 80px */
 }
 
 .col-vat-filing-month {
-  @apply w-16; /* Compact filing month */
+  @apply w-20; /* 80px */
 }
 
 .col-vat-due {
-  @apply w-24; /* Compact due status */
+  @apply w-32; /* 128px */
 }
 
 .col-vat-status {
-  @apply w-36; /* Compact workflow status badge */
+  @apply w-40; /* 160px */
 }
 
 .col-vat-assigned {
-  @apply w-28; /* Compact assigned user */
+  @apply w-32; /* 128px */
 }
 
 .col-vat-add-update {
-  @apply w-20; /* Compact update button */
+  @apply w-24; /* 96px */
 }
 
 .col-vat-actions {
-  @apply w-16; /* Compact actions */
+  @apply w-16; /* 64px */
 }
 
-/* ===== COMPACT TABLE UTILITIES ===== */
+/* Compact table styling */
 .table-compact {
-  @apply text-xs; /* Smaller text for compact layout */
+  @apply text-xs;
 }
 
 .table-compact .table-body-cell {
-  @apply py-2 px-2; /* Reduced padding */
+  @apply py-2 px-2;
 }
 
 .table-compact .table-header-cell {
-  @apply py-2 px-2; /* Reduced padding */
+  @apply py-2 px-2 text-xs;
 }
 
-/* ===== LTD COMPANIES DEADLINE TABLE COLUMNS (COMPACT LAYOUT) ===== */
+/* Ltd Companies Deadline Table Column Widths */
 .col-ltd-client-code {
-  @apply w-16; /* Compact client codes */
+  @apply w-16; /* 64px */
 }
 
 .col-ltd-company-number {
-  @apply w-20; /* Company number */
+  @apply w-20; /* 80px */
 }
 
 .col-ltd-company-name {
-  @apply w-48; /* Company names with truncation */
+  @apply w-48; /* 192px - Main content */
 }
 
 .col-ltd-year-end {
-  @apply w-20; /* Year end month */
+  @apply w-20; /* 80px */
 }
 
 .col-ltd-accounts-due {
-  @apply w-24; /* Accounts due date */
+  @apply w-24; /* 96px */
 }
 
 .col-ltd-ct-due {
-  @apply w-20; /* CT due */
+  @apply w-24; /* 96px */
 }
 
 .col-ltd-cs-due {
-  @apply w-20; /* CS due */
+  @apply w-24; /* 96px */
 }
 
 .col-ltd-status {
-  @apply w-32; /* Workflow status badge */
+  @apply w-32; /* 128px */
 }
 
 .col-ltd-update {
-  @apply w-20; /* Update button */
+  @apply w-24; /* 96px */
 }
 
 .col-ltd-action {
-  @apply w-12; /* Action expand/collapse */
+  @apply w-16; /* 64px */
+}
+
+/* ====================================================================
+   PARTNER DASHBOARD SPECIFIC STYLES
+   ==================================================================== */
+
+/* Partner Metrics Grid - Client Overview */
+.partner-metrics-grid {
+  @apply grid grid-cols-2 md:grid-cols-4 gap-3;
+}
+
+.partner-metric-card {
+  @apply border rounded-lg shadow-sm hover:shadow-md transition-shadow;
+}
+
+.partner-metric-content {
+  @apply p-4;
+}
+
+.partner-metric-header {
+  @apply flex items-center gap-2 mb-2;
+}
+
+.partner-metric-icon {
+  @apply h-4 w-4 flex-shrink-0;
+}
+
+.partner-metric-label {
+  @apply text-sm font-medium text-muted-foreground;
+}
+
+.partner-metric-value {
+  @apply text-2xl font-bold text-foreground;
+}
+
+/* Partner Staff Grid - Staff Workload */
+.partner-staff-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3;
+}
+
+.partner-staff-card {
+  @apply border rounded-lg shadow-sm hover:shadow-md transition-shadow;
+}
+
+.partner-staff-content {
+  @apply p-4;
+}
+
+.partner-staff-header {
+  @apply flex items-center gap-2 mb-3;
+}
+
+.partner-staff-name {
+  @apply text-sm font-medium flex-1 truncate;
+}
+
+.partner-role-badge {
+  @apply text-xs px-2 py-1 rounded-full font-medium border;
+}
+
+.partner-staff-clients {
+  @apply text-center;
+}
+
+.partner-staff-count {
+  @apply text-xl font-bold text-foreground block;
+}
+
+.partner-staff-label {
+  @apply text-xs text-muted-foreground;
+}
+
+/* Partner Deadlines Grid - Monthly Deadlines */
+.partner-deadlines-grid {
+  @apply grid grid-cols-2 md:grid-cols-4 gap-3;
+}
+
+.partner-deadline-card {
+  @apply border rounded-lg shadow-sm hover:shadow-md transition-shadow;
+}
+
+.partner-deadline-content {
+  @apply p-4;
+}
+
+.partner-deadline-header {
+  @apply flex items-center gap-2 mb-2;
+}
+
+.partner-deadline-icon {
+  @apply h-4 w-4 flex-shrink-0;
+}
+
+.partner-deadline-label {
+  @apply text-sm font-medium text-muted-foreground;
+}
+
+.partner-deadline-value {
+  @apply text-2xl font-bold text-foreground;
 } 

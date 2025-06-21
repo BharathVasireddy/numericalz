@@ -31,33 +31,24 @@ async function CalendarData() {
     throw new Error('User not found')
   }
 
-  // Fetch deadlines based on user role
-  let deadlines
-  let users: Array<{ id: string; name: string; email: string }> = []
-
-  if (user.role === 'MANAGER') {
-    // Managers see all deadlines with filtering options
-    const [allDeadlines, allUsers] = await Promise.all([
-      getAllDeadlines(),
-      db.user.findMany({
-        where: {
-          isActive: true
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true
-        }
-      })
-    ])
-    deadlines = allDeadlines
-    users = allUsers
-  } else {
-    // Staff members only see their own assigned clients' deadlines
-    deadlines = await getDeadlinesForUser(user.id)
-    // Staff don't need user filtering options since they only see their own
-    users = []
-  }
+  // Always fetch all deadlines for Company Deadline Tracker functionality
+  // The component will handle filtering based on scope
+  const [allDeadlines, allUsers] = await Promise.all([
+    getAllDeadlines(),
+    db.user.findMany({
+      where: {
+        isActive: true
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true
+      }
+    })
+  ])
+  
+  const deadlines = allDeadlines
+  const users = allUsers
 
   return (
     <DeadlineCalendar 

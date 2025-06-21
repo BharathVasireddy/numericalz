@@ -14,7 +14,8 @@ import {
   User,
   Filter,
   Download,
-  Receipt
+  Receipt,
+  Calculator
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -39,13 +40,15 @@ interface DeadlineItem {
   clientName: string
   companyNumber?: string
   dueDate: Date
-  type: 'accounts' | 'confirmation' | 'corporation-tax'
+  type: 'accounts' | 'confirmation' | 'corporation-tax' | 'vat'
   assignedUser?: {
     id: string
     name: string
   }
   isOverdue: boolean
   daysUntilDue: number
+  isCompleted: boolean
+  completedDate?: Date
 }
 
 interface DeadlineCalendarProps {
@@ -60,33 +63,51 @@ interface DeadlineCalendarProps {
 }
 
 type ViewType = 'month' | 'week' | 'list'
+type ScopeType = 'my' | 'company'
+type StatusFilterType = 'all' | 'due'
 
 export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, currentUserName }: DeadlineCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<ViewType>('month')
   const [selectedUser, setSelectedUser] = useState<string>('all')
   const [selectedType, setSelectedType] = useState<string>('all')
+  const [scope, setScope] = useState<ScopeType>('my')
+  const [statusFilter, setStatusFilter] = useState<StatusFilterType>('due')
 
   const isManager = userRole === 'MANAGER'
 
   // Filter deadlines based on selected filters
   const filteredDeadlines = useMemo(() => {
     return deadlines.filter(deadline => {
-      // For managers: apply user and type filters
-      if (isManager) {
-        if (selectedUser !== 'all' && deadline.assignedUser?.id !== selectedUser) {
+      // Apply scope filter first
+      if (scope === 'my') {
+        // Show only deadlines assigned to current user
+        if (deadline.assignedUser?.id !== currentUserId) {
+          return false
+        }
+      }
+      // For 'company' scope, show all deadlines (no additional filtering needed)
+      
+      // Apply user filter (only for managers in company scope)
+      if (scope === 'company' && isManager && selectedUser !== 'all') {
+        if (deadline.assignedUser?.id !== selectedUser) {
           return false
         }
       }
       
-      // For both managers and staff: apply type filter
+      // Apply type filter
       if (selectedType !== 'all' && deadline.type !== selectedType) {
+        return false
+      }
+
+      // Apply status filter
+      if (statusFilter === 'due' && deadline.isCompleted) {
         return false
       }
       
       return true
     })
-  }, [deadlines, selectedUser, selectedType, isManager])
+  }, [deadlines, selectedUser, selectedType, scope, currentUserId, isManager, statusFilter])
 
   // Generate calendar days for month view
   const monthDays = useMemo(() => {
@@ -186,9 +207,40 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
   }
 
   const getDeadlineColor = (deadline: DeadlineItem) => {
-    if (deadline.isOverdue) return 'bg-red-100 text-red-800 border-red-200'
-    if (deadline.daysUntilDue <= 7) return 'bg-amber-100 text-amber-800 border-amber-200'
-    return 'bg-blue-100 text-blue-800 border-blue-200'
+    // If completed, use muted gray colors
+    if (deadline.isCompleted) {
+      return 'bg-gray-100 text-gray-600 border-gray-200 opacity-75'
+    }
+
+    // Base colors by category
+    const categoryColors = {
+      'accounts': {
+        normal: 'bg-blue-100 text-blue-800 border-blue-200',
+        urgent: 'bg-blue-200 text-blue-900 border-blue-300',
+        overdue: 'bg-red-100 text-red-800 border-red-200'
+      },
+      'confirmation': {
+        normal: 'bg-green-100 text-green-800 border-green-200',
+        urgent: 'bg-green-200 text-green-900 border-green-300',
+        overdue: 'bg-red-100 text-red-800 border-red-200'
+      },
+      'corporation-tax': {
+        normal: 'bg-purple-100 text-purple-800 border-purple-200',
+        urgent: 'bg-purple-200 text-purple-900 border-purple-300',
+        overdue: 'bg-red-100 text-red-800 border-red-200'
+      },
+      'vat': {
+        normal: 'bg-orange-100 text-orange-800 border-orange-200',
+        urgent: 'bg-orange-200 text-orange-900 border-orange-300',
+        overdue: 'bg-red-100 text-red-800 border-red-200'
+      }
+    }
+
+    const colors = categoryColors[deadline.type] || categoryColors['accounts']
+    
+    if (deadline.isOverdue) return colors.overdue
+    if (deadline.daysUntilDue <= 7) return colors.urgent
+    return colors.normal
   }
 
   const getTypeIcon = (type: string) => {
@@ -199,6 +251,8 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
         return CheckCircle
       case 'corporation-tax':
         return Receipt
+      case 'vat':
+        return Calculator
       default:
         return FileText
     }
@@ -227,7 +281,7 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
       {monthDays.map((day, index) => (
         <div
           key={index}
-          className={`bg-white p-2 min-h-[120px] ${
+          className={`bg-white p-1 min-h-[80px] ${
             !day.isCurrentMonth ? 'opacity-50' : ''
           } ${day.isToday ? 'bg-blue-50' : ''}`}
         >
@@ -242,7 +296,7 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div
-                        className={`text-xs p-1 rounded border ${getDeadlineColor(deadline)} cursor-pointer`}
+                        className={`text-xs px-1 py-0.5 rounded border ${getDeadlineColor(deadline)} cursor-pointer`}
                       >
                         <div className="flex items-center gap-1">
                           <Icon className="h-3 w-3" />
@@ -256,7 +310,8 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
                         <div className="text-muted-foreground">
                           {deadline.type === 'accounts' ? 'Annual Accounts' : 
                            deadline.type === 'confirmation' ? 'Confirmation Statement' :
-                           deadline.type === 'corporation-tax' ? 'Corporation Tax' : deadline.type}
+                           deadline.type === 'corporation-tax' ? 'Corporation Tax' :
+                           deadline.type === 'vat' ? 'VAT Return' : deadline.type}
                         </div>
                         <div className="text-muted-foreground">
                           Due: {formatDate(deadline.dueDate)}
@@ -266,11 +321,15 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
                             Assigned: {deadline.assignedUser.name}
                           </div>
                         )}
-                        {deadline.isOverdue && (
+                        {deadline.isCompleted ? (
+                          <div className="text-green-600 font-medium">
+                            ✓ Completed{deadline.completedDate && ` on ${deadline.completedDate.toLocaleDateString('en-GB')}`}
+                          </div>
+                        ) : deadline.isOverdue ? (
                           <div className="text-red-600 font-medium">
                             Overdue by {deadline.daysUntilDue} days
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     </TooltipContent>
                   </Tooltip>
@@ -305,11 +364,11 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
             </div>
           </div>
           
-          <div className="space-y-2 min-h-[400px]">
+          <div className="space-y-1 min-h-[300px]">
             {day.deadlines.map(deadline => {
               const Icon = getTypeIcon(deadline.type)
               return (
-                <Card key={deadline.id} className={`p-3 border ${getDeadlineColor(deadline)}`}>
+                <Card key={deadline.id} className={`p-2 border ${getDeadlineColor(deadline)}`}>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <Icon className="h-4 w-4" />
@@ -318,7 +377,8 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
                     <div className="text-xs opacity-80">
                       {deadline.type === 'accounts' ? 'Annual Accounts' : 
                        deadline.type === 'confirmation' ? 'Confirmation Statement' :
-                       deadline.type === 'corporation-tax' ? 'Corporation Tax' : deadline.type}
+                       deadline.type === 'corporation-tax' ? 'Corporation Tax' :
+                       deadline.type === 'vat' ? 'VAT Return' : deadline.type}
                     </div>
                     {deadline.assignedUser && (
                       <div className="flex items-center gap-1 text-xs opacity-80">
@@ -371,7 +431,8 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
                           <div className="text-sm opacity-80">
                             {deadline.type === 'accounts' ? 'Annual Accounts' : 
                              deadline.type === 'confirmation' ? 'Confirmation Statement' :
-                             deadline.type === 'corporation-tax' ? 'Corporation Tax' : deadline.type}
+                             deadline.type === 'corporation-tax' ? 'Corporation Tax' :
+                             deadline.type === 'vat' ? 'VAT Return' : deadline.type}
                             {deadline.companyNumber && ` • ${deadline.companyNumber}`}
                           </div>
                         </div>
@@ -385,7 +446,9 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
                           </div>
                         )}
                         <div className="text-xs text-gray-500">
-                          {deadline.isOverdue ? 'Overdue' : 
+                          {deadline.isCompleted ? (
+                            <span className="text-green-600">✓ Completed</span>
+                          ) : deadline.isOverdue ? 'Overdue' : 
                            deadline.daysUntilDue === 0 ? 'Due today' :
                            `${deadline.daysUntilDue} days left`}
                         </div>
@@ -409,17 +472,17 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold">
-            {isManager ? 'Deadline Calendar - All Clients' : `My Deadline Calendar`}
+            {scope === 'my' ? 'My Deadline Calendar' : 'Company Deadline Tracker'}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {isManager 
-              ? 'Track all client deadlines: accounts, confirmations, and corporation tax' 
-              : `Your assigned client deadlines (${currentUserName})`
+            {scope === 'my' 
+              ? `Your assigned client deadlines (${currentUserName})` 
+              : 'Track all company client deadlines: accounts, confirmations, corporation tax, and VAT returns'
             }
           </p>
         </div>
@@ -468,51 +531,69 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
 
         {/* View Toggle & Filters */}
         <div className="flex items-center gap-2">
-          {/* Filters - Only show for managers */}
-          {isManager && (
-            <>
-              <Select value={selectedUser} onValueChange={setSelectedUser}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="All Users" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  {users.map(user => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Scope Toggle Buttons */}
+          <div className="flex items-center border rounded-lg p-1">
+            <Button
+              variant={scope === 'my' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setScope('my')}
+              className="h-8"
+            >
+              <User className="h-4 w-4 mr-1" />
+              My Deadlines
+            </Button>
+            <Button
+              variant={scope === 'company' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setScope('company')}
+              className="h-8"
+            >
+              <Building2 className="h-4 w-4 mr-1" />
+              Company Tracker
+            </Button>
+          </div>
 
-              <Select value={selectedType} onValueChange={setSelectedType}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="accounts">Accounts</SelectItem>
-                  <SelectItem value="confirmation">Confirmations</SelectItem>
-                  <SelectItem value="corporation-tax">Corporation Tax</SelectItem>
-                </SelectContent>
-              </Select>
-            </>
-          )}
-
-          {/* Type filter for staff (no user filter needed since they only see their own) */}
-          {!isManager && (
-            <Select value={selectedType} onValueChange={setSelectedType}>
+          {/* Filters - Show user filter for all users in company scope */}
+          {scope === 'company' && (
+            <Select value={selectedUser} onValueChange={setSelectedUser}>
               <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="All Types" />
+                <SelectValue placeholder="All Users" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="accounts">Accounts</SelectItem>
-                <SelectItem value="confirmation">Confirmations</SelectItem>
-                <SelectItem value="corporation-tax">Corporation Tax</SelectItem>
+                <SelectItem value="all">All Users</SelectItem>
+                {users.map(user => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           )}
+
+          {/* Type Filter - Always available */}
+          <Select value={selectedType} onValueChange={setSelectedType}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="accounts">Accounts</SelectItem>
+              <SelectItem value="confirmation">Confirmations</SelectItem>
+              <SelectItem value="corporation-tax">Corporation Tax</SelectItem>
+              <SelectItem value="vat">VAT Returns</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Status Filter - Always available */}
+          <Select value={statusFilter} onValueChange={(value: StatusFilterType) => setStatusFilter(value)}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Deadlines</SelectItem>
+              <SelectItem value="due">Due Only</SelectItem>
+            </SelectContent>
+          </Select>
 
           {/* View Toggle */}
           <div className="flex items-center border rounded-lg p-1">
@@ -547,7 +628,7 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-red-100 rounded-lg">
                 <Clock className="h-4 w-4 text-red-600" />
@@ -563,7 +644,7 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-amber-100 rounded-lg">
                 <Clock className="h-4 w-4 text-amber-600" />
@@ -579,7 +660,7 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
         </Card>
 
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <Building2 className="h-4 w-4 text-blue-600" />
@@ -597,7 +678,7 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
 
       {/* Calendar View */}
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           {view === 'month' && renderMonthView()}
           {view === 'week' && renderWeekView()}
           {view === 'list' && renderListView()}
