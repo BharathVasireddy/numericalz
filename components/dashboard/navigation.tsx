@@ -21,7 +21,8 @@ import {
   ChevronRight,
   Crown,
   Shield,
-  User
+  User,
+  Wrench
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -161,7 +162,7 @@ export function DashboardNavigation() {
         ]
       },
       {
-        id: 'tools',
+        id: 'calendar',
         title: 'Deadline Calendar',
         icon: Calendar,
         items: [
@@ -169,6 +170,18 @@ export function DashboardNavigation() {
             name: 'Calendar',
             href: '/dashboard/calendar',
             icon: Calendar,
+          }
+        ]
+      },
+      {
+        id: 'tools',
+        title: 'Tools & Utilities',
+        icon: Wrench,
+        items: [
+          {
+            name: 'Tools Hub',
+            href: '/dashboard/tools',
+            icon: Wrench,
           }
         ]
       }
