@@ -5,76 +5,51 @@ import { exchangeCodeForToken } from '@/lib/hmrc-api'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { searchParams } = new URL(request.url)
+    const code = searchParams.get('code')
+    const state = searchParams.get('state')
+    const error = searchParams.get('error')
+
+    // Handle OAuth errors
+    if (error) {
+      console.error('HMRC OAuth error:', error)
+      return NextResponse.redirect(
+        new URL(`/dashboard/tools/hmrc?error=${encodeURIComponent(error)}`, request.url)
+      )
     }
 
-    const { code, state } = await request.json()
-
-    if (!code || !state) {
-      return NextResponse.json({ 
-        error: 'Missing authorization code or state' 
-      }, { status: 400 })
-    }
-
-    // Decode and validate state
-    try {
-      const decodedState = JSON.parse(Buffer.from(state, 'base64').toString())
-      
-      // Validate state contains expected fields
-      if (!decodedState.userId || !decodedState.clientId || !decodedState.timestamp) {
-        return NextResponse.json({ 
-          error: 'Invalid state parameter' 
-        }, { status: 400 })
-      }
-
-      // Check if state is not too old (5 minutes max)
-      const stateAge = Date.now() - decodedState.timestamp
-      if (stateAge > 5 * 60 * 1000) {
-        return NextResponse.json({ 
-          error: 'State parameter expired' 
-        }, { status: 400 })
-      }
-
-      // Verify user matches session
-      if (decodedState.userId !== session.user.id) {
-        return NextResponse.json({ 
-          error: 'User mismatch in state' 
-        }, { status: 400 })
-      }
-    } catch (error) {
-      return NextResponse.json({ 
-        error: 'Invalid state format' 
-      }, { status: 400 })
+    // Validate required parameters
+    if (!code) {
+      return NextResponse.redirect(
+        new URL('/dashboard/tools/hmrc?error=missing_code', request.url)
+      )
     }
 
     // Exchange authorization code for access token
-    const tokenResponse = await exchangeCodeForToken(code)
+    const tokenData = await exchangeCodeForToken(code)
 
-    return NextResponse.json({
-      success: true,
-      access_token: tokenResponse.access_token,
-      refresh_token: tokenResponse.refresh_token,
-      expires_in: tokenResponse.expires_in,
-      scope: tokenResponse.scope
-    })
+    // Store token data in localStorage via client-side redirect
+    const redirectUrl = new URL('/dashboard/tools/hmrc', request.url)
+    redirectUrl.searchParams.set('token', tokenData.access_token)
+    redirectUrl.searchParams.set('expires_in', tokenData.expires_in.toString())
+    redirectUrl.searchParams.set('scope', tokenData.scope)
+    if (tokenData.refresh_token) {
+      redirectUrl.searchParams.set('refresh_token', tokenData.refresh_token)
+    }
+    if (state) {
+      redirectUrl.searchParams.set('state', state)
+    }
 
+    return NextResponse.redirect(redirectUrl)
+    
   } catch (error) {
     console.error('HMRC callback error:', error)
     
-    let errorMessage = 'Failed to exchange authorization code'
-    if (error instanceof Error) {
-      if (error.message.includes('HMRC token exchange failed')) {
-        errorMessage = error.message
-      }
-    }
-
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.redirect(
+      new URL(`/dashboard/tools/hmrc?error=${encodeURIComponent(errorMessage)}`, request.url)
     )
   }
 } 
