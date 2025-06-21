@@ -4,6 +4,7 @@ import './globals.css'
 import { Providers } from '@/components/providers'
 import { SimpleToaster } from '@/components/ui/simple-toaster'
 import { PerformanceTracker } from '@/components/performance-tracker'
+import { BusinessChat } from '@/components/chat/business-chat'
 
 // Optimized font loading with display: 'swap' for better performance
 const plusJakartaSans = Plus_Jakarta_Sans({ 
@@ -207,6 +208,9 @@ export default function RootLayout({
           
           {/* Performance tracking component */}
           <PerformanceTracker />
+          
+          {/* Business Intelligence Chat Assistant */}
+          <BusinessChat defaultMinimized={true} />
         </Providers>
 
         {/* Performance monitoring script */}
