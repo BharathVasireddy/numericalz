@@ -428,10 +428,10 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
         />
       )}
 
-      <div className="tailadmin-card overflow-hidden">
+      <Card className="overflow-hidden">
         {/* Desktop Table */}
         <div className="hidden lg:block">
-          <table className="data-table-tailadmin">
+          <table className="table-fixed-layout">
             <thead>
               <tr className="table-header-row">
                 {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
@@ -760,7 +760,7 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
             <p className="text-sm">Try adjusting your search or filters</p>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Assign User Modal */}
       <AssignUserModal
