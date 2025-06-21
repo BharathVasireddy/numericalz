@@ -44,6 +44,46 @@ interface APIMetric {
   cacheHit?: boolean
 }
 
+interface DatabaseMetrics {
+  totalQueries: number;
+  slowQueries: number;
+  averageQueryTime: number;
+  connectionPoolSize: number;
+  activeConnections: number;
+}
+
+interface CacheMetrics {
+  hitRate: number;
+  missRate: number;
+  totalRequests: number;
+  averageResponseTime: number;
+  memoryUsage: number;
+}
+
+interface APIMetrics {
+  totalRequests: number;
+  errorRate: number;
+  averageResponseTime: number;
+  slowestEndpoint: string;
+  fastestEndpoint: string;
+}
+
+interface SystemMetrics {
+  cpuUsage: number;
+  memoryUsage: number;
+  diskUsage: number;
+  uptime: number;
+}
+
+export interface PerformanceReport {
+  timestamp: string;
+  database: DatabaseMetrics;
+  cache: CacheMetrics;
+  api: APIMetrics;
+  system: SystemMetrics;
+  recommendations: string[];
+}
+
 class PerformanceMonitor {
   private metrics: PerformanceMetric[] = []
   private webVitals: WebVitalsMetric[] = []
@@ -364,7 +404,7 @@ class PerformanceMonitor {
   /**
    * Generate performance report
    */
-  generateReport() {
+  generateReport(): PerformanceReport {
     const now = Date.now()
     const last5Minutes = now - 5 * 60 * 1000
 
@@ -373,18 +413,36 @@ class PerformanceMonitor {
     const recentWebVitals = this.webVitals.filter(m => m.timestamp > last5Minutes)
     const recentAPIMetrics = this.apiMetrics.filter(m => m.timestamp > last5Minutes)
 
-    const report = {
+    const report: PerformanceReport = {
       timestamp: new Date().toISOString(),
-      period: '5 minutes',
-      webVitals: this.analyzeWebVitals(recentWebVitals),
-      api: this.analyzeAPIMetrics(recentAPIMetrics),
-      components: this.analyzeComponentMetrics(),
-      memory: this.getMemoryInfo(),
-      summary: {
-        totalMetrics: recentMetrics.length,
-        slowComponents: this.componentMetrics.filter(c => c.renderTime > 16.67).length,
-        slowAPIs: recentAPIMetrics.filter(a => a.duration > 1000).length,
-      }
+      database: {
+        totalQueries: 0,
+        slowQueries: 0,
+        averageQueryTime: 0,
+        connectionPoolSize: 0,
+        activeConnections: 0
+      },
+      cache: {
+        hitRate: 0,
+        missRate: 0,
+        totalRequests: 0,
+        averageResponseTime: 0,
+        memoryUsage: 0
+      },
+      api: {
+        totalRequests: 0,
+        errorRate: 0,
+        averageResponseTime: 0,
+        slowestEndpoint: 'N/A',
+        fastestEndpoint: 'N/A'
+      },
+      system: {
+        cpuUsage: 0,
+        memoryUsage: 0,
+        diskUsage: 0,
+        uptime: 0
+      },
+      recommendations: generateRecommendations()
     }
 
     console.log('📊 Performance Report:', report)
@@ -589,7 +647,7 @@ export function initPerformanceMonitoring() {
 /**
  * Generate performance report
  */
-export function generatePerformanceReport() {
+export function generatePerformanceReport(): PerformanceReport {
   return performanceMonitor.generateReport()
 }
 
@@ -605,6 +663,29 @@ export function getPerformanceMetrics() {
  */
 export function clearPerformanceMetrics() {
   performanceMonitor.clearMetrics()
+}
+
+// Add the generateRecommendations function
+function generateRecommendations(): string[] {
+  const recommendations: string[] = [];
+  
+  // Memory recommendations
+  const memoryUsage = process.memoryUsage().heapUsed / 1024 / 1024;
+  if (memoryUsage > 500) {
+    recommendations.push('High memory usage detected - consider memory optimization');
+  }
+  
+  // Uptime recommendations
+  if (process.uptime() > 86400) { // 24 hours
+    recommendations.push('Application has been running for over 24 hours - consider scheduled restarts');
+  }
+  
+  // General performance recommendations
+  recommendations.push('Monitor database query performance regularly');
+  recommendations.push('Implement caching for frequently accessed data');
+  recommendations.push('Use React.memo for expensive components');
+  
+  return recommendations;
 }
 
 export default performanceMonitor 

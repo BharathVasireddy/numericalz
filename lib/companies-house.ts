@@ -44,6 +44,45 @@ interface CompaniesHouseConfirmationStatement {
   last_made_up_to?: string
 }
 
+interface CompaniesHouseOfficer {
+  name: string;
+  officer_role: string;
+  appointed_on?: string;
+  resigned_on?: string;
+  address?: {
+    address_line_1?: string;
+    address_line_2?: string;
+    locality?: string;
+    postal_code?: string;
+    country?: string;
+  };
+  date_of_birth?: {
+    month?: number;
+    year?: number;
+  };
+  nationality?: string;
+  occupation?: string;
+}
+
+interface CompaniesHousePersonWithSignificantControl {
+  name?: string;
+  kind: string;
+  natures_of_control?: string[];
+  notified_on?: string;
+  address?: {
+    address_line_1?: string;
+    address_line_2?: string;
+    locality?: string;
+    postal_code?: string;
+    country?: string;
+  };
+  date_of_birth?: {
+    month?: number;
+    year?: number;
+  };
+  nationality?: string;
+}
+
 export interface CompaniesHouseCompany {
   company_number: string
   company_name: string
@@ -290,4 +329,11 @@ export function formatCompanyNumber(companyNumber: string): string {
     return cleaned.replace(/(\d{2})(\d{6})/, '$1$2')
   }
   return cleaned
+}
+
+export interface CompanyData {
+  // ... existing fields ...
+  officers?: CompaniesHouseOfficer[];
+  personsWithSignificantControl?: CompaniesHousePersonWithSignificantControl[];
+  // ... existing code ...
 } 

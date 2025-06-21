@@ -127,49 +127,20 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      // PERFORMANCE OPTIMIZED: Only validate user existence periodically
-      if (session.user && token.id) {
-        // Only validate user existence every 5 minutes instead of every request
-        const lastValidated = token.lastValidated as number || 0
-        const validationInterval = 5 * 60 * 1000 // 5 minutes
-        const needsValidation = Date.now() - lastValidated > validationInterval
-
-        if (needsValidation) {
-          try {
-            // Quick user existence check without full connection cycle
-            const user = await db.user.findUnique({
-              where: { id: token.id as string },
-              select: {
-                id: true,
-                email: true,
-                name: true,
-                role: true,
-                isActive: true,
-              },
-            })
-
-            if (!user || !user.isActive) {
-              throw new Error('User account no longer exists or is deactivated')
-            }
-
-            // Update token with fresh data
-            token.email = user.email
-            token.name = user.name
-            token.role = user.role
-            token.lastValidated = Date.now()
-          } catch (error) {
-            console.error('Session validation error:', error)
-            throw new Error('Session validation failed')
-          }
+      if (token?.sub) {
+        // Validate user session
+        const isValid = await validateUserSession({ id: token.sub });
+        if (!isValid) {
+          // Force logout by returning null
+          return null as any;
         }
-
-        // Set session data from token (fast)
-        session.user.id = token.id as string
-        session.user.role = token.role as UserRole
-        session.user.email = token.email as string
-        session.user.name = token.name as string
+        
+        session.user.id = token.sub;
+        session.user.role = token.role as string;
+        session.user.name = token.name as string;
+        session.user.email = token.email as string;
       }
-      return session
+      return session;
     },
 
     async redirect({ url, baseUrl }) {
@@ -203,4 +174,43 @@ export const authOptions: NextAuthOptions = {
   },
 
   debug: false, // Disable debug for performance
-} 
+}
+
+// Enhanced session validation with additional security checks
+const validateUserSession = async (user: any) => {
+  if (!user?.id) return false;
+  
+  try {
+    // Check if user still exists and is active
+    const dbUser = await db.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        lastLoginAt: true,
+        updatedAt: true
+      }
+    });
+    
+    if (!dbUser || !dbUser.isActive) {
+      return false;
+    }
+    
+    // Check for session timeout (optional - can be configured)
+    const sessionTimeout = 8 * 60 * 60 * 1000; // 8 hours
+    const now = new Date();
+    const lastActivity = dbUser.lastLoginAt || dbUser.updatedAt;
+    
+    if (now.getTime() - lastActivity.getTime() > sessionTimeout) {
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Session validation error:', error);
+    return false;
+  }
+}; 

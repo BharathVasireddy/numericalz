@@ -36,8 +36,15 @@ try {
   redis = null
 }
 
-// In-memory cache for fast access
-const memoryCache = new Map<string, { data: any; timestamp: number; ttl: number }>()
+// Enhanced cache entry interface with proper generics
+interface CacheEntry<T = unknown> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+}
+
+// Update the memory cache type
+const memoryCache = new Map<string, CacheEntry<unknown>>()
 
 // Performance metrics
 const cacheMetrics = {
@@ -164,7 +171,7 @@ function getFromMemoryCache<T>(key: string): T | null {
     return null
   }
 
-  return cached.data
+  return cached.data as T
 }
 
 function setMemoryCache<T>(key: string, data: T, ttl: number): Promise<void> {

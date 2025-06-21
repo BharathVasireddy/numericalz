@@ -128,6 +128,27 @@ export const ComprehensiveActivityTypes = {
   RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED'
 }
 
+// Enhanced type definitions for activity middleware
+interface ClientUpdateData {
+  id?: string;
+  companyName?: string;
+  companyNumber?: string;
+  contactName?: string;
+  contactEmail?: string;
+  assignedUserId?: string;
+  isActive?: boolean;
+  [key: string]: unknown;
+}
+
+interface ActivityHelperData {
+  clientId?: string;
+  userId?: string;
+  oldData?: ClientUpdateData;
+  newData?: ClientUpdateData;
+  reason?: string;
+  metadata?: Record<string, unknown>;
+}
+
 // Helper functions for specific activity types
 export const ActivityHelpers = {
   // Client activities
@@ -140,14 +161,16 @@ export const ActivityHelpers = {
     }
   }),
 
-  clientUpdated: (clientId: string, oldData: any, newData: any) => ({
+  clientUpdated: (clientId: string, oldData: ClientUpdateData, newData: ClientUpdateData) => ({
     action: ComprehensiveActivityTypes.CLIENT_UPDATED,
     clientId,
     details: {
-      companyName: newData.companyName,
-      oldValues: oldData,
-      newValues: newData,
-      changedFields: Object.keys(newData).filter(key => oldData[key] !== newData[key])
+      oldData,
+      newData,
+      changes: Object.keys(newData).filter(key => 
+        oldData[key] !== newData[key]
+      ),
+      timestamp: new Date().toISOString(),
     }
   }),
 

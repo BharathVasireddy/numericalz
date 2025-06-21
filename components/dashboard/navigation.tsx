@@ -271,6 +271,7 @@ export function DashboardNavigation() {
             width={24}
             height={24}
             className="flex-shrink-0"
+            style={{ height: 'auto' }}
           />
         </div>
         <Button
@@ -311,6 +312,7 @@ export function DashboardNavigation() {
                 width={36}
                 height={36}
                 className="flex-shrink-0"
+                style={{ height: 'auto' }}
               />
               <div className="text-right">
                 <LondonTime />

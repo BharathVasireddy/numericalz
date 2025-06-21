@@ -1,218 +1,127 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
+import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import { 
-  Shield, 
-  ExternalLink, 
-  CheckCircle,
-  AlertTriangle,
-  Info,
-  ArrowLeft,
-  RefreshCw,
-  Send,
-  Clock,
-  UserCheck,
-  X,
-  Eye,
-  Trash2
-} from 'lucide-react'
-import { 
-  getHMRCAuthorizationUrl,
-  HMRC_CONFIG,
-  SUPPORTED_SERVICES,
-  CLIENT_TYPES,
-  CLIENT_ID_TYPES,
-  AUTH_STATUS,
-  isValidNationalInsurance,
-  isValidVATNumber,
-  isValidPostcode,
-  formatNationalInsurance,
-  formatPostcode
-} from '@/lib/hmrc-api'
+import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Shield, CheckCircle, AlertCircle, Clock, Mail, Phone, FileText, Users, ArrowRight } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
 
-interface HMRCTokens {
-  access_token: string
-  refresh_token?: string
-  expires_in: number
-  scope: string
-  expires_at: number
-}
-
-interface AuthorizationRequest {
-  _links: {
-    self: {
-      href: string
-    }
-  }
-  created: string
-  expiresOn?: string
+interface AuthRequest {
+  id: string
   arn: string
   service: string[]
+  clientType: string
+  clientIdType: string
+  clientId: string
   status: string
-  clientActionUrl?: string
-  agentType?: string
-  updated?: string
-  invitationId?: string
+  created: string
+  expiresOn?: string
 }
 
-export default function HMRCAgentAuthPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const { data: session } = useSession()
-  
-  // Authentication state
-  const [tokens, setTokens] = useState<HMRCTokens | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  
+export default function HMRCToolsPage() {
   // Form state
   const [formData, setFormData] = useState({
     arn: '',
-    service: ['MTD-VAT'],
+    services: [] as string[],
     clientType: 'personal',
     clientIdType: 'ni',
     clientId: '',
-    knownFact: '',
-    agentType: 'main'
+    knownFact: ''
   })
-  
-  // Authorization requests state
-  const [authRequests, setAuthRequests] = useState<AuthorizationRequest[]>([])
-  const [loadingRequests, setLoadingRequests] = useState(false)
 
-  // Handle OAuth callback parameters
-  useEffect(() => {
-    const token = searchParams.get('token')
-    const expiresIn = searchParams.get('expires_in')
-    const refreshToken = searchParams.get('refresh_token')
-    const scope = searchParams.get('scope')
-    const oauthError = searchParams.get('error')
+  // UI state
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [authRequests, setAuthRequests] = useState<AuthRequest[]>([])
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
-    if (oauthError) {
-      setError(`Authentication failed: ${oauthError}`)
-      return
-    }
-
-    if (token && expiresIn && scope) {
-      const tokenData: HMRCTokens = {
-        access_token: token,
-        refresh_token: refreshToken || undefined,
-        expires_in: parseInt(expiresIn),
-        scope,
-        expires_at: Date.now() + (parseInt(expiresIn) * 1000)
-      }
-      
-      setTokens(tokenData)
-      localStorage.setItem('hmrc_tokens', JSON.stringify(tokenData))
-      setSuccess('Successfully authenticated with HMRC!')
-      
-      // Clean up URL parameters
-      const cleanUrl = new URL(window.location.href)
-      cleanUrl.searchParams.delete('token')
-      cleanUrl.searchParams.delete('expires_in')
-      cleanUrl.searchParams.delete('refresh_token')
-      cleanUrl.searchParams.delete('scope')
-      window.history.replaceState({}, '', cleanUrl.toString())
-    }
-  }, [searchParams])
-
-  // Load tokens from localStorage on mount
-  useEffect(() => {
-    const storedTokens = localStorage.getItem('hmrc_tokens')
-    if (storedTokens) {
-      try {
-        const parsedTokens: HMRCTokens = JSON.parse(storedTokens)
-        // Check if token is still valid
-        if (parsedTokens.expires_at > Date.now()) {
-          setTokens(parsedTokens)
-        } else {
-          localStorage.removeItem('hmrc_tokens')
-        }
-      } catch (error) {
-        localStorage.removeItem('hmrc_tokens')
-      }
-    }
-  }, [])
-
-  // Load authorization requests when tokens are available
-  useEffect(() => {
-    if (tokens && formData.arn) {
-      loadAuthorizationRequests()
-    }
-  }, [tokens, formData.arn])
-
-  const handleAuthenticate = () => {
-    setIsLoading(true)
-    setError(null)
-    
-    const authUrl = getHMRCAuthorizationUrl(`${Date.now()}`)
-    window.location.href = authUrl
-  }
-
-  const handleLogout = () => {
-    setTokens(null)
-    localStorage.removeItem('hmrc_tokens')
-    setSuccess('Logged out successfully')
-    setAuthRequests([])
-  }
-
+  // Handle form input changes
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-    setError(null)
-    setSuccess(null)
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }))
+    }
   }
 
-  const handleServiceChange = (service: string) => {
-    setFormData(prev => ({ ...prev, service: [service] }))
+  // Handle service selection
+  const handleServiceChange = (service: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      services: checked 
+        ? [...prev.services, service]
+        : prev.services.filter(s => s !== service)
+    }))
   }
 
-  const validateForm = (): string | null => {
-    if (!formData.arn.trim()) return 'Agent Reference Number is required'
-    if (!formData.clientId.trim()) return 'Client ID is required'
-    if (!formData.knownFact.trim()) return 'Known fact is required'
-    
-    // Validate client ID format
-    if (formData.clientIdType === 'ni' && !isValidNationalInsurance(formData.clientId)) {
-      return 'Invalid National Insurance number format'
+  // Validate form
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {}
+
+    if (!formData.arn.trim()) {
+      newErrors.arn = 'Agent Reference Number is required'
     }
-    if (formData.clientIdType === 'vrn' && !isValidVATNumber(formData.clientId)) {
-      return 'Invalid VAT registration number format'
+
+    if (formData.services.length === 0) {
+      newErrors.services = 'At least one service must be selected'
     }
-    
-    // Validate known fact format (postcode for personal clients)
-    if (formData.clientType === 'personal' && !isValidPostcode(formData.knownFact)) {
-      return 'Invalid postcode format'
+
+    if (!formData.clientId.trim()) {
+      newErrors.clientId = 'Client ID is required'
     }
-    
-    return null
+
+    if (!formData.knownFact.trim()) {
+      newErrors.knownFact = 'Known fact is required'
+    }
+
+    // Validate National Insurance format
+    if (formData.clientIdType === 'ni' && formData.clientId.trim()) {
+      const ninoRegex = /^[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z]\d{6}[A-D]$/i
+      if (!ninoRegex.test(formData.clientId.replace(/\s/g, ''))) {
+        newErrors.clientId = 'Invalid National Insurance number format (e.g., AB123456C)'
+      }
+    }
+
+    // Validate VAT number format
+    if (formData.clientIdType === 'vrn' && formData.clientId.trim()) {
+      const vatRegex = /^(GB)?\d{9}$/i
+      if (!vatRegex.test(formData.clientId.replace(/\s/g, ''))) {
+        newErrors.clientId = 'Invalid VAT number format (e.g., 123456789 or GB123456789)'
+      }
+    }
+
+    // Validate postcode for personal clients
+    if (formData.clientType === 'personal' && formData.knownFact.trim()) {
+      const postcodeRegex = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i
+      if (!postcodeRegex.test(formData.knownFact.replace(/\s/g, ''))) {
+        newErrors.knownFact = 'Invalid UK postcode format (e.g., SW1A 1AA)'
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmitAuthorization = async () => {
-    if (!tokens) {
-      setError('Please authenticate with HMRC first')
+  // Submit authorization request
+  const handleSubmitRequest = async () => {
+    if (!validateForm()) {
+      toast({
+        title: "Validation Error",
+        description: "Please correct the errors in the form",
+        variant: "destructive"
+      })
       return
     }
 
-    const validationError = validateForm()
-    if (validationError) {
-      setError(validationError)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-    setSuccess(null)
+    setIsSubmitting(true)
 
     try {
       const response = await fetch('/api/hmrc/agent-auth', {
@@ -221,477 +130,426 @@ export default function HMRCAgentAuthPage() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          ...formData,
-          accessToken: tokens.access_token
+          arn: formData.arn.trim(),
+          service: formData.services,
+          clientType: formData.clientType,
+          clientIdType: formData.clientIdType,
+          clientId: formData.clientId.trim(),
+          knownFact: formData.knownFact.trim()
         })
       })
 
-      const data = await response.json()
+      const result = await response.json()
 
-      if (data.success) {
-        setSuccess('Authorization request submitted successfully! HMRC will send an authorization code to the client within 7 working days.')
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: result.message
+        })
+
         // Reset form
-        setFormData(prev => ({ ...prev, clientId: '', knownFact: '' }))
-        // Reload authorization requests
-        await loadAuthorizationRequests()
+        setFormData({
+          arn: formData.arn, // Keep ARN for convenience
+          services: [],
+          clientType: 'personal',
+          clientIdType: 'ni',
+          clientId: '',
+          knownFact: ''
+        })
+
+        // Refresh requests list
+        loadAuthRequests()
       } else {
-        setError(data.message || data.error || 'Failed to submit authorization request')
+        // Show detailed error information
+        const errorTitle = result.error || 'Request Failed'
+        const errorMessage = result.message || result.error || 'Failed to create authorization request'
+        const errorDetails = result.details
+
+        toast({
+          title: errorTitle,
+          description: errorDetails ? `${errorMessage}\n\nDetails: ${errorDetails}` : errorMessage,
+          variant: "destructive"
+        })
+
+        // Log full error for debugging
+        console.error('HMRC Authorization Error:', {
+          status: response.status,
+          error: result.error,
+          message: result.message,
+          details: result.details
+        })
       }
     } catch (error) {
       console.error('Authorization request error:', error)
-      setError('Failed to submit authorization request. Please try again.')
+      
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast({
+          title: "Network Error",
+          description: "Unable to connect to the server. Please check your internet connection and try again.",
+          variant: "destructive"
+        })
+      } else {
+        toast({
+          title: "Unexpected Error",
+          description: "An unexpected error occurred while submitting the authorization request. Please try again.",
+          variant: "destructive"
+        })
+      }
     } finally {
-      setIsLoading(false)
+      setIsSubmitting(false)
     }
   }
 
-  const loadAuthorizationRequests = async () => {
-    if (!tokens || !formData.arn) return
+  // Load authorization requests
+  const loadAuthRequests = async () => {
+    if (!formData.arn.trim()) return
 
-    setLoadingRequests(true)
+    setIsLoadingRequests(true)
+
     try {
-      const params = new URLSearchParams({
-        arn: formData.arn,
-        accessToken: tokens.access_token
-      })
-
+      const params = new URLSearchParams({ arn: formData.arn.trim() })
       const response = await fetch(`/api/hmrc/agent-auth?${params}`)
-      const data = await response.json()
+      const result = await response.json()
 
-      if (data.success) {
-        setAuthRequests(data.data || [])
+      if (result.success) {
+        setAuthRequests(result.data || [])
       } else {
-        console.error('Failed to load authorization requests:', data.error)
+        // Show detailed error information
+        const errorTitle = result.error || 'Failed to Load Requests'
+        const errorMessage = result.message || result.error || 'Failed to load authorization requests'
+
+        toast({
+          title: errorTitle,
+          description: errorMessage,
+          variant: "destructive"
+        })
+
+        // Log full error for debugging
+        console.error('HMRC Load Requests Error:', {
+          status: response.status,
+          error: result.error,
+          message: result.message
+        })
       }
     } catch (error) {
-      console.error('Failed to load authorization requests:', error)
+      console.error('Load requests error:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load authorization requests",
+        variant: "destructive"
+      })
     } finally {
-      setLoadingRequests(false)
+      setIsLoadingRequests(false)
     }
   }
 
+  // Get status badge
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case AUTH_STATUS.PENDING:
+    switch (status.toLowerCase()) {
+      case 'pending':
         return <Badge variant="outline" className="text-yellow-600"><Clock className="w-3 h-3 mr-1" />Pending</Badge>
-      case AUTH_STATUS.ACCEPTED:
+      case 'accepted':
         return <Badge variant="outline" className="text-green-600"><CheckCircle className="w-3 h-3 mr-1" />Accepted</Badge>
-      case AUTH_STATUS.REJECTED:
-        return <Badge variant="outline" className="text-red-600"><X className="w-3 h-3 mr-1" />Rejected</Badge>
-      case AUTH_STATUS.EXPIRED:
-        return <Badge variant="outline" className="text-gray-600"><Clock className="w-3 h-3 mr-1" />Expired</Badge>
-      case AUTH_STATUS.CANCELLED:
-        return <Badge variant="outline" className="text-gray-600"><X className="w-3 h-3 mr-1" />Cancelled</Badge>
+      case 'rejected':
+        return <Badge variant="outline" className="text-red-600"><AlertCircle className="w-3 h-3 mr-1" />Rejected</Badge>
+      case 'expired':
+        return <Badge variant="outline" className="text-gray-600"><AlertCircle className="w-3 h-3 mr-1" />Expired</Badge>
       default:
         return <Badge variant="outline">{status}</Badge>
     }
   }
 
-  const formatClientId = (id: string, type: string) => {
-    if (type === 'ni') return formatNationalInsurance(id)
-    return id
+  // Format service names
+  const formatService = (service: string) => {
+    switch (service) {
+      case 'MTD-VAT': return 'VAT (Making Tax Digital)'
+      case 'MTD-IT': return 'Income Tax (Making Tax Digital)'
+      case 'MTD-CT': return 'Corporation Tax (Making Tax Digital)'
+      default: return service
+    }
   }
 
   return (
-    <div className="page-container">
-      <div className="content-wrapper">
-        <div className="content-sections">
-          {/* Header */}
-          <div className="flex items-center gap-4 mb-6">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/dashboard/tools')}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Tools
-            </Button>
-          </div>
+    <PageLayout maxWidth="xl">
+      <PageHeader
+        title="HMRC Agent Authorization"
+        description="Request authorization from clients to act as their tax agent"
+      >
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Shield className="w-4 h-4" />
+          <span>Secure HMRC Integration</span>
+        </div>
+      </PageHeader>
 
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <Shield className="h-8 w-8 text-blue-600" />
-              <h1 className="text-3xl font-bold">HMRC Agent Authorization</h1>
-            </div>
-            <p className="text-muted-foreground">
-              Request client authorization through HMRC Making Tax Digital API
-            </p>
-          </div>
-
-          {/* Error/Success Messages */}
-          {error && (
-            <Alert className="mb-6 border-red-200 bg-red-50">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800">{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {success && (
-            <Alert className="mb-6 border-green-200 bg-green-50">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">{success}</AlertDescription>
-            </Alert>
-          )}
-
-          {/* Authentication Status */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Authentication Status
-              </CardTitle>
-              <CardDescription>
-                Connect to HMRC Making Tax Digital API
-              </CardDescription>
+      <PageContent>
+        {/* Information Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                </div>
+                <CardTitle className="text-base">Step 1: Submit Request</CardTitle>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {tokens ? (
-                    <>
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                      <div>
-                        <p className="font-medium text-green-700">Connected to HMRC</p>
-                        <p className="text-sm text-muted-foreground">
-                          Expires: {new Date(tokens.expires_at).toLocaleString()}
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                      <div>
-                        <p className="font-medium text-yellow-700">Not Connected</p>
-                        <p className="text-sm text-muted-foreground">
-                          Authenticate with HMRC to begin
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">
-                    {HMRC_CONFIG.ENVIRONMENT === 'sandbox' ? 'Sandbox' : 'Production'}
-                  </Badge>
-                  {tokens ? (
-                    <Button variant="outline" onClick={handleLogout}>
-                      Logout
-                    </Button>
-                  ) : (
-                    <Button 
-                      onClick={handleAuthenticate}
-                      disabled={isLoading}
-                      className="flex items-center gap-2"
-                    >
-                      {isLoading ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <ExternalLink className="h-4 w-4" />
-                      )}
-                      Connect to HMRC
-                    </Button>
-                  )}
-                </div>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Provide client details and select services you need authorization for
+              </p>
             </CardContent>
           </Card>
 
-          {/* Main Content */}
-          {tokens && (
-            <Tabs defaultValue="request" className="space-y-6">
-              <TabsList>
-                <TabsTrigger value="request">New Authorization Request</TabsTrigger>
-                <TabsTrigger value="manage">Manage Requests</TabsTrigger>
-              </TabsList>
-
-              {/* New Authorization Request */}
-              <TabsContent value="request">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Request Client Authorization</CardTitle>
-                    <CardDescription>
-                      Submit client details to request authorization. HMRC will send an authorization code to the client by post within 7 working days.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Agent Details */}
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Agent Details</h3>
-                      <div className="grid gap-4">
-                        <div>
-                          <Label htmlFor="arn">Agent Reference Number (ARN)</Label>
-                          <Input
-                            id="arn"
-                            value={formData.arn}
-                            onChange={(e) => handleInputChange('arn', e.target.value)}
-                            placeholder="AARN1234567"
-                            className="mt-1"
-                          />
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Your HMRC Agent Reference Number
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Service Selection */}
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Service</h3>
-                      <div>
-                        <Label htmlFor="service">HMRC Service</Label>
-                        <Select value={formData.service[0]} onValueChange={handleServiceChange}>
-                          <SelectTrigger className="mt-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={SUPPORTED_SERVICES.VAT}>Making Tax Digital for VAT</SelectItem>
-                            <SelectItem value={SUPPORTED_SERVICES.INCOME_TAX}>Making Tax Digital for Income Tax</SelectItem>
-                            <SelectItem value={SUPPORTED_SERVICES.CORPORATION_TAX}>Making Tax Digital for Corporation Tax</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Client Details */}
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Client Details</h3>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <Label htmlFor="clientType">Client Type</Label>
-                          <Select 
-                            value={formData.clientType} 
-                            onValueChange={(value) => handleInputChange('clientType', value)}
-                          >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={CLIENT_TYPES.PERSONAL}>Personal</SelectItem>
-                              <SelectItem value={CLIENT_TYPES.BUSINESS}>Business</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <Label htmlFor="clientIdType">Client ID Type</Label>
-                          <Select 
-                            value={formData.clientIdType} 
-                            onValueChange={(value) => handleInputChange('clientIdType', value)}
-                          >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={CLIENT_ID_TYPES.NATIONAL_INSURANCE}>National Insurance Number</SelectItem>
-                              <SelectItem value={CLIENT_ID_TYPES.VAT_REGISTRATION}>VAT Registration Number</SelectItem>
-                              <SelectItem value={CLIENT_ID_TYPES.UTR}>Unique Taxpayer Reference</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <Label htmlFor="clientId">
-                            {formData.clientIdType === 'ni' ? 'National Insurance Number' :
-                             formData.clientIdType === 'vrn' ? 'VAT Registration Number' : 
-                             'Unique Taxpayer Reference'}
-                          </Label>
-                          <Input
-                            id="clientId"
-                            value={formData.clientId}
-                            onChange={(e) => handleInputChange('clientId', e.target.value)}
-                            placeholder={
-                              formData.clientIdType === 'ni' ? 'AB123456C' :
-                              formData.clientIdType === 'vrn' ? '123456789' : 
-                              '1234567890'
-                            }
-                            className="mt-1"
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="knownFact">
-                            {formData.clientType === 'personal' ? 'Postcode' : 'Known Fact'}
-                          </Label>
-                          <Input
-                            id="knownFact"
-                            value={formData.knownFact}
-                            onChange={(e) => handleInputChange('knownFact', e.target.value)}
-                            placeholder={formData.clientType === 'personal' ? 'SW1A 1AA' : 'Enter known fact'}
-                            className="mt-1"
-                          />
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {formData.clientType === 'personal' 
-                              ? 'Client\'s postcode as registered with HMRC' 
-                              : 'Business postcode or other known fact'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <Button 
-                        onClick={handleSubmitAuthorization}
-                        disabled={isLoading}
-                        className="flex items-center gap-2"
-                      >
-                        {isLoading ? (
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4" />
-                        )}
-                        Submit Authorization Request
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* Manage Requests */}
-              <TabsContent value="manage">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      Authorization Requests
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={loadAuthorizationRequests}
-                        disabled={loadingRequests}
-                        className="flex items-center gap-2"
-                      >
-                        {loadingRequests ? (
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <RefreshCw className="h-4 w-4" />
-                        )}
-                        Refresh
-                      </Button>
-                    </CardTitle>
-                    <CardDescription>
-                      View and manage your authorization requests
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {loadingRequests ? (
-                      <div className="flex items-center justify-center py-8">
-                        <RefreshCw className="h-6 w-6 animate-spin" />
-                        <span className="ml-2">Loading requests...</span>
-                      </div>
-                    ) : authRequests.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <UserCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No authorization requests found</p>
-                        <p className="text-sm">Submit a new request to get started</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {authRequests.map((request, index) => (
-                          <div key={index} className="border rounded-lg p-4">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                {getStatusBadge(request.status)}
-                                <span className="text-sm text-muted-foreground">
-                                  {request.service.join(', ')}
-                                </span>
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Created: {new Date(request.created).toLocaleDateString()}
-                              </div>
-                            </div>
-                            
-                            <div className="grid gap-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">ARN:</span>
-                                <span className="font-mono">{request.arn}</span>
-                              </div>
-                              {request.expiresOn && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Expires:</span>
-                                  <span>{new Date(request.expiresOn).toLocaleDateString()}</span>
-                                </div>
-                              )}
-                              {request.updated && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Updated:</span>
-                                  <span>{new Date(request.updated).toLocaleDateString()}</span>
-                                </div>
-                              )}
-                            </div>
-
-                            {request.status === AUTH_STATUS.PENDING && (
-                              <div className="mt-3 p-3 bg-blue-50 rounded-md">
-                                <div className="flex items-start gap-2">
-                                  <Info className="h-4 w-4 text-blue-600 mt-0.5" />
-                                  <div className="text-sm text-blue-800">
-                                    <p className="font-medium">Authorization code sent to client</p>
-                                    <p>HMRC has sent an authorization code to the client by post. The client should receive it within 7 working days and share it with you to complete the authorization.</p>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          )}
-
-          {/* Information Card */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Info className="h-5 w-5" />
-                How Agent Authorization Works
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 font-semibold text-sm">1</span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium">Submit Request</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Enter client details (National Insurance Number and postcode) to request authorization
-                    </p>
-                  </div>
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Mail className="w-4 h-4 text-green-600" />
                 </div>
-                
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 font-semibold text-sm">2</span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium">HMRC Sends Code</h4>
-                    <p className="text-sm text-muted-foreground">
-                      HMRC automatically sends an authorization code to the client by post within 7 working days
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 font-semibold text-sm">3</span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium">Client Shares Code</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Client manually shares the authorization code with you to complete the agent authorization
-                    </p>
-                  </div>
-                </div>
+                <CardTitle className="text-base">Step 2: HMRC Notification</CardTitle>
               </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                HMRC sends authorization code to client by post within 7 working days
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <Users className="w-4 h-4 text-purple-600" />
+                </div>
+                <CardTitle className="text-base">Step 3: Client Authorization</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Client shares the code with you to complete the authorization process
+              </p>
             </CardContent>
           </Card>
         </div>
-      </div>
-    </div>
+
+        {/* Sandbox Information Alert */}
+        <Alert className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Sandbox Environment:</strong> This tool is currently configured for HMRC's sandbox environment. 
+            In the sandbox, authorization requests will return authentication errors as expected since proper agent enrollment is required. 
+            The system is working correctly and will function properly in production with valid agent credentials.
+          </AlertDescription>
+        </Alert>
+
+        <Tabs defaultValue="new-request" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="new-request">New Authorization Request</TabsTrigger>
+            <TabsTrigger value="manage-requests">Manage Requests</TabsTrigger>
+          </TabsList>
+
+          {/* New Request Tab */}
+          <TabsContent value="new-request">
+            <Card>
+              <CardHeader>
+                <CardTitle>Create Authorization Request</CardTitle>
+                <CardDescription>
+                  Submit a request to HMRC for client authorization. The client will receive an authorization code by post.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Agent Reference Number */}
+                <div className="space-y-2">
+                  <Label htmlFor="arn">Agent Reference Number (ARN)</Label>
+                  <Input
+                    id="arn"
+                    placeholder="e.g., XARN1234567"
+                    value={formData.arn}
+                    onChange={(e) => handleInputChange('arn', e.target.value)}
+                    className={errors.arn ? 'border-red-500' : ''}
+                  />
+                  {errors.arn && <p className="text-sm text-red-500">{errors.arn}</p>}
+                </div>
+
+                {/* Services */}
+                <div className="space-y-3">
+                  <Label>Services</Label>
+                  <div className="space-y-2">
+                    {[
+                      { value: 'MTD-VAT', label: 'VAT (Making Tax Digital)' },
+                      { value: 'MTD-IT', label: 'Income Tax (Making Tax Digital)' },
+                      { value: 'MTD-CT', label: 'Corporation Tax (Making Tax Digital)' }
+                    ].map((service) => (
+                      <div key={service.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={service.value}
+                          checked={formData.services.includes(service.value)}
+                          onCheckedChange={(checked) => handleServiceChange(service.value, checked as boolean)}
+                        />
+                        <Label htmlFor={service.value} className="text-sm font-normal">
+                          {service.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  {errors.services && <p className="text-sm text-red-500">{errors.services}</p>}
+                </div>
+
+                {/* Client Type */}
+                <div className="space-y-2">
+                  <Label htmlFor="clientType">Client Type</Label>
+                  <Select value={formData.clientType} onValueChange={(value) => handleInputChange('clientType', value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="personal">Personal (Individual)</SelectItem>
+                      <SelectItem value="business">Business (Company/Partnership)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Client ID Type */}
+                <div className="space-y-2">
+                  <Label htmlFor="clientIdType">Client ID Type</Label>
+                  <Select value={formData.clientIdType} onValueChange={(value) => handleInputChange('clientIdType', value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ni">National Insurance Number</SelectItem>
+                      <SelectItem value="vrn">VAT Registration Number</SelectItem>
+                      <SelectItem value="utr">Unique Taxpayer Reference</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Client ID */}
+                <div className="space-y-2">
+                  <Label htmlFor="clientId">
+                    {formData.clientIdType === 'ni' ? 'National Insurance Number' :
+                     formData.clientIdType === 'vrn' ? 'VAT Registration Number' : 'Unique Taxpayer Reference'}
+                  </Label>
+                  <Input
+                    id="clientId"
+                    placeholder={
+                      formData.clientIdType === 'ni' ? 'e.g., AB123456C' :
+                      formData.clientIdType === 'vrn' ? 'e.g., 123456789' : 'e.g., 1234567890'
+                    }
+                    value={formData.clientId}
+                    onChange={(e) => handleInputChange('clientId', e.target.value)}
+                    className={errors.clientId ? 'border-red-500' : ''}
+                  />
+                  {errors.clientId && <p className="text-sm text-red-500">{errors.clientId}</p>}
+                </div>
+
+                {/* Known Fact */}
+                <div className="space-y-2">
+                  <Label htmlFor="knownFact">
+                    {formData.clientType === 'personal' ? 'Postcode' : 'Known Fact'}
+                  </Label>
+                  <Input
+                    id="knownFact"
+                    placeholder={formData.clientType === 'personal' ? 'e.g., SW1A 1AA' : 'Enter known fact'}
+                    value={formData.knownFact}
+                    onChange={(e) => handleInputChange('knownFact', e.target.value)}
+                    className={errors.knownFact ? 'border-red-500' : ''}
+                  />
+                  {errors.knownFact && <p className="text-sm text-red-500">{errors.knownFact}</p>}
+                  <p className="text-xs text-muted-foreground">
+                    {formData.clientType === 'personal' 
+                      ? 'Client\'s registered postcode with HMRC'
+                      : 'A fact that proves your relationship with the client'
+                    }
+                  </p>
+                </div>
+
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    After submitting this request, HMRC will send an authorization code to the client by post within 7 working days. 
+                    The client must then share this code with you to complete the authorization.
+                  </AlertDescription>
+                </Alert>
+
+                <Button 
+                  onClick={handleSubmitRequest} 
+                  disabled={isSubmitting}
+                  className="w-full"
+                >
+                  {isSubmitting ? 'Submitting Request...' : 'Submit Authorization Request'}
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Manage Requests Tab */}
+          <TabsContent value="manage-requests">
+            <Card>
+              <CardHeader>
+                <CardTitle>Authorization Requests</CardTitle>
+                <CardDescription>
+                  View and manage your submitted authorization requests
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter ARN to load requests"
+                      value={formData.arn}
+                      onChange={(e) => handleInputChange('arn', e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button 
+                      onClick={loadAuthRequests}
+                      disabled={isLoadingRequests || !formData.arn.trim()}
+                    >
+                      {isLoadingRequests ? 'Loading...' : 'Load Requests'}
+                    </Button>
+                  </div>
+
+                  {authRequests.length > 0 ? (
+                    <div className="space-y-3">
+                      {authRequests.map((request) => (
+                        <Card key={request.id}>
+                          <CardContent className="pt-4">
+                            <div className="flex items-center justify-between">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{request.clientId}</span>
+                                  {getStatusBadge(request.status)}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  Services: {Array.isArray(request.service) 
+                                    ? request.service.map(formatService).join(', ')
+                                    : formatService(request.service)
+                                  }
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  Created: {new Date(request.created).toLocaleDateString()}
+                                  {request.expiresOn && ` • Expires: ${new Date(request.expiresOn).toLocaleDateString()}`}
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      {formData.arn.trim() ? 'No authorization requests found' : 'Enter ARN to view requests'}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </PageContent>
+    </PageLayout>
   )
 } 

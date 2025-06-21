@@ -35,6 +35,36 @@ interface ClientDetailViewProps {
   currentUser: any
 }
 
+// Enhanced type definitions for Companies House data
+interface OfficerData {
+  name: string;
+  officer_role: string;
+  appointed_on?: string;
+  resigned_on?: string;
+  nationality?: string;
+  occupation?: string;
+  address?: {
+    address_line_1?: string;
+    address_line_2?: string;
+    locality?: string;
+    postal_code?: string;
+  };
+}
+
+interface PSCData {
+  name?: string;
+  kind: string;
+  natures_of_control?: string[];
+  notified_on?: string;
+  ceased_on?: string;
+  address?: {
+    address_line_1?: string;
+    address_line_2?: string;
+    locality?: string;
+    postal_code?: string;
+  };
+}
+
 /**
  * Client detail view component
  * 
@@ -1014,7 +1044,7 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                     try {
                       const officers = JSON.parse(client.officers)
                       if (officers.items && officers.items.length > 0) {
-                        return officers.items.map((officer: any, index: number) => {
+                        return officers.items.map((officer: OfficerData, index: number) => {
                           // Determine officer status
                           const isResigned = officer.resigned_on
                           const status = isResigned ? 'Resigned' : 'Active'
@@ -1087,7 +1117,7 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                     try {
                       const psc = JSON.parse(client.personsWithSignificantControl)
                       if (psc.items && psc.items.length > 0) {
-                        return psc.items.map((person: any, index: number) => {
+                        return psc.items.map((person: PSCData, index: number) => {
                           // Determine PSC status
                           const isCeased = person.ceased_on
                           const status = isCeased ? 'Ceased' : 'Active'

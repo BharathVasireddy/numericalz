@@ -9,6 +9,35 @@ interface ActivityLogData {
   userAgent?: string
 }
 
+// Enhanced type definitions for better type safety
+interface ActivityDetails {
+  action?: string;
+  timestamp?: string;
+  metadata?: Record<string, unknown>;
+  oldValue?: unknown;
+  newValue?: unknown;
+  reason?: string;
+  [key: string]: unknown;
+}
+
+interface ClientActivityDetails extends ActivityDetails {
+  clientId?: string;
+  clientName?: string;
+  companyNumber?: string;
+  assignedUser?: {
+    id: string;
+    name: string;
+  };
+}
+
+interface UserActivityDetails extends ActivityDetails {
+  userId?: string;
+  userName?: string;
+  role?: string;
+  targetUserId?: string;
+  targetUserName?: string;
+}
+
 /**
  * Log user activity to the database
  * 
@@ -115,9 +144,8 @@ export function getUserAgent(request: Request): string {
 export async function logClientActivity(
   userId: string,
   action: string,
-  clientId: string,
-  clientName?: string,
-  details?: any,
+  clientId?: string,
+  details?: ClientActivityDetails,
   request?: Request
 ): Promise<boolean> {
   return logActivity({
@@ -125,7 +153,6 @@ export async function logClientActivity(
     action,
     clientId,
     details: {
-      clientName,
       ...details
     },
     ipAddress: request ? getClientIP(request) : undefined,
@@ -146,16 +173,15 @@ export async function logClientActivity(
 export async function logUserActivity(
   performedBy: string,
   action: string,
-  targetUserId: string,
+  targetUserId?: string,
   targetUserName?: string,
-  details?: any,
+  details?: UserActivityDetails,
   request?: Request
 ): Promise<boolean> {
   return logActivity({
     userId: performedBy,
     action,
     details: {
-      targetUserName,
       ...details
     },
     ipAddress: request ? getClientIP(request) : undefined,
@@ -174,7 +200,7 @@ export async function logUserActivity(
 export async function logSystemActivity(
   userId: string,
   action: string,
-  details?: any,
+  details?: ActivityDetails,
   request?: Request
 ): Promise<boolean> {
   return logActivity({

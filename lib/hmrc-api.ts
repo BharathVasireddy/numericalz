@@ -1,7 +1,7 @@
 /**
  * HMRC Agent Authorisation API Client
  * 
- * Implements the HMRC Agent Authorisation flow for requesting client authorization
+ * Implements application-restricted endpoints using client credentials grant
  * Documentation: https://developer.service.hmrc.gov.uk/api-documentation/docs/api/service/agent-authorisation-api/1.0
  */
 
@@ -11,14 +11,8 @@ export const HMRC_CONFIG = {
   CLIENT_SECRET: '416b9226-1736-4026-93fb-949fed59655e',
   SANDBOX_URL: 'https://test-api.service.hmrc.gov.uk',
   PRODUCTION_URL: 'https://api.service.hmrc.gov.uk',
-  ENVIRONMENT: 'sandbox',
-  REDIRECT_URI: 'http://localhost:3000/dashboard/tools/hmrc'
+  ENVIRONMENT: 'sandbox'
 }
-
-// OAuth 2.0 Scopes for Agent Authorisation
-export const HMRC_SCOPES = {
-  AGENT_AUTH: 'read:agent-authorisation write:agent-authorisation'
-} as const
 
 // Supported services for agent authorization
 export const SUPPORTED_SERVICES = {
@@ -56,8 +50,7 @@ export interface HMRCTokenResponse {
   access_token: string
   token_type: string
   expires_in: number
-  refresh_token?: string
-  scope: string
+  scope?: string
 }
 
 export interface AgentAuthRequest {
@@ -91,25 +84,10 @@ export interface HMRCError {
 }
 
 /**
- * Generate HMRC OAuth 2.0 authorization URL
+ * Get application access token using client credentials grant
+ * This is for application-restricted endpoints
  */
-export function getHMRCAuthorizationUrl(state?: string): string {
-  const baseUrl = `${HMRC_CONFIG.SANDBOX_URL}/oauth/authorize`
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: HMRC_CONFIG.CLIENT_ID,
-    scope: HMRC_SCOPES.AGENT_AUTH,
-    redirect_uri: HMRC_CONFIG.REDIRECT_URI,
-    ...(state && { state })
-  })
-  
-  return `${baseUrl}?${params.toString()}`
-}
-
-/**
- * Exchange authorization code for access token
- */
-export async function exchangeCodeForToken(code: string): Promise<HMRCTokenResponse> {
+export async function getApplicationToken(): Promise<HMRCTokenResponse> {
   const response = await fetch(`${HMRC_CONFIG.SANDBOX_URL}/oauth/token`, {
     method: 'POST',
     headers: {
@@ -117,35 +95,7 @@ export async function exchangeCodeForToken(code: string): Promise<HMRCTokenRespo
       'Accept': 'application/json'
     },
     body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      client_id: HMRC_CONFIG.CLIENT_ID,
-      client_secret: HMRC_CONFIG.CLIENT_SECRET,
-      redirect_uri: HMRC_CONFIG.REDIRECT_URI
-    })
-  })
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Token exchange failed: ${error}`)
-  }
-
-  return await response.json()
-}
-
-/**
- * Refresh access token
- */
-export async function refreshHMRCToken(refreshToken: string): Promise<HMRCTokenResponse> {
-  const response = await fetch(`${HMRC_CONFIG.SANDBOX_URL}/oauth/token`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'application/json'
-    },
-    body: new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: refreshToken,
+      grant_type: 'client_credentials',
       client_id: HMRC_CONFIG.CLIENT_ID,
       client_secret: HMRC_CONFIG.CLIENT_SECRET
     })
@@ -153,7 +103,7 @@ export async function refreshHMRCToken(refreshToken: string): Promise<HMRCTokenR
 
   if (!response.ok) {
     const error = await response.text()
-    throw new Error(`Token refresh failed: ${error}`)
+    throw new Error(`Token request failed: ${error}`)
   }
 
   return await response.json()
@@ -394,9 +344,7 @@ export function formatPostcode(postcode: string): string {
 }
 
 export default {
-  getHMRCAuthorizationUrl,
-  exchangeCodeForToken,
-  refreshHMRCToken,
+  getApplicationToken,
   createAgentAuthorisation,
   getAgentAuthorisations,
   getAgentAuthorisation,
@@ -407,7 +355,6 @@ export default {
   isValidPostcode,
   formatNationalInsurance,
   formatPostcode,
-  HMRC_SCOPES,
   HMRC_CONFIG,
   SUPPORTED_SERVICES,
   CLIENT_TYPES,
