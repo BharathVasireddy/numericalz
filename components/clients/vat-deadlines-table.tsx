@@ -186,6 +186,7 @@ export function VATDeadlinesTable() {
   const [showBackwardStageConfirm, setShowBackwardStageConfirm] = useState(false)
   const [showActivityLogModal, setShowActivityLogModal] = useState(false)
   const [activityLogClient, setActivityLogClient] = useState<VATClient | null>(null)
+  const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all')
 
   // Get current month for default tab
   const currentMonth = new Date().getMonth() + 1
@@ -243,16 +244,47 @@ export function VATDeadlinesTable() {
     fetchUsers()
   }, [fetchVATClients, fetchUsers])
 
-  // Get clients for specific filing month
+  // Helper function to check if client matches user filter
+  const clientMatchesUserFilter = useCallback((client: VATClient) => {
+    if (selectedUserFilter === 'all') return true
+    
+    if (selectedUserFilter === 'unassigned') {
+      // Check if client has no VAT assignment (client-level only for now)
+      return !client.vatAssignedUser?.id
+    } else {
+      // Check if client is assigned to specific user (client-level)
+      return client.vatAssignedUser?.id === selectedUserFilter
+    }
+  }, [selectedUserFilter])
+
+  // Get clients for specific filing month with user filtering
   const getClientsForMonth = useCallback((monthNumber: number) => {
     if (!vatClients || !Array.isArray(vatClients)) return []
     
     return vatClients.filter(client => {
       if (!client.vatQuarterGroup) return false
       
-      return isVATFilingMonth(client.vatQuarterGroup, monthNumber)
+      // First check if client files in this month
+      if (!isVATFilingMonth(client.vatQuarterGroup, monthNumber)) return false
+      
+      // Then apply user filter
+      return clientMatchesUserFilter(client)
     })
-  }, [vatClients])
+  }, [vatClients, clientMatchesUserFilter])
+
+  // Calculate VAT client counts per user for filter display
+  const userVATClientCounts = users.reduce((acc, user) => {
+    const clientCount = vatClients.filter(client => 
+      client.vatAssignedUser?.id === user.id
+    ).length
+    acc[user.id] = clientCount
+    return acc
+  }, {} as Record<string, number>)
+
+  // Count unassigned VAT clients
+  const unassignedVATCount = vatClients.filter(client => 
+    !client.vatAssignedUser?.id
+  ).length
 
   // Get quarter that files in a specific month for a client
   const getQuarterForMonth = useCallback((client: VATClient, monthNumber: number): VATQuarter | null => {
@@ -1150,6 +1182,58 @@ export function VATDeadlinesTable() {
                     Refresh Data
                   </Button>
                 </div>
+              </div>
+            </div>
+
+            {/* User Filter */}
+            <div className="flex justify-end">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="vat-user-filter" className="text-sm font-medium whitespace-nowrap">
+                  Filter by User:
+                </Label>
+                <Select value={selectedUserFilter} onValueChange={setSelectedUserFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Select user..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-gray-600" />
+                        <span>All Users ({vatClients.length})</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="unassigned">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-gray-400" />
+                        <span>Unassigned ({unassignedVATCount})</span>
+                      </div>
+                    </SelectItem>
+                    {users
+                      .filter(user => userVATClientCounts[user.id] > 0)
+                      .sort((a, b) => (userVATClientCounts[b.id] || 0) - (userVATClientCounts[a.id] || 0))
+                      .map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-blue-600" />
+                          <span>{user.name}</span>
+                          <span className="text-xs text-muted-foreground">({userVATClientCounts[user.id]})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    {users
+                      .filter(user => userVATClientCounts[user.id] === 0)
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-500">{user.name}</span>
+                          <span className="text-xs text-muted-foreground">(0)</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

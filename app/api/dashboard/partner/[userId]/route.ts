@@ -31,12 +31,12 @@ export async function GET(
 
     // Get all active clients with necessary data
     const allClients = await db.client.findMany({
-      where: { isActive: true },
-      include: {
-        assignedUser: {
-          select: { id: true, name: true, role: true }
-        },
-        vatQuartersWorkflow: {
+        where: { isActive: true },
+        include: {
+          assignedUser: {
+            select: { id: true, name: true, role: true }
+          },
+          vatQuartersWorkflow: {
           where: { 
             filingDueDate: {
               gte: startOfMonth,
@@ -44,21 +44,21 @@ export async function GET(
             }
           },
           orderBy: { quarterEndDate: 'asc' }
+          }
         }
-      }
     })
 
     // Get all users with their client counts
     const allUsers = await db.user.findMany({
-      where: { isActive: true },
-      include: {
-        _count: {
-          select: {
-            assignedClients: {
-              where: { isActive: true }
+            where: { isActive: true },
+            include: {
+          _count: {
+            select: {
+              assignedClients: {
+                where: { isActive: true }
+              }
             }
           }
-        }
       },
       orderBy: [
         { role: 'asc' },
@@ -76,8 +76,8 @@ export async function GET(
 
     // 2. STAFF WORKLOAD
     const staffWorkload = allUsers.map(user => ({
-      id: user.id,
-      name: user.name || 'Unknown',
+        id: user.id,
+        name: user.name || 'Unknown',
       role: user.role,
       clientCount: user._count.assignedClients
     }))
@@ -110,8 +110,8 @@ export async function GET(
         const confirmationDue = new Date(client.nextConfirmationDue)
         if (confirmationDue >= startOfMonth && confirmationDue <= endOfMonth) {
           monthlyDeadlines.cs++
-        }
       }
+    }
 
       // Corporation Tax
       if (client.nextCorporationTaxDue) {

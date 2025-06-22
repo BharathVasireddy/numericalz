@@ -166,6 +166,7 @@ export function LtdCompaniesDeadlinesTable() {
   const [showFiledConfirm, setShowFiledConfirm] = useState(false)
   const [showBackwardStageConfirm, setShowBackwardStageConfirm] = useState(false)
   const [filter, setFilter] = useState<'assigned_to_me' | 'all'>('assigned_to_me')
+  const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all')
   const [refreshingCompaniesHouse, setRefreshingCompaniesHouse] = useState(false)
   const [showActivityLogModal, setShowActivityLogModal] = useState(false)
   const [activityLogClient, setActivityLogClient] = useState<LtdClient | null>(null)
@@ -216,7 +217,7 @@ export function LtdCompaniesDeadlinesTable() {
 
   // Bulk refresh Companies House data for all filtered clients
   const handleBulkRefreshCompaniesHouse = async () => {
-    if (filteredClients.length === 0) {
+    if (sortedFilteredClients.length === 0) {
       showToast.error('No clients to refresh')
       return
     }
@@ -230,7 +231,7 @@ export function LtdCompaniesDeadlinesTable() {
     setRefreshingCompaniesHouse(true)
     
     try {
-      const clientIds = filteredClients.map(client => client.id)
+      const clientIds = sortedFilteredClients.map(client => client.id)
       
       showToast.info(`Starting refresh for ${clientIds.length} clients...`)
       
@@ -273,12 +274,43 @@ export function LtdCompaniesDeadlinesTable() {
   // Filter and sort clients based on assignment and due dates
   const filteredClients = ltdClients
     .filter(client => {
+      // First apply the basic assigned filter
+      let passesBasicFilter = true
       if (filter === 'assigned_to_me') {
-        return client.ltdCompanyAssignedUser?.id === session?.user?.id ||
-               client.currentLtdAccountsWorkflow?.assignedUser?.id === session?.user?.id
+        passesBasicFilter = client.ltdCompanyAssignedUser?.id === session?.user?.id ||
+                           client.currentLtdAccountsWorkflow?.assignedUser?.id === session?.user?.id
       }
-      return true // Show all clients
+      
+      // Then apply the user-specific filter
+      let passesUserFilter = true
+      if (selectedUserFilter !== 'all') {
+        if (selectedUserFilter === 'unassigned') {
+          passesUserFilter = !client.ltdCompanyAssignedUser?.id && !client.currentLtdAccountsWorkflow?.assignedUser?.id
+        } else {
+          passesUserFilter = client.ltdCompanyAssignedUser?.id === selectedUserFilter ||
+                            client.currentLtdAccountsWorkflow?.assignedUser?.id === selectedUserFilter
+        }
+      }
+      
+      return passesBasicFilter && passesUserFilter
     })
+
+  // Calculate client counts per user for filter display
+  const userClientCounts = users.reduce((acc, user) => {
+    const clientCount = ltdClients.filter(client => 
+      client.ltdCompanyAssignedUser?.id === user.id ||
+      client.currentLtdAccountsWorkflow?.assignedUser?.id === user.id
+    ).length
+    acc[user.id] = clientCount
+    return acc
+  }, {} as Record<string, number>)
+
+  // Count unassigned clients
+  const unassignedCount = ltdClients.filter(client => 
+    !client.ltdCompanyAssignedUser?.id && !client.currentLtdAccountsWorkflow?.assignedUser?.id
+  ).length
+
+  const sortedFilteredClients = filteredClients
     .sort((a, b) => {
       // Sort by nextAccountsDue (soonest first)
       if (!a.nextAccountsDue && !b.nextAccountsDue) return 0
@@ -291,13 +323,13 @@ export function LtdCompaniesDeadlinesTable() {
     })
 
   // Calculate header stats for current filing month
-  const currentMonthClients = filteredClients.filter(client => {
+  const currentMonthClients = sortedFilteredClients.filter(client => {
     if (!client.nextAccountsDue) return false
     const dueDate = new Date(client.nextAccountsDue)
     return dueDate.getMonth() + 1 === currentMonth
   })
 
-  const next7DaysClients = filteredClients.filter(client => {
+  const next7DaysClients = sortedFilteredClients.filter(client => {
     if (!client.nextAccountsDue) return false
     const dueDate = new Date(client.nextAccountsDue)
     const today = new Date()
@@ -305,7 +337,7 @@ export function LtdCompaniesDeadlinesTable() {
     return daysDiff <= 7 && daysDiff >= 0
   })
 
-  const next14DaysClients = filteredClients.filter(client => {
+  const next14DaysClients = sortedFilteredClients.filter(client => {
     if (!client.nextAccountsDue) return false
     const dueDate = new Date(client.nextAccountsDue)
     const today = new Date()
@@ -606,6 +638,10 @@ export function LtdCompaniesDeadlinesTable() {
           aVal = new Date(a.nextConfirmationDue || 0)
           bVal = new Date(b.nextConfirmationDue || 0)
           break
+        case 'assignedTo':
+          aVal = a.ltdCompanyAssignedUser?.name || ''
+          bVal = b.ltdCompanyAssignedUser?.name || ''
+          break
         case 'status':
           aVal = getWorkflowStatus(a.currentLtdAccountsWorkflow || null).label
           bVal = getWorkflowStatus(b.currentLtdAccountsWorkflow || null).label
@@ -817,11 +853,11 @@ export function LtdCompaniesDeadlinesTable() {
                     variant="outline"
                     size="sm"
                     onClick={handleBulkRefreshCompaniesHouse}
-                    disabled={loading || refreshingCompaniesHouse || filteredClients.length === 0}
+                    disabled={loading || refreshingCompaniesHouse || sortedFilteredClients.length === 0}
                     className="border-blue-200 text-blue-700 hover:bg-blue-50"
                   >
                     <Building className={`mr-2 h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
-                    {refreshingCompaniesHouse ? 'Refreshing CH...' : `Refresh CH Data (${filteredClients.length})`}
+                    {refreshingCompaniesHouse ? 'Refreshing CH...' : `Refresh CH Data (${sortedFilteredClients.length})`}
                   </Button>
                 </div>
               </div>
@@ -855,7 +891,7 @@ export function LtdCompaniesDeadlinesTable() {
                     <p className="text-xs text-muted-foreground">Due in 14 days</p>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">{filteredClients.length}</div>
+                    <div className="text-2xl font-bold text-purple-600">{sortedFilteredClients.length}</div>
                     <p className="text-xs text-muted-foreground">Total clients</p>
                   </div>
                 </div>
@@ -863,23 +899,81 @@ export function LtdCompaniesDeadlinesTable() {
             </Card>
 
             {/* Filter Buttons */}
-            <div className="flex gap-2">
-              <Button
-                variant={filter === 'assigned_to_me' ? 'default' : 'outline'}
-                onClick={() => setFilter('assigned_to_me')}
-                className="flex items-center gap-2"
-              >
-                <User className="h-4 w-4" />
-                Assigned to Me
-              </Button>
-              <Button
-                variant={filter === 'all' ? 'default' : 'outline'}
-                onClick={() => setFilter('all')}
-                className="flex items-center gap-2"
-              >
-                <Users className="h-4 w-4" />
-                All Clients
-              </Button>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex gap-2">
+                <Button
+                  variant={filter === 'assigned_to_me' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setFilter('assigned_to_me')
+                    setSelectedUserFilter('all')
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <User className="h-4 w-4" />
+                  Assigned to Me
+                </Button>
+                <Button
+                  variant={filter === 'all' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setFilter('all')
+                    setSelectedUserFilter('all')
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  All Clients
+                </Button>
+              </div>
+
+              {/* User Filter Dropdown */}
+              <div className="flex items-center gap-2">
+                <Label htmlFor="user-filter" className="text-sm font-medium whitespace-nowrap">
+                  Filter by User:
+                </Label>
+                <Select value={selectedUserFilter} onValueChange={setSelectedUserFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Select user..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-gray-600" />
+                        <span>All Users ({ltdClients.length})</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="unassigned">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-gray-400" />
+                        <span>Unassigned ({unassignedCount})</span>
+                      </div>
+                    </SelectItem>
+                    {users
+                      .filter(user => userClientCounts[user.id] > 0)
+                      .sort((a, b) => (userClientCounts[b.id] || 0) - (userClientCounts[a.id] || 0))
+                      .map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-blue-600" />
+                          <span>{user.name}</span>
+                          <span className="text-xs text-muted-foreground">({userClientCounts[user.id]})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    {users
+                      .filter(user => userClientCounts[user.id] === 0)
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-500">{user.name}</span>
+                          <span className="text-xs text-muted-foreground">(0)</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Table */}
@@ -896,6 +990,7 @@ export function LtdCompaniesDeadlinesTable() {
                         <SortableHeader column="accountsDue" className="w-24 col-ltd-accounts-due">Accounts</SortableHeader>
                         <SortableHeader column="ctDue" className="w-20 col-ltd-ct-due">CT</SortableHeader>
                         <SortableHeader column="csDue" className="w-20 col-ltd-cs-due">CS</SortableHeader>
+                        <SortableHeader column="assignedTo" className="w-24 col-ltd-assigned">Assigned To</SortableHeader>
                         <SortableHeader column="status" className="w-32 col-ltd-status">Status</SortableHeader>
                         <TableHead className="w-20 col-ltd-update">Update</TableHead>
                         <TableHead className="w-12 col-ltd-action">Action</TableHead>
@@ -904,14 +999,14 @@ export function LtdCompaniesDeadlinesTable() {
                   <TableBody className="table-compact">
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-8">
+                        <TableCell colSpan={11} className="text-center py-8">
                           <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
                           Loading Ltd companies...
                         </TableCell>
                       </TableRow>
-                    ) : filteredClients.length === 0 ? (
+                    ) : sortedFilteredClients.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-8">
+                        <TableCell colSpan={11} className="text-center py-8">
                           <div className="space-y-2">
                             <Building className="h-12 w-12 mx-auto text-muted-foreground" />
                             <p className="text-muted-foreground">No Ltd companies found</p>
@@ -922,7 +1017,7 @@ export function LtdCompaniesDeadlinesTable() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      sortClients(filteredClients).map((client) => {
+                      sortClients(sortedFilteredClients).map((client) => {
                       const workflowStatus = getWorkflowStatus(client.currentLtdAccountsWorkflow || null)
                       const accountsDue = getDaysUntilDue(client.nextAccountsDue)
                       const ctDue = getDaysUntilDue(client.nextCorporationTaxDue)
@@ -987,6 +1082,20 @@ export function LtdCompaniesDeadlinesTable() {
                               </div>
                             </TableCell>
                             <TableCell className="p-2">
+                              <div className="text-xs">
+                                {client.ltdCompanyAssignedUser ? (
+                                  <div className="flex items-center gap-1">
+                                    <User className="h-3 w-3 text-blue-600" />
+                                    <span className="text-blue-600 font-medium max-w-[80px] truncate" title={client.ltdCompanyAssignedUser.name}>
+                                      {client.ltdCompanyAssignedUser.name}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">Unassigned</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="p-2">
                               <Badge variant="outline" className={`text-xs px-2 py-1 ${workflowStatus.color}`}>
                                 <div className="flex items-center gap-1">
                                   {workflowStatus.icon}
@@ -1046,7 +1155,7 @@ export function LtdCompaniesDeadlinesTable() {
                           {/* Expanded Row - Workflow Timeline */}
                           {expandedRows.has(rowKey) && (
                             <TableRow>
-                              <TableCell colSpan={10} className="p-0">
+                              <TableCell colSpan={11} className="p-0">
                                 <div className="bg-muted/20 p-4 border-t">
                                   <h4 className="font-medium mb-3 flex items-center gap-2">
                                     <Briefcase className="h-4 w-4" />

@@ -29,7 +29,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
-// Business data retrieval functions
+// Enhanced business data retrieval functions
 async function getBusinessData(userId: string, userRole: string) {
   const whereClause: any = { isActive: true }
   if (userRole === 'STAFF') {
@@ -37,6 +37,7 @@ async function getBusinessData(userId: string, userRole: string) {
   }
 
   const [clients, users] = await Promise.all([
+    // Enhanced client data with comprehensive workflow information
     db.client.findMany({
       where: whereClause,
       include: {
@@ -45,25 +46,95 @@ async function getBusinessData(userId: string, userRole: string) {
         },
         vatQuartersWorkflow: {
           orderBy: { quarterEndDate: 'desc' },
-          take: 5
-        }
+          take: 10,
+          select: {
+            id: true,
+            quarterEndDate: true,
+            currentStage: true,
+            isCompleted: true,
+            filedToHMRCDate: true,
+            createdAt: true,
+            updatedAt: true,
+            // isClientSelfFiling: true
+          }
+        },
+        // ltdDeadlinesWorkflow: {
+        //   orderBy: { createdAt: 'desc' },
+        //   take: 5,
+        //   select: {
+        //     id: true,
+        //     accountsWorkflowStage: true,
+        //     corporationTaxWorkflowStage: true,
+        //     confirmationStatementWorkflowStage: true,
+        //     accountsFiledDate: true,
+        //     corporationTaxFiledDate: true,
+        //     confirmationStatementFiledDate: true,
+        //     isAccountsSelfFiling: true,
+        //     isCorporationTaxSelfFiling: true,
+        //     isConfirmationStatementSelfFiling: true,
+        //     createdAt: true,
+        //     updatedAt: true
+        //   }
+        // }
       },
       orderBy: { companyName: 'asc' }
     }),
+    // Enhanced user data with workload information
     userRole !== 'STAFF' ? db.user.findMany({
       where: { isActive: true },
       include: {
         assignedClients: {
-          where: { isActive: true }
+          where: { isActive: true },
+          select: {
+            id: true,
+            clientCode: true,
+            companyName: true,
+            isVatEnabled: true,
+            nextVatReturnDue: true,
+            nextAccountsDue: true,
+            nextConfirmationDue: true,
+            nextCorporationTaxDue: true
+          }
+        },
+        _count: {
+          select: {
+            assignedClients: {
+              where: { isActive: true }
+            }
+          }
         }
       }
-    }) : []
+    }) : [],
+    // Recent activity logs for context
+    // userRole !== 'STAFF' ? db.activityLog.findMany({
+    //   take: 20,
+    //   orderBy: { createdAt: 'desc' },
+    //   include: {
+    //     user: {
+    //       select: { name: true, role: true }
+    //     },
+    //     client: {
+    //       select: { clientCode: true, companyName: true }
+    //     }
+    //   }
+    // }) : db.activityLog.findMany({
+    //   where: { userId },
+    //   take: 10,
+    //   orderBy: { createdAt: 'desc' },
+    //   include: {
+    //     client: {
+    //       select: { clientCode: true, companyName: true }
+    //     }
+    //   }
+    // })
+    []
   ])
 
   // Calculate current month deadlines
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const next30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
   const deadlinesThisMonth = {
     accounts: 0,
@@ -138,19 +209,153 @@ async function getBusinessData(userId: string, userRole: string) {
     }
   })
 
+  // Enhanced overdue analysis
+  const overdueTasks = {
+    accounts: [] as any[],
+    vat: [] as any[],
+    confirmation: [] as any[],
+    corporationTax: [] as any[]
+  }
+
+  const upcomingTasks = {
+    next7Days: [] as any[],
+    next30Days: [] as any[]
+  }
+
+  const workflowStatus = {
+    vatInProgress: 0,
+    vatCompleted: 0,
+    ltdAccountsInProgress: 0,
+    ltdAccountsCompleted: 0,
+    selfFilingClients: 0
+  }
+
+  clients.forEach(client => {
+    const clientTasks = {
+      clientCode: client.clientCode,
+      companyName: client.companyName,
+      assignedUser: client.assignedUser?.name || 'Unassigned',
+      tasks: [] as any[]
+    }
+
+    // Check for overdue items
+    if (client.nextAccountsDue && new Date(client.nextAccountsDue) < now) {
+      overdueTasks.accounts.push({
+        ...clientTasks,
+        dueDate: client.nextAccountsDue,
+        daysPastDue: Math.floor((now.getTime() - new Date(client.nextAccountsDue).getTime()) / (1000 * 60 * 60 * 24))
+      })
+    }
+
+    if (client.nextVatReturnDue && new Date(client.nextVatReturnDue) < now) {
+      overdueTasks.vat.push({
+        ...clientTasks,
+        dueDate: client.nextVatReturnDue,
+        daysPastDue: Math.floor((now.getTime() - new Date(client.nextVatReturnDue).getTime()) / (1000 * 60 * 60 * 24))
+      })
+    }
+
+    if (client.nextConfirmationDue && new Date(client.nextConfirmationDue) < now) {
+      overdueTasks.confirmation.push({
+        ...clientTasks,
+        dueDate: client.nextConfirmationDue,
+        daysPastDue: Math.floor((now.getTime() - new Date(client.nextConfirmationDue).getTime()) / (1000 * 60 * 60 * 24))
+      })
+    }
+
+    if (client.nextCorporationTaxDue && new Date(client.nextCorporationTaxDue) < now) {
+      overdueTasks.corporationTax.push({
+        ...clientTasks,
+        dueDate: client.nextCorporationTaxDue,
+        daysPastDue: Math.floor((now.getTime() - new Date(client.nextCorporationTaxDue).getTime()) / (1000 * 60 * 60 * 24))
+      })
+    }
+
+    // Check upcoming tasks (next 7 and 30 days)
+    const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const next30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+    const upcomingDeadlines = [
+      { type: 'Accounts', date: client.nextAccountsDue },
+      { type: 'VAT Return', date: client.nextVatReturnDue },
+      { type: 'Confirmation Statement', date: client.nextConfirmationDue },
+      { type: 'Corporation Tax', date: client.nextCorporationTaxDue }
+    ].filter(d => d.date && new Date(d.date) > now)
+
+    upcomingDeadlines.forEach(deadline => {
+      const dueDate = new Date(deadline.date!)
+      const task = {
+        ...clientTasks,
+        type: deadline.type,
+        dueDate: deadline.date,
+        daysUntilDue: Math.floor((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      }
+
+      if (dueDate <= next7Days) {
+        upcomingTasks.next7Days.push(task)
+      } else if (dueDate <= next30Days) {
+        upcomingTasks.next30Days.push(task)
+      }
+    })
+
+    // Analyze workflow status
+    if (client.vatQuartersWorkflow && client.vatQuartersWorkflow.length > 0) {
+      const recentVATWorkflow = client.vatQuartersWorkflow[0]
+      if (recentVATWorkflow && (recentVATWorkflow.isCompleted || recentVATWorkflow.filedToHMRCDate)) {
+        workflowStatus.vatCompleted++
+      } else if (recentVATWorkflow && recentVATWorkflow.currentStage && recentVATWorkflow.currentStage !== 'PAPERWORK_PENDING_CHASE') {
+        workflowStatus.vatInProgress++
+      }
+    }
+
+    // if (client.ltdDeadlinesWorkflow && client.ltdDeadlinesWorkflow.length > 0) {
+    //   const recentLtdWorkflow = client.ltdDeadlinesWorkflow[0]
+    //   if (recentLtdWorkflow.accountsFiledDate || recentLtdWorkflow.accountsWorkflowStage === 'COMPLETED') {
+    //     workflowStatus.ltdAccountsCompleted++
+    //   } else if (recentLtdWorkflow.accountsWorkflowStage && recentLtdWorkflow.accountsWorkflowStage !== 'NOT_STARTED') {
+    //     workflowStatus.ltdAccountsInProgress++
+    //   }
+    // }
+
+      // if (recentLtdWorkflow.isAccountsSelfFiling || recentLtdWorkflow.isCorporationTaxSelfFiling) {
+      //   workflowStatus.selfFilingClients++
+      // }
+  })
+
+  // Team workload analysis
+  const teamWorkload = users.map(user => ({
+    id: user.id,
+    name: user.name,
+    role: user.role,
+    clientCount: user._count?.assignedClients || 0,
+    clients: user.assignedClients || [],
+    vatClientsCount: user.assignedClients?.filter(c => c.isVatEnabled).length || 0,
+    upcomingDeadlines: user.assignedClients?.filter(c => {
+      const dates = [c.nextVatReturnDue, c.nextAccountsDue, c.nextConfirmationDue, c.nextCorporationTaxDue]
+      return dates.some(date => date && new Date(date) <= next30Days && new Date(date) > now)
+    }).length || 0
+  }))
+
   return {
     clients,
     users,
+    activityLogs: [],
     summary: {
       totalClients: clients.length,
       ltdCompanies: clients.filter(c => c.companyType === 'LIMITED_COMPANY').length,
       vatClients: clients.filter(c => c.isVatEnabled).length,
-      activeClients: clients.filter(c => c.isActive).length
+      activeClients: clients.filter(c => c.isActive).length,
+      unassignedClients: clients.filter(c => !c.assignedUserId).length
     },
     deadlinesThisMonth,
     vatClientsThisMonth,
+    overdueTasks,
+    upcomingTasks,
+    workflowStatus,
+    teamWorkload,
     userRole,
-    currentMonth: now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+    currentMonth: now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+    recentActivity: []
   }
 }
 
@@ -164,34 +369,48 @@ export async function processAIQuery(
     // Get business data
     const businessData = await getBusinessData(userId, userRole)
     
-    // Create context for AI
-    const systemPrompt = `You are a helpful business assistant for Numericalz, a UK accounting firm. You have access to real-time business data and should provide detailed, accurate responses about clients, deadlines, and team workload.
+    // Create comprehensive context for AI
+    const systemPrompt = `You are a comprehensive business intelligence assistant for Numericalz, a UK accounting firm. You have access to real-time business data including client information, workflows, deadlines, team workload, and activity logs. Provide detailed, accurate, and actionable responses.
 
-Current Business Context:
-- Total Clients: ${businessData.summary.totalClients}
+## CURRENT BUSINESS OVERVIEW:
+📊 **Client Portfolio:**
+- Total Active Clients: ${businessData.summary.totalClients}
 - Limited Companies: ${businessData.summary.ltdCompanies}
 - VAT-enabled Clients: ${businessData.summary.vatClients}
-- User Role: ${businessData.userRole}
-- Current Month: ${businessData.currentMonth}
+- Unassigned Clients: ${businessData.summary.unassignedClients}
 
-Deadlines This Month:
-- Accounts Due: ${businessData.deadlinesThisMonth.accounts}
-- VAT Returns Due: ${businessData.deadlinesThisMonth.vat}
-- Confirmations Due: ${businessData.deadlinesThisMonth.confirmation}
-- Corporation Tax Due: ${businessData.deadlinesThisMonth.corporationTax}
+⚠️ **Critical Overdue Tasks:**
+- Overdue Accounts: ${businessData.overdueTasks.accounts.length}
+- Overdue VAT Returns: ${businessData.overdueTasks.vat.length}
+- Overdue Confirmations: ${businessData.overdueTasks.confirmation.length}
+- Overdue Corporation Tax: ${businessData.overdueTasks.corporationTax.length}
 
-VAT Clients This Month:
-- Still Due: ${businessData.vatClientsThisMonth.due.length}
-- Completed: ${businessData.vatClientsThisMonth.completed.length}
+📅 **Upcoming Deadlines:**
+- Next 7 Days: ${businessData.upcomingTasks.next7Days.length}
+- Next 30 Days: ${businessData.upcomingTasks.next30Days.length}
 
-Guidelines:
-1. Provide specific, detailed answers with actual numbers and client information
-2. For VAT queries, distinguish between completed and still due
-3. Include client codes (NZ-X format) when mentioning specific clients
-4. Show urgency levels (overdue, due within 7 days) when relevant
-5. Be conversational but professional
-6. If asking about team workload, only show full details if user is MANAGER or PARTNER
-7. Use emojis sparingly and appropriately (📊 📅 🧾 ✅ ⚠️)
+🔄 **Workflow Status:**
+- VAT Returns In Progress: ${businessData.workflowStatus.vatInProgress}
+- VAT Returns Completed: ${businessData.workflowStatus.vatCompleted}
+- Ltd Accounts In Progress: ${businessData.workflowStatus.ltdAccountsInProgress}
+- Ltd Accounts Completed: ${businessData.workflowStatus.ltdAccountsCompleted}
+- Self-Filing Clients: ${businessData.workflowStatus.selfFilingClients}
+
+${businessData.userRole !== 'STAFF' ? `
+👥 **Team Workload Summary:**
+${businessData.teamWorkload.map(member => 
+`- ${member.name} (${member.role}): ${member.clientCount} clients, ${member.vatClientsCount} VAT clients, ${member.upcomingDeadlines} upcoming deadlines`
+).join('\n')}
+` : ''}
+
+## RESPONSE GUIDELINES:
+1. **Be Specific & Actionable**: Always provide exact numbers, client codes (NZ-X), dates, and names
+2. **Prioritize Urgency**: Highlight overdue items and critical deadlines first
+3. **Show Workflow Context**: Include current workflow stages and completion status
+4. **Team Awareness**: For managers/partners, include team member assignments and workload
+5. **Use Structured Formatting**: Use bullet points, numbers, and clear sections
+6. **Professional Tone**: Conversational but business-appropriate
+7. **Data Privacy**: Staff can only see their assigned clients; managers/partners see all data
 
 Available Data:
 ${JSON.stringify(businessData, null, 2)}
@@ -217,29 +436,56 @@ ${JSON.stringify(businessData, null, 2)}
       queryType = 'vat'
       suggestions = [
         "Which VAT returns are overdue?",
-        "Show me VAT workflow statuses",
-        "What VAT clients need urgent attention?"
+        "Show me VAT workflow stages in progress",
+        "What VAT clients need urgent attention?",
+        "Compare VAT completion rates this month"
+      ]
+    } else if (/overdue/i.test(query)) {
+      queryType = 'overdue'
+      suggestions = [
+        "Show all overdue tasks with days past due",
+        "Which clients have multiple overdue items?",
+        "What overdue tasks are assigned to each team member?",
+        "Show the most critical overdue deadlines"
       ]
     } else if (/deadline|due/i.test(query)) {
       queryType = 'deadlines'
       suggestions = [
-        "Show me overdue deadlines",
         "What's due in the next 7 days?",
-        "Show all deadlines for next month"
+        "Show all deadlines for next month",
+        "Which clients have upcoming deadlines this week?",
+        "Compare workload for upcoming deadlines by team member"
       ]
     } else if (/team|staff|workload/i.test(query)) {
       queryType = 'team'
       suggestions = [
-        "Which team member has the most clients?",
-        "Show unassigned clients",
-        "What's the average workload per person?"
+        "Which team member has the highest workload?",
+        "Show unassigned clients that need attention",
+        "What's the distribution of VAT clients per team member?",
+        "Who has the most upcoming deadlines?"
+      ]
+    } else if (/workflow|progress|status/i.test(query)) {
+      queryType = 'workflow'
+      suggestions = [
+        "Show me all workflows currently in progress",
+        "Which workflows are taking too long?",
+        "What's the completion rate for this month?",
+        "Show recent workflow completions"
+      ]
+    } else if (/client/i.test(query)) {
+      queryType = 'clients'
+      suggestions = [
+        "Show me details for a specific client",
+        "Which clients haven't been updated recently?",
+        "Show all self-filing clients",
+        "What clients need immediate attention?"
       ]
     } else {
       suggestions = [
-        "How many VAT clients are due this month?",
-        "Show me team workload distribution",
-        "What deadlines are coming up?",
-        "Which clients need attention?"
+        "Show me today's priority tasks",
+        "What needs immediate attention?",
+        "Give me a team workload summary",
+        "Show recent system activity"
       ]
     }
 

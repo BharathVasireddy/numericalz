@@ -30,7 +30,7 @@ interface ChatSuggestion {
 }
 
 export function BusinessChat({ className, defaultMinimized = false }: BusinessChatProps) {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -158,6 +158,15 @@ export function BusinessChat({ className, defaultMinimized = false }: BusinessCh
       }
       return part
     })
+  }
+
+  // Don't render chat if not authenticated
+  if (status === 'loading') {
+    return null // Still loading session
+  }
+
+  if (status === 'unauthenticated' || !session?.user) {
+    return null // Not logged in
   }
 
   if (isMinimized) {

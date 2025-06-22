@@ -192,6 +192,14 @@ export async function PUT(
         }
       }
     })
+    
+    // SYNC: Also update client-level VAT assignment if assignedUserId was changed
+    if (finalAssigneeId !== vatQuarter.assignedUserId) {
+      await prisma.client.update({
+        where: { id: updatedVatQuarter.clientId },
+        data: { vatAssignedUserId: finalAssigneeId }
+      })
+    }
 
     // Create workflow history entry
     const workflowHistory = await prisma.vATWorkflowHistory.create({

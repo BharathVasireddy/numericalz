@@ -161,17 +161,20 @@
   /* Main page container - consistent across all pages */
   .page-container {
     padding: var(--layout-padding-y) var(--layout-padding-x);
+    padding-bottom: calc(var(--layout-padding-y) + 5rem); /* Extra bottom padding for chat widget */
   }
   
   @media (min-width: 768px) {
     .page-container {
       padding: var(--layout-padding-y-md) var(--layout-padding-x-md);
+      padding-bottom: calc(var(--layout-padding-y-md) + 5rem); /* Extra bottom padding for chat widget */
     }
   }
   
   @media (min-width: 1024px) {
     .page-container {
       padding: var(--layout-padding-y-lg) var(--layout-padding-x-lg);
+      padding-bottom: calc(var(--layout-padding-y-lg) + 5rem); /* Extra bottom padding for chat widget */
     }
   }
   
@@ -410,9 +413,21 @@
     @apply w-20; /* Contact icons column */
   }
   
-  .col-assigned-to {
-    @apply w-32; /* Assigned to column */
-  }
+     .col-assigned-to {
+     @apply w-32; /* Assigned to column */
+   }
+   
+   .col-assigned-accounts {
+     @apply w-32; /* Accounts assigned column */
+   }
+   
+   .col-assigned-vat {
+     @apply w-32; /* VAT assigned column */
+   }
+   
+   .col-ltd-assigned {
+     @apply w-24; /* Ltd company assigned column */
+   }
   
   /* Action trigger button icon - consistent with navigation icons */
   .action-trigger-icon {

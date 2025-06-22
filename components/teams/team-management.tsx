@@ -98,6 +98,9 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
   const [userActivities, setUserActivities] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingLog, setIsLoadingLog] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
 
   const refreshUsers = async () => {
     try {
@@ -229,6 +232,24 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
     return false
   }
 
+  // Filter users based on search and filter criteria
+  const filteredUsers = users.filter(user => {
+    // Search filter (name or email)
+    const matchesSearch = searchQuery === '' || 
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+
+    // Role filter
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter
+
+    // Status filter
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'active' && user.isActive) ||
+      (statusFilter === 'inactive' && !user.isActive)
+
+    return matchesSearch && matchesRole && matchesStatus
+  })
+
   return (
     <div className="page-container">
       <div className="content-wrapper">
@@ -251,6 +272,64 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
               </Button>
             </div>
           </div>
+
+          {/* Search and Filters */}
+          <Card className="p-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Search */}
+              <div className="flex-1">
+                <div className="relative">
+                  <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search team members by name or email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              
+              {/* Filters */}
+              <div className="flex gap-2">
+                <div className="min-w-[120px]">
+                  <Select value={roleFilter} onValueChange={setRoleFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      <SelectItem value="PARTNER">Partner</SelectItem>
+                      <SelectItem value="MANAGER">Manager</SelectItem>
+                      <SelectItem value="STAFF">Staff</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="min-w-[120px]">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            
+            {/* Filter Results Summary */}
+            {(searchQuery || roleFilter !== 'all' || statusFilter !== 'all') && (
+              <div className="mt-3 text-sm text-muted-foreground">
+                Showing {filteredUsers.length} of {users.length} team members
+                {searchQuery && ` matching "${searchQuery}"`}
+                {roleFilter !== 'all' && ` with role "${roleFilter}"`}
+                {statusFilter !== 'all' && ` who are ${statusFilter}`}
+              </div>
+            )}
+          </Card>
 
           {/* Team Members Table */}
           <Card>
@@ -291,7 +370,7 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {users.map((user) => {
+                      {filteredUsers.map((user) => {
                         return (
                           <tr key={user.id} className="table-body-row">
                             <td className="table-body-cell">
@@ -412,7 +491,7 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
 
               {/* Mobile Cards */}
               <div className="md:hidden space-y-4">
-                {users.map((user) => {
+                {filteredUsers.map((user) => {
                   return (
                     <Card key={user.id} className="p-4">
                       <div className="flex items-start justify-between mb-3">

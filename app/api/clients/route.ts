@@ -195,6 +195,27 @@ export async function GET(request: NextRequest) {
               email: true,
             },
           },
+          ltdCompanyAssignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          nonLtdCompanyAssignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          vatAssignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
           // 🎯 CT Tracking fields
           corporationTaxStatus: true,
           corporationTaxPeriodStart: true,

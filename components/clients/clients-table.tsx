@@ -68,6 +68,21 @@ interface Client {
     name: string
     email: string
   }
+  ltdCompanyAssignedUser?: {
+    id: string
+    name: string
+    email: string
+  }
+  nonLtdCompanyAssignedUser?: {
+    id: string
+    name: string
+    email: string
+  }
+  vatAssignedUser?: {
+    id: string
+    name: string
+    email: string
+  }
   isActive: boolean
   isVatEnabled: boolean
   createdAt: string
@@ -461,6 +476,12 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                 <SortableHeader sortKey="contactEmail" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-contact">
                   Contact
                 </SortableHeader>
+                <SortableHeader sortKey="ltdCompanyAssignedUser" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-assigned-accounts">
+                  Accounts Assigned
+                </SortableHeader>
+                <SortableHeader sortKey="vatAssignedUser" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-assigned-vat">
+                  VAT Assigned
+                </SortableHeader>
                 <th className="table-header-cell col-actions text-right">
                   Actions
                 </th>
@@ -548,6 +569,63 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                       {!client.contactEmail && !client.contactPhone && (
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
+                    </div>
+                  </td>
+                  <td className="table-body-cell">
+                    <div className="text-xs">
+                      {(() => {
+                        if (client.companyType === 'LIMITED_COMPANY') {
+                          if (client.ltdCompanyAssignedUser) {
+                            return (
+                              <span className="font-medium text-foreground" title="Specific Ltd company accounts assignment">
+                                {client.ltdCompanyAssignedUser.name}
+                              </span>
+                            )
+                          } else if (client.assignedUser) {
+                            return (
+                              <span className="font-medium text-muted-foreground" title="General assignment (no specific accounts assignment)">
+                                {client.assignedUser.name}
+                              </span>
+                            )
+                          }
+                        } else if (client.companyType === 'NON_LIMITED_COMPANY' || client.companyType === 'DIRECTOR' || client.companyType === 'SUB_CONTRACTOR') {
+                          if (client.nonLtdCompanyAssignedUser) {
+                            return (
+                              <span className="font-medium text-foreground" title="Specific non-Ltd company accounts assignment">
+                                {client.nonLtdCompanyAssignedUser.name}
+                              </span>
+                            )
+                          } else if (client.assignedUser) {
+                            return (
+                              <span className="font-medium text-muted-foreground" title="General assignment (no specific accounts assignment)">
+                                {client.assignedUser.name}
+                              </span>
+                            )
+                          }
+                        }
+                        return <span className="text-muted-foreground">Unassigned</span>
+                      })()}
+                    </div>
+                  </td>
+                  <td className="table-body-cell">
+                    <div className="text-xs">
+                      {(() => {
+                        if (client.vatAssignedUser) {
+                          return (
+                            <span className="font-medium text-foreground" title="Specific VAT assignment">
+                              {client.vatAssignedUser.name}
+                            </span>
+                          )
+                        } else if (client.assignedUser) {
+                          return (
+                            <span className="font-medium text-muted-foreground" title="General assignment (no specific VAT assignment)">
+                              {client.assignedUser.name}
+                            </span>
+                          )
+                        } else {
+                          return <span className="text-muted-foreground">Unassigned</span>
+                        }
+                      })()}
                     </div>
                   </td>
                   <td className="table-actions-cell">
@@ -736,9 +814,36 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
                     </div>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Assigned To:</span>
+                    <span className="text-muted-foreground">General Assigned:</span>
                     <span>
                       {client.assignedUser ? client.assignedUser.name : 'Unassigned'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Accounts Assigned:</span>
+                    <span>
+                      {(() => {
+                        if (client.companyType === 'LIMITED_COMPANY') {
+                          if (client.ltdCompanyAssignedUser) {
+                            return client.ltdCompanyAssignedUser.name
+                          } else if (client.assignedUser) {
+                            return client.assignedUser.name
+                          }
+                        } else if (client.companyType === 'NON_LIMITED_COMPANY' || client.companyType === 'DIRECTOR' || client.companyType === 'SUB_CONTRACTOR') {
+                          if (client.nonLtdCompanyAssignedUser) {
+                            return client.nonLtdCompanyAssignedUser.name
+                          } else if (client.assignedUser) {
+                            return client.assignedUser.name
+                          }
+                        }
+                        return 'Unassigned'
+                      })()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">VAT Assigned:</span>
+                    <span>
+                      {client.vatAssignedUser ? client.vatAssignedUser.name : (client.assignedUser ? client.assignedUser.name : 'Unassigned')}
                     </span>
                   </div>
                 </div>

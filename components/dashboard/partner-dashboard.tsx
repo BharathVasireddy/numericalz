@@ -15,7 +15,7 @@ import {
   Receipt,
   FileText,
   Calculator,
-  TrendingUp,
+  TrendingUp, 
   Activity,
   Target,
   CheckCircle
@@ -132,7 +132,7 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
   return (
     <PageLayout maxWidth="xl">
       <PageHeader title="Partner Dashboard" />
-      
+
       <PageContent>
         <div className="content-sections">
           {/* Client Overview Section */}
@@ -160,8 +160,8 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
                     <span className="text-green-600 font-medium">8.5%</span>
                     <span className="text-muted-foreground ml-1">from last month</span>
                   </div>
-                </CardContent>
-              </Card>
+            </CardContent>
+          </Card>
 
               {/* Ltd Companies */}
               <Card className="card-hover">
@@ -180,8 +180,8 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
                     <span className="text-blue-600 font-medium">12.3%</span>
                     <span className="text-muted-foreground ml-1">of total</span>
                   </div>
-                </CardContent>
-              </Card>
+            </CardContent>
+          </Card>
 
               {/* Non-Limited */}
               <Card className="card-hover">
@@ -200,8 +200,8 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
                     <span className="text-orange-600 font-medium">5.2%</span>
                     <span className="text-muted-foreground ml-1">growth</span>
                   </div>
-                </CardContent>
-              </Card>
+            </CardContent>
+          </Card>
 
               {/* VAT Clients */}
               <Card className="card-hover">
@@ -210,11 +210,11 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
                     <div className="space-y-2">
                       <p className="text-sm font-medium text-muted-foreground">VAT Clients</p>
                       <p className="text-3xl font-bold">{data.clientCounts.vat}</p>
-                    </div>
+            </div>
                     <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
                       <Receipt className="h-6 w-6 text-purple-600" />
-                    </div>
-                  </div>
+                        </div>
+                      </div>
                   <div className="mt-4 flex items-center text-sm">
                     <CheckCircle className="h-4 w-4 text-green-500 mr-1" />
                     <span className="text-green-600 font-medium">15.8%</span>
@@ -260,8 +260,8 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
                         <p className="text-2xl font-bold">{member.clientCount}</p>
                         <p className="text-xs text-muted-foreground">clients</p>
                       </div>
-                    </div>
-                  ))}
+                      </div>
+                    ))}
                 </CardContent>
               </Card>
             </section>
@@ -337,7 +337,7 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
                 </CardContent>
               </Card>
             </section>
-          </div>
+              </div>
         </div>
       </PageContent>
     </PageLayout>

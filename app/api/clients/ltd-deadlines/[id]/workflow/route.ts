@@ -86,6 +86,14 @@ export async function PUT(
           assignedUser: true
         }
       })
+      
+      // SYNC: Also update client-level assignment if assignedUserId was provided
+      if (assignedUserId !== undefined) {
+        await db.client.update({
+          where: { id: clientId },
+          data: { ltdCompanyAssignedUserId: assignedUserId }
+        })
+      }
     } else {
       // Update existing workflow
       const updateData: any = {}
@@ -117,6 +125,14 @@ export async function PUT(
           assignedUser: true
         }
       })
+      
+      // SYNC: Also update client-level assignment if assignedUserId was changed
+      if (assignedUserId !== undefined) {
+        await db.client.update({
+          where: { id: clientId },
+          data: { ltdCompanyAssignedUserId: assignedUserId }
+        })
+      }
     }
 
     // Create workflow history entry
