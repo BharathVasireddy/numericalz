@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { DashboardNavigation } from '@/components/dashboard/navigation'
+import { BusinessChat } from '@/components/chat/business-chat'
 import { Loader2 } from 'lucide-react'
 
 /**
@@ -58,6 +59,9 @@ export default function DashboardLayout({
       <main className="flex-1 overflow-auto">
         {children}
       </main>
+      
+      {/* Business Intelligence Chat Assistant - Only in dashboard */}
+      <BusinessChat defaultMinimized={true} />
     </div>
   )
 } 
