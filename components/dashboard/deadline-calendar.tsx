@@ -75,6 +75,8 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>('due')
 
   const isManager = userRole === 'MANAGER'
+  const isPartner = userRole === 'PARTNER'
+  const canFilterByUser = isManager || isPartner
 
   // Filter deadlines based on selected filters
   const filteredDeadlines = useMemo(() => {
@@ -88,8 +90,8 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
       }
       // For 'company' scope, show all deadlines (no additional filtering needed)
       
-      // Apply user filter (only for managers in company scope)
-      if (scope === 'company' && isManager && selectedUser !== 'all') {
+      // Apply user filter (for managers and partners in company scope)
+      if (scope === 'company' && canFilterByUser && selectedUser !== 'all') {
         if (deadline.assignedUser?.id !== selectedUser) {
           return false
         }
@@ -107,7 +109,7 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
       
       return true
     })
-  }, [deadlines, selectedUser, selectedType, scope, currentUserId, isManager, statusFilter])
+  }, [deadlines, selectedUser, selectedType, scope, currentUserId, canFilterByUser, statusFilter])
 
   // Generate calendar days for month view
   const monthDays = useMemo(() => {
@@ -553,8 +555,8 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
             </Button>
           </div>
 
-          {/* Filters - Show user filter for all users in company scope */}
-          {scope === 'company' && (
+          {/* Filters - Show user filter for managers and partners in company scope */}
+          {scope === 'company' && canFilterByUser && (
             <Select value={selectedUser} onValueChange={setSelectedUser}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="All Users" />

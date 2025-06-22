@@ -346,22 +346,22 @@ export async function GET(request: NextRequest) {
         orderBy: (() => {
           // Handle special sorting cases
           if (sortBy === 'accountsAssigned') {
-            // Sort by accounts assignment name, prioritizing specific assignments
+            // For accounts assignment, we need to sort by the effective assignment name
+            // This is complex with Prisma, so we'll sort by company name and handle it client-side
             return [
-              { ltdCompanyAssignedUser: { name: sortOrder as 'asc' | 'desc' } },
-              { nonLtdCompanyAssignedUser: { name: sortOrder as 'asc' | 'desc' } },
-              { assignedUser: { name: sortOrder as 'asc' | 'desc' } },
-              { companyName: 'asc' } // Secondary sort
+              { companyName: 'asc' } // We'll sort client-side for assignment columns
             ]
           } else if (sortBy === 'vatAssigned') {
-            // Sort by VAT assignment name, prioritizing specific assignment
+            // For VAT assignment, we need to sort by the effective assignment name
+            // This is complex with Prisma, so we'll sort by company name and handle it client-side
             return [
-              { vatAssignedUser: { name: sortOrder as 'asc' | 'desc' } },
-              { assignedUser: { name: sortOrder as 'asc' | 'desc' } },
-              { companyName: 'asc' } // Secondary sort
+              { companyName: 'asc' } // We'll sort client-side for assignment columns
             ]
           } else if (sortBy === 'assignedUser') {
-            return { assignedUser: { name: sortOrder as 'asc' | 'desc' } }
+            return [
+              { assignedUser: { name: sortOrder as 'asc' | 'desc' } },
+              { companyName: 'asc' }
+            ]
           } else {
             // Standard field sorting
             return { [sortBy]: sortOrder as 'asc' | 'desc' }

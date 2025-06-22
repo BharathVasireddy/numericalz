@@ -95,6 +95,28 @@ interface User {
   role: string
 }
 
+// Advanced filter interfaces
+interface FilterCondition {
+  id: string
+  field: string
+  operator: string
+  value: string | string[] | boolean | null
+  value2?: string
+}
+
+interface FilterGroup {
+  id: string
+  operator: 'AND' | 'OR'
+  conditions: FilterCondition[]
+}
+
+interface AdvancedFilter {
+  id: string
+  name: string
+  groups: FilterGroup[]
+  groupOperator: 'AND' | 'OR'
+}
+
 interface ClientsTableProps {
   searchQuery: string
   filters: {
@@ -104,6 +126,7 @@ interface ClientsTableProps {
     vatAssignedUser: string
     status: string
   }
+  advancedFilter?: AdvancedFilter | null
   onClientCountsUpdate?: (total: number, filtered: number) => void
 }
 
@@ -156,7 +179,7 @@ function SortableHeader({ children, sortKey, currentSort, sortOrder, onSort, cla
  * - Modal-based resign confirmation
  * - Working assign user functionality
  */
-export function ClientsTable({ searchQuery, filters, onClientCountsUpdate }: ClientsTableProps) {
+export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCountsUpdate }: ClientsTableProps) {
   const { data: session } = useSession()
   const router = useRouter()
   const [clients, setClients] = useState<Client[]>([])
@@ -185,7 +208,77 @@ export function ClientsTable({ searchQuery, filters, onClientCountsUpdate }: Cli
     try {
       setLoading(true)
       
-      // Build query parameters
+      // Use advanced filter if available
+      if (advancedFilter) {
+        const response = await fetch('/api/clients/advanced-filter', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            filter: advancedFilter,
+            sortBy,
+            sortOrder,
+            page: 1,
+            limit: 100
+          }),
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          let clientsData = data.clients || []
+          
+          // Handle client-side sorting for assignment columns
+          if (sortBy === 'accountsAssigned' || sortBy === 'vatAssigned') {
+            clientsData = [...clientsData].sort((a, b) => {
+              let aValue = ''
+              let bValue = ''
+              
+              if (sortBy === 'accountsAssigned') {
+                // Get effective accounts assignment
+                if (a.companyType === 'LIMITED_COMPANY') {
+                  aValue = a.ltdCompanyAssignedUser?.name || a.assignedUser?.name || 'Unassigned'
+                } else {
+                  aValue = a.nonLtdCompanyAssignedUser?.name || a.assignedUser?.name || 'Unassigned'
+                }
+                
+                if (b.companyType === 'LIMITED_COMPANY') {
+                  bValue = b.ltdCompanyAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
+                } else {
+                  bValue = b.nonLtdCompanyAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
+                }
+              } else if (sortBy === 'vatAssigned') {
+                // Get effective VAT assignment
+                aValue = a.vatAssignedUser?.name || a.assignedUser?.name || 'Unassigned'
+                bValue = b.vatAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
+              }
+              
+              const comparison = aValue.localeCompare(bValue)
+              return sortOrder === 'asc' ? comparison : -comparison
+            })
+          }
+          
+          setClients(clientsData)
+          
+          const currentTotal = data.pagination?.totalCount || 0
+          
+          // Get unfiltered total if we don't have it
+          if (totalClientCount === 0) {
+            const totalResponse = await fetch('/api/clients?active=true&limit=1')
+            if (totalResponse.ok) {
+              const totalData = await totalResponse.json()
+              const unfiltered = totalData.pagination?.totalCount || 0
+              setTotalClientCount(unfiltered)
+              onClientCountsUpdate?.(unfiltered, currentTotal)
+            }
+          } else {
+            onClientCountsUpdate?.(totalClientCount, currentTotal)
+          }
+        }
+        return
+      }
+      
+      // Use basic filters if no advanced filter
       const params = new URLSearchParams()
       params.append('active', 'true')
       
@@ -237,7 +330,39 @@ export function ClientsTable({ searchQuery, filters, onClientCountsUpdate }: Cli
       const response = await fetch(`/api/clients?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
-        setClients(data.clients || [])
+        let clientsData = data.clients || []
+        
+        // Handle client-side sorting for assignment columns
+        if (sortBy === 'accountsAssigned' || sortBy === 'vatAssigned') {
+          clientsData = [...clientsData].sort((a, b) => {
+            let aValue = ''
+            let bValue = ''
+            
+            if (sortBy === 'accountsAssigned') {
+              // Get effective accounts assignment
+              if (a.companyType === 'LIMITED_COMPANY') {
+                aValue = a.ltdCompanyAssignedUser?.name || a.assignedUser?.name || 'Unassigned'
+              } else {
+                aValue = a.nonLtdCompanyAssignedUser?.name || a.assignedUser?.name || 'Unassigned'
+              }
+              
+              if (b.companyType === 'LIMITED_COMPANY') {
+                bValue = b.ltdCompanyAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
+              } else {
+                bValue = b.nonLtdCompanyAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
+              }
+            } else if (sortBy === 'vatAssigned') {
+              // Get effective VAT assignment
+              aValue = a.vatAssignedUser?.name || a.assignedUser?.name || 'Unassigned'
+              bValue = b.vatAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
+            }
+            
+            const comparison = aValue.localeCompare(bValue)
+            return sortOrder === 'asc' ? comparison : -comparison
+          })
+        }
+        
+        setClients(clientsData)
         
         // If no filters applied, this is our total count
         const hasFilters = searchQuery.trim() || filters.companyType || filters.assignedUser || filters.accountsAssignedUser || filters.vatAssignedUser || filters.status
@@ -266,7 +391,7 @@ export function ClientsTable({ searchQuery, filters, onClientCountsUpdate }: Cli
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, filters, sortBy, sortOrder, session?.user?.id])
+  }, [searchQuery, filters, advancedFilter, sortBy, sortOrder, session?.user?.id])
 
   useEffect(() => {
     if (session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') {
@@ -639,29 +764,41 @@ export function ClientsTable({ searchQuery, filters, onClientCountsUpdate }: Cli
                         if (client.companyType === 'LIMITED_COMPANY') {
                           if (client.ltdCompanyAssignedUser) {
                             return (
-                              <span className="font-medium text-foreground" title="Specific Ltd company accounts assignment">
-                                {client.ltdCompanyAssignedUser.name}
-                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium text-foreground" title="Specific accounts assignment for Ltd company">
+                                  {client.ltdCompanyAssignedUser.name}
+                                </span>
+                                <div className="h-1.5 w-1.5 rounded-full bg-green-500" title="Specific assignment"></div>
+                              </div>
                             )
                           } else if (client.assignedUser) {
                             return (
-                              <span className="font-medium text-muted-foreground" title="General assignment (no specific accounts assignment)">
-                                {client.assignedUser.name}
-                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium text-muted-foreground" title="General assignment (fallback for accounts)">
+                                  {client.assignedUser.name}
+                                </span>
+                                <div className="h-1.5 w-1.5 rounded-full bg-amber-500" title="General assignment"></div>
+                              </div>
                             )
                           }
                         } else if (client.companyType === 'NON_LIMITED_COMPANY' || client.companyType === 'DIRECTOR' || client.companyType === 'SUB_CONTRACTOR') {
                           if (client.nonLtdCompanyAssignedUser) {
                             return (
-                              <span className="font-medium text-foreground" title="Specific non-Ltd company accounts assignment">
-                                {client.nonLtdCompanyAssignedUser.name}
-                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium text-foreground" title="Specific accounts assignment for non-Ltd company">
+                                  {client.nonLtdCompanyAssignedUser.name}
+                                </span>
+                                <div className="h-1.5 w-1.5 rounded-full bg-green-500" title="Specific assignment"></div>
+                              </div>
                             )
                           } else if (client.assignedUser) {
                             return (
-                              <span className="font-medium text-muted-foreground" title="General assignment (no specific accounts assignment)">
-                                {client.assignedUser.name}
-                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="font-medium text-muted-foreground" title="General assignment (fallback for accounts)">
+                                  {client.assignedUser.name}
+                                </span>
+                                <div className="h-1.5 w-1.5 rounded-full bg-amber-500" title="General assignment"></div>
+                              </div>
                             )
                           }
                         }
@@ -674,15 +811,21 @@ export function ClientsTable({ searchQuery, filters, onClientCountsUpdate }: Cli
                       {(() => {
                         if (client.vatAssignedUser) {
                           return (
-                            <span className="font-medium text-foreground" title="Specific VAT assignment">
-                              {client.vatAssignedUser.name}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium text-foreground" title="Specific VAT assignment">
+                                {client.vatAssignedUser.name}
+                              </span>
+                              <div className="h-1.5 w-1.5 rounded-full bg-green-500" title="Specific assignment"></div>
+                            </div>
                           )
                         } else if (client.assignedUser) {
                           return (
-                            <span className="font-medium text-muted-foreground" title="General assignment (no specific VAT assignment)">
-                              {client.assignedUser.name}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium text-muted-foreground" title="General assignment (fallback for VAT)">
+                                {client.assignedUser.name}
+                              </span>
+                              <div className="h-1.5 w-1.5 rounded-full bg-amber-500" title="General assignment"></div>
+                            </div>
                           )
                         } else {
                           return <span className="text-muted-foreground">Unassigned</span>

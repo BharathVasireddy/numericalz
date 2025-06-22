@@ -4,6 +4,28 @@ import { useState, useCallback } from 'react'
 import { ClientsHeader } from '@/components/clients/clients-header'
 import { ClientsTable } from '@/components/clients/clients-table'
 
+// Advanced filter interfaces
+interface FilterCondition {
+  id: string
+  field: string
+  operator: string
+  value: string | string[] | boolean | null
+  value2?: string
+}
+
+interface FilterGroup {
+  id: string
+  operator: 'AND' | 'OR'
+  conditions: FilterCondition[]
+}
+
+interface AdvancedFilter {
+  id: string
+  name: string
+  groups: FilterGroup[]
+  groupOperator: 'AND' | 'OR'
+}
+
 /**
  * Clients listing page
  * 
@@ -25,6 +47,7 @@ export default function ClientsPage() {
     vatAssignedUser: '',
     status: ''
   })
+  const [advancedFilter, setAdvancedFilter] = useState<AdvancedFilter | null>(null)
   const [clientCounts, setClientCounts] = useState({
     total: 0,
     filtered: 0
@@ -32,6 +55,10 @@ export default function ClientsPage() {
 
   const handleClientCountsUpdate = useCallback((total: number, filtered: number) => {
     setClientCounts({ total, filtered })
+  }, [])
+
+  const handleAdvancedFilter = useCallback((filter: AdvancedFilter | null) => {
+    setAdvancedFilter(filter)
   }, [])
 
   return (
@@ -43,6 +70,7 @@ export default function ClientsPage() {
             onSearchChange={setSearchQuery}
             filters={filters}
             onFiltersChange={setFilters}
+            onAdvancedFilter={handleAdvancedFilter}
             totalCount={clientCounts.total}
             filteredCount={clientCounts.filtered}
           />
@@ -50,6 +78,7 @@ export default function ClientsPage() {
           <ClientsTable 
             searchQuery={searchQuery}
             filters={filters}
+            advancedFilter={advancedFilter}
             onClientCountsUpdate={handleClientCountsUpdate}
           />
         </div>

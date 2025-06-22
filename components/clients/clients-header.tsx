@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { Plus, Search, Filter, Download } from 'lucide-react'
+import { Plus, Search, Filter, Download, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -30,12 +30,35 @@ import {
   XCircle
 } from 'lucide-react'
 import Link from 'next/link'
+import { AdvancedFilterModal } from './advanced-filter-modal'
 
 interface User {
   id: string
   name: string
   email: string
   role: string
+}
+
+// Advanced filter interfaces
+interface FilterCondition {
+  id: string
+  field: string
+  operator: string
+  value: string | string[] | boolean | null
+  value2?: string
+}
+
+interface FilterGroup {
+  id: string
+  operator: 'AND' | 'OR'
+  conditions: FilterCondition[]
+}
+
+interface AdvancedFilter {
+  id: string
+  name: string
+  groups: FilterGroup[]
+  groupOperator: 'AND' | 'OR'
 }
 
 interface ClientsHeaderProps {
@@ -49,6 +72,7 @@ interface ClientsHeaderProps {
     status: string
   }
   onFiltersChange: (filters: any) => void
+  onAdvancedFilter?: (filter: AdvancedFilter | null) => void
   totalCount?: number
   filteredCount?: number
   pageTitle?: string
@@ -70,13 +94,15 @@ export function ClientsHeader({
   onSearchChange,
   filters,
   onFiltersChange,
+  onAdvancedFilter,
   totalCount = 0,
   filteredCount = 0,
   pageTitle = "Clients",
   pageDescription
 }: ClientsHeaderProps) {
   const router = useRouter()
-  const [showFilters, setShowFilters] = useState(false)
+  const [showAdvancedFilter, setShowAdvancedFilter] = useState(false)
+  const [currentAdvancedFilter, setCurrentAdvancedFilter] = useState<AdvancedFilter | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [userClientCounts, setUserClientCounts] = useState<Record<string, number>>({})
@@ -167,9 +193,36 @@ export function ClientsHeader({
       status: ''
     })
     onSearchChange('')
+    setCurrentAdvancedFilter(null)
+    if (onAdvancedFilter) {
+      onAdvancedFilter(null)
+    }
   }
 
-  const hasActiveFilters = searchQuery || filters.companyType || filters.assignedUser || filters.accountsAssignedUser || filters.vatAssignedUser
+  const handleAdvancedFilter = (filter: AdvancedFilter) => {
+    setCurrentAdvancedFilter(filter)
+    if (onAdvancedFilter) {
+      onAdvancedFilter(filter)
+    }
+    // Clear basic filters when using advanced filters
+    onFiltersChange({
+      companyType: '',
+      assignedUser: '',
+      accountsAssignedUser: '',
+      vatAssignedUser: '',
+      status: ''
+    })
+    onSearchChange('')
+  }
+
+  const clearAdvancedFilter = () => {
+    setCurrentAdvancedFilter(null)
+    if (onAdvancedFilter) {
+      onAdvancedFilter(null)
+    }
+  }
+
+  const hasActiveFilters = searchQuery || filters.companyType || filters.assignedUser || filters.accountsAssignedUser || filters.vatAssignedUser || currentAdvancedFilter
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -187,13 +240,18 @@ export function ClientsHeader({
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            variant={currentAdvancedFilter ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className="btn-outline"
+            onClick={() => setShowAdvancedFilter(true)}
+            className="btn-outline flex items-center gap-2"
           >
-            <Filter className="h-4 w-4 mr-2" />
-            Filters
+            <Settings className="h-4 w-4" />
+            Advanced Filters
+            {currentAdvancedFilter && (
+              <Badge variant="secondary" className="ml-1 px-1 py-0 text-xs">
+                ON
+              </Badge>
+            )}
           </Button>
           
           {/* Quick filter for staff users */}
@@ -230,7 +288,7 @@ export function ClientsHeader({
         </div>
       </div>
 
-      {/* Search and Filters */}
+      {/* Search */}
       <Card className="p-4">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
@@ -245,133 +303,145 @@ export function ClientsHeader({
             </div>
           </div>
         </div>
+      </Card>
 
-        {/* Advanced Filters */}
-        {showFilters && (
-          <div className="mt-4 pt-4 border-t border-border">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                  Company Type
-                </label>
-                <Select
-                  value={filters.companyType || 'all'}
-                  onValueChange={(value) => handleFilterChange('companyType', value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Company Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="LIMITED_COMPANY">Limited Company</SelectItem>
-                    <SelectItem value="NON_LIMITED_COMPANY">Non-Limited Company</SelectItem>
-                    <SelectItem value="DIRECTOR">Director</SelectItem>
-                    <SelectItem value="SUB_CONTRACTOR">Sub Contractor</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                  General Assignment
-                </label>
-                <Select
-                  value={filters.assignedUser || 'all'}
-                  onValueChange={(value) => handleFilterChange('assignedUser', value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="General Assignment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Users</SelectItem>
-                    <SelectItem value="me">My Clients</SelectItem>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name} ({userClientCounts[user.id] || 0} clients)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                  Accounts Assigned
-                </label>
-                <Select
-                  value={filters.accountsAssignedUser || 'all'}
-                  onValueChange={(value) => handleFilterChange('accountsAssignedUser', value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Accounts Assignment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Users</SelectItem>
-                    <SelectItem value="me">My Clients</SelectItem>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name} ({accountsClientCounts[user.id] || 0} clients)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                  VAT Assigned
-                </label>
-                <Select
-                  value={filters.vatAssignedUser || 'all'}
-                  onValueChange={(value) => handleFilterChange('vatAssignedUser', value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="VAT Assignment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Users</SelectItem>
-                    <SelectItem value="me">My Clients</SelectItem>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name} ({vatClientCounts[user.id] || 0} clients)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+      {/* General Filters - Always Visible */}
+      {!currentAdvancedFilter && (
+        <Card className="p-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                Company Type
+              </label>
+              <Select
+                value={filters.companyType || 'all'}
+                onValueChange={(value) => handleFilterChange('companyType', value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Company Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="LIMITED_COMPANY">Limited Company</SelectItem>
+                  <SelectItem value="NON_LIMITED_COMPANY">Non-Limited Company</SelectItem>
+                  <SelectItem value="DIRECTOR">Director</SelectItem>
+                  <SelectItem value="SUB_CONTRACTOR">Sub Contractor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                General Assignment
+              </label>
+              <Select
+                value={filters.assignedUser || 'all'}
+                onValueChange={(value) => handleFilterChange('assignedUser', value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="General Assignment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  <SelectItem value="me">My Clients</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name} ({userClientCounts[user.id] || 0} clients)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                Accounts Assigned
+              </label>
+              <Select
+                value={filters.accountsAssignedUser || 'all'}
+                onValueChange={(value) => handleFilterChange('accountsAssignedUser', value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Accounts Assignment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  <SelectItem value="me">My Clients</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name} ({accountsClientCounts[user.id] || 0} clients)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                VAT Assigned
+              </label>
+              <Select
+                value={filters.vatAssignedUser || 'all'}
+                onValueChange={(value) => handleFilterChange('vatAssignedUser', value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="VAT Assignment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  <SelectItem value="me">My Clients</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name} ({vatClientCounts[user.id] || 0} clients)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {/* Active Filters Display */}
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2">
-          {searchQuery && (
+          {currentAdvancedFilter && (
+            <Badge variant="default" className="flex items-center gap-1">
+              <Settings className="h-3 w-3" />
+              Advanced: {currentAdvancedFilter.name}
+              <button
+                onClick={clearAdvancedFilter}
+                className="ml-1 hover:bg-white/20 rounded-full p-0.5"
+              >
+                ×
+              </button>
+            </Badge>
+          )}
+          {!currentAdvancedFilter && searchQuery && (
             <Badge variant="secondary" className="flex items-center gap-1">
               Search: "{searchQuery}"
             </Badge>
           )}
-          {filters.companyType && (
+          {!currentAdvancedFilter && filters.companyType && (
             <Badge variant="secondary" className="flex items-center gap-1">
               Type: {filters.companyType.replace('_', ' ')}
             </Badge>
           )}
-          {filters.assignedUser && (
+          {!currentAdvancedFilter && filters.assignedUser && (
             <Badge variant="secondary" className="flex items-center gap-1">
               General: {filters.assignedUser === 'me' ? 'My Clients' : 
                         filters.assignedUser === 'unassigned' ? 'Unassigned' : 
                         users.find(u => u.id === filters.assignedUser)?.name || filters.assignedUser}
             </Badge>
           )}
-          {filters.accountsAssignedUser && (
+          {!currentAdvancedFilter && filters.accountsAssignedUser && (
             <Badge variant="secondary" className="flex items-center gap-1">
               Accounts: {filters.accountsAssignedUser === 'me' ? 'My Clients' : 
                          filters.accountsAssignedUser === 'unassigned' ? 'Unassigned' : 
                          users.find(u => u.id === filters.accountsAssignedUser)?.name || filters.accountsAssignedUser}
             </Badge>
           )}
-          {filters.vatAssignedUser && (
+          {!currentAdvancedFilter && filters.vatAssignedUser && (
             <Badge variant="secondary" className="flex items-center gap-1">
               VAT: {filters.vatAssignedUser === 'me' ? 'My Clients' : 
                     filters.vatAssignedUser === 'unassigned' ? 'Unassigned' : 
@@ -380,6 +450,15 @@ export function ClientsHeader({
           )}
         </div>
       )}
+
+      {/* Advanced Filter Modal */}
+      <AdvancedFilterModal
+        isOpen={showAdvancedFilter}
+        onClose={() => setShowAdvancedFilter(false)}
+        onApplyFilter={handleAdvancedFilter}
+        currentFilter={currentAdvancedFilter}
+        users={users}
+      />
     </div>
   )
 } 
