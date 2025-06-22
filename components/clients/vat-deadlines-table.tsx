@@ -188,6 +188,7 @@ export function VATDeadlinesTable() {
   const [activityLogClient, setActivityLogClient] = useState<VATClient | null>(null)
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all')
   const [selectedWorkflowStageFilter, setSelectedWorkflowStageFilter] = useState<string>('all')
+  const [filter, setFilter] = useState<'assigned_to_me' | 'all'>('assigned_to_me')
 
   // Get current month for default tab
   const currentMonth = new Date().getMonth() + 1
@@ -247,6 +248,12 @@ export function VATDeadlinesTable() {
 
   // Helper function to check if client matches user and workflow stage filters
   const clientMatchesFilters = useCallback((client: VATClient, monthNumber?: number) => {
+    // Basic assigned filter
+    let passesBasicFilter = true
+    if (filter === 'assigned_to_me') {
+      passesBasicFilter = client.vatAssignedUser?.id === session?.user?.id
+    }
+    
     // User filter
     let passesUserFilter = true
     if (selectedUserFilter !== 'all') {
@@ -297,8 +304,8 @@ export function VATDeadlinesTable() {
       }
     }
     
-    return passesUserFilter && passesWorkflowFilter
-  }, [selectedUserFilter, selectedWorkflowStageFilter])
+    return passesBasicFilter && passesUserFilter && passesWorkflowFilter
+  }, [filter, selectedUserFilter, selectedWorkflowStageFilter, session?.user?.id])
 
   // Get clients for specific filing month with user and workflow stage filtering
   const getClientsForMonth = useCallback((monthNumber: number) => {
@@ -1234,96 +1241,7 @@ export function VATDeadlinesTable() {
               </div>
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap gap-4 justify-end">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="vat-user-filter" className="text-sm font-medium whitespace-nowrap">
-                  Filter by User:
-                </Label>
-                <Select value={selectedUserFilter} onValueChange={setSelectedUserFilter}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Select user..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-gray-600" />
-                        <span>All Users ({vatClients.length})</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="unassigned">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-gray-400" />
-                        <span>Unassigned ({unassignedVATCount})</span>
-                      </div>
-                    </SelectItem>
-                    {users
-                      .filter(user => (userVATClientCounts?.[user.id] || 0) > 0)
-                      .sort((a, b) => (userVATClientCounts?.[b.id] || 0) - (userVATClientCounts?.[a.id] || 0))
-                      .map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-blue-600" />
-                          <span>{user.name}</span>
-                          <span className="text-xs text-muted-foreground">({userVATClientCounts?.[user.id] || 0})</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                    {users
-                      .filter(user => (userVATClientCounts?.[user.id] || 0) === 0)
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-500">{user.name}</span>
-                          <span className="text-xs text-muted-foreground">(0)</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
 
-              <div className="flex items-center gap-2">
-                <Label htmlFor="vat-stage-filter" className="text-sm font-medium whitespace-nowrap">
-                  Filter by Stage:
-                </Label>
-                <Select value={selectedWorkflowStageFilter} onValueChange={setSelectedWorkflowStageFilter}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Select stage..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-gray-600" />
-                        <span>All Stages</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="not_started">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-gray-400" />
-                        <span>Not Started</span>
-                      </div>
-                    </SelectItem>
-                    {WORKFLOW_STAGES.map((stage) => (
-                      <SelectItem key={stage.key} value={stage.key}>
-                        <div className="flex items-center gap-2">
-                          {stage.icon}
-                          <span>{stage.label}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="completed">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        <span>Completed</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
             {/* Current Month Summary */}
             <Card className="p-6 border-l-4 border-l-blue-500">
@@ -1391,6 +1309,124 @@ export function VATDeadlinesTable() {
                 })()}
               </div>
             </Card>
+
+            {/* Filter Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex gap-2">
+                <Button
+                  variant={filter === 'assigned_to_me' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setFilter('assigned_to_me')
+                    setSelectedUserFilter('all')
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <User className="h-4 w-4" />
+                  Assigned to Me
+                </Button>
+                <Button
+                  variant={filter === 'all' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setFilter('all')
+                    setSelectedUserFilter('all')
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  All Clients
+                </Button>
+              </div>
+
+              {/* User Filter Dropdown */}
+              <div className="flex items-center gap-2">
+                <Label htmlFor="vat-user-filter" className="text-sm font-medium whitespace-nowrap">
+                  Filter by User:
+                </Label>
+                <Select value={selectedUserFilter} onValueChange={setSelectedUserFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Select user..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-gray-600" />
+                        <span>All Users ({vatClients.length})</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="unassigned">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-gray-400" />
+                        <span>Unassigned ({unassignedVATCount})</span>
+                      </div>
+                    </SelectItem>
+                    {users
+                      .filter(user => (userVATClientCounts?.[user.id] || 0) > 0)
+                      .sort((a, b) => (userVATClientCounts?.[b.id] || 0) - (userVATClientCounts?.[a.id] || 0))
+                      .map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-blue-600" />
+                          <span>{user.name}</span>
+                          <span className="text-xs text-muted-foreground">({userVATClientCounts?.[user.id] || 0})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    {users
+                      .filter(user => (userVATClientCounts?.[user.id] || 0) === 0)
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-500">{user.name}</span>
+                          <span className="text-xs text-muted-foreground">(0)</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Workflow Stage Filter Dropdown */}
+              <div className="flex items-center gap-2">
+                <Label htmlFor="vat-stage-filter" className="text-sm font-medium whitespace-nowrap">
+                  Filter by Stage:
+                </Label>
+                <Select value={selectedWorkflowStageFilter} onValueChange={setSelectedWorkflowStageFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Select stage..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-gray-600" />
+                        <span>All Stages</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="not_started">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-gray-400" />
+                        <span>Not Started</span>
+                      </div>
+                    </SelectItem>
+                    {WORKFLOW_STAGES.map((stage) => (
+                      <SelectItem key={stage.key} value={stage.key}>
+                        <div className="flex items-center gap-2">
+                          {stage.icon}
+                          <span>{stage.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="completed">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span>Completed</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
             {/* Monthly Tabs */}
             <Card>
