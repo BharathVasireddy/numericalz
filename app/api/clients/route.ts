@@ -133,56 +133,79 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '100') // Increased default limit
 
-    // Build optimized where clause
-    const where: any = {}
+    // Debug logging
+    console.log('API Parameters:', {
+      search,
+      companyType,
+      assignedUserId,
+      accountsAssignedUserId,
+      vatAssignedUserId,
+      unassigned,
+      accountsUnassigned,
+      vatUnassigned,
+      isActive
+    })
 
-    // Search across multiple fields with optimized query
-    if (search) {
-      where.OR = [
-        { companyName: { contains: search, mode: 'insensitive' } },
-        { companyNumber: { contains: search, mode: 'insensitive' } },
-        { contactName: { contains: search, mode: 'insensitive' } },
-        { contactEmail: { contains: search, mode: 'insensitive' } },
-      ]
+    // Build properly combined where clause
+    const where: any = {}
+    const andConditions: any[] = []
+    const orConditions: any[] = []
+
+    // Base active status filter
+    if (isActive !== null && isActive !== '') {
+      where.isActive = isActive === 'true'
     }
 
-    // Apply filters
+    // Company type filter
     if (companyType) {
       where.companyType = companyType
     }
 
+    // Search across multiple fields
+    if (search) {
+      orConditions.push({
+        OR: [
+          { companyName: { contains: search, mode: 'insensitive' } },
+          { companyNumber: { contains: search, mode: 'insensitive' } },
+          { contactName: { contains: search, mode: 'insensitive' } },
+          { contactEmail: { contains: search, mode: 'insensitive' } },
+        ]
+      })
+    }
+
+    // General assignment filtering
     if (assignedUserId) {
       if (assignedUserId === 'me') {
         where.assignedUserId = session.user.id
       } else {
         where.assignedUserId = assignedUserId
       }
-    }
-
-    if (unassigned) {
+    } else if (unassigned) {
       where.assignedUserId = null
     }
 
     // Accounts assignment filtering
     if (accountsAssignedUserId) {
       if (accountsAssignedUserId === 'me') {
-        where.OR = [
-          { ltdCompanyAssignedUserId: session.user.id },
-          { nonLtdCompanyAssignedUserId: session.user.id }
-        ]
+        orConditions.push({
+          OR: [
+            { ltdCompanyAssignedUserId: session.user.id },
+            { nonLtdCompanyAssignedUserId: session.user.id }
+          ]
+        })
       } else {
-        where.OR = [
-          { ltdCompanyAssignedUserId: accountsAssignedUserId },
-          { nonLtdCompanyAssignedUserId: accountsAssignedUserId }
-        ]
+        orConditions.push({
+          OR: [
+            { ltdCompanyAssignedUserId: accountsAssignedUserId },
+            { nonLtdCompanyAssignedUserId: accountsAssignedUserId }
+          ]
+        })
       }
-    }
-
-    if (accountsUnassigned) {
-      where.AND = [
-        { ltdCompanyAssignedUserId: null },
-        { nonLtdCompanyAssignedUserId: null }
-      ]
+    } else if (accountsUnassigned) {
+      andConditions.push({
+        ltdCompanyAssignedUserId: null,
+        nonLtdCompanyAssignedUserId: null
+      })
     }
 
     // VAT assignment filtering
@@ -192,15 +215,31 @@ export async function GET(request: NextRequest) {
       } else {
         where.vatAssignedUserId = vatAssignedUserId
       }
-    }
-
-    if (vatUnassigned) {
+    } else if (vatUnassigned) {
       where.vatAssignedUserId = null
     }
 
-    if (isActive !== null && isActive !== '') {
-      where.isActive = isActive === 'true'
+    // Combine all conditions properly
+    if (andConditions.length > 0) {
+      where.AND = andConditions
     }
+    
+    if (orConditions.length > 0) {
+      if (orConditions.length === 1) {
+        // Single OR condition, merge it directly
+        Object.assign(where, orConditions[0])
+      } else {
+        // Multiple OR conditions, combine them with AND
+        if (where.AND) {
+          where.AND = [...where.AND, ...orConditions]
+        } else {
+          where.AND = orConditions
+        }
+      }
+    }
+
+    // Debug final WHERE clause
+    console.log('Final WHERE clause:', JSON.stringify(where, null, 2))
 
     // Staff users can see all clients (no restriction)
 
