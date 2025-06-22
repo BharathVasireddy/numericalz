@@ -100,6 +100,8 @@ interface ClientsTableProps {
   filters: {
     companyType: string
     assignedUser: string
+    accountsAssignedUser: string
+    vatAssignedUser: string
     status: string
   }
   onClientCountsUpdate?: (total: number, filtered: number) => void
@@ -205,6 +207,26 @@ export function ClientsTable({ searchQuery, filters, onClientCountsUpdate }: Cli
         }
       }
       
+      if (filters.accountsAssignedUser) {
+        if (filters.accountsAssignedUser === 'me') {
+          params.append('accountsAssignedUserId', session.user.id)
+        } else if (filters.accountsAssignedUser === 'unassigned') {
+          params.append('accountsUnassigned', 'true')
+        } else {
+          params.append('accountsAssignedUserId', filters.accountsAssignedUser)
+        }
+      }
+      
+      if (filters.vatAssignedUser) {
+        if (filters.vatAssignedUser === 'me') {
+          params.append('vatAssignedUserId', session.user.id)
+        } else if (filters.vatAssignedUser === 'unassigned') {
+          params.append('vatUnassigned', 'true')
+        } else {
+          params.append('vatAssignedUserId', filters.vatAssignedUser)
+        }
+      }
+      
       if (filters.status) {
         params.append('isActive', filters.status)
       }
@@ -218,7 +240,7 @@ export function ClientsTable({ searchQuery, filters, onClientCountsUpdate }: Cli
         setClients(data.clients || [])
         
         // If no filters applied, this is our total count
-        const hasFilters = searchQuery.trim() || filters.companyType || filters.assignedUser || filters.status
+        const hasFilters = searchQuery.trim() || filters.companyType || filters.assignedUser || filters.accountsAssignedUser || filters.vatAssignedUser || filters.status
         const currentTotal = data.pagination?.totalCount || 0
         
         if (!hasFilters) {

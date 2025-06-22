@@ -122,6 +122,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || ''
     const companyType = searchParams.get('companyType') || ''
     const assignedUserId = searchParams.get('assignedUserId') || ''
+    const accountsAssignedUserId = searchParams.get('accountsAssignedUserId') || ''
+    const vatAssignedUserId = searchParams.get('vatAssignedUserId') || ''
+    const unassigned = searchParams.get('unassigned') === 'true'
+    const accountsUnassigned = searchParams.get('accountsUnassigned') === 'true'
+    const vatUnassigned = searchParams.get('vatUnassigned') === 'true'
     const isActive = searchParams.get('active') || searchParams.get('isActive')
     const sortBy = searchParams.get('sortBy') || 'companyName'
     const sortOrder = searchParams.get('sortOrder') || 'asc'
@@ -149,11 +154,48 @@ export async function GET(request: NextRequest) {
     if (assignedUserId) {
       if (assignedUserId === 'me') {
         where.assignedUserId = session.user.id
-      } else if (assignedUserId === 'unassigned') {
-        where.assignedUserId = null
       } else {
         where.assignedUserId = assignedUserId
       }
+    }
+
+    if (unassigned) {
+      where.assignedUserId = null
+    }
+
+    // Accounts assignment filtering
+    if (accountsAssignedUserId) {
+      if (accountsAssignedUserId === 'me') {
+        where.OR = [
+          { ltdCompanyAssignedUserId: session.user.id },
+          { nonLtdCompanyAssignedUserId: session.user.id }
+        ]
+      } else {
+        where.OR = [
+          { ltdCompanyAssignedUserId: accountsAssignedUserId },
+          { nonLtdCompanyAssignedUserId: accountsAssignedUserId }
+        ]
+      }
+    }
+
+    if (accountsUnassigned) {
+      where.AND = [
+        { ltdCompanyAssignedUserId: null },
+        { nonLtdCompanyAssignedUserId: null }
+      ]
+    }
+
+    // VAT assignment filtering
+    if (vatAssignedUserId) {
+      if (vatAssignedUserId === 'me') {
+        where.vatAssignedUserId = session.user.id
+      } else {
+        where.vatAssignedUserId = vatAssignedUserId
+      }
+    }
+
+    if (vatUnassigned) {
+      where.vatAssignedUserId = null
     }
 
     if (isActive !== null && isActive !== '') {

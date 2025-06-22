@@ -44,6 +44,8 @@ interface ClientsHeaderProps {
   filters: {
     companyType: string
     assignedUser: string
+    accountsAssignedUser: string
+    vatAssignedUser: string
     status: string
   }
   onFiltersChange: (filters: any) => void
@@ -78,6 +80,8 @@ export function ClientsHeader({
   const [isExporting, setIsExporting] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [userClientCounts, setUserClientCounts] = useState<Record<string, number>>({})
+  const [accountsClientCounts, setAccountsClientCounts] = useState<Record<string, number>>({})
+  const [vatClientCounts, setVatClientCounts] = useState<Record<string, number>>({})
   const { data: session } = useSession()
 
   // Fetch users for filtering (only for managers and partners)
@@ -106,6 +110,8 @@ export function ClientsHeader({
       if (response.ok) {
         const data = await response.json()
         setUserClientCounts(data.userClientCounts || {})
+        setAccountsClientCounts(data.accountsClientCounts || {})
+        setVatClientCounts(data.vatClientCounts || {})
       }
     } catch (error) {
       console.error('Error fetching user client counts:', error)
@@ -155,12 +161,14 @@ export function ClientsHeader({
     onFiltersChange({
       companyType: '',
       assignedUser: '',
+      accountsAssignedUser: '',
+      vatAssignedUser: '',
       status: ''
     })
     onSearchChange('')
   }
 
-  const hasActiveFilters = searchQuery || filters.companyType || filters.assignedUser || filters.status
+  const hasActiveFilters = searchQuery || filters.companyType || filters.assignedUser || filters.accountsAssignedUser || filters.vatAssignedUser || filters.status
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -240,7 +248,7 @@ export function ClientsHeader({
         {/* Advanced Filters */}
         {showFilters && (
           <div className="mt-4 pt-4 border-t border-border">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-2 block">
                   Company Type
@@ -263,14 +271,14 @@ export function ClientsHeader({
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                  Assigned User
+                  General Assignment
                 </label>
                 <Select
                   value={filters.assignedUser || 'all'}
                   onValueChange={(value) => handleFilterChange('assignedUser', value)}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Assigned To" />
+                    <SelectValue placeholder="General Assignment" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Users</SelectItem>
@@ -279,6 +287,52 @@ export function ClientsHeader({
                     {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.name} ({userClientCounts[user.id] || 0} clients)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                  Accounts Assigned
+                </label>
+                <Select
+                  value={filters.accountsAssignedUser || 'all'}
+                  onValueChange={(value) => handleFilterChange('accountsAssignedUser', value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Accounts Assignment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Users</SelectItem>
+                    <SelectItem value="me">My Clients</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name} ({accountsClientCounts[user.id] || 0} clients)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                  VAT Assigned
+                </label>
+                <Select
+                  value={filters.vatAssignedUser || 'all'}
+                  onValueChange={(value) => handleFilterChange('vatAssignedUser', value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="VAT Assignment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Users</SelectItem>
+                    <SelectItem value="me">My Clients</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name} ({vatClientCounts[user.id] || 0} clients)
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -322,9 +376,23 @@ export function ClientsHeader({
           )}
           {filters.assignedUser && (
             <Badge variant="secondary" className="flex items-center gap-1">
-              Assigned: {filters.assignedUser === 'me' ? 'My Clients' : 
-                         filters.assignedUser === 'unassigned' ? 'Unassigned' : 
-                         users.find(u => u.id === filters.assignedUser)?.name || filters.assignedUser}
+              General: {filters.assignedUser === 'me' ? 'My Clients' : 
+                        filters.assignedUser === 'unassigned' ? 'Unassigned' : 
+                        users.find(u => u.id === filters.assignedUser)?.name || filters.assignedUser}
+            </Badge>
+          )}
+          {filters.accountsAssignedUser && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Accounts: {filters.accountsAssignedUser === 'me' ? 'My Clients' : 
+                         filters.accountsAssignedUser === 'unassigned' ? 'Unassigned' : 
+                         users.find(u => u.id === filters.accountsAssignedUser)?.name || filters.accountsAssignedUser}
+            </Badge>
+          )}
+          {filters.vatAssignedUser && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              VAT: {filters.vatAssignedUser === 'me' ? 'My Clients' : 
+                    filters.vatAssignedUser === 'unassigned' ? 'Unassigned' : 
+                    users.find(u => u.id === filters.vatAssignedUser)?.name || filters.vatAssignedUser}
             </Badge>
           )}
           {filters.status && (

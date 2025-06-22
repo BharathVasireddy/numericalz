@@ -21,6 +21,8 @@ export default function ClientsPage() {
   const [filters, setFilters] = useState({
     companyType: '',
     assignedUser: '',
+    accountsAssignedUser: '',
+    vatAssignedUser: '',
     status: ''
   })
   const [clientCounts, setClientCounts] = useState({

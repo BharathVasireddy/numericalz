@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
-    // Get user client counts for active clients
-    const userClientCounts = await db.user.findMany({
+    // Get user client counts for active clients with separate counts for different assignment types
+    const users = await db.user.findMany({
       where: { isActive: true },
       select: {
         id: true,
@@ -26,21 +26,42 @@ export async function GET(request: NextRequest) {
           select: {
             assignedClients: {
               where: { isActive: true }
+            },
+            ltdCompanyAssignedClients: {
+              where: { isActive: true }
+            },
+            nonLtdCompanyAssignedClients: {
+              where: { isActive: true }
+            },
+            vatAssignedClients: {
+              where: { isActive: true }
             }
           }
         }
       }
     })
 
-    // Transform to simple object mapping
+    // Transform to counts with combined unique client assignments
     const counts: Record<string, number> = {}
-    userClientCounts.forEach(user => {
+    const accountsCounts: Record<string, number> = {}
+    const vatCounts: Record<string, number> = {}
+
+    for (const user of users) {
+      // General assignment count
       counts[user.id] = user._count.assignedClients
-    })
+      
+      // Accounts assignment count (Ltd + Non-Ltd)
+      accountsCounts[user.id] = user._count.ltdCompanyAssignedClients + user._count.nonLtdCompanyAssignedClients
+      
+      // VAT assignment count
+      vatCounts[user.id] = user._count.vatAssignedClients
+    }
 
     return NextResponse.json({
       success: true,
-      userClientCounts: counts
+      userClientCounts: counts,
+      accountsClientCounts: accountsCounts,
+      vatClientCounts: vatCounts
     })
 
   } catch (error) {
