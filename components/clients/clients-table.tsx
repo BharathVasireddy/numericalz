@@ -522,12 +522,28 @@ export function ClientsTable({ searchQuery, filters, onClientCountsUpdate }: Cli
                 <SortableHeader sortKey="contactEmail" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-contact">
                   Contact
                 </SortableHeader>
-                <SortableHeader sortKey="ltdCompanyAssignedUser" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-assigned-accounts">
-                  Accounts Assigned
-                </SortableHeader>
-                <SortableHeader sortKey="vatAssignedUser" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-assigned-vat">
-                  VAT Assigned
-                </SortableHeader>
+                <th className="table-header-cell col-assigned-accounts">
+                  <button
+                    onClick={() => handleSort('accountsAssigned')}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  >
+                    Accounts Assigned
+                    {sortBy === 'accountsAssigned' && (
+                      sortOrder === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                    )}
+                  </button>
+                </th>
+                <th className="table-header-cell col-assigned-vat">
+                  <button
+                    onClick={() => handleSort('vatAssigned')}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  >
+                    VAT Assigned
+                    {sortBy === 'vatAssigned' && (
+                      sortOrder === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                    )}
+                  </button>
+                </th>
                 <th className="table-header-cell col-actions text-right">
                   Actions
                 </th>

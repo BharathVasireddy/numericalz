@@ -134,7 +134,8 @@ export function ClientsHeader({
       if (searchQuery) params.append('search', searchQuery)
       if (filters.companyType) params.append('companyType', filters.companyType)
       if (filters.assignedUser) params.append('assignedUser', filters.assignedUser)
-      if (filters.status) params.append('status', filters.status)
+      if (filters.accountsAssignedUser) params.append('accountsAssignedUser', filters.accountsAssignedUser)
+      if (filters.vatAssignedUser) params.append('vatAssignedUser', filters.vatAssignedUser)
 
       const response = await fetch(`/api/clients/export?${params.toString()}`)
       
@@ -168,7 +169,7 @@ export function ClientsHeader({
     onSearchChange('')
   }
 
-  const hasActiveFilters = searchQuery || filters.companyType || filters.assignedUser || filters.accountsAssignedUser || filters.vatAssignedUser || filters.status
+  const hasActiveFilters = searchQuery || filters.companyType || filters.assignedUser || filters.accountsAssignedUser || filters.vatAssignedUser
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -248,7 +249,7 @@ export function ClientsHeader({
         {/* Advanced Filters */}
         {showFilters && (
           <div className="mt-4 pt-4 border-t border-border">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-2 block">
                   Company Type
@@ -338,24 +339,6 @@ export function ClientsHeader({
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                  Status
-                </label>
-                <Select
-                  value={filters.status || 'all'}
-                  onValueChange={(value) => handleFilterChange('status', value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="true">Active</SelectItem>
-                    <SelectItem value="false">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </div>
         )}
@@ -393,11 +376,6 @@ export function ClientsHeader({
               VAT: {filters.vatAssignedUser === 'me' ? 'My Clients' : 
                     filters.vatAssignedUser === 'unassigned' ? 'Unassigned' : 
                     users.find(u => u.id === filters.vatAssignedUser)?.name || filters.vatAssignedUser}
-            </Badge>
-          )}
-          {filters.status && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              Status: {filters.status === 'true' ? 'Active' : 'Inactive'}
             </Badge>
           )}
         </div>

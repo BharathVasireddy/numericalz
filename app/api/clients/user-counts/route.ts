@@ -41,16 +41,46 @@ export async function GET(request: NextRequest) {
     const accountsClientCounts: Record<string, number> = {}
     const vatClientCounts: Record<string, number> = {}
 
-    // Get counts for each user
+    // Get all active clients with their assignments for efficient counting
+    const allClients = await db.client.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        companyType: true,
+        assignedUserId: true,
+        ltdCompanyAssignedUserId: true,
+        nonLtdCompanyAssignedUserId: true,
+        vatAssignedUserId: true
+      }
+    })
+
+    // Calculate counts for each user
     for (const user of users) {
-      // General assignment count
-      const generalCount = await db.client.count({
-        where: {
-          isActive: true,
-          assignedUserId: user.id
+      // General assignment count (sum of accounts + VAT assignments)
+      const userClientSet = new Set<string>()
+      
+      allClients.forEach(client => {
+        // Check if user handles accounts for this client
+        let handlesAccounts = false
+        if (client.companyType === 'LIMITED_COMPANY') {
+          handlesAccounts = client.ltdCompanyAssignedUserId === user.id || 
+                           (!client.ltdCompanyAssignedUserId && client.assignedUserId === user.id)
+        } else if (client.companyType && ['NON_LIMITED_COMPANY', 'DIRECTOR', 'SUB_CONTRACTOR'].includes(client.companyType)) {
+          handlesAccounts = client.nonLtdCompanyAssignedUserId === user.id || 
+                           (!client.nonLtdCompanyAssignedUserId && client.assignedUserId === user.id)
+        }
+        
+        // Check if user handles VAT for this client
+        const handlesVAT = client.vatAssignedUserId === user.id || 
+                          (!client.vatAssignedUserId && client.assignedUserId === user.id)
+        
+        // Add client to set if user handles either accounts or VAT
+        if (handlesAccounts || handlesVAT) {
+          userClientSet.add(client.id)
         }
       })
-      userClientCounts[user.id] = generalCount
+      
+      userClientCounts[user.id] = userClientSet.size
 
       // Accounts assignment count (with fallback logic)
       const accountsCount = await db.client.count({

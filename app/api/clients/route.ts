@@ -343,9 +343,30 @@ export async function GET(request: NextRequest) {
           lastCTStatusUpdate: true,
           ctStatusUpdatedBy: true,
         },
-        orderBy: {
-          [sortBy]: sortOrder as 'asc' | 'desc',
-        },
+        orderBy: (() => {
+          // Handle special sorting cases
+          if (sortBy === 'accountsAssigned') {
+            // Sort by accounts assignment name, prioritizing specific assignments
+            return [
+              { ltdCompanyAssignedUser: { name: sortOrder as 'asc' | 'desc' } },
+              { nonLtdCompanyAssignedUser: { name: sortOrder as 'asc' | 'desc' } },
+              { assignedUser: { name: sortOrder as 'asc' | 'desc' } },
+              { companyName: 'asc' } // Secondary sort
+            ]
+          } else if (sortBy === 'vatAssigned') {
+            // Sort by VAT assignment name, prioritizing specific assignment
+            return [
+              { vatAssignedUser: { name: sortOrder as 'asc' | 'desc' } },
+              { assignedUser: { name: sortOrder as 'asc' | 'desc' } },
+              { companyName: 'asc' } // Secondary sort
+            ]
+          } else if (sortBy === 'assignedUser') {
+            return { assignedUser: { name: sortOrder as 'asc' | 'desc' } }
+          } else {
+            // Standard field sorting
+            return { [sortBy]: sortOrder as 'asc' | 'desc' }
+          }
+        })(),
         skip,
         take: limit,
       }),
