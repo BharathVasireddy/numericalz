@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Plus, Search, Filter, Download } from 'lucide-react'
@@ -30,6 +30,13 @@ import {
   XCircle
 } from 'lucide-react'
 import Link from 'next/link'
+
+interface User {
+  id: string
+  name: string
+  email: string
+  role: string
+}
 
 interface ClientsHeaderProps {
   searchQuery: string
@@ -69,7 +76,41 @@ export function ClientsHeader({
   const router = useRouter()
   const [showFilters, setShowFilters] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [users, setUsers] = useState<User[]>([])
+  const [userClientCounts, setUserClientCounts] = useState<Record<string, number>>({})
   const { data: session } = useSession()
+
+  // Fetch users for filtering (only for managers and partners)
+  useEffect(() => {
+    if (session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') {
+      fetchUsers()
+      fetchUserClientCounts()
+    }
+  }, [session])
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/users?includeSelf=true')
+      if (response.ok) {
+        const data = await response.json()
+        setUsers(data.users || [])
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+    }
+  }
+
+  const fetchUserClientCounts = async () => {
+    try {
+      const response = await fetch('/api/clients/user-counts')
+      if (response.ok) {
+        const data = await response.json()
+        setUserClientCounts(data.userClientCounts || {})
+      }
+    } catch (error) {
+      console.error('Error fetching user client counts:', error)
+    }
+  }
 
   const handleFilterChange = (key: string, value: string) => {
     // Convert "all" to empty string for API compatibility
@@ -235,6 +276,11 @@ export function ClientsHeader({
                     <SelectItem value="all">All Users</SelectItem>
                     <SelectItem value="me">My Clients</SelectItem>
                     <SelectItem value="unassigned">Unassigned</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name} ({userClientCounts[user.id] || 0} clients)
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -277,7 +323,8 @@ export function ClientsHeader({
           {filters.assignedUser && (
             <Badge variant="secondary" className="flex items-center gap-1">
               Assigned: {filters.assignedUser === 'me' ? 'My Clients' : 
-                         filters.assignedUser === 'unassigned' ? 'Unassigned' : filters.assignedUser}
+                         filters.assignedUser === 'unassigned' ? 'Unassigned' : 
+                         users.find(u => u.id === filters.assignedUser)?.name || filters.assignedUser}
             </Badge>
           )}
           {filters.status && (

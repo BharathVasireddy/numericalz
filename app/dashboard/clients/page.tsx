@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { ClientsHeader } from '@/components/clients/clients-header'
 import { ClientsTable } from '@/components/clients/clients-table'
 
@@ -23,6 +23,14 @@ export default function ClientsPage() {
     assignedUser: '',
     status: ''
   })
+  const [clientCounts, setClientCounts] = useState({
+    total: 0,
+    filtered: 0
+  })
+
+  const handleClientCountsUpdate = useCallback((total: number, filtered: number) => {
+    setClientCounts({ total, filtered })
+  }, [])
 
   return (
     <div className="page-container">
@@ -33,11 +41,14 @@ export default function ClientsPage() {
             onSearchChange={setSearchQuery}
             filters={filters}
             onFiltersChange={setFilters}
+            totalCount={clientCounts.total}
+            filteredCount={clientCounts.filtered}
           />
           
           <ClientsTable 
             searchQuery={searchQuery}
             filters={filters}
+            onClientCountsUpdate={handleClientCountsUpdate}
           />
         </div>
       </div>

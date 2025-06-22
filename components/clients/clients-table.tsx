@@ -102,6 +102,7 @@ interface ClientsTableProps {
     assignedUser: string
     status: string
   }
+  onClientCountsUpdate?: (total: number, filtered: number) => void
 }
 
 // Sortable header component
@@ -153,12 +154,13 @@ function SortableHeader({ children, sortKey, currentSort, sortOrder, onSort, cla
  * - Modal-based resign confirmation
  * - Working assign user functionality
  */
-export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
+export function ClientsTable({ searchQuery, filters, onClientCountsUpdate }: ClientsTableProps) {
   const { data: session } = useSession()
   const router = useRouter()
   const [clients, setClients] = useState<Client[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [totalClientCount, setTotalClientCount] = useState(0)
   const [sortBy, setSortBy] = useState<string>('companyName')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [selectedClients, setSelectedClients] = useState<string[]>([])
@@ -214,6 +216,28 @@ export function ClientsTable({ searchQuery, filters }: ClientsTableProps) {
       if (response.ok) {
         const data = await response.json()
         setClients(data.clients || [])
+        
+        // If no filters applied, this is our total count
+        const hasFilters = searchQuery.trim() || filters.companyType || filters.assignedUser || filters.status
+        const currentTotal = data.pagination?.totalCount || 0
+        
+        if (!hasFilters) {
+          setTotalClientCount(currentTotal)
+          onClientCountsUpdate?.(currentTotal, currentTotal)
+        } else {
+          // For filtered results, we need to fetch the unfiltered total if we don't have it
+          if (totalClientCount === 0) {
+            const totalResponse = await fetch('/api/clients?active=true&limit=1')
+            if (totalResponse.ok) {
+              const totalData = await totalResponse.json()
+              const unfiltered = totalData.pagination?.totalCount || 0
+              setTotalClientCount(unfiltered)
+              onClientCountsUpdate?.(unfiltered, currentTotal)
+            }
+          } else {
+            onClientCountsUpdate?.(totalClientCount, currentTotal)
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching clients:', error)
