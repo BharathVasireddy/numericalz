@@ -948,19 +948,19 @@ export function LtdCompaniesDeadlinesTable() {
                       </div>
                     </SelectItem>
                     {users
-                      .filter(user => userClientCounts[user.id] > 0)
-                      .sort((a, b) => (userClientCounts[b.id] || 0) - (userClientCounts[a.id] || 0))
+                      .filter(user => (userClientCounts?.[user.id] || 0) > 0)
+                      .sort((a, b) => (userClientCounts?.[b.id] || 0) - (userClientCounts?.[a.id] || 0))
                       .map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-blue-600" />
                           <span>{user.name}</span>
-                          <span className="text-xs text-muted-foreground">({userClientCounts[user.id]})</span>
+                          <span className="text-xs text-muted-foreground">({userClientCounts?.[user.id] || 0})</span>
                         </div>
                       </SelectItem>
                     ))}
                     {users
-                      .filter(user => userClientCounts[user.id] === 0)
+                      .filter(user => (userClientCounts?.[user.id] || 0) === 0)
                       .sort((a, b) => a.name.localeCompare(b.name))
                       .map((user) => (
                       <SelectItem key={user.id} value={user.id}>

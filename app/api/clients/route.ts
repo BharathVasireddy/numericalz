@@ -184,39 +184,76 @@ export async function GET(request: NextRequest) {
       where.assignedUserId = null
     }
 
-    // Accounts assignment filtering
+    // Accounts assignment filtering (with fallback logic)
     if (accountsAssignedUserId) {
-      if (accountsAssignedUserId === 'me') {
-        orConditions.push({
-          OR: [
-            { ltdCompanyAssignedUserId: session.user.id },
-            { nonLtdCompanyAssignedUserId: session.user.id }
-          ]
-        })
-      } else {
-        orConditions.push({
-          OR: [
-            { ltdCompanyAssignedUserId: accountsAssignedUserId },
-            { nonLtdCompanyAssignedUserId: accountsAssignedUserId }
-          ]
-        })
-      }
+      const targetUserId = accountsAssignedUserId === 'me' ? session.user.id : accountsAssignedUserId
+      
+      orConditions.push({
+        OR: [
+          // Specific assignments
+          { 
+            AND: [
+              { companyType: 'LIMITED_COMPANY' },
+              { ltdCompanyAssignedUserId: targetUserId }
+            ]
+          },
+          {
+            AND: [
+              { companyType: { in: ['NON_LIMITED_COMPANY', 'DIRECTOR', 'SUB_CONTRACTOR'] } },
+              { nonLtdCompanyAssignedUserId: targetUserId }
+            ]
+          },
+          // Fallback to general assignment when specific assignment is null
+          {
+            AND: [
+              { companyType: 'LIMITED_COMPANY' },
+              { ltdCompanyAssignedUserId: null },
+              { assignedUserId: targetUserId }
+            ]
+          },
+          {
+            AND: [
+              { companyType: { in: ['NON_LIMITED_COMPANY', 'DIRECTOR', 'SUB_CONTRACTOR'] } },
+              { nonLtdCompanyAssignedUserId: null },
+              { assignedUserId: targetUserId }
+            ]
+          }
+        ]
+      })
     } else if (accountsUnassigned) {
       andConditions.push({
-        ltdCompanyAssignedUserId: null,
-        nonLtdCompanyAssignedUserId: null
+        AND: [
+          { ltdCompanyAssignedUserId: null },
+          { nonLtdCompanyAssignedUserId: null },
+          { assignedUserId: null }
+        ]
       })
     }
 
-    // VAT assignment filtering
+    // VAT assignment filtering (with fallback logic)
     if (vatAssignedUserId) {
-      if (vatAssignedUserId === 'me') {
-        where.vatAssignedUserId = session.user.id
-      } else {
-        where.vatAssignedUserId = vatAssignedUserId
-      }
+      const targetUserId = vatAssignedUserId === 'me' ? session.user.id : vatAssignedUserId
+      
+      orConditions.push({
+        OR: [
+          // Specific VAT assignment
+          { vatAssignedUserId: targetUserId },
+          // Fallback to general assignment when VAT assignment is null
+          {
+            AND: [
+              { vatAssignedUserId: null },
+              { assignedUserId: targetUserId }
+            ]
+          }
+        ]
+      })
     } else if (vatUnassigned) {
-      where.vatAssignedUserId = null
+      andConditions.push({
+        AND: [
+          { vatAssignedUserId: null },
+          { assignedUserId: null }
+        ]
+      })
     }
 
     // Combine all conditions properly

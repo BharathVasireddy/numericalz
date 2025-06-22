@@ -22,6 +22,8 @@ export default function NonLtdCompaniesPage() {
   const [filters, setFilters] = useState({
     companyType: 'NON_LIMITED_COMPANY',
     assignedUser: '',
+    accountsAssignedUser: '',
+    vatAssignedUser: '',
     status: ''
   })
 
