@@ -167,6 +167,7 @@ export function LtdCompaniesDeadlinesTable() {
   const [showBackwardStageConfirm, setShowBackwardStageConfirm] = useState(false)
   const [filter, setFilter] = useState<'assigned_to_me' | 'all'>('assigned_to_me')
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all')
+  const [selectedWorkflowStageFilter, setSelectedWorkflowStageFilter] = useState<string>('all')
   const [refreshingCompaniesHouse, setRefreshingCompaniesHouse] = useState(false)
   const [showActivityLogModal, setShowActivityLogModal] = useState(false)
   const [activityLogClient, setActivityLogClient] = useState<LtdClient | null>(null)
@@ -292,7 +293,20 @@ export function LtdCompaniesDeadlinesTable() {
         }
       }
       
-      return passesBasicFilter && passesUserFilter
+      // Apply workflow stage filter
+      let passesWorkflowFilter = true
+      if (selectedWorkflowStageFilter !== 'all') {
+        if (selectedWorkflowStageFilter === 'not_started') {
+          passesWorkflowFilter = !client.currentLtdAccountsWorkflow
+        } else if (selectedWorkflowStageFilter === 'completed') {
+          passesWorkflowFilter = client.currentLtdAccountsWorkflow?.isCompleted || 
+                                client.currentLtdAccountsWorkflow?.currentStage === 'FILED_CH_HMRC'
+        } else {
+          passesWorkflowFilter = client.currentLtdAccountsWorkflow?.currentStage === selectedWorkflowStageFilter
+        }
+      }
+      
+      return passesBasicFilter && passesUserFilter && passesWorkflowFilter
     })
 
   // Calculate client counts per user for filter display
@@ -835,41 +849,35 @@ export function LtdCompaniesDeadlinesTable() {
 
   return (
     <>
-      <div className="page-container">
-        <div className="content-wrapper">
-          <div className="content-sections">
-            {/* Page Header */}
-            <div className="page-header">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h1 className="text-xl md:text-2xl font-bold">Ltd Companies Deadlines</h1>
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    Track and manage filing deadlines for all Limited Company clients
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fetchLtdClients(true)}
-                    disabled={loading || refreshingCompaniesHouse}
-                  >
-                    <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh Data
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBulkRefreshCompaniesHouse}
-                    disabled={loading || refreshingCompaniesHouse || sortedFilteredClients.length === 0}
-                    className="border-blue-200 text-blue-700 hover:bg-blue-50"
-                  >
-                    <Building className={`mr-2 h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
-                    {refreshingCompaniesHouse ? 'Refreshing CH...' : `Refresh CH Data (${sortedFilteredClients.length})`}
-                  </Button>
-                </div>
-              </div>
-            </div>
+      <PageLayout maxWidth="xl">
+        <PageHeader 
+          title="Ltd Companies Deadlines"
+          description="Track and manage filing deadlines for all Limited Company clients"
+        >
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchLtdClients(true)}
+              disabled={loading || refreshingCompaniesHouse}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh Data
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkRefreshCompaniesHouse}
+              disabled={loading || refreshingCompaniesHouse || sortedFilteredClients.length === 0}
+              className="border-blue-200 text-blue-700 hover:bg-blue-50"
+            >
+              <Building className={`mr-2 h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
+              {refreshingCompaniesHouse ? 'Refreshing CH...' : `Refresh CH Data (${sortedFilteredClients.length})`}
+            </Button>
+          </div>
+        </PageHeader>
+        
+        <PageContent>
 
             {/* Current Month Summary */}
             <Card className="p-6 border-l-4 border-l-purple-500">
@@ -986,6 +994,46 @@ export function LtdCompaniesDeadlinesTable() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Workflow Stage Filter Dropdown */}
+              <div className="flex items-center gap-2">
+                <Label htmlFor="stage-filter" className="text-sm font-medium whitespace-nowrap">
+                  Filter by Stage:
+                </Label>
+                <Select value={selectedWorkflowStageFilter} onValueChange={setSelectedWorkflowStageFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Select stage..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="h-4 w-4 text-gray-600" />
+                        <span>All Stages</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="not_started">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-gray-400" />
+                        <span>Not Started</span>
+                      </div>
+                    </SelectItem>
+                    {WORKFLOW_STAGES.map((stage) => (
+                      <SelectItem key={stage.key} value={stage.key}>
+                        <div className="flex items-center gap-2">
+                          {stage.icon}
+                          <span>{stage.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="completed">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span>Completed</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Table */}
@@ -1048,9 +1096,13 @@ export function LtdCompaniesDeadlinesTable() {
                             </TableCell>
                             <TableCell className="font-medium p-2">
                               <div className="flex items-center gap-2">
-                                <div className="max-w-[150px] truncate text-sm" title={client.companyName}>
+                                <button
+                                  onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                                  className="max-w-[150px] truncate text-sm hover:text-primary transition-colors cursor-pointer text-left"
+                                  title={`View ${client.companyName} details`}
+                                >
                                   {client.companyName}
-                                </div>
+                                </button>
                                 <button
                                   onClick={() => handleViewActivityLog(client)}
                                   className="flex items-center gap-1 text-left hover:text-primary transition-colors cursor-pointer group text-xs"
@@ -1187,9 +1239,8 @@ export function LtdCompaniesDeadlinesTable() {
                   </div>
                 </CardContent>
               </Card>
-          </div>
-        </div>
-      </div>
+        </PageContent>
+      </PageLayout>
 
       {/* Update Modal - Full Workflow Functionality */}
       <Dialog open={updateModalOpen} onOpenChange={setUpdateModalOpen}>

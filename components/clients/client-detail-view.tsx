@@ -13,7 +13,6 @@ import {
   AlertTriangle, 
   CheckCircle, 
   Edit, 
-  UserPlus, 
   RefreshCw,
   FileText,
   Clock,
@@ -26,7 +25,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { AssignUserModal } from '@/components/clients/assign-user-modal'
+
 import { CTStatusManager } from './ct-status-manager'
 import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 
@@ -79,10 +78,7 @@ interface PSCData {
 export function ClientDetailView({ client, currentUser }: ClientDetailViewProps) {
   const router = useRouter()
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [showAssignModal, setShowAssignModal] = useState(false)
   const [showActivityLogModal, setShowActivityLogModal] = useState(false)
-  const [users, setUsers] = useState<any[]>([])
-  const [loadingUsers, setLoadingUsers] = useState(false)
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Not set'
@@ -223,34 +219,7 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
     return email === 'contact@tobeupdated.com' || !email ? 'TBU' : email
   }
 
-  const fetchUsers = async () => {
-    setLoadingUsers(true)
-    try {
-      const response = await fetch('/api/users?includeSelf=true')
-      const data = await response.json()
-      if (data.success) {
-        setUsers(data.users || [])
-      } else {
-        console.error('Failed to fetch users:', data.error)
-        setUsers([])
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error)
-      setUsers([])
-    } finally {
-      setLoadingUsers(false)
-    }
-  }
 
-  const handleAssignUser = async () => {
-    await fetchUsers()
-    setShowAssignModal(true)
-  }
-
-  const handleAssignSuccess = () => {
-    // Refresh the page to show updated assignment
-    router.refresh()
-  }
 
   return (
     <div className="page-container">
@@ -287,24 +256,13 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                   </Button>
                 )}
                 {(currentUser.role === 'MANAGER' || currentUser.role === 'PARTNER') && (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={handleAssignUser}
-                      disabled={loadingUsers}
-                      className="btn-outline"
-                    >
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      {loadingUsers ? 'Loading...' : 'Assign User'}
-                    </Button>
-                    <Button
-                      onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
-                      className="btn-primary"
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Client
-                    </Button>
-                  </>
+                  <Button
+                    onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
+                    className="btn-primary"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Client
+                  </Button>
                 )}
               </div>
             </div>
@@ -1178,14 +1136,7 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
         </div>
       </div>
       
-      {/* Assign User Modal */}
-      <AssignUserModal
-        client={client}
-        users={users}
-        isOpen={showAssignModal}
-        onClose={() => setShowAssignModal(false)}
-        onSuccess={handleAssignSuccess}
-      />
+
 
       {/* Activity Log Modal */}
       <Dialog open={showActivityLogModal} onOpenChange={setShowActivityLogModal}>

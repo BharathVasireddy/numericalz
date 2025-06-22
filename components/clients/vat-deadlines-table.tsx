@@ -187,6 +187,7 @@ export function VATDeadlinesTable() {
   const [showActivityLogModal, setShowActivityLogModal] = useState(false)
   const [activityLogClient, setActivityLogClient] = useState<VATClient | null>(null)
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all')
+  const [selectedWorkflowStageFilter, setSelectedWorkflowStageFilter] = useState<string>('all')
 
   // Get current month for default tab
   const currentMonth = new Date().getMonth() + 1
@@ -244,20 +245,62 @@ export function VATDeadlinesTable() {
     fetchUsers()
   }, [fetchVATClients, fetchUsers])
 
-  // Helper function to check if client matches user filter
-  const clientMatchesUserFilter = useCallback((client: VATClient) => {
-    if (selectedUserFilter === 'all') return true
-    
-    if (selectedUserFilter === 'unassigned') {
-      // Check if client has no VAT assignment (client-level only for now)
-      return !client.vatAssignedUser?.id
-    } else {
-      // Check if client is assigned to specific user (client-level)
-      return client.vatAssignedUser?.id === selectedUserFilter
+  // Helper function to check if client matches user and workflow stage filters
+  const clientMatchesFilters = useCallback((client: VATClient, monthNumber?: number) => {
+    // User filter
+    let passesUserFilter = true
+    if (selectedUserFilter !== 'all') {
+      if (selectedUserFilter === 'unassigned') {
+        // Check if client has no VAT assignment (client-level only for now)
+        passesUserFilter = !client.vatAssignedUser?.id
+      } else {
+        // Check if client is assigned to specific user (client-level)
+        passesUserFilter = client.vatAssignedUser?.id === selectedUserFilter
+      }
     }
-  }, [selectedUserFilter])
+    
+    // Workflow stage filter
+    let passesWorkflowFilter = true
+    if (selectedWorkflowStageFilter !== 'all' && monthNumber) {
+      // Calculate quarter inline to avoid dependency issues
+      if (!client.vatQuarterGroup || !isVATFilingMonth(client.vatQuarterGroup, monthNumber)) {
+        passesWorkflowFilter = false
+      } else {
+        // Calculate the quarter that files in this month
+        const quarterEndMonth = monthNumber === 1 ? 12 : monthNumber - 1
+        const currentYear = new Date().getFullYear()
+        const quarterEndYear = monthNumber === 1 ? currentYear - 1 : currentYear
+        
+        const quarterEndDate = new Date(quarterEndYear, quarterEndMonth - 1, 15)
+        const quarterInfo = calculateVATQuarter(client.vatQuarterGroup, quarterEndDate)
+        
+        // Find existing quarter that matches this period
+        let quarter: VATQuarter | null = null
+        if (client.vatQuartersWorkflow) {
+          quarter = client.vatQuartersWorkflow.find(q => 
+            q.quarterPeriod === quarterInfo.quarterPeriod
+          ) || null
+        }
+        
+        // Fallback to current quarter if it matches
+        if (!quarter && client.currentVATQuarter?.quarterPeriod === quarterInfo.quarterPeriod) {
+          quarter = client.currentVATQuarter
+        }
+        
+        if (selectedWorkflowStageFilter === 'not_started') {
+          passesWorkflowFilter = !quarter || quarter.id.startsWith('calculated-')
+        } else if (selectedWorkflowStageFilter === 'completed') {
+          passesWorkflowFilter = quarter?.isCompleted || quarter?.currentStage === 'FILED_TO_HMRC'
+        } else {
+          passesWorkflowFilter = quarter?.currentStage === selectedWorkflowStageFilter
+        }
+      }
+    }
+    
+    return passesUserFilter && passesWorkflowFilter
+  }, [selectedUserFilter, selectedWorkflowStageFilter])
 
-  // Get clients for specific filing month with user filtering
+  // Get clients for specific filing month with user and workflow stage filtering
   const getClientsForMonth = useCallback((monthNumber: number) => {
     if (!vatClients || !Array.isArray(vatClients)) return []
     
@@ -267,10 +310,10 @@ export function VATDeadlinesTable() {
       // First check if client files in this month
       if (!isVATFilingMonth(client.vatQuarterGroup, monthNumber)) return false
       
-      // Then apply user filter
-      return clientMatchesUserFilter(client)
+      // Then apply user and workflow stage filters
+      return clientMatchesFilters(client, monthNumber)
     })
-  }, [vatClients, clientMatchesUserFilter])
+  }, [vatClients, clientMatchesFilters])
 
   // Calculate VAT client counts per user for filter display
   const userVATClientCounts = users.reduce((acc, user) => {
@@ -1033,11 +1076,17 @@ export function VATDeadlinesTable() {
                 <TableCell className="font-medium p-2">
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleOpenHistory(client)}
-                      className="flex items-center gap-1 text-left hover:text-primary transition-colors cursor-pointer group text-xs truncate max-w-[140px]"
-                      title={client.companyName}
+                      onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                      className="text-left hover:text-primary transition-colors cursor-pointer text-xs truncate max-w-[140px]"
+                      title={`View ${client.companyName} details`}
                     >
                       <span className="hover:underline truncate">{client.companyName}</span>
+                    </button>
+                    <button
+                      onClick={() => handleOpenHistory(client)}
+                      className="flex items-center gap-1 text-left hover:text-primary transition-colors cursor-pointer group text-xs"
+                      title="View VAT History"
+                    >
                       <History className="h-3 w-3 text-muted-foreground group-hover:text-primary flex-shrink-0" />
                     </button>
                     <button
@@ -1185,8 +1234,8 @@ export function VATDeadlinesTable() {
               </div>
             </div>
 
-            {/* User Filter */}
-            <div className="flex justify-end">
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 justify-end">
               <div className="flex items-center gap-2">
                 <Label htmlFor="vat-user-filter" className="text-sm font-medium whitespace-nowrap">
                   Filter by User:
@@ -1232,6 +1281,45 @@ export function VATDeadlinesTable() {
                         </div>
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Label htmlFor="vat-stage-filter" className="text-sm font-medium whitespace-nowrap">
+                  Filter by Stage:
+                </Label>
+                <Select value={selectedWorkflowStageFilter} onValueChange={setSelectedWorkflowStageFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Select stage..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-gray-600" />
+                        <span>All Stages</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="not_started">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-gray-400" />
+                        <span>Not Started</span>
+                      </div>
+                    </SelectItem>
+                    {WORKFLOW_STAGES.map((stage) => (
+                      <SelectItem key={stage.key} value={stage.key}>
+                        <div className="flex items-center gap-2">
+                          {stage.icon}
+                          <span>{stage.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="completed">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span>Completed</span>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
