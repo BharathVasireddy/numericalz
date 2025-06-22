@@ -130,11 +130,66 @@ async function getBusinessData(userId: string, userRole: string) {
     []
   ])
 
-  // Calculate current month deadlines
+  // Calculate current month deadlines and flexible date ranges
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
   const next30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+  
+  // Helper function to get deadlines for any month/year
+  const getDeadlinesForPeriod = (startDate: Date, endDate: Date) => {
+    const periodDeadlines = {
+      accounts: [] as any[],
+      vat: [] as any[],
+      confirmation: [] as any[],
+      corporationTax: [] as any[]
+    }
+    
+    clients.forEach(client => {
+      if (client.nextAccountsDue) {
+        const date = new Date(client.nextAccountsDue)
+        if (date >= startDate && date <= endDate) {
+          periodDeadlines.accounts.push({
+            client: { clientCode: client.clientCode, companyName: client.companyName },
+            dueDate: client.nextAccountsDue,
+            assignedUser: client.assignedUser?.name || 'Unassigned'
+          })
+        }
+      }
+      if (client.nextVatReturnDue) {
+        const date = new Date(client.nextVatReturnDue)
+        if (date >= startDate && date <= endDate) {
+          periodDeadlines.vat.push({
+            client: { clientCode: client.clientCode, companyName: client.companyName },
+            dueDate: client.nextVatReturnDue,
+            assignedUser: client.assignedUser?.name || 'Unassigned'
+          })
+        }
+      }
+      if (client.nextConfirmationDue) {
+        const date = new Date(client.nextConfirmationDue)
+        if (date >= startDate && date <= endDate) {
+          periodDeadlines.confirmation.push({
+            client: { clientCode: client.clientCode, companyName: client.companyName },
+            dueDate: client.nextConfirmationDue,
+            assignedUser: client.assignedUser?.name || 'Unassigned'
+          })
+        }
+      }
+      if (client.nextCorporationTaxDue) {
+        const date = new Date(client.nextCorporationTaxDue)
+        if (date >= startDate && date <= endDate) {
+          periodDeadlines.corporationTax.push({
+            client: { clientCode: client.clientCode, companyName: client.companyName },
+            dueDate: client.nextCorporationTaxDue,
+            assignedUser: client.assignedUser?.name || 'Unassigned'
+          })
+        }
+      }
+    })
+    
+    return periodDeadlines
+  }
 
   const deadlinesThisMonth = {
     accounts: 0,
@@ -355,7 +410,16 @@ async function getBusinessData(userId: string, userRole: string) {
     teamWorkload,
     userRole,
     currentMonth: now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
-    recentActivity: []
+    recentActivity: [],
+    getDeadlinesForPeriod, // Allow AI to query specific date ranges
+    // Helper data for better date queries
+    feb2026Deadlines: getDeadlinesForPeriod(new Date(2026, 1, 1), new Date(2026, 1, 28)),
+    allCorporationTaxDue: clients.filter(c => c.nextCorporationTaxDue).map(c => ({
+      clientCode: c.clientCode,
+      companyName: c.companyName,
+      dueDate: c.nextCorporationTaxDue,
+      assignedUser: c.assignedUser?.name || 'Unassigned'
+    }))
   }
 }
 
@@ -363,14 +427,24 @@ async function getBusinessData(userId: string, userRole: string) {
 export async function processAIQuery(
   query: string, 
   userId: string,
-  userRole: string
+  userRole: string,
+  conversationHistory: any[] = []
 ): Promise<ChatResponse> {
   try {
     // Get business data
     const businessData = await getBusinessData(userId, userRole)
     
+    // Build conversation context from history
+    const conversationContext = conversationHistory.length > 0 
+      ? `\n## CONVERSATION HISTORY:\n${conversationHistory.slice(-5).map(msg => 
+          `${msg.type === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
+        ).join('\n')}\n`
+      : ''
+
     // Create comprehensive context for AI
-    const systemPrompt = `You are a comprehensive business intelligence assistant for Numericalz, a UK accounting firm. You have access to real-time business data including client information, workflows, deadlines, team workload, and activity logs. Provide detailed, accurate, and actionable responses.
+    const systemPrompt = `You are a comprehensive business intelligence assistant for Numericalz, a UK accounting firm. You have access to real-time business data including client information, workflows, deadlines, team workload, and activity logs. You can follow conversation context and provide detailed, accurate, and actionable responses.
+
+${conversationContext}
 
 ## CURRENT BUSINESS OVERVIEW:
 📊 **Client Portfolio:**
@@ -411,17 +485,38 @@ ${businessData.teamWorkload.map(member =>
 5. **Use Structured Formatting**: Use bullet points, numbers, and clear sections
 6. **Professional Tone**: Conversational but business-appropriate
 7. **Data Privacy**: Staff can only see their assigned clients; managers/partners see all data
+8. **Follow Conversation**: Reference previous messages and build on the conversation context
+9. **Date-Specific Queries**: When asked about specific months/years (like "Feb 2026"), use the provided deadline data
+
+## SPECIAL DATA NOTES:
+- Corporation Tax due dates are in nextCorporationTaxDue field
+- All CT deadlines are available in allCorporationTaxDue array
+- February 2026 deadlines are pre-calculated in feb2026Deadlines
+- For other specific dates, analyze the nextCorporationTaxDue field across all clients
 
 Available Data:
 ${JSON.stringify(businessData, null, 2)}
 `
 
+    // Build message history for context
+    const messages: any[] = [
+      { role: "system", content: systemPrompt }
+    ]
+
+    // Add conversation history (last 5 messages for context)
+    conversationHistory.slice(-5).forEach(msg => {
+      messages.push({
+        role: msg.type === 'user' ? 'user' : 'assistant',
+        content: msg.content
+      })
+    })
+
+    // Add current user message
+    messages.push({ role: "user", content: query })
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: query }
-      ],
+      messages,
       max_tokens: 1000,
       temperature: 0.3
     })

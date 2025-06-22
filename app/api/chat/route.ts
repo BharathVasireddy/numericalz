@@ -6,7 +6,13 @@ import { z } from 'zod'
 
 const ChatRequestSchema = z.object({
   message: z.string().min(1, 'Message cannot be empty').max(500, 'Message too long'),
-  conversationId: z.string().optional()
+  conversationId: z.string().optional(),
+  conversationHistory: z.array(z.object({
+    id: z.string(),
+    type: z.enum(['user', 'assistant']),
+    content: z.string(),
+    timestamp: z.date().or(z.string())
+  })).optional()
 })
 
 export async function POST(request: NextRequest) {
@@ -36,7 +42,8 @@ export async function POST(request: NextRequest) {
     const response = await processAIQuery(
       validatedData.message,
       user.id,
-      user.role
+      user.role,
+      validatedData.conversationHistory || []
     )
 
     // Create response message

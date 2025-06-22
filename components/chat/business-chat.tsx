@@ -100,7 +100,10 @@ export function BusinessChat({ className, defaultMinimized = false }: BusinessCh
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage.content })
+        body: JSON.stringify({ 
+          message: userMessage.content,
+          conversationHistory: messages.slice(-10) // Include last 10 messages for context
+        })
       })
 
       const data = await response.json()
