@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { processAIQuery, ChatMessage } from '@/lib/ai-chat-system'
+import { processAIQuery, ChatMessage } from '@/lib/ai-chat-system-enhanced'
+import { processAutonomousChatQuery } from '@/lib/ai-chat-autonomous'
 import { z } from 'zod'
 
 const ChatRequestSchema = z.object({
   message: z.string().min(1, 'Message cannot be empty').max(500, 'Message too long'),
   conversationId: z.string().optional(),
+  mode: z.enum(['autonomous', 'comprehensive']).default('autonomous'),
   conversationHistory: z.array(z.object({
     id: z.string(),
     type: z.enum(['user', 'assistant']),
@@ -38,13 +40,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = ChatRequestSchema.parse(body)
 
-    // Process the user query with AI
-    const response = await processAIQuery(
-      validatedData.message,
-      user.id,
-      user.role,
-      validatedData.conversationHistory || []
-    )
+    // Choose processing mode - autonomous (function calling) or comprehensive (pre-loaded data)
+    let response
+    if (validatedData.mode === 'autonomous') {
+      // Use autonomous function calling for real-time data and actions
+      response = await processAutonomousChatQuery(
+        validatedData.message,
+        user.id,
+        user.role,
+        validatedData.conversationHistory || []
+      )
+    } else {
+      // Use comprehensive pre-loaded data approach
+      response = await processAIQuery(
+        validatedData.message,
+        user.id,
+        user.role,
+        validatedData.conversationHistory || []
+      )
+    }
 
     // Create response message
     const assistantMessage: ChatMessage = {
@@ -56,16 +70,27 @@ export async function POST(request: NextRequest) {
       data: response.data
     }
 
-    return NextResponse.json({
+    // Enhanced response with function calling metadata
+    const responsePayload: any = {
       success: true,
       message: assistantMessage,
       suggestions: response.suggestions || [],
       metadata: {
         queryType: response.queryType,
         hasData: !!response.data,
-        userRole: user.role
+        userRole: user.role,
+        processingMode: validatedData.mode
       }
-    })
+    }
+
+    // Add function calling metadata if autonomous mode was used
+    if (validatedData.mode === 'autonomous' && 'functionCalls' in response) {
+      responsePayload.functionCalls = response.functionCalls
+      responsePayload.totalFunctionCalls = response.totalFunctionCalls
+      responsePayload.metadata.approach = response.approach
+    }
+
+    return NextResponse.json(responsePayload)
 
   } catch (error) {
     console.error('Chat API error:', error)
@@ -101,37 +126,91 @@ export async function GET(request: NextRequest) {
 
     const suggestions = [
       {
-        category: "Deadlines",
+        category: "Deadlines & Compliance",
         examples: [
           "How many VAT clients are due this month?",
-          "Show me all deadlines due this month",
-          "Which deadlines are overdue?",
-          "What accounts are due in the next 7 days?"
+          "Show me all deadlines due this month with overdue analysis",
+          "Which deadlines are overdue and by how many days?",
+          "What accounts are due in the next 7 days with client details?",
+          "Show February 2026 Corporation Tax deadlines",
+          "What deadlines are in workflow vs pending?"
         ]
       },
       {
-        category: "Clients",
+        category: "Client Management",
         examples: [
-          "How many clients do we have?",
-          "Show me all VAT-enabled clients",
+          "How many clients do we have by type?",
+          "Show me all VAT-enabled clients with quarter groups",
           "Which clients are assigned to [staff member]?",
-          "Tell me about client NZ-2"
+          "Tell me about client NZ-2 with full profile",
+          "Show clients with missing Companies House data",
+          "Which clients are self-filing by service type?"
         ]
       },
       {
-        category: "Team & Workload",
+        category: "Team Analytics & Workload",
         examples: [
-          "What's the current staff workload?",
+          "What's the current staff workload by assignment type?",
           "How many clients is each team member handling?",
-          "Show me team performance metrics"
+          "Show me comprehensive team performance metrics",
+          "Which staff need workload rebalancing?",
+          "Show assignment distribution by VAT/Ltd/Non-Ltd work",
+          "What's the optimal assignment strategy?"
         ]
       },
       {
-        category: "Workflows",
+        category: "Workflow Management",
         examples: [
-          "Which VAT returns are in progress?",
-          "Show me completed filings this month",
-          "What's the status of client workflows?"
+          "Which VAT returns are in progress with stages?",
+          "Show me completed filings this month with user attribution",
+          "What's the status of client workflows by completion rate?",
+          "Which workflows are taking longer than average?",
+          "Show VAT vs Ltd workflow efficiency comparison",
+          "What workflow bottlenecks need attention?"
+        ]
+      },
+      {
+        category: "System & Integrations",
+        examples: [
+          "What integrations are configured and their health?",
+          "Show me system performance metrics",
+          "What features are available in the application?",
+          "Show Companies House integration status",
+          "What HMRC connectivity is available?",
+          "Show email system and template management"
+        ]
+      },
+      {
+        category: "Communication & Activity",
+        examples: [
+          "Show recent communications by client",
+          "What email templates are available?",
+          "Show notification history and delivery status",
+          "Which clients need follow-up communications?",
+          "Show system activity trends over time",
+          "What communication patterns are emerging?"
+        ]
+      },
+      {
+        category: "Analytics & Performance",
+        examples: [
+          "Show comprehensive workflow performance metrics",
+          "What are the current system bottlenecks?",
+          "Show team productivity analysis with recommendations",
+          "Which processes need optimization?",
+          "Show completion rates by service type",
+          "What performance trends are emerging?"
+        ]
+      },
+      {
+        category: "Database & Configuration",
+        examples: [
+          "Show database model structure and relationships",
+          "What system settings are configured?",
+          "Show user management and role distribution",
+          "What audit trails are available?",
+          "Show data integrity and system health",
+          "What backup and maintenance tools exist?"
         ]
       }
     ]
@@ -139,13 +218,60 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       suggestions,
+      modes: {
+        autonomous: {
+          description: "AI makes autonomous function calls for real-time data and actions",
+          features: [
+            "Real-time client data retrieval",
+            "Live deadline analysis with urgency levels",
+            "Team workload optimization recommendations",
+            "VAT workflow bottleneck identification",
+            "Automated email notifications",
+            "Companies House API integration",
+            "System health monitoring",
+            "Action capabilities (send emails, update workflows)"
+          ]
+        },
+        comprehensive: {
+          description: "Pre-loaded comprehensive data for analytics and overview",
+          features: [
+            "Complete business intelligence dashboard",
+            "Historical trend analysis",
+            "Cross-departmental analytics", 
+            "Comprehensive reporting capabilities",
+            "Large-scale data correlations",
+            "Performance benchmarking"
+          ]
+        }
+      },
       capabilities: [
-        "Query client deadlines and due dates",
-        "Get team workload and assignment information", 
-        "Check workflow status and progress",
-        "Analyze business metrics and counts",
-        "Role-based data access (Staff see only their clients)"
-      ]
+        "🤖 Autonomous AI with function calling (NEW)",
+        "📊 Real-time data retrieval and analysis",
+        "⚡ Action capabilities (send emails, update workflows)",
+        "🏢 Companies House API integration",
+        "📈 Advanced analytics and performance monitoring",
+        "🔐 Role-based security and permissions",
+        "💬 Natural language processing for complex queries",
+        "🎯 Intelligent query routing and optimization",
+        "📧 Communication management and automation",
+        "🚨 Proactive deadline and workflow monitoring",
+        "👥 Team performance optimization",
+        "🔍 Multi-source data integration",
+        "📱 Mobile-responsive chat interface",
+        "🛡️ Enterprise-grade security and audit trails",
+        "🔄 Real-time system health monitoring"
+      ],
+      availableFunctions: session?.user ? [
+        "getClientDetails - Get comprehensive client information",
+        "getOverdueDeadlines - Analyze overdue items with urgency",
+        "getVATWorkflowStatus - Check workflow stages and bottlenecks",
+        "getSystemHealth - Monitor system performance",
+        ...(session.user.role !== 'STAFF' ? [
+          "getAllWorkload - Team workload analysis", 
+          "sendEmailNotification - Send client notifications",
+          "getCompaniesHouseData - Real-time company data"
+        ] : [])
+      ] : []
     })
 
   } catch (error) {
