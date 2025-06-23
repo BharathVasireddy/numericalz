@@ -161,20 +161,17 @@
   /* Main page container - consistent across all pages */
   .page-container {
     padding: var(--layout-padding-y) var(--layout-padding-x);
-    padding-bottom: calc(var(--layout-padding-y) + 5rem); /* Extra bottom padding for chat widget */
   }
   
   @media (min-width: 768px) {
     .page-container {
       padding: var(--layout-padding-y-md) var(--layout-padding-x-md);
-      padding-bottom: calc(var(--layout-padding-y-md) + 5rem); /* Extra bottom padding for chat widget */
     }
   }
   
   @media (min-width: 1024px) {
     .page-container {
       padding: var(--layout-padding-y-lg) var(--layout-padding-x-lg);
-      padding-bottom: calc(var(--layout-padding-y-lg) + 5rem); /* Extra bottom padding for chat widget */
     }
   }
   

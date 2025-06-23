@@ -12,8 +12,7 @@ import {
   Bot,
   User,
   Lightbulb,
-  ChevronDown,
-  ChevronUp,
+  X,
   Loader2,
   MessageSquare
 } from 'lucide-react'
@@ -29,7 +28,7 @@ interface ChatSuggestion {
   examples: string[]
 }
 
-export function BusinessChat({ className, defaultMinimized = false }: BusinessChatProps) {
+export function BusinessChat({ className, defaultMinimized = true }: BusinessChatProps) {
   const { data: session, status } = useSession()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState('')
@@ -172,191 +171,205 @@ export function BusinessChat({ className, defaultMinimized = false }: BusinessCh
     return null // Not logged in
   }
 
+  // Minimized state - Small floating icon
   if (isMinimized) {
     return (
       <div className={`fixed bottom-4 right-4 z-50 ${className}`}>
-        <Card className="w-80 shadow-lg border bg-background">
-          <CardHeader 
-            className="p-3 cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg"
-            onClick={() => setIsMinimized(false)}
-          >
-            <CardTitle className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
-                <span>Business Assistant</span>
-              </div>
-              <ChevronUp className="h-4 w-4" />
-            </CardTitle>
-          </CardHeader>
-        </Card>
+        <Button
+          onClick={() => setIsMinimized(false)}
+          size="icon"
+          className="h-12 w-12 rounded-full shadow-lg bg-primary hover:bg-primary/90 transition-all duration-200 hover:scale-105"
+        >
+          <MessageCircle className="h-6 w-6" />
+        </Button>
       </div>
     )
   }
 
+  // Expanded state - Responsive chat window
   return (
-    <div className={`fixed bottom-4 right-4 z-50 ${className}`}>
-      <Card className="w-96 h-[600px] shadow-xl border bg-background flex flex-col">
-        {/* Header */}
-        <CardHeader 
-          className="p-3 cursor-pointer hover:bg-muted/50 transition-colors border-b flex-shrink-0"
-          onClick={() => setIsMinimized(true)}
-        >
-          <CardTitle className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="h-4 w-4" />
-              <span>Business Assistant</span>
-              {session?.user?.role && (
-                <Badge variant="secondary" className="text-xs">
-                  {session.user.role}
-                </Badge>
-              )}
-            </div>
-            <ChevronDown className="h-4 w-4" />
-          </CardTitle>
-        </CardHeader>
-
-        {/* Messages Container */}
-        <div className="flex-1 flex flex-col min-h-0">
-          <div 
-            ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth"
-            style={{ scrollBehavior: 'smooth' }}
-          >
-            {messages.length === 0 && (
-              <div className="text-center text-muted-foreground py-8">
-                <Bot className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
-                <p className="text-sm">Ask me anything about your business!</p>
-                <p className="text-xs mt-1">
-                  Try: "How many VAT clients are due this month?"
-                </p>
-              </div>
-            )}
-
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-2 ${
-                  message.type === 'user' ? 'justify-end' : 'justify-start'
-                }`}
-              >
-                <div
-                  className={`flex gap-2 max-w-[85%] ${
-                    message.type === 'user' ? 'flex-row-reverse' : 'flex-row'
-                  }`}
+    <>
+      {/* Mobile Overlay */}
+      <div 
+        className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        onClick={() => setIsMinimized(true)}
+      />
+      
+      {/* Chat Window - Responsive */}
+      <div className={`fixed z-50 ${className}`}>
+        <div className="
+          fixed inset-x-4 bottom-4 top-20
+          lg:relative lg:inset-auto lg:bottom-4 lg:right-4 lg:top-auto
+          lg:w-96 lg:h-[600px]
+        ">
+          <Card className="h-full shadow-xl border bg-background flex flex-col">
+            {/* Header */}
+            <CardHeader className="p-3 border-b flex-shrink-0">
+              <CardTitle className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4" />
+                  <span>Business Assistant</span>
+                  {session?.user?.role && (
+                    <Badge variant="secondary" className="text-xs">
+                      {session.user.role}
+                    </Badge>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsMinimized(true)}
+                  className="h-8 w-8 p-0"
                 >
+                  <X className="h-4 w-4" />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+
+            {/* Messages Container */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <div 
+                ref={messagesContainerRef}
+                className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-3 lg:space-y-4 scroll-smooth"
+                style={{ scrollBehavior: 'smooth' }}
+              >
+                {messages.length === 0 && (
+                  <div className="text-center text-muted-foreground py-6 lg:py-8">
+                    <Bot className="h-6 w-6 lg:h-8 lg:w-8 mx-auto mb-2 text-muted-foreground/50" />
+                    <p className="text-sm">Ask me anything about your business!</p>
+                    <p className="text-xs mt-1">
+                      Try: "How many VAT clients are due this month?"
+                    </p>
+                  </div>
+                )}
+
+                {messages.map((message) => (
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      message.type === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground'
+                    key={message.id}
+                    className={`flex gap-2 ${
+                      message.type === 'user' ? 'justify-end' : 'justify-start'
                     }`}
                   >
-                    {message.type === 'user' ? (
-                      <User className="h-4 w-4" />
-                    ) : (
-                      <Bot className="h-4 w-4" />
-                    )}
-                  </div>
-                  <div
-                    className={`rounded-lg px-3 py-2 ${
-                      message.type === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
-                    }`}
-                  >
-                    <div className="text-sm whitespace-pre-wrap">
-                      {formatMessageContent(message.content)}
-                    </div>
-                    <div className="text-xs opacity-70 mt-1">
-                      {new Date(message.timestamp).toLocaleTimeString('en-GB', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {isLoading && (
-              <div className="flex gap-2 justify-start">
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  <Bot className="h-4 w-4" />
-                </div>
-                <div className="bg-muted rounded-lg px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">Thinking...</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Suggestions */}
-          {showSuggestions && suggestions.length > 0 && (
-            <div className="border-t p-4 max-h-48 overflow-y-auto flex-shrink-0">
-              <div className="flex items-center gap-1 mb-3">
-                <Lightbulb className="h-4 w-4 text-amber-500" />
-                <span className="text-sm font-medium">Suggestions</span>
-              </div>
-              <div className="space-y-3">
-                {suggestions.map((category, categoryIndex) => (
-                  <div key={categoryIndex}>
-                    <div className="text-xs font-medium text-muted-foreground mb-1">
-                      {category.category}
-                    </div>
-                    <div className="space-y-1">
-                      {category.examples.map((example, exampleIndex) => (
-                        <button
-                          key={exampleIndex}
-                          onClick={() => useSuggestion(example)}
-                          className="text-xs text-left p-2 rounded bg-muted/50 hover:bg-muted w-full transition-colors"
-                        >
-                          {example}
-                        </button>
-                      ))}
+                    <div
+                      className={`flex gap-2 max-w-[85%] ${
+                        message.type === 'user' ? 'flex-row-reverse' : 'flex-row'
+                      }`}
+                    >
+                      <div
+                        className={`w-7 h-7 lg:w-8 lg:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          message.type === 'user'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {message.type === 'user' ? (
+                          <User className="h-3 w-3 lg:h-4 lg:w-4" />
+                        ) : (
+                          <Bot className="h-3 w-3 lg:h-4 lg:w-4" />
+                        )}
+                      </div>
+                      <div
+                        className={`rounded-lg px-3 py-2 ${
+                          message.type === 'user'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted'
+                        }`}
+                      >
+                        <div className="text-sm whitespace-pre-wrap">
+                          {formatMessageContent(message.content)}
+                        </div>
+                        <div className="text-xs opacity-70 mt-1">
+                          {new Date(message.timestamp).toLocaleTimeString('en-GB', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
+
+                {isLoading && (
+                  <div className="flex gap-2 justify-start">
+                    <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-muted flex items-center justify-center">
+                      <Bot className="h-3 w-3 lg:h-4 lg:w-4" />
+                    </div>
+                    <div className="bg-muted rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Thinking...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Suggestions */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="border-t p-3 lg:p-4 max-h-40 lg:max-h-48 overflow-y-auto flex-shrink-0">
+                  <div className="flex items-center gap-1 mb-3">
+                    <Lightbulb className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-medium">Suggestions</span>
+                  </div>
+                  <div className="space-y-2 lg:space-y-3">
+                    {suggestions.map((category, categoryIndex) => (
+                      <div key={categoryIndex}>
+                        <div className="text-xs font-medium text-muted-foreground mb-1">
+                          {category.category}
+                        </div>
+                        <div className="space-y-1">
+                          {category.examples.map((example, exampleIndex) => (
+                            <button
+                              key={exampleIndex}
+                              onClick={() => useSuggestion(example)}
+                              className="text-xs text-left p-2 rounded bg-muted/50 hover:bg-muted w-full transition-colors"
+                            >
+                              {example}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Input Area */}
+              <div className="border-t p-3 lg:p-4 flex-shrink-0">
+                <div className="flex gap-2">
+                  <Input
+                    ref={inputRef}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask about clients, deadlines, team..."
+                    className="flex-1 text-sm"
+                    disabled={isLoading}
+                  />
+                  <Button
+                    onClick={() => setShowSuggestions(!showSuggestions)}
+                    variant="outline"
+                    size="icon"
+                    className="flex-shrink-0 h-9 w-9 lg:h-10 lg:w-10"
+                  >
+                    <Lightbulb className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    onClick={sendMessage}
+                    disabled={!inputValue.trim() || isLoading}
+                    size="icon"
+                    className="flex-shrink-0 h-9 w-9 lg:h-10 lg:w-10"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
-          )}
-
-          {/* Input Area */}
-          <div className="border-t p-4 flex-shrink-0">
-            <div className="flex gap-2">
-              <Input
-                ref={inputRef}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask about clients, deadlines, team..."
-                className="flex-1"
-                disabled={isLoading}
-              />
-              <Button
-                onClick={() => setShowSuggestions(!showSuggestions)}
-                variant="outline"
-                size="icon"
-                className="flex-shrink-0"
-              >
-                <Lightbulb className="h-4 w-4" />
-              </Button>
-              <Button
-                onClick={sendMessage}
-                disabled={!inputValue.trim() || isLoading}
-                size="icon"
-                className="flex-shrink-0"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          </Card>
         </div>
-      </Card>
-    </div>
+      </div>
+    </>
   )
 }
