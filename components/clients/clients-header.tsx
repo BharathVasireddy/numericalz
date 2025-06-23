@@ -186,11 +186,106 @@ export function ClientsHeader({
     }
   }
 
-  const handleAdvancedFilter = (filter: AdvancedFilter) => {
-    setCurrentAdvancedFilter(filter)
-    if (onAdvancedFilterChange) {
-      onAdvancedFilterChange(filter)
+  const handleAdvancedFilter = (filterOptions: any) => {
+    // Convert FilterOptions to AdvancedFilter format
+    const conditions: FilterCondition[] = []
+    
+    // Add search term condition
+    if (filterOptions.searchTerm) {
+      conditions.push({
+        id: 'search',
+        field: 'companyName',
+        operator: 'contains',
+        value: filterOptions.searchTerm
+      })
     }
+    
+    // Add assigned user condition
+    if (filterOptions.assignedUser !== 'all') {
+      conditions.push({
+        id: 'assigned',
+        field: 'assignedUser',
+        operator: 'equals',
+        value: filterOptions.assignedUser
+      })
+    }
+    
+    // Add company type condition
+    if (filterOptions.companyType !== 'all') {
+      conditions.push({
+        id: 'companyType',
+        field: 'companyType',
+        operator: 'equals',
+        value: filterOptions.companyType
+      })
+    }
+    
+    // Add workflow stage conditions
+    if (filterOptions.workflowStage.length > 0) {
+      conditions.push({
+        id: 'workflowStage',
+        field: 'workflowStage',
+        operator: 'in',
+        value: filterOptions.workflowStage
+      })
+    }
+    
+    // Add date conditions
+    if (filterOptions.dueDateFrom) {
+      conditions.push({
+        id: 'dueDateFrom',
+        field: 'dueDate',
+        operator: 'gte',
+        value: filterOptions.dueDateFrom
+      })
+    }
+    
+    if (filterOptions.dueDateTo) {
+      conditions.push({
+        id: 'dueDateTo',
+        field: 'dueDate',
+        operator: 'lte',
+        value: filterOptions.dueDateTo
+      })
+    }
+    
+    // Add completion status condition
+    if (filterOptions.isCompleted !== null) {
+      conditions.push({
+        id: 'isCompleted',
+        field: 'isCompleted',
+        operator: 'equals',
+        value: filterOptions.isCompleted
+      })
+    }
+    
+    // Add overdue status condition
+    if (filterOptions.isOverdue !== null) {
+      conditions.push({
+        id: 'isOverdue',
+        field: 'isOverdue',
+        operator: 'equals',
+        value: filterOptions.isOverdue
+      })
+    }
+    
+    // Create AdvancedFilter object
+    const advancedFilter: AdvancedFilter = {
+      id: `filter-${Date.now()}`,
+      name: 'Advanced Filter',
+      groups: [{
+        id: 'main',
+        operator: 'AND',
+        conditions
+      }],
+      groupOperator: 'AND'
+    }
+    
+    setCurrentAdvancedFilter(advancedFilter)
+    if (onAdvancedFilterChange) {
+      onAdvancedFilterChange(advancedFilter)
+    }
+    
     // Clear basic filters when using advanced filters
     onFiltersChange({
       companyType: '',
@@ -199,6 +294,94 @@ export function ClientsHeader({
       status: ''
     })
     onSearchChange('')
+  }
+
+  // Convert AdvancedFilter to FilterOptions for the modal
+  const convertAdvancedFilterToOptions = (advancedFilter: AdvancedFilter | null) => {
+    if (!advancedFilter) {
+      return {
+        searchTerm: '',
+        assignedUser: 'all',
+        workflowStage: [] as string[],
+        dueDateFrom: '',
+        dueDateTo: '',
+        overdueDays: null as number | null,
+        isCompleted: null as boolean | null,
+        isOverdue: null as boolean | null,
+        hasRecentActivity: null as boolean | null,
+        priorityLevel: 'all',
+        companyType: 'all',
+        incorporationDateFrom: '',
+        incorporationDateTo: '',
+        vatFrequency: [] as string[],
+        vatQuarterGroup: [] as string[]
+      }
+    }
+
+    const options = {
+      searchTerm: '',
+      assignedUser: 'all',
+      workflowStage: [] as string[],
+      dueDateFrom: '',
+      dueDateTo: '',
+      overdueDays: null as number | null,
+      isCompleted: null as boolean | null,
+      isOverdue: null as boolean | null,
+      hasRecentActivity: null as boolean | null,
+      priorityLevel: 'all',
+      companyType: 'all',
+      incorporationDateFrom: '',
+      incorporationDateTo: '',
+      vatFrequency: [] as string[],
+      vatQuarterGroup: [] as string[]
+    }
+
+    // Extract values from conditions
+    advancedFilter.groups.forEach(group => {
+      group.conditions.forEach(condition => {
+        switch (condition.field) {
+          case 'companyName':
+            if (condition.operator === 'contains' && typeof condition.value === 'string') {
+              options.searchTerm = condition.value
+            }
+            break
+          case 'assignedUser':
+            if (condition.operator === 'equals' && typeof condition.value === 'string') {
+              options.assignedUser = condition.value
+            }
+            break
+          case 'companyType':
+            if (condition.operator === 'equals' && typeof condition.value === 'string') {
+              options.companyType = condition.value
+            }
+            break
+          case 'workflowStage':
+            if (condition.operator === 'in' && Array.isArray(condition.value)) {
+              options.workflowStage = condition.value as string[]
+            }
+            break
+          case 'dueDate':
+            if (condition.operator === 'gte' && typeof condition.value === 'string') {
+              options.dueDateFrom = condition.value
+            } else if (condition.operator === 'lte' && typeof condition.value === 'string') {
+              options.dueDateTo = condition.value
+            }
+            break
+          case 'isCompleted':
+            if (condition.operator === 'equals' && typeof condition.value === 'boolean') {
+              options.isCompleted = condition.value
+            }
+            break
+          case 'isOverdue':
+            if (condition.operator === 'equals' && typeof condition.value === 'boolean') {
+              options.isOverdue = condition.value
+            }
+            break
+        }
+      })
+    })
+
+    return options
   }
 
   const clearAdvancedFilter = () => {
@@ -411,9 +594,10 @@ export function ClientsHeader({
       <AdvancedFilterModal
         isOpen={showAdvancedFilter}
         onClose={() => setShowAdvancedFilter(false)}
-        onApplyFilter={handleAdvancedFilter}
+        onApplyFilters={handleAdvancedFilter}
         currentFilter={currentAdvancedFilter}
         users={users}
+        tableType="ltd"
       />
     </div>
   )

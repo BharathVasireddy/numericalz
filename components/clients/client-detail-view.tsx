@@ -82,86 +82,86 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Not set'
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    })
+    try {
+      return new Date(dateString).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    } catch (e) {
+      return 'Not set'
+    }
   }
 
   const formatDateTime = (dateString: string | null) => {
     if (!dateString) return 'Not set'
-    return new Date(dateString).toLocaleString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+    try {
+      return new Date(dateString).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch (e) {
+      return 'Not set'
+    }
   }
 
-  const getYearEnd = (accountingRefDate: string | null, lastAccountsMadeUpTo: string | null) => {
-    // If we have last accounts made up to date, calculate next year end from that
-    if (lastAccountsMadeUpTo) {
-      try {
-        const lastAccountsDate = new Date(lastAccountsMadeUpTo)
-        if (!isNaN(lastAccountsDate.getTime())) {
-          // Next year end is one year after last accounts made up to
-          const nextYearEnd = new Date(lastAccountsDate)
-          nextYearEnd.setFullYear(nextYearEnd.getFullYear() + 1)
-          
-          return nextYearEnd.toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-          })
-        }
-      } catch (e) {
-        // Fall through to accounting reference date calculation
-      }
-    }
-    
-    // Fallback to accounting reference date calculation if no last accounts
+  // Handle Companies House JSON format for year end date
+  const formatYearEndDate = (accountingRefDate: string | null) => {
     if (!accountingRefDate) return 'Not set'
+    
     try {
+      // First try to parse as JSON (Companies House format)
       const parsed = JSON.parse(accountingRefDate)
       if (parsed.day && parsed.month) {
         // Companies House provides day/month only for accounting reference date
-        // We need to calculate the next year end based on current date
-        const today = new Date()
-        const currentYear = today.getFullYear()
+        // We need to calculate the correct year based on last accounts made up to date
+        let yearToUse = new Date().getFullYear() // Default fallback
         
-        // Create this year's year end date
-        const thisYearEnd = new Date(currentYear, parsed.month - 1, parsed.day)
+        if (client.lastAccountsMadeUpTo) {
+          // Use last accounts made up to date + 1 year for next year end
+          const lastAccountsDate = new Date(client.lastAccountsMadeUpTo)
+          yearToUse = lastAccountsDate.getFullYear() + 1
+        } else if (client.nextAccountsDue) {
+          // Fallback: use next accounts due date year - 1 (since accounts are due 9 months after year end)
+          const nextDueDate = new Date(client.nextAccountsDue)
+          yearToUse = nextDueDate.getFullYear() - 1
+        }
         
-        // If this year's year end has passed, next year end is next year
-        // If this year's year end hasn't passed, next year end is this year
-        const nextYearEnd = thisYearEnd <= today 
-          ? new Date(currentYear + 1, parsed.month - 1, parsed.day)
-          : thisYearEnd
+        const month = parseInt(parsed.month) - 1 // JS months are 0-indexed
+        const day = parseInt(parsed.day)
+        const yearEndDate = new Date(yearToUse, month, day)
         
-        // Return the next year end date in full format
-        return nextYearEnd.toLocaleDateString('en-GB', {
+        if (!isNaN(yearEndDate.getTime())) {
+          return yearEndDate.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+          })
+        }
+      }
+    } catch (e) {
+      // Not JSON, try parsing as regular date string
+    }
+    
+    // Fallback: try to parse as regular date string
+    try {
+      const date = new Date(accountingRefDate)
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('en-GB', {
           day: '2-digit',
-          month: '2-digit',
+          month: 'short',
           year: 'numeric'
         })
       }
     } catch (e) {
-      // Fallback for invalid JSON - treat as date string
-      const date = new Date(accountingRefDate)
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-GB', { 
-          day: '2-digit', 
-          month: '2-digit',
-          year: 'numeric'
-        })
-      }
+      // If all parsing fails
     }
+    
     return 'Not set'
   }
-
-
 
   const isDateOverdue = (dateString: string | null) => {
     if (!dateString) return false
@@ -180,12 +180,7 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
     return diffDays <= daysThreshold && diffDays > 0
   }
 
-  const getDateStatus = (dateString: string | null) => {
-    if (!dateString) return { status: 'none', icon: null, color: 'text-muted-foreground' }
-    if (isDateOverdue(dateString)) return { status: 'overdue', icon: AlertTriangle, color: 'text-red-600' }
-    if (isDateSoon(dateString)) return { status: 'soon', icon: Clock, color: 'text-amber-600' }
-    return { status: 'ok', icon: CheckCircle, color: 'text-green-600' }
-  }
+
 
   const handleRefreshCompaniesHouse = async () => {
     if (!client.companyNumber) return
@@ -218,8 +213,6 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
   const getDisplayEmail = (email: string) => {
     return email === 'contact@tobeupdated.com' || !email ? 'TBU' : email
   }
-
-
 
   return (
     <div className="page-container">
@@ -269,9 +262,9 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
           </div>
 
           {/* Status Overview */}
-          <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-2 md:gap-3 grid-cols-2 lg:grid-cols-4">
             <Card className="hover-lift">
-              <CardContent className="p-4">
+              <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground">Status</p>
@@ -287,7 +280,7 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
             </Card>
 
             <Card className="hover-lift">
-              <CardContent className="p-4">
+              <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground">Assigned To</p>
@@ -301,7 +294,7 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
             </Card>
 
             <Card className="hover-lift">
-              <CardContent className="p-4">
+              <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground">Company Type</p>
@@ -319,12 +312,12 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
             </Card>
 
             <Card className="hover-lift">
-              <CardContent className="p-4">
+              <CardContent className="p-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground">Year End</p>
                     <p className="text-sm font-medium">
-                      {getYearEnd(client.accountingReferenceDate, client.lastAccountsMadeUpTo)}
+                      {formatYearEndDate(client.accountingReferenceDate)}
                     </p>
                   </div>
                   <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -334,143 +327,97 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2">
             {/* Left Column */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Basic Information */}
               <Card className="shadow-professional">
-                <CardHeader>
-                  <CardTitle className="text-base md:text-lg">Basic Information</CardTitle>
-                  <CardDescription>Company and contact details</CardDescription>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Basic Information</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-3">
-                    <div className="flex justify-between">
+                <CardContent className="pt-0">
+                  <div className="grid gap-2">
+                    <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Company Name:</span>
                       <span className="text-sm font-medium">{client.companyName}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Client Code:</span>
                       <span className="text-sm font-mono">{client.clientCode || 'Not assigned'}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Company Number:</span>
                       <span className="text-sm font-mono">{client.companyNumber || 'Not applicable'}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Company Status:</span>
                       <span className="text-sm">{client.companyStatus || 'Unknown'}</span>
                     </div>
-                    {client.incorporationDate && (
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Incorporated:</span>
-                        <span className="text-sm">{formatDate(client.incorporationDate)}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Incorporated:</span>
+                      <span className="text-sm">{client.incorporationDate ? formatDate(client.incorporationDate) : 'Not available'}</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Contact Information */}
+              {/* Contact & Business Information Combined */}
               <Card className="shadow-professional">
-                <CardHeader>
-                  <CardTitle className="text-base md:text-lg">Contact Information</CardTitle>
-                  <CardDescription>Primary contact details</CardDescription>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Contact & Business Details</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-3">
-                    <div className="flex items-center gap-3">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">{client.contactName}</p>
-                        <p className="text-xs text-muted-foreground">Contact Person</p>
-                      </div>
+                <CardContent className="pt-0">
+                  <div className="grid gap-2">
+                    {/* Contact Information */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Contact Person:</span>
+                      <span className="text-sm font-medium">{client.contactName || 'Not provided'}</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">{getDisplayEmail(client.contactEmail)}</p>
-                        <p className="text-xs text-muted-foreground">Email Address</p>
-                      </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Email:</span>
+                      <span className="text-sm font-medium">{getDisplayEmail(client.contactEmail) || 'Not provided'}</span>
                     </div>
-                    {client.contactPhone && (
-                      <div className="flex items-center gap-3">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">{client.contactPhone}</p>
-                          <p className="text-xs text-muted-foreground">Phone Number</p>
-                        </div>
-                      </div>
-                    )}
-                    {client.contactFax && (
-                      <div className="flex items-center gap-3">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">{client.contactFax}</p>
-                          <p className="text-xs text-muted-foreground">Fax Number</p>
-                        </div>
-                      </div>
-                    )}
-                    {client.website && (
-                      <div className="flex items-center gap-3">
-                        <Globe className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">{client.website}</p>
-                          <p className="text-xs text-muted-foreground">Website</p>
-                        </div>
-                      </div>
-                    )}
-                    {client.vatNumber && (
-                      <div className="flex items-center gap-3">
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">{client.vatNumber}</p>
-                          <p className="text-xs text-muted-foreground">VAT Number</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Business Information */}
-              <Card className="shadow-professional">
-                <CardHeader>
-                  <CardTitle className="text-base md:text-lg">Business Information</CardTitle>
-                  <CardDescription>Additional business details</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-3">
-                    {client.yearEstablished && (
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Year Established:</span>
-                        <span className="text-sm font-medium">{client.yearEstablished}</span>
-                      </div>
-                    )}
-                    {client.numberOfEmployees && (
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Number of Employees:</span>
-                        <span className="text-sm font-medium">{client.numberOfEmployees}</span>
-                      </div>
-                    )}
-                    {client.annualTurnover && (
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Annual Turnover:</span>
-                        <span className="text-sm font-medium">£{client.annualTurnover.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {client.paperworkFrequency && (
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Paperwork Frequency:</span>
-                        <span className="text-sm font-medium">
-                          {client.paperworkFrequency === 'MONTHLY' ? 'Monthly' :
-                           client.paperworkFrequency === 'QUARTERLY' ? 'Quarterly' :
-                           client.paperworkFrequency === 'ANNUALLY' ? 'Annually' :
-                           client.paperworkFrequency}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Phone:</span>
+                      <span className="text-sm font-medium">{client.contactPhone || 'Not provided'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Website:</span>
+                      <span className="text-sm font-medium">{client.website || 'Not provided'}</span>
+                    </div>
+                    
+                    {/* Separator */}
+                    <div className="border-t my-3"></div>
+                    
+                    {/* Business Information */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">VAT Number:</span>
+                      <span className="text-sm font-medium">{client.vatNumber || 'Not registered'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Year Established:</span>
+                      <span className="text-sm font-medium">{client.yearEstablished || 'Not provided'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Employees:</span>
+                      <span className="text-sm font-medium">{client.numberOfEmployees || 'Not provided'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Annual Turnover:</span>
+                      <span className="text-sm font-medium">
+                        {client.annualTurnover ? `£${client.annualTurnover.toLocaleString()}` : 'Not provided'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Paperwork Frequency:</span>
+                      <span className="text-sm font-medium">
+                        {client.paperworkFrequency === 'MONTHLY' ? 'Monthly' :
+                         client.paperworkFrequency === 'QUARTERLY' ? 'Quarterly' :
+                         client.paperworkFrequency === 'ANNUALLY' ? 'Annually' :
+                         client.paperworkFrequency || 'Not set'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Client Added:</span>
                       <span className="text-sm font-medium">{formatDateTime(client.createdAt)}</span>
                     </div>
@@ -480,82 +427,65 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
             </div>
 
             {/* Right Column */}
-            <div className="space-y-6">
-              {/* Statutory Dates */}
+            <div className="space-y-4">
+              {/* Statutory Dates & Deadlines */}
               <Card className="shadow-professional">
-                <CardHeader>
-                  <CardTitle className="text-base md:text-lg">Statutory Dates & Deadlines</CardTitle>
-                  <CardDescription>Important filing dates and deadlines</CardDescription>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Statutory Dates & Deadlines</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-3">
-                    <div className="flex items-center justify-between">
+                <CardContent className="pt-0">
+                  <div className="grid gap-2">
+                    {/* Year End */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Year End:</span>
+                      <span className="text-sm font-medium">
+                        {formatYearEndDate(client.accountingReferenceDate)}
+                      </span>
+                    </div>
+
+                    {/* Accounts Due */}
+                    <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Accounts Due:</span>
-                      <div className="flex items-center gap-2">
-                        {(() => {
-                          const status = getDateStatus(client.nextAccountsDue)
-                          const Icon = status.icon
-                          return (
-                            <>
-                              {Icon && <Icon className={`h-3 w-3 ${status.color}`} />}
-                              <span className={`text-sm font-medium ${status.color}`}>
-                                {formatDate(client.nextAccountsDue)}
-                              </span>
-                            </>
-                          )
-                        })()}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">CT Due:</span>
-                      <div className="flex items-center gap-2">
-                        {(() => {
-                          const status = getDateStatus(client.nextCorporationTaxDue)
-                          const Icon = status.icon
-                          return (
-                            <>
-                              {Icon && <Icon className={`h-3 w-3 ${status.color}`} />}
-                              <span className={`text-sm font-medium ${status.color}`}>
-                                {formatDate(client.nextCorporationTaxDue)}
-                              </span>
-                            </>
-                          )
-                        })()}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">CS Due:</span>
-                      <div className="flex items-center gap-2">
-                        {(() => {
-                          const status = getDateStatus(client.nextConfirmationDue)
-                          const Icon = status.icon
-                          return (
-                            <>
-                              {Icon && <Icon className={`h-3 w-3 ${status.color}`} />}
-                              <span className={`text-sm font-medium ${status.color}`}>
-                                {formatDate(client.nextConfirmationDue)}
-                              </span>
-                            </>
-                          )
-                        })()}
-                      </div>
+                      <span className={`text-sm font-medium ${
+                        client.nextAccountsDue && isDateOverdue(client.nextAccountsDue) ? 'text-red-600' : 
+                        client.nextAccountsDue && isDateSoon(client.nextAccountsDue, 30) ? 'text-amber-600' : 
+                        'text-foreground'
+                      }`}>
+                        {client.nextAccountsDue ? formatDate(client.nextAccountsDue) : 'Not set'}
+                      </span>
                     </div>
 
-                    {client.lastAccountsMadeUpTo && (
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Last Accounts:</span>
-                        <span className="text-sm">{formatDate(client.lastAccountsMadeUpTo)}</span>
-                      </div>
-                    )}
+                    {/* Corporation Tax Due */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Corporation Tax Due:</span>
+                      <span className={`text-sm font-medium ${
+                        client.nextCorporationTaxDue && isDateOverdue(client.nextCorporationTaxDue) ? 'text-red-600' : 
+                        client.nextCorporationTaxDue && isDateSoon(client.nextCorporationTaxDue, 30) ? 'text-amber-600' : 
+                        'text-foreground'
+                      }`}>
+                        {client.nextCorporationTaxDue ? formatDate(client.nextCorporationTaxDue) : 'Not set'}
+                      </span>
+                    </div>
 
-                    {client.lastConfirmationMadeUpTo && (
-                      <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Last CS:</span>
-                        <span className="text-sm">{formatDate(client.lastConfirmationMadeUpTo)}</span>
-                      </div>
-                    )}
+                    {/* CS Due Date */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">CS Due Date:</span>
+                      <span className={`text-sm font-medium ${
+                        client.nextConfirmationDue && isDateOverdue(client.nextConfirmationDue) ? 'text-red-600' : 
+                        client.nextConfirmationDue && isDateSoon(client.nextConfirmationDue, 30) ? 'text-amber-600' : 
+                        'text-foreground'
+                      }`}>
+                        {client.nextConfirmationDue ? formatDate(client.nextConfirmationDue) : 'Not set'}
+                      </span>
+                    </div>
+
+                    {/* Last Accounts */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Last Accounts:</span>
+                      <span className="text-sm font-medium">
+                        {client.lastAccountsMadeUpTo ? formatDate(client.lastAccountsMadeUpTo) : 'Not available'}
+                      </span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -613,20 +543,13 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                       {client.nextVatReturnDue && (
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Next VAT Due:</span>
-                          <div className="flex items-center gap-2">
-                            {(() => {
-                              const status = getDateStatus(client.nextVatReturnDue)
-                              const Icon = status.icon
-                              return (
-                                <>
-                                  {Icon && <Icon className={`h-3 w-3 ${status.color}`} />}
-                                  <span className={`text-sm font-medium ${status.color}`}>
-                                    {formatDate(client.nextVatReturnDue)}
-                                  </span>
-                                </>
-                              )
-                            })()}
-                          </div>
+                          <span className={`text-sm font-medium ${
+                            isDateOverdue(client.nextVatReturnDue) ? 'text-red-600' : 
+                            isDateSoon(client.nextVatReturnDue, 30) ? 'text-amber-600' : 
+                            'text-foreground'
+                          }`}>
+                            {formatDate(client.nextVatReturnDue)}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -1136,8 +1059,6 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
         </div>
       </div>
       
-
-
       {/* Activity Log Modal */}
       <Dialog open={showActivityLogModal} onOpenChange={setShowActivityLogModal}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">

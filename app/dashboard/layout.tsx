@@ -3,8 +3,11 @@
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
+import { Inter } from 'next/font/google'
 import { DashboardNavigation } from '@/components/dashboard/navigation'
-import { BusinessChat } from '@/components/chat/business-chat'
+import { Toaster } from '@/components/ui/toaster'
+import { SimpleToaster } from '@/components/ui/simple-toaster'
+import { LondonTime } from '@/components/ui/london-time'
 import { Loader2 } from 'lucide-react'
 
 /**
@@ -60,16 +63,15 @@ export default function DashboardLayout({
       <div className="lg:flex lg:h-screen lg:overflow-hidden">
         <DashboardNavigation />
         
-        {/* Main Content Area */}
-        <main className="flex-1 lg:overflow-auto">
-          <div className="h-full">
+        <div className="flex-1 flex flex-col min-h-0">
+          <main className="flex-1 overflow-auto">
             {children}
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
       
-      {/* Business Intelligence Chat Assistant - Only in dashboard */}
-      <BusinessChat defaultMinimized={true} />
+      <Toaster />
+      <SimpleToaster />
     </div>
   )
 } 

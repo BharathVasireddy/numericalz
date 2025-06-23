@@ -272,107 +272,87 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
             </div>
           </div>
 
-          {/* Unassigned Clients Widget */}
+          {/* Unassigned Clients Widget - Compact */}
           <div className="px-4 lg:px-0">
             <Card className="border-amber-200 bg-amber-50/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base md:text-lg flex items-center gap-2 text-amber-800">
-                  <AlertTriangle className="h-4 w-4 md:h-5 md:w-5" />
-                  Unassigned Clients
-                </CardTitle>
-                <p className="text-sm text-amber-700">
-                  Clients requiring assignment for specific work types
-                </p>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-700" />
+                    <CardTitle className="text-sm font-medium text-amber-800">
+                      Unassigned Clients
+                    </CardTitle>
+                  </div>
+                  <div className="text-xs text-amber-700">
+                    {data.unassignedClients.ltd + data.unassignedClients.nonLtd + data.unassignedClients.vat} total
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="pt-0">
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <CardContent className="pt-0 pb-3">
+                <div className="grid grid-cols-3 gap-2">
                   {/* Unassigned Ltd Companies */}
-                  <div className="p-3 rounded-lg bg-amber-100 border border-amber-200">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-amber-800">Ltd Companies</p>
-                        <p className="text-lg md:text-xl font-bold text-amber-900">
-                          {data.unassignedClients.ltd}
-                        </p>
-                      </div>
-                      <div className="h-8 w-8 bg-amber-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Building2 className="h-4 w-4 text-amber-700" />
-                      </div>
+                  <div className="text-center p-2 rounded bg-amber-100 border border-amber-200">
+                    <div className="text-lg font-bold text-amber-900">
+                      {data.unassignedClients.ltd}
                     </div>
-                    <div className="mt-2 text-xs text-amber-700">
-                      Need accounts assignment
+                    <div className="text-xs text-amber-700 leading-tight">
+                      Ltd Accounts
                     </div>
                   </div>
 
                   {/* Unassigned Non-Ltd Companies */}
-                  <div className="p-3 rounded-lg bg-amber-100 border border-amber-200">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-amber-800">Non-Limited</p>
-                        <p className="text-lg md:text-xl font-bold text-amber-900">
-                          {data.unassignedClients.nonLtd}
-                        </p>
-                      </div>
-                      <div className="h-8 w-8 bg-amber-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Building className="h-4 w-4 text-amber-700" />
-                      </div>
+                  <div className="text-center p-2 rounded bg-amber-100 border border-amber-200">
+                    <div className="text-lg font-bold text-amber-900">
+                      {data.unassignedClients.nonLtd}
                     </div>
-                    <div className="mt-2 text-xs text-amber-700">
-                      Need accounts assignment
+                    <div className="text-xs text-amber-700 leading-tight">
+                      Non-Ltd Accounts
                     </div>
                   </div>
 
                   {/* Unassigned VAT Clients */}
-                  <div className="p-3 rounded-lg bg-amber-100 border border-amber-200">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-amber-800">VAT Enabled</p>
-                        <p className="text-lg md:text-xl font-bold text-amber-900">
-                          {data.unassignedClients.vat}
-                        </p>
-                      </div>
-                      <div className="h-8 w-8 bg-amber-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Receipt className="h-4 w-4 text-amber-700" />
-                      </div>
+                  <div className="text-center p-2 rounded bg-amber-100 border border-amber-200">
+                    <div className="text-lg font-bold text-amber-900">
+                      {data.unassignedClients.vat}
                     </div>
-                    <div className="mt-2 text-xs text-amber-700">
-                      Need VAT assignment
+                    <div className="text-xs text-amber-700 leading-tight">
+                      VAT Returns
                     </div>
                   </div>
                 </div>
                 
-                {/* Action buttons for quick navigation */}
+                {/* Quick Action Buttons - Only show if there are unassigned clients */}
                 {(data.unassignedClients.ltd > 0 || data.unassignedClients.nonLtd > 0 || data.unassignedClients.vat > 0) && (
-                  <div className="mt-4 pt-3 border-t border-amber-200">
-                    <div className="flex flex-wrap gap-2">
+                  <div className="mt-3 pt-2 border-t border-amber-200">
+                    <div className="flex flex-wrap gap-1">
                       {data.unassignedClients.ltd > 0 && (
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                          className="text-xs h-6 px-2 text-amber-700 border-amber-300 hover:bg-amber-100"
                           onClick={() => window.location.href = '/dashboard/clients/ltd-companies?filter=unassigned'}
                         >
-                          View Ltd Companies
+                          Ltd ({data.unassignedClients.ltd})
                         </Button>
                       )}
                       {data.unassignedClients.nonLtd > 0 && (
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                          className="text-xs h-6 px-2 text-amber-700 border-amber-300 hover:bg-amber-100"
                           onClick={() => window.location.href = '/dashboard/clients/non-ltd-companies?filter=unassigned'}
                         >
-                          View Non-Ltd Companies
+                          Non-Ltd ({data.unassignedClients.nonLtd})
                         </Button>
                       )}
                       {data.unassignedClients.vat > 0 && (
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                          className="text-xs h-6 px-2 text-amber-700 border-amber-300 hover:bg-amber-100"
                           onClick={() => window.location.href = '/dashboard/clients/vat-dt?filter=unassigned'}
                         >
-                          View VAT Clients
+                          VAT ({data.unassignedClients.vat})
                         </Button>
                       )}
                     </div>
@@ -382,98 +362,142 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
             </Card>
           </div>
 
-          {/* Team Workload and Monthly Deadlines - Mobile Stack */}
+          {/* Team Workload - Bar Chart Visualization */}
           <div className="px-4 lg:px-0">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-              {/* Team Workload */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                    <Users className="h-4 w-4 md:h-5 md:w-5" />
-                    Team Workload
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-3">
-                    {data.staffWorkload.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        No staff workload data available
-                      </p>
-                    ) : (
-                      data.staffWorkload.map((staff) => (
-                        <div key={staff.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            {getRoleIcon(staff.role)}
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium text-sm truncate">{staff.name}</div>
-                              <Badge 
-                                variant={getRoleBadgeVariant(staff.role)} 
-                                className="text-xs h-5 px-2"
-                              >
-                                {staff.role}
-                              </Badge>
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                  <Users className="h-4 w-4 md:h-5 md:w-5" />
+                  Team Workload Distribution
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Client assignments by staff member and work type
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {data.staffWorkload.map((staff) => {
+                    const maxClients = Math.max(...data.staffWorkload.map(s => s.vatClients + s.accountsClients))
+                    const totalClients = staff.vatClients + staff.accountsClients
+                    const vatPercentage = maxClients > 0 ? (staff.vatClients / maxClients) * 100 : 0
+                    const accountsPercentage = maxClients > 0 ? (staff.accountsClients / maxClients) * 100 : 0
+                    
+                    return (
+                      <div key={staff.id} className="space-y-2">
+                        {/* Staff Member Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
+                              {staff.role === 'PARTNER' && <Crown className="h-3 w-3 text-yellow-600" />}
+                              {staff.role === 'MANAGER' && <Shield className="h-3 w-3 text-blue-600" />}
+                              {staff.role === 'STAFF' && <User className="h-3 w-3 text-gray-600" />}
+                              <span className="text-sm font-medium">{staff.name}</span>
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              ({staff.role.toLowerCase()})
+                            </span>
+                          </div>
+                          <div className="text-sm font-medium text-right">
+                            <span className="text-foreground">{totalClients}</span>
+                            <span className="text-xs text-muted-foreground ml-1">total</span>
+                          </div>
+                        </div>
+                        
+                        {/* Bar Chart */}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 h-6">
+                            {/* Background bar */}
+                            <div className="flex-1 bg-gray-100 rounded-full h-4 relative overflow-hidden">
+                              {/* VAT clients bar */}
+                              <div 
+                                className="absolute left-0 top-0 h-full bg-blue-500 rounded-l-full transition-all duration-300"
+                                style={{ width: `${vatPercentage}%` }}
+                              />
+                              {/* Accounts clients bar */}
+                              <div 
+                                className="absolute left-0 top-0 h-full bg-green-500 rounded-r-full transition-all duration-300 opacity-70"
+                                style={{ 
+                                  width: `${accountsPercentage}%`,
+                                  marginLeft: `${vatPercentage}%`
+                                }}
+                              />
                             </div>
                           </div>
-                          <div className="text-right flex-shrink-0 ml-2">
-                            <div className="text-sm font-semibold">
-                              {staff.vatClients}V • {staff.accountsClients}A
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {staff.clientCount} total
+                          
+                          {/* Legend */}
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-1">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                <span className="text-muted-foreground">VAT: {staff.vatClients}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-muted-foreground">Accounts: {staff.accountsClients}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      </div>
+                    )
+                  })}
+                  
+                  {data.staffWorkload.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No staff members found</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-              {/* Monthly Deadlines */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                    <Calendar className="h-4 w-4 md:h-5 md:w-5" />
-                    {data.monthName} Deadlines
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-lg bg-blue-50 text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <FileText className="h-3 w-3 text-blue-600" />
-                        <span className="text-xs font-medium text-blue-600">Accounts</span>
-                      </div>
-                      <div className="text-lg font-bold text-blue-700">{data.monthlyDeadlines.accounts}</div>
+          {/* Monthly Deadlines */}
+          <div className="px-4 lg:px-0">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                  <Calendar className="h-4 w-4 md:h-5 md:w-5" />
+                  {data.monthName} Deadlines
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-blue-50 text-center">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <FileText className="h-3 w-3 text-blue-600" />
+                      <span className="text-xs font-medium text-blue-600">Accounts</span>
                     </div>
-                    
-                    <div className="p-3 rounded-lg bg-green-50 text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <Receipt className="h-3 w-3 text-green-600" />
-                        <span className="text-xs font-medium text-green-600">VAT</span>
-                      </div>
-                      <div className="text-lg font-bold text-green-700">{data.monthlyDeadlines.vat}</div>
-                    </div>
-                    
-                    <div className="p-3 rounded-lg bg-orange-50 text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <CheckCircle className="h-3 w-3 text-orange-600" />
-                        <span className="text-xs font-medium text-orange-600">CS</span>
-                      </div>
-                      <div className="text-lg font-bold text-orange-700">{data.monthlyDeadlines.cs}</div>
-                    </div>
-                    
-                    <div className="p-3 rounded-lg bg-purple-50 text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <Calculator className="h-3 w-3 text-purple-600" />
-                        <span className="text-xs font-medium text-purple-600">CT</span>
-                      </div>
-                      <div className="text-lg font-bold text-purple-700">{data.monthlyDeadlines.ct}</div>
-                    </div>
+                    <div className="text-lg font-bold text-blue-700">{data.monthlyDeadlines.accounts}</div>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                  
+                  <div className="p-3 rounded-lg bg-green-50 text-center">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <Receipt className="h-3 w-3 text-green-600" />
+                      <span className="text-xs font-medium text-green-600">VAT</span>
+                    </div>
+                    <div className="text-lg font-bold text-green-700">{data.monthlyDeadlines.vat}</div>
+                  </div>
+                  
+                  <div className="p-3 rounded-lg bg-orange-50 text-center">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <CheckCircle className="h-3 w-3 text-orange-600" />
+                      <span className="text-xs font-medium text-orange-600">CS</span>
+                    </div>
+                    <div className="text-lg font-bold text-orange-700">{data.monthlyDeadlines.cs}</div>
+                  </div>
+                  
+                  <div className="p-3 rounded-lg bg-purple-50 text-center">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <Calculator className="h-3 w-3 text-purple-600" />
+                      <span className="text-xs font-medium text-purple-600">CT</span>
+                    </div>
+                    <div className="text-lg font-bold text-purple-700">{data.monthlyDeadlines.ct}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Upcoming Deadlines - Full Width Mobile */}
