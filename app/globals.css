@@ -352,6 +352,10 @@
     @apply text-left p-3 text-xs font-medium text-muted-foreground;
   }
   
+  .table-header-cell.text-center {
+    text-align: center;
+  }
+  
   .table-body-row {
     @apply border-b border-border hover:bg-muted/30 transition-colors duration-150;
   }
@@ -746,41 +750,45 @@
 
 /* ===== LTD COMPANIES DEADLINE TABLE COLUMNS (COMPACT LAYOUT) ===== */
 .col-ltd-client-code {
-  @apply w-16; /* Compact client codes */
+  @apply w-14; /* Compact client codes */
 }
 
 .col-ltd-company-number {
-  @apply w-20; /* Company number */
+  @apply w-16; /* Compact company numbers */
 }
 
 .col-ltd-company-name {
-  @apply w-48; /* Company names with truncation */
+  @apply w-40; /* Reduced from 48 to fit screen */
 }
 
 .col-ltd-year-end {
-  @apply w-20; /* Year end month */
+  @apply w-16; /* Compact year end dates */
 }
 
 .col-ltd-accounts-due {
-  @apply w-24; /* Accounts due date */
+  @apply w-20; /* Compact accounts due */
 }
 
 .col-ltd-ct-due {
-  @apply w-20; /* CT due */
+  @apply w-16; /* Compact CT due */
 }
 
 .col-ltd-cs-due {
-  @apply w-20; /* CS due */
+  @apply w-16; /* Compact CS due */
+}
+
+.col-ltd-assigned {
+  @apply w-20; /* Compact assigned user */
 }
 
 .col-ltd-status {
-  @apply w-32; /* Workflow status badge */
+  @apply w-24; /* Compact status badges */
 }
 
 .col-ltd-update {
-  @apply w-20; /* Update button */
+  @apply w-16; /* Compact update buttons */
 }
 
 .col-ltd-action {
-  @apply w-12; /* Action expand/collapse */
+  @apply w-16; /* Compact action dropdown */
 } 
