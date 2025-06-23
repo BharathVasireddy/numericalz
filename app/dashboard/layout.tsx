@@ -13,7 +13,8 @@ import { Loader2 } from 'lucide-react'
  * Features:
  * - Authentication verification before rendering
  * - Prevents layout shifts by showing loading state
- * - Sidebar navigation with full height
+ * - Mobile-first responsive design with mobile header
+ * - Sidebar navigation with full height on desktop
  * - Responsive design without horizontal scrolling
  * - Consistent layout for all dashboard pages
  * - Proper overflow handling
@@ -54,11 +55,18 @@ export default function DashboardLayout({
 
   // Render dashboard layout for authenticated users
   return (
-    <div className="h-screen bg-background flex overflow-hidden">
-      <DashboardNavigation />
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
+    <div className="min-h-screen bg-background">
+      {/* Mobile and Desktop Layout */}
+      <div className="lg:flex lg:h-screen lg:overflow-hidden">
+        <DashboardNavigation />
+        
+        {/* Main Content Area */}
+        <main className="flex-1 lg:overflow-auto">
+          <div className="h-full">
+            {children}
+          </div>
+        </main>
+      </div>
       
       {/* Business Intelligence Chat Assistant - Only in dashboard */}
       <BusinessChat defaultMinimized={true} />

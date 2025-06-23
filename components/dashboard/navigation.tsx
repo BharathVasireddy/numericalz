@@ -262,29 +262,39 @@ export function DashboardNavigation() {
 
   return (
     <>
-      {/* Mobile Header */}
-      <div className="lg:hidden flex items-center justify-between p-3 border-b border-border bg-background">
-        <div className="flex items-center gap-2">
+      {/* Mobile Header - Always visible on mobile */}
+      <div className="lg:hidden sticky top-0 z-50 flex items-center justify-between p-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center gap-3">
           <Image
             src="/numericalz-logo-official.png"
             alt="Numericalz"
-            width={24}
-            height={24}
+            width={28}
+            height={28}
             className="flex-shrink-0"
             style={{ height: 'auto' }}
           />
+          <div className="text-sm font-semibold text-foreground">
+            Numericalz
+          </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? (
-            <X className="h-4 w-4" />
-          ) : (
-            <Menu className="h-4 w-4" />
-          )}
-        </Button>
+        
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <LondonTime />
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="h-9 w-9 p-0"
+          >
+            {isMobileMenuOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Mobile Overlay */}
@@ -295,16 +305,16 @@ export function DashboardNavigation() {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Mobile Slide-out / Desktop Static */}
       <div className={`
-        fixed inset-y-0 left-0 z-40 w-72 bg-background border-r border-border
+        fixed inset-y-0 left-0 z-50 w-80 bg-background border-r border-border
         transform transition-transform duration-300 ease-in-out
-        lg:translate-x-0 lg:static lg:inset-0 lg:h-screen
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0 lg:static lg:inset-0 lg:h-screen lg:w-72 lg:z-auto
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex flex-col h-full">
-          {/* Logo and Time - Inline */}
-          <div className="p-4 border-b border-border flex-shrink-0">
+          {/* Desktop Logo and Time - Hidden on mobile */}
+          <div className="hidden lg:block p-4 border-b border-border flex-shrink-0">
             <div className="flex items-center justify-between">
               <Image
                 src="/numericalz-logo-official.png"
@@ -317,6 +327,33 @@ export function DashboardNavigation() {
               <div className="text-right">
                 <LondonTime />
               </div>
+            </div>
+          </div>
+
+          {/* Mobile Header in Sidebar */}
+          <div className="lg:hidden p-4 border-b border-border flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Image
+                  src="/numericalz-logo-official.png"
+                  alt="Numericalz"
+                  width={32}
+                  height={32}
+                  className="flex-shrink-0"
+                  style={{ height: 'auto' }}
+                />
+                <div className="text-lg font-semibold text-foreground">
+                  Numericalz
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
@@ -337,7 +374,7 @@ export function DashboardNavigation() {
                         href={section.items[0].href}
                         onClick={() => setIsMobileMenuOpen(false)}
                         className={`
-                          w-full flex items-center gap-3 px-3 py-2 text-sm font-medium
+                          w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium
                           rounded-md transition-colors duration-200
                           ${isItemActive(section.items[0].href)
                             ? 'bg-primary text-primary-foreground' 
@@ -354,7 +391,7 @@ export function DashboardNavigation() {
                         <button
                           onClick={() => toggleSection(section.id)}
                           className={`
-                            w-full flex items-center gap-3 px-3 py-2 text-sm font-medium
+                            w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium
                             rounded-md transition-colors duration-200
                             ${hasActiveItem || isExpanded
                               ? 'bg-primary/10 text-primary' 
@@ -384,7 +421,7 @@ export function DashboardNavigation() {
                                   href={item.href}
                                   onClick={() => setIsMobileMenuOpen(false)}
                                   className={`
-                                    flex items-center gap-2 px-3 py-1.5 text-sm rounded-md
+                                    flex items-center gap-2 px-3 py-2 text-sm rounded-md
                                     transition-colors duration-200 w-full
                                     ${isActive
                                       ? 'bg-primary text-primary-foreground font-medium' 
@@ -408,29 +445,34 @@ export function DashboardNavigation() {
           </nav>
 
           {/* Enhanced User Section */}
-          <div className="p-3 border-t border-border space-y-2 flex-shrink-0">
-            {/* User Info - Inline Name and Role */}
-            <div className="px-3 py-2 rounded-sm bg-muted/30">
+          <div className="p-4 border-t border-border space-y-3 flex-shrink-0">
+            {/* User Info - Better mobile layout */}
+            <div className="px-3 py-3 rounded-lg bg-muted/30">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-foreground truncate">
-                  {currentUserName || session?.user?.name || 'User'}
-                </span>
-                <div className="flex items-center gap-1">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-foreground truncate">
+                    {currentUserName || session?.user?.name || 'User'}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {session?.user?.email}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 ml-2">
                   {session?.user?.role === 'PARTNER' && (
                     <>
-                      <Crown className="h-3.5 w-3.5 text-purple-600" />
+                      <Crown className="h-4 w-4 text-purple-600" />
                       <span className="text-xs font-medium text-purple-600">Partner</span>
                     </>
                   )}
                   {session?.user?.role === 'MANAGER' && (
                     <>
-                      <Shield className="h-3.5 w-3.5 text-blue-600" />
+                      <Shield className="h-4 w-4 text-blue-600" />
                       <span className="text-xs font-medium text-blue-600">Manager</span>
                     </>
                   )}
                   {session?.user?.role === 'STAFF' && (
                     <>
-                      <User className="h-3.5 w-3.5 text-gray-600" />
+                      <User className="h-4 w-4 text-gray-600" />
                       <span className="text-xs font-medium text-gray-600">Staff</span>
                     </>
                   )}
@@ -443,7 +485,7 @@ export function DashboardNavigation() {
               variant="outline"
               size="sm"
               onClick={handleSignOut}
-              className="w-full h-8 text-sm border-orange-700 text-orange-700 hover:bg-orange-50 hover:text-orange-800 hover:border-orange-800"
+              className="w-full h-9 text-sm border-orange-700 text-orange-700 hover:bg-orange-50 hover:text-orange-800 hover:border-orange-800"
             >
               <LogOut className="h-4 w-4 mr-2 flex-shrink-0" />
               <span className="truncate">Sign Out</span>
