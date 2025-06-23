@@ -26,6 +26,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu'
+import {
   Table,
   TableBody,
   TableCell,
@@ -52,7 +59,10 @@ import {
   AlertCircle,
   Briefcase,
   Eye,
-  MessageSquare
+  MessageSquare,
+  Settings,
+  Edit,
+  UserPlus
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
 import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
@@ -1043,17 +1053,17 @@ export function LtdCompaniesDeadlinesTable() {
                   <Table className="table-fixed w-full">
                     <TableHeader>
                       <TableRow className="border-b">
-                        <SortableHeader column="clientCode" className="w-16 col-ltd-client-code">Code</SortableHeader>
-                        <SortableHeader column="companyNumber" className="w-20 col-ltd-company-number">Co. No.</SortableHeader>
-                        <SortableHeader column="companyName" className="w-48 col-ltd-company-name">Company Name</SortableHeader>
-                        <SortableHeader column="yearEnd" className="w-20 col-ltd-year-end">Year End</SortableHeader>
-                        <SortableHeader column="accountsDue" className="w-24 col-ltd-accounts-due">Accounts</SortableHeader>
-                        <SortableHeader column="ctDue" className="w-20 col-ltd-ct-due">CT</SortableHeader>
-                        <SortableHeader column="csDue" className="w-20 col-ltd-cs-due">CS</SortableHeader>
-                        <SortableHeader column="assignedTo" className="w-24 col-ltd-assigned">Assigned To</SortableHeader>
-                        <SortableHeader column="status" className="w-32 col-ltd-status">Status</SortableHeader>
-                        <TableHead className="w-20 col-ltd-update">Update</TableHead>
-                        <TableHead className="w-12 col-ltd-action">Action</TableHead>
+                        <SortableHeader column="clientCode" className="w-14 col-ltd-client-code text-center">Code</SortableHeader>
+                        <SortableHeader column="companyNumber" className="w-16 col-ltd-company-number text-center">Co. No.</SortableHeader>
+                        <SortableHeader column="companyName" className="w-40 col-ltd-company-name">Company Name</SortableHeader>
+                        <SortableHeader column="yearEnd" className="w-16 col-ltd-year-end text-center">Year End</SortableHeader>
+                        <SortableHeader column="accountsDue" className="w-20 col-ltd-accounts-due text-center">Accounts</SortableHeader>
+                        <SortableHeader column="ctDue" className="w-16 col-ltd-ct-due text-center">CT</SortableHeader>
+                        <SortableHeader column="csDue" className="w-16 col-ltd-cs-due text-center">CS</SortableHeader>
+                        <SortableHeader column="assignedTo" className="w-20 col-ltd-assigned text-center">Assigned</SortableHeader>
+                        <SortableHeader column="status" className="w-24 col-ltd-status text-center">Status</SortableHeader>
+                        <TableHead className="w-16 col-ltd-update text-center">Update</TableHead>
+                        <TableHead className="w-16 col-ltd-action text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                   <TableBody className="table-compact">
@@ -1087,35 +1097,35 @@ export function LtdCompaniesDeadlinesTable() {
                       return (
                         <React.Fragment key={client.id}>
                           {/* Main Row */}
-                          <TableRow className="hover:bg-muted/50 h-12">
-                            <TableCell className="font-mono text-xs p-2">
+                          <TableRow className="hover:bg-muted/50 h-10">
+                            <TableCell className="font-mono text-xs p-1 text-center">
                               {client.clientCode}
                             </TableCell>
-                            <TableCell className="font-mono text-xs p-2">
+                            <TableCell className="font-mono text-xs p-1 text-center">
                               {client.companyNumber || '—'}
                             </TableCell>
-                            <TableCell className="font-medium p-2">
-                              <div className="flex items-center gap-2">
+                            <TableCell className="font-medium p-1">
+                              <div className="flex items-center gap-1">
                                 <button
                                   onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                                  className="max-w-[150px] truncate text-sm hover:text-primary transition-colors cursor-pointer text-left"
+                                  className="max-w-[140px] truncate text-xs hover:text-primary transition-colors cursor-pointer text-left"
                                   title={`View ${client.companyName} details`}
                                 >
                                   {client.companyName}
                                 </button>
                                 <button
                                   onClick={() => handleViewActivityLog(client)}
-                                  className="flex items-center gap-1 text-left hover:text-primary transition-colors cursor-pointer group text-xs"
+                                  className="flex items-center gap-1 text-left hover:text-primary transition-colors cursor-pointer group"
                                   title="View Activity Log"
                                 >
                                   <Clock className="h-3 w-3 text-muted-foreground group-hover:text-primary flex-shrink-0" />
                                 </button>
                               </div>
                             </TableCell>
-                            <TableCell className="text-xs p-2">
+                            <TableCell className="text-xs p-1 text-center">
                               {client.accountingReferenceDate ? formatDate(client.accountingReferenceDate) : '—'}
                             </TableCell>
-                            <TableCell className="p-2">
+                            <TableCell className="p-1 text-center">
                               <div className="text-xs">
                                 <div className="font-medium">{formatDate(client.nextAccountsDue)}</div>
                                 {accountsDue && (
@@ -1125,7 +1135,7 @@ export function LtdCompaniesDeadlinesTable() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="p-2">
+                            <TableCell className="p-1 text-center">
                               <div className="text-xs">
                                 <div className="font-medium">{formatDate(client.nextCorporationTaxDue)}</div>
                                 {ctDue && (
@@ -1135,7 +1145,7 @@ export function LtdCompaniesDeadlinesTable() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="p-2">
+                            <TableCell className="p-1 text-center">
                               <div className="text-xs">
                                 <div className="font-medium">{formatDate(client.nextConfirmationDue)}</div>
                                 {csDue && (
@@ -1145,12 +1155,12 @@ export function LtdCompaniesDeadlinesTable() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="p-2">
+                            <TableCell className="p-1 text-center">
                               <div className="text-xs">
                                 {client.ltdCompanyAssignedUser ? (
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex items-center justify-center gap-1">
                                     <User className="h-3 w-3 text-blue-600" />
-                                    <span className="text-blue-600 font-medium max-w-[80px] truncate" title={client.ltdCompanyAssignedUser.name}>
+                                    <span className="text-blue-600 font-medium max-w-[60px] truncate" title={client.ltdCompanyAssignedUser.name}>
                                       {client.ltdCompanyAssignedUser.name}
                                     </span>
                                   </div>
@@ -1159,17 +1169,17 @@ export function LtdCompaniesDeadlinesTable() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="p-2">
-                              <Badge variant="outline" className={`text-xs px-2 py-1 ${workflowStatus.color}`}>
+                            <TableCell className="p-1 text-center">
+                              <Badge variant="outline" className={`text-xs px-1 py-0 h-5 ${workflowStatus.color}`}>
                                 <div className="flex items-center gap-1">
                                   {workflowStatus.icon}
-                                  <span className="max-w-[100px] truncate" title={workflowStatus.label}>
-                                    {workflowStatus.label}
+                                  <span className="max-w-[80px] truncate" title={workflowStatus.label}>
+                                    {workflowStatus.label.length > 10 ? workflowStatus.label.substring(0, 10) + '...' : workflowStatus.label}
                                   </span>
                                 </div>
                               </Badge>
                             </TableCell>
-                            <TableCell className="p-2">
+                            <TableCell className="p-1 text-center">
                               {client.currentLtdAccountsWorkflow?.isCompleted || 
                                client.currentLtdAccountsWorkflow?.currentStage === 'FILED_CH_HMRC' ? (
                                 <span className="text-xs text-green-600 font-medium">Complete</span>
@@ -1184,35 +1194,71 @@ export function LtdCompaniesDeadlinesTable() {
                                     setUpdateComments('')
                                     setUpdateModalOpen(true)
                                   }}
-                                  className="flex items-center gap-1 h-8 px-2 text-xs"
+                                  className="flex items-center gap-1 h-6 px-2 text-xs"
                                 >
                                   <Plus className="h-3 w-3" />
                                   Update
                                 </Button>
                               )}
                             </TableCell>
-                            <TableCell className="p-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-muted/50 transition-colors"
-                                onClick={() => {
-                                  const newExpanded = new Set(expandedRows)
-                                  if (expandedRows.has(rowKey)) {
-                                    newExpanded.delete(rowKey)
-                                  } else {
-                                    newExpanded.add(rowKey)
-                                  }
-                                  setExpandedRows(newExpanded)
-                                }}
-                                title="Show/Hide Workflow Timeline"
-                              >
-                                {expandedRows.has(rowKey) ? (
-                                  <ChevronDown className="h-3 w-3 text-foreground" />
-                                ) : (
-                                  <ChevronRight className="h-3 w-3 text-foreground" />
-                                )}
-                              </Button>
+                            <TableCell className="table-actions-cell">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="action-trigger-button">
+                                    <Settings className="action-trigger-icon" />
+                                    <span className="sr-only">Open menu</span>
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem 
+                                    onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                                    className="flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleViewActivityLog(client)}
+                                    className="flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Clock className="h-4 w-4" />
+                                    View Log
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
+                                    className="flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                    Edit Client
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      const newExpanded = new Set(expandedRows)
+                                      if (expandedRows.has(rowKey)) {
+                                        newExpanded.delete(rowKey)
+                                      } else {
+                                        newExpanded.add(rowKey)
+                                      }
+                                      setExpandedRows(newExpanded)
+                                    }}
+                                    className="flex items-center gap-2 cursor-pointer"
+                                  >
+                                    {expandedRows.has(rowKey) ? (
+                                      <>
+                                        <ChevronDown className="h-4 w-4" />
+                                        Hide Timeline
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ChevronRight className="h-4 w-4" />
+                                        Show Timeline
+                                      </>
+                                    )}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </TableCell>
                           </TableRow>
                           

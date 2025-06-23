@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { CacheHelpers } from '@/lib/performance-cache'
 
 /**
  * GET /api/clients/user-counts
  * 
- * Get client counts for each user for filter dropdowns
+ * OPTIMIZED: Get client counts for each user for filter dropdowns
  * Returns counts for general assignment, accounts assignment, and VAT assignment
+ * 
+ * PERFORMANCE OPTIMIZATIONS:
+ * - Single database query with aggregations
+ * - No N+1 query problems
+ * - Response caching for 5 minutes
+ * - Early return for staff users
  */
 export async function GET(request: NextRequest) {
   try {
@@ -20,132 +27,83 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Only managers and partners can see user counts
+    // Only managers and partners can see user counts - return immediately for staff
     if (session.user.role === 'STAFF') {
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         userClientCounts: {},
         accountsClientCounts: {},
         vatClientCounts: {}
       })
+      
+      // Cache staff response for longer since it's static
+      response.headers.set('Cache-Control', 'public, max-age=1800, stale-while-revalidate=900') // 30 min cache
+      return response
     }
 
-    // Get all active users
-    const users = await db.user.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true }
-    })
+    // OPTIMIZED: Cached query to get all users with their client counts
+    const usersWithCounts = await CacheHelpers.clients.getUserCounts(() => 
+      db.user.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          _count: {
+            select: {
+              // General assignment count
+              assignedClients: {
+                where: { isActive: true }
+              },
+              // Ltd company accounts assignment count
+              ltdCompanyAssignedClients: {
+                where: { isActive: true }
+              },
+              // Non-Ltd company accounts assignment count
+              nonLtdCompanyAssignedClients: {
+                where: { isActive: true }
+              },
+              // VAT assignment count
+              vatAssignedClients: {
+                where: { isActive: true }
+              }
+            }
+          }
+        },
+        orderBy: { name: 'asc' }
+      })
+    )
 
-    // Initialize count objects
+    // OPTIMIZED: Process results without additional database queries
     const userClientCounts: Record<string, number> = {}
     const accountsClientCounts: Record<string, number> = {}
     const vatClientCounts: Record<string, number> = {}
 
-    // Get all active clients with their assignments for efficient counting
-    const allClients = await db.client.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        companyType: true,
-        assignedUserId: true,
-        ltdCompanyAssignedUserId: true,
-        nonLtdCompanyAssignedUserId: true,
-        vatAssignedUserId: true
-      }
-    })
-
-    // Calculate counts for each user
-    for (const user of users) {
-      // General assignment count (sum of accounts + VAT assignments)
-      const userClientSet = new Set<string>()
+    // Calculate counts from the single query result
+    for (const user of usersWithCounts) {
+      const counts = user._count
       
-      allClients.forEach(client => {
-        // Check if user handles accounts for this client
-        let handlesAccounts = false
-        if (client.companyType === 'LIMITED_COMPANY') {
-          handlesAccounts = client.ltdCompanyAssignedUserId === user.id || 
-                           (!client.ltdCompanyAssignedUserId && client.assignedUserId === user.id)
-        } else if (client.companyType && ['NON_LIMITED_COMPANY', 'DIRECTOR', 'SUB_CONTRACTOR'].includes(client.companyType)) {
-          handlesAccounts = client.nonLtdCompanyAssignedUserId === user.id || 
-                           (!client.nonLtdCompanyAssignedUserId && client.assignedUserId === user.id)
-        }
-        
-        // Check if user handles VAT for this client
-        const handlesVAT = client.vatAssignedUserId === user.id || 
-                          (!client.vatAssignedUserId && client.assignedUserId === user.id)
-        
-        // Add client to set if user handles either accounts or VAT
-        if (handlesAccounts || handlesVAT) {
-          userClientSet.add(client.id)
-        }
-      })
+      // General assignment count (direct from database aggregation)
+      userClientCounts[user.id] = counts.assignedClients
       
-      userClientCounts[user.id] = userClientSet.size
-
-      // Accounts assignment count (with fallback logic)
-      const accountsCount = await db.client.count({
-        where: {
-          isActive: true,
-          OR: [
-            // Specific assignments
-            { 
-              AND: [
-                { companyType: 'LIMITED_COMPANY' },
-                { ltdCompanyAssignedUserId: user.id }
-              ]
-            },
-            {
-              AND: [
-                { companyType: { in: ['NON_LIMITED_COMPANY', 'DIRECTOR', 'SUB_CONTRACTOR'] } },
-                { nonLtdCompanyAssignedUserId: user.id }
-              ]
-            },
-            // Fallback to general assignment when specific assignment is null
-            {
-              AND: [
-                { companyType: 'LIMITED_COMPANY' },
-                { ltdCompanyAssignedUserId: null },
-                { assignedUserId: user.id }
-              ]
-            },
-            {
-              AND: [
-                { companyType: { in: ['NON_LIMITED_COMPANY', 'DIRECTOR', 'SUB_CONTRACTOR'] } },
-                { nonLtdCompanyAssignedUserId: null },
-                { assignedUserId: user.id }
-              ]
-            }
-          ]
-        }
-      })
-      accountsClientCounts[user.id] = accountsCount
-
-      // VAT assignment count (with fallback logic)
-      const vatCount = await db.client.count({
-        where: {
-          isActive: true,
-          OR: [
-            // Specific VAT assignment
-            { vatAssignedUserId: user.id },
-            // Fallback to general assignment when VAT assignment is null
-            {
-              AND: [
-                { vatAssignedUserId: null },
-                { assignedUserId: user.id }
-              ]
-            }
-          ]
-        }
-      })
-      vatClientCounts[user.id] = vatCount
+      // Accounts assignment count (Ltd + Non-Ltd combined)
+      accountsClientCounts[user.id] = counts.ltdCompanyAssignedClients + counts.nonLtdCompanyAssignedClients
+      
+      // VAT assignment count (direct from database aggregation)
+      vatClientCounts[user.id] = counts.vatAssignedClients
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       userClientCounts,
       accountsClientCounts,
       vatClientCounts
     })
+
+    // PERFORMANCE: Cache response for 5 minutes with stale-while-revalidate
+    response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60')
+    response.headers.set('ETag', `"user-counts-${Date.now()}"`)
+
+    return response
 
   } catch (error) {
     console.error('Error fetching user client counts:', error)

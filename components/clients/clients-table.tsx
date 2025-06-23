@@ -18,17 +18,27 @@ import {
   XCircle,
   Mail,
   Phone,
-  MoreHorizontal,
   ChevronUp,
   ChevronDown,
   Check,
   X,
   ArrowUpDown,
-  Clock
+  Clock,
+  User,
+  Plus,
+  ChevronRight
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -121,7 +131,6 @@ interface ClientsTableProps {
   searchQuery: string
   filters: {
     companyType: string
-    assignedUser: string
     accountsAssignedUser: string
     vatAssignedUser: string
     status: string
@@ -130,39 +139,25 @@ interface ClientsTableProps {
   onClientCountsUpdate?: (total: number, filtered: number) => void
 }
 
-// Sortable header component
+// Sortable header component to match VAT/Ltd tables design
 interface SortableHeaderProps {
   children: React.ReactNode
-  sortKey: string
-  currentSort: string
-  sortOrder: 'asc' | 'desc'
-  onSort: (key: string) => void
+  column: string
   className?: string
+  onSort: (column: string) => void
 }
 
-function SortableHeader({ children, sortKey, currentSort, sortOrder, onSort, className = '' }: SortableHeaderProps) {
-  const isActive = currentSort === sortKey
-  
-  return (
-    <th 
-      className={`table-header-cell cursor-pointer hover:text-foreground ${className}`}
-      onClick={() => onSort(sortKey)}
+const SortableHeader = ({ column, children, className = "", onSort }: SortableHeaderProps) => (
+  <TableHead className={className}>
+    <button
+      onClick={() => onSort(column)}
+      className="flex items-center gap-1 hover:text-primary transition-colors text-xs font-medium"
     >
-      <div className="flex items-center gap-1">
-        <span>{children}</span>
-        {isActive ? (
-          sortOrder === 'asc' ? (
-            <ChevronUp className="h-3 w-3" />
-          ) : (
-            <ChevronDown className="h-3 w-3" />
-          )
-        ) : (
-          <ArrowUpDown className="h-3 w-3 opacity-50" />
-        )}
-      </div>
-    </th>
-  )
-}
+      {children}
+      <ArrowUpDown className="h-3 w-3" />
+    </button>
+  </TableHead>
+)
 
 /**
  * Clients table component with comprehensive functionality
@@ -290,16 +285,6 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
         params.append('companyType', filters.companyType)
       }
       
-      if (filters.assignedUser) {
-        if (filters.assignedUser === 'me') {
-          params.append('assignedUserId', session.user.id)
-        } else if (filters.assignedUser === 'unassigned') {
-          params.append('unassigned', 'true')
-        } else {
-          params.append('assignedUserId', filters.assignedUser)
-        }
-      }
-      
       if (filters.accountsAssignedUser) {
         if (filters.accountsAssignedUser === 'me') {
           params.append('accountsAssignedUserId', session.user.id)
@@ -339,22 +324,22 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
             let bValue = ''
             
             if (sortBy === 'accountsAssigned') {
-              // Get effective accounts assignment
+              // Get specific accounts assignment only (no fallback)
               if (a.companyType === 'LIMITED_COMPANY') {
-                aValue = a.ltdCompanyAssignedUser?.name || a.assignedUser?.name || 'Unassigned'
+                aValue = a.ltdCompanyAssignedUser?.name || 'Unassigned'
               } else {
-                aValue = a.nonLtdCompanyAssignedUser?.name || a.assignedUser?.name || 'Unassigned'
+                aValue = a.nonLtdCompanyAssignedUser?.name || 'Unassigned'
               }
               
               if (b.companyType === 'LIMITED_COMPANY') {
-                bValue = b.ltdCompanyAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
+                bValue = b.ltdCompanyAssignedUser?.name || 'Unassigned'
               } else {
-                bValue = b.nonLtdCompanyAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
+                bValue = b.nonLtdCompanyAssignedUser?.name || 'Unassigned'
               }
             } else if (sortBy === 'vatAssigned') {
-              // Get effective VAT assignment
-              aValue = a.vatAssignedUser?.name || a.assignedUser?.name || 'Unassigned'
-              bValue = b.vatAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
+              // Get specific VAT assignment only (no fallback)
+              aValue = a.vatAssignedUser?.name || 'Unassigned'
+              bValue = b.vatAssignedUser?.name || 'Unassigned'
             }
             
             const comparison = aValue.localeCompare(bValue)
@@ -365,7 +350,7 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
         setClients(clientsData)
         
         // If no filters applied, this is our total count
-        const hasFilters = searchQuery.trim() || filters.companyType || filters.assignedUser || filters.accountsAssignedUser || filters.vatAssignedUser || filters.status
+        const hasFilters = searchQuery.trim() || filters.companyType || filters.accountsAssignedUser || filters.vatAssignedUser || filters.status
         const currentTotal = data.pagination?.totalCount || 0
         
         if (!hasFilters) {
@@ -614,462 +599,255 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
         />
       )}
 
-      <Card className="overflow-hidden">
-        {/* Desktop Table */}
-        <div className="hidden lg:block">
-          <table className="table-fixed-layout">
-            <thead>
-              <tr className="table-header-row">
-                {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
-                  <th className="table-header-cell w-12">
-                    <Checkbox
-                      checked={selectedClients.length === clients.length && clients.length > 0}
-                      onCheckedChange={handleSelectAll}
-                      aria-label="Select all clients"
-                    />
-                  </th>
-                )}
-                <SortableHeader sortKey="clientCode" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort}>
-                  Client Code
-                </SortableHeader>
-                <SortableHeader sortKey="companyNumber" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort}>
-                  Company Number
-                </SortableHeader>
-                <SortableHeader sortKey="companyName" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-company-name">
-                  Company Name
-                </SortableHeader>
-                <SortableHeader sortKey="companyType" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="w-20 text-center">
-                  Accounts
-                </SortableHeader>
-                <SortableHeader sortKey="isVatEnabled" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="w-16 text-center">
-                  VAT
-                </SortableHeader>
-                <SortableHeader sortKey="contactEmail" currentSort={sortBy} sortOrder={sortOrder} onSort={handleSort} className="col-contact">
-                  Contact
-                </SortableHeader>
-                <th className="table-header-cell col-assigned-accounts">
-                  <button
-                    onClick={() => handleSort('accountsAssigned')}
-                    className="flex items-center gap-1 hover:text-foreground transition-colors"
-                  >
-                    Accounts Assigned
-                    {sortBy === 'accountsAssigned' && (
-                      sortOrder === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
-                    )}
-                  </button>
-                </th>
-                <th className="table-header-cell col-assigned-vat">
-                  <button
-                    onClick={() => handleSort('vatAssigned')}
-                    className="flex items-center gap-1 hover:text-foreground transition-colors"
-                  >
-                    VAT Assigned
-                    {sortBy === 'vatAssigned' && (
-                      sortOrder === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
-                    )}
-                  </button>
-                </th>
-                <th className="table-header-cell col-actions text-right">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {clients.map((client) => (
-                <tr key={client.id} className="table-body-row">
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-hidden">
+            <Table className="table-fixed w-full">
+              <TableHeader>
+                <TableRow className="border-b">
                   {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
-                    <td className="table-body-cell">
+                    <TableHead className="w-12 p-2">
                       <Checkbox
-                        checked={selectedClients.includes(client.id)}
-                        onCheckedChange={(checked) => handleSelectClient(client.id, checked as boolean)}
-                        aria-label={`Select ${client.companyName}`}
+                        checked={selectedClients.length === clients.length && clients.length > 0}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Select all clients"
                       />
-                    </td>
+                    </TableHead>
                   )}
-                  <td className="table-body-cell">
-                    <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                      {client.clientCode || 'N/A'}
-                    </span>
-                  </td>
-                  <td className="table-body-cell">
-                    <span className="font-mono text-xs">
-                      {client.companyNumber || '-'}
-                    </span>
-                  </td>
-                  <td className="table-body-cell">
-                    <div className="w-full">
-                      <button
-                        onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                        className="text-left w-full hover:bg-accent/50 rounded px-2 py-1 -mx-2 -my-1 transition-colors group"
-                      >
-                        <div className="font-medium text-sm truncate group-hover:text-primary" title={client.companyName}>
-                          {client.companyName}
+                  <SortableHeader column="clientCode" onSort={handleSort} className="w-16 col-client-code p-2 text-center">
+                    Code
+                  </SortableHeader>
+                  <SortableHeader column="companyNumber" onSort={handleSort} className="w-20 col-company-number p-2 text-center">
+                    Co. No.
+                  </SortableHeader>
+                  <SortableHeader column="companyName" onSort={handleSort} className="w-48 col-company-name p-2">
+                    Company Name
+                  </SortableHeader>
+                  <SortableHeader column="companyType" onSort={handleSort} className="w-20 col-company-type p-2 text-center">
+                    Accounts
+                  </SortableHeader>
+                  <SortableHeader column="isVatEnabled" onSort={handleSort} className="w-16 col-vat-enabled p-2 text-center">
+                    VAT
+                  </SortableHeader>
+                  <SortableHeader column="contactEmail" onSort={handleSort} className="w-20 col-contact p-2 text-center">
+                    Contact
+                  </SortableHeader>
+                  <SortableHeader column="accountsAssigned" onSort={handleSort} className="w-24 col-accounts-assigned p-2 text-center">
+                    Accounts
+                  </SortableHeader>
+                  <SortableHeader column="vatAssigned" onSort={handleSort} className="w-24 col-vat-assigned p-2 text-center">
+                    VAT Assigned
+                  </SortableHeader>
+                  <TableHead className="w-20 col-actions p-2 text-center">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+                            <TableBody className="table-compact">
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-8">
+                      <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
+                      Loading clients...
+                    </TableCell>
+                  </TableRow>
+                ) : clients.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-8">
+                      <div className="space-y-2">
+                        <Building2 className="h-12 w-12 mx-auto text-muted-foreground" />
+                        <p className="text-muted-foreground">No clients found</p>
+                        <p className="text-xs text-muted-foreground">
+                          Try adjusting your search or filters
+                        </p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  clients.map((client) => (
+                    <TableRow key={client.id} className="hover:bg-muted/50 h-12">
+                      {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
+                        <TableCell className="p-2">
+                          <Checkbox
+                            checked={selectedClients.includes(client.id)}
+                            onCheckedChange={(checked) => handleSelectClient(client.id, checked as boolean)}
+                            aria-label={`Select ${client.companyName}`}
+                          />
+                        </TableCell>
+                      )}
+                      <TableCell className="font-mono text-xs p-2 text-center">
+                        {client.clientCode || 'N/A'}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs p-2 text-center">
+                        {client.companyNumber || '—'}
+                      </TableCell>
+                      <TableCell className="font-medium p-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                            className="max-w-[150px] truncate text-sm hover:text-primary transition-colors cursor-pointer text-left"
+                            title={`View ${client.companyName} details`}
+                          >
+                            {client.companyName}
+                          </button>
+                          <button
+                            onClick={() => handleViewActivityLog(client)}
+                            className="flex items-center gap-1 text-left hover:text-primary transition-colors cursor-pointer group text-xs"
+                            title="View Activity Log"
+                          >
+                            <Clock className="h-3 w-3 text-muted-foreground group-hover:text-primary flex-shrink-0" />
+                          </button>
                         </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {client.companyType === 'LIMITED_COMPANY' ? 'Ltd Co' :
-                           client.companyType === 'NON_LIMITED_COMPANY' ? 'Non Ltd' :
-                           client.companyType === 'DIRECTOR' ? 'Director' :
-                           client.companyType === 'SUB_CONTRACTOR' ? 'Sub Con' :
-                           client.companyType}
+                      </TableCell>
+                      <TableCell className="text-center p-2">
+                        {(client.companyType === 'LIMITED_COMPANY' || client.companyType === 'NON_LIMITED_COMPANY') ? (
+                          <Check className="h-3 w-3 text-green-600 mx-auto" />
+                        ) : (
+                          <X className="h-3 w-3 text-muted-foreground mx-auto" />
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center p-2">
+                        {client.isVatEnabled ? (
+                          <Check className="h-3 w-3 text-green-600 mx-auto" />
+                        ) : (
+                          <X className="h-3 w-3 text-muted-foreground mx-auto" />
+                        )}
+                      </TableCell>
+                      <TableCell className="p-2 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {client.contactEmail && (
+                            <a
+                              href={`mailto:${client.contactEmail}`}
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              title={`Email: ${client.contactEmail}`}
+                            >
+                              <Mail className="h-3 w-3" />
+                            </a>
+                          )}
+                          {client.contactPhone && (
+                            <a
+                              href={`tel:${client.contactPhone}`}
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              title={`Call: ${client.contactPhone}`}
+                            >
+                              <Phone className="h-3 w-3" />
+                            </a>
+                          )}
+                          {!client.contactEmail && !client.contactPhone && (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </div>
-                      </button>
-                    </div>
-                  </td>
-                  <td className="table-body-cell text-center">
-                    <div className="flex justify-center">
-                      {(client.companyType === 'LIMITED_COMPANY' || client.companyType === 'NON_LIMITED_COMPANY') ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <X className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-                  </td>
-                  <td className="table-body-cell text-center">
-                    <div className="flex justify-center">
-                      {client.isVatEnabled ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <X className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-                  </td>
-                  <td className="table-body-cell">
-                    <div className="flex items-center gap-2">
-                      {client.contactEmail && (
-                        <button
-                          onClick={() => window.open(`mailto:${client.contactEmail}`, '_blank')}
-                          className="p-1 hover:bg-accent rounded transition-colors"
-                          title={client.contactEmail}
-                        >
-                          <Mail className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                        </button>
-                      )}
-                      {client.contactPhone && (
-                        <button
-                          onClick={() => window.open(`tel:${client.contactPhone}`, '_blank')}
-                          className="p-1 hover:bg-accent rounded transition-colors"
-                          title={client.contactPhone}
-                        >
-                          <Phone className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                        </button>
-                      )}
-                      {!client.contactEmail && !client.contactPhone && (
-                        <span className="text-xs text-muted-foreground">-</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="table-body-cell">
-                    <div className="text-xs">
-                      {(() => {
-                        if (client.companyType === 'LIMITED_COMPANY') {
-                          if (client.ltdCompanyAssignedUser) {
-                            return (
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium text-foreground" title="Specific accounts assignment for Ltd company">
-                                  {client.ltdCompanyAssignedUser.name}
-                                </span>
-                                <div className="h-1.5 w-1.5 rounded-full bg-green-500" title="Specific assignment"></div>
-                              </div>
-                            )
-                          } else if (client.assignedUser) {
-                            return (
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium text-muted-foreground" title="General assignment (fallback for accounts)">
-                                  {client.assignedUser.name}
-                                </span>
-                                <div className="h-1.5 w-1.5 rounded-full bg-amber-500" title="General assignment"></div>
-                              </div>
-                            )
-                          }
-                        } else if (client.companyType === 'NON_LIMITED_COMPANY' || client.companyType === 'DIRECTOR' || client.companyType === 'SUB_CONTRACTOR') {
-                          if (client.nonLtdCompanyAssignedUser) {
-                            return (
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium text-foreground" title="Specific accounts assignment for non-Ltd company">
-                                  {client.nonLtdCompanyAssignedUser.name}
-                                </span>
-                                <div className="h-1.5 w-1.5 rounded-full bg-green-500" title="Specific assignment"></div>
-                              </div>
-                            )
-                          } else if (client.assignedUser) {
-                            return (
-                              <div className="flex items-center gap-1">
-                                <span className="font-medium text-muted-foreground" title="General assignment (fallback for accounts)">
-                                  {client.assignedUser.name}
-                                </span>
-                                <div className="h-1.5 w-1.5 rounded-full bg-amber-500" title="General assignment"></div>
-                              </div>
-                            )
-                          }
-                        }
-                        return <span className="text-muted-foreground">Unassigned</span>
-                      })()}
-                    </div>
-                  </td>
-                  <td className="table-body-cell">
-                    <div className="text-xs">
-                      {(() => {
-                        if (client.vatAssignedUser) {
-                          return (
-                            <div className="flex items-center gap-1">
-                              <span className="font-medium text-foreground" title="Specific VAT assignment">
+                      </TableCell>
+                      <TableCell className="p-2 text-center">
+                        <div className="text-xs">
+                          {(() => {
+                            if (client.companyType === 'LIMITED_COMPANY') {
+                              if (client.ltdCompanyAssignedUser) {
+                                return (
+                                  <div className="flex items-center justify-center gap-1 truncate max-w-[100px]" title={client.ltdCompanyAssignedUser.name}>
+                                    <User className="h-3 w-3 text-blue-600 flex-shrink-0" />
+                                    <span className="text-blue-600 font-medium truncate">
+                                      {client.ltdCompanyAssignedUser.name}
+                                    </span>
+                                  </div>
+                                )
+                              }
+                            } else if (client.companyType === 'NON_LIMITED_COMPANY' || client.companyType === 'DIRECTOR' || client.companyType === 'SUB_CONTRACTOR') {
+                              if (client.nonLtdCompanyAssignedUser) {
+                                return (
+                                  <div className="flex items-center justify-center gap-1 truncate max-w-[100px]" title={client.nonLtdCompanyAssignedUser.name}>
+                                    <User className="h-3 w-3 text-blue-600 flex-shrink-0" />
+                                    <span className="text-blue-600 font-medium truncate">
+                                      {client.nonLtdCompanyAssignedUser.name}
+                                    </span>
+                                  </div>
+                                )
+                              }
+                            }
+                            return <span className="text-muted-foreground">Unassigned</span>
+                          })()}
+                        </div>
+                      </TableCell>
+                      <TableCell className="p-2 text-center">
+                        <div className="text-xs">
+                          {client.vatAssignedUser ? (
+                            <div className="flex items-center justify-center gap-1 truncate max-w-[100px]" title={client.vatAssignedUser.name}>
+                              <User className="h-3 w-3 text-green-600 flex-shrink-0" />
+                              <span className="text-green-600 font-medium truncate">
                                 {client.vatAssignedUser.name}
                               </span>
-                              <div className="h-1.5 w-1.5 rounded-full bg-green-500" title="Specific assignment"></div>
                             </div>
-                          )
-                        } else if (client.assignedUser) {
-                          return (
-                            <div className="flex items-center gap-1">
-                              <span className="font-medium text-muted-foreground" title="General assignment (fallback for VAT)">
-                                {client.assignedUser.name}
-                              </span>
-                              <div className="h-1.5 w-1.5 rounded-full bg-amber-500" title="General assignment"></div>
-                            </div>
-                          )
-                        } else {
-                          return <span className="text-muted-foreground">Unassigned</span>
-                        }
-                      })()}
-                    </div>
-                  </td>
-                  <td className="table-actions-cell">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="action-trigger-button">
-                          <MoreHorizontal className="action-trigger-icon" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem 
-                          onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <Eye className="h-4 w-4" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleViewActivityLog(client)}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <Clock className="h-4 w-4" />
-                          View Log
-                        </DropdownMenuItem>
-                        {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') &&
-                          <>
-                            <DropdownMenuItem 
-                              onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <Edit className="h-4 w-4" />
-                              Edit Client
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleAssignUser(client)}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <UserPlus className="h-4 w-4" />
-                              Assign User
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleRefreshCompaniesHouse(client)}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                              Refresh from Companies House
-                            </DropdownMenuItem>
-                            {client.isActive && (
-                              <DropdownMenuItem 
-                                onClick={() => handleResignClient(client)}
-                                className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                              >
-                                <UserX className="h-4 w-4" />
-                                Resign Client
-                              </DropdownMenuItem>
-                            )}
-                          </>
-                        }
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile View */}
-        <div className="block lg:hidden">
-          <div className="space-y-3 p-3">
-            {clients.map((client) => (
-              <div key={client.id} className="border rounded-lg p-3 space-y-2">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1 flex-1">
-                    <div className="font-medium text-sm">{client.companyName}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {client.companyNumber}
-                    </div>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="action-trigger-icon" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem 
-                        onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <Eye className="h-4 w-4" />
-                        View Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleViewActivityLog(client)}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <Clock className="h-4 w-4" />
-                        View Log
-                      </DropdownMenuItem>
-                      {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
-                        <>
-                          <DropdownMenuItem 
-                            onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <Edit className="h-4 w-4" />
-                            Edit Client
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleAssignUser(client)}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <UserPlus className="h-4 w-4" />
-                            Assign User
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => handleRefreshCompaniesHouse(client)}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                            Refresh from Companies House
-                          </DropdownMenuItem>
-                          {client.isActive && (
-                            <DropdownMenuItem 
-                              onClick={() => handleResignClient(client)}
-                              className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                            >
-                              <UserX className="h-4 w-4" />
-                              Resign Client
-                            </DropdownMenuItem>
+                          ) : (
+                            <span className="text-muted-foreground">Unassigned</span>
                           )}
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Accounts:</span>
-                    <div className="flex items-center">
-                      {(client.companyType === 'LIMITED_COMPANY' || client.companyType === 'NON_LIMITED_COMPANY') ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <X className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">VAT:</span>
-                    <div className="flex items-center">
-                      {client.isVatEnabled ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <X className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Contact:</span>
-                    <div className="flex items-center gap-2">
-                      {client.contactEmail && (
-                        <button
-                          onClick={() => window.open(`mailto:${client.contactEmail}`, '_blank')}
-                          className="p-1 hover:bg-accent rounded transition-colors"
-                          title={client.contactEmail}
-                        >
-                          <Mail className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                        </button>
-                      )}
-                      {client.contactPhone && (
-                        <button
-                          onClick={() => window.open(`tel:${client.contactPhone}`, '_blank')}
-                          className="p-1 hover:bg-accent rounded transition-colors"
-                          title={client.contactPhone}
-                        >
-                          <Phone className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                        </button>
-                      )}
-                      {!client.contactEmail && !client.contactPhone && (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">General Assigned:</span>
-                    <span>
-                      {client.assignedUser ? client.assignedUser.name : 'Unassigned'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Accounts Assigned:</span>
-                    <span>
-                      {(() => {
-                        if (client.companyType === 'LIMITED_COMPANY') {
-                          if (client.ltdCompanyAssignedUser) {
-                            return client.ltdCompanyAssignedUser.name
-                          } else if (client.assignedUser) {
-                            return client.assignedUser.name
-                          }
-                        } else if (client.companyType === 'NON_LIMITED_COMPANY' || client.companyType === 'DIRECTOR' || client.companyType === 'SUB_CONTRACTOR') {
-                          if (client.nonLtdCompanyAssignedUser) {
-                            return client.nonLtdCompanyAssignedUser.name
-                          } else if (client.assignedUser) {
-                            return client.assignedUser.name
-                          }
-                        }
-                        return 'Unassigned'
-                      })()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">VAT Assigned:</span>
-                    <span>
-                      {client.vatAssignedUser ? client.vatAssignedUser.name : (client.assignedUser ? client.assignedUser.name : 'Unassigned')}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary" className="text-xs">
-                    Active
-                  </Badge>
-                </div>
-              </div>
-            ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="table-actions-cell">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="action-trigger-button">
+                              <Settings className="action-trigger-icon" />
+                              <span className="sr-only">Open menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem 
+                              onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <Eye className="h-4 w-4" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleViewActivityLog(client)}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <Clock className="h-4 w-4" />
+                              View Log
+                            </DropdownMenuItem>
+                            {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
+                              <>
+                                <DropdownMenuItem 
+                                  onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
+                                  className="flex items-center gap-2 cursor-pointer"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                  Edit Client
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleAssignUser(client)}
+                                  className="flex items-center gap-2 cursor-pointer"
+                                >
+                                  <UserPlus className="h-4 w-4" />
+                                  Assign User
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  onClick={() => handleRefreshCompaniesHouse(client)}
+                                  className="flex items-center gap-2 cursor-pointer"
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                  Refresh from Companies House
+                                </DropdownMenuItem>
+                                {client.isActive && (
+                                  <DropdownMenuItem 
+                                    onClick={() => handleResignClient(client)}
+                                    className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                                  >
+                                    <UserX className="h-4 w-4" />
+                                    Resign Client
+                                  </DropdownMenuItem>
+                                )}
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
-        </div>
-
-        {clients.length === 0 && !loading && (
-          <div className="p-8 text-center text-muted-foreground">
-            <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No active clients found</p>
-            <p className="text-sm">Try adjusting your search or filters</p>
-          </div>
-        )}
+        </CardContent>
       </Card>
 
       {/* Assign User Modal */}

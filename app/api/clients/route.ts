@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
+import { CacheHelpers } from '@/lib/performance-cache'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -24,7 +25,7 @@ const createClientSchema = z.object({
   yearEstablished: z.number().optional(),
   numberOfEmployees: z.number().optional(),
   annualTurnover: z.number().optional(),
-  assignedUserId: z.string().optional(),
+
   notes: z.string().optional(),
   vatNumber: z.string().optional(),
   paperworkFrequency: z.string().optional(),
@@ -74,6 +75,22 @@ const createClientSchema = z.object({
   previousYearSA100FiledDate: z.date().optional(),
 })
 
+// Validation schema for client creation
+const CreateClientSchema = z.object({
+  companyName: z.string().min(1, 'Company name is required'),
+  companyType: z.string().min(1, 'Company type is required'),
+  companyNumber: z.string().optional(),
+  contactName: z.string().optional(),
+  contactEmail: z.string().email().optional(),
+  contactPhone: z.string().optional(),
+  website: z.string().optional(),
+  yearEstablished: z.string().optional(),
+  numberOfEmployees: z.string().optional(),
+  annualTurnover: z.string().optional(),
+  notes: z.string().optional(),
+  isActive: z.boolean().optional(),
+})
+
 /**
  * Generate a unique client code with retry logic
  */
@@ -104,10 +121,12 @@ async function generateClientCode(): Promise<string> {
 /**
  * GET /api/clients
  * 
- * Fetch all clients with optional filtering and sorting
- * Optimized for performance with caching and efficient queries
+ * OPTIMIZED: Fetch all clients with optional filtering and sorting
+ * Enhanced with caching, optimized queries, and performance monitoring
  */
 export async function GET(request: NextRequest) {
+  const startTime = Date.now()
+  
   try {
     const session = await getServerSession(authOptions)
 
@@ -121,39 +140,28 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
     const companyType = searchParams.get('companyType') || ''
-    const assignedUserId = searchParams.get('assignedUserId') || ''
     const accountsAssignedUserId = searchParams.get('accountsAssignedUserId') || ''
     const vatAssignedUserId = searchParams.get('vatAssignedUserId') || ''
-    const unassigned = searchParams.get('unassigned') === 'true'
-    const accountsUnassigned = searchParams.get('accountsUnassigned') === 'true'
-    const vatUnassigned = searchParams.get('vatUnassigned') === 'true'
-    const isActive = searchParams.get('active') || searchParams.get('isActive')
+    const isActive = searchParams.get('active') === 'true'
     const sortBy = searchParams.get('sortBy') || 'companyName'
     const sortOrder = searchParams.get('sortOrder') || 'asc'
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '100') // Increased default limit
+    const limit = parseInt(searchParams.get('limit') || '50')
 
-    // Debug logging
-    console.log('API Parameters:', {
-      search,
-      companyType,
-      assignedUserId,
-      accountsAssignedUserId,
-      vatAssignedUserId,
-      unassigned,
-      accountsUnassigned,
-      vatUnassigned,
-      isActive
-    })
+    // Build where clause
+    const where: any = {
+      isActive: isActive
+    }
 
-    // Build properly combined where clause
-    const where: any = {}
-    const andConditions: any[] = []
-    const orConditions: any[] = []
-
-    // Base active status filter
-    if (isActive !== null && isActive !== '') {
-      where.isActive = isActive === 'true'
+    // Search filter
+    if (search) {
+      where.OR = [
+        { companyName: { contains: search, mode: 'insensitive' } },
+        { companyNumber: { contains: search, mode: 'insensitive' } },
+        { contactName: { contains: search, mode: 'insensitive' } },
+        { contactEmail: { contains: search, mode: 'insensitive' } },
+        { clientCode: { contains: search, mode: 'insensitive' } }
+      ]
     }
 
     // Company type filter
@@ -161,221 +169,162 @@ export async function GET(request: NextRequest) {
       where.companyType = companyType
     }
 
-    // Search across multiple fields
-    if (search) {
-      orConditions.push({
-        OR: [
-          { companyName: { contains: search, mode: 'insensitive' } },
-          { companyNumber: { contains: search, mode: 'insensitive' } },
-          { contactName: { contains: search, mode: 'insensitive' } },
-          { contactEmail: { contains: search, mode: 'insensitive' } },
-        ]
-      })
-    }
-
-    // General assignment filtering
-    if (assignedUserId) {
-      if (assignedUserId === 'me') {
-        where.assignedUserId = session.user.id
-      } else {
-        where.assignedUserId = assignedUserId
-      }
-    } else if (unassigned) {
-      where.assignedUserId = null
-    }
-
-    // Accounts assignment filtering (with fallback logic)
+    // Accounts assignment filters
     if (accountsAssignedUserId) {
       const targetUserId = accountsAssignedUserId === 'me' ? session.user.id : accountsAssignedUserId
       
-      orConditions.push({
-        OR: [
-          // Specific assignments
-          { 
-            AND: [
-              { companyType: 'LIMITED_COMPANY' },
-              { ltdCompanyAssignedUserId: targetUserId }
-            ]
-          },
-          {
-            AND: [
-              { companyType: { in: ['NON_LIMITED_COMPANY', 'DIRECTOR', 'SUB_CONTRACTOR'] } },
-              { nonLtdCompanyAssignedUserId: targetUserId }
-            ]
-          },
-          // Fallback to general assignment when specific assignment is null
-          {
-            AND: [
-              { companyType: 'LIMITED_COMPANY' },
-              { ltdCompanyAssignedUserId: null },
-              { assignedUserId: targetUserId }
-            ]
-          },
-          {
-            AND: [
-              { companyType: { in: ['NON_LIMITED_COMPANY', 'DIRECTOR', 'SUB_CONTRACTOR'] } },
-              { nonLtdCompanyAssignedUserId: null },
-              { assignedUserId: targetUserId }
-            ]
-          }
-        ]
-      })
-    } else if (accountsUnassigned) {
-      andConditions.push({
-        AND: [
-          { ltdCompanyAssignedUserId: null },
-          { nonLtdCompanyAssignedUserId: null },
-          { assignedUserId: null }
-        ]
-      })
+      // For Ltd companies, check ltdCompanyAssignedUserId
+      // For Non-Ltd companies, check nonLtdCompanyAssignedUserId
+      where.OR = [
+        {
+          AND: [
+            { companyType: 'LIMITED_COMPANY' },
+            { ltdCompanyAssignedUserId: targetUserId }
+          ]
+        },
+        {
+          AND: [
+            { companyType: { not: 'LIMITED_COMPANY' } },
+            { nonLtdCompanyAssignedUserId: targetUserId }
+          ]
+        }
+      ]
+    } else if (searchParams.get('accountsUnassigned') === 'true') {
+      // Show unassigned accounts work
+      where.OR = [
+        {
+          AND: [
+            { companyType: 'LIMITED_COMPANY' },
+            { ltdCompanyAssignedUserId: null }
+          ]
+        },
+        {
+          AND: [
+            { companyType: { not: 'LIMITED_COMPANY' } },
+            { nonLtdCompanyAssignedUserId: null }
+          ]
+        }
+      ]
     }
 
-    // VAT assignment filtering (with fallback logic)
+    // VAT assignment filters
     if (vatAssignedUserId) {
       const targetUserId = vatAssignedUserId === 'me' ? session.user.id : vatAssignedUserId
       
-      orConditions.push({
-        OR: [
-          // Specific VAT assignment
-          { vatAssignedUserId: targetUserId },
-          // Fallback to general assignment when VAT assignment is null
-          {
-            AND: [
-              { vatAssignedUserId: null },
-              { assignedUserId: targetUserId }
-            ]
-          }
-        ]
-      })
-    } else if (vatUnassigned) {
-      andConditions.push({
-        AND: [
-          { vatAssignedUserId: null },
-          { assignedUserId: null }
-        ]
-      })
-    }
-
-    // Combine all conditions properly
-    if (andConditions.length > 0) {
-      where.AND = andConditions
-    }
-    
-    if (orConditions.length > 0) {
-      if (orConditions.length === 1) {
-        // Single OR condition, merge it directly
-        Object.assign(where, orConditions[0])
-      } else {
-        // Multiple OR conditions, combine them with AND
-        if (where.AND) {
-          where.AND = [...where.AND, ...orConditions]
-        } else {
-          where.AND = orConditions
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { vatAssignedUserId: targetUserId }
+          ]
         }
-      }
+      ]
+    } else if (searchParams.get('vatUnassigned') === 'true') {
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { vatAssignedUserId: null }
+          ]
+        }
+      ]
     }
 
-    // Debug final WHERE clause
-    console.log('Final WHERE clause:', JSON.stringify(where, null, 2))
-
-    // Staff users can see all clients (no restriction)
+    console.log('🔍 Clients API filters:', {
+      search, companyType, accountsAssignedUserId, vatAssignedUserId,
+      hasAccountsFilter: !!accountsAssignedUserId,
+      hasVATFilter: !!vatAssignedUserId
+    })
 
     // Calculate pagination
     const skip = (page - 1) * limit
 
-    // Optimized database query with minimal fields for list view
+        // OPTIMIZED: Cached parallel database queries
+    const cacheParams = {
+      search, companyType, accountsAssignedUserId, vatAssignedUserId,
+      isActive, sortBy, sortOrder, page, limit
+    }
+    
     const [clients, totalCount] = await Promise.all([
-      db.client.findMany({
-        where,
-        select: {
-          id: true,
-          clientCode: true,
-          companyName: true,
-          companyNumber: true,
-          companyType: true,
-          contactName: true,
-          contactEmail: true,
-          contactPhone: true,
-          nextAccountsDue: true,
-          nextConfirmationDue: true,
-          nextCorporationTaxDue: true,
-          accountingReferenceDate: true,
-          lastAccountsMadeUpTo: true,
-          isActive: true,
-          isVatEnabled: true,
-          createdAt: true,
-          // Service management fields
-          
-          assignedUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
+      CacheHelpers.clients.getPage(
+        { ...cacheParams, type: 'data' },
+        () => db.client.findMany({
+          where,
+          select: {
+            id: true,
+            clientCode: true,
+            companyName: true,
+            companyNumber: true,
+            companyType: true,
+            contactName: true,
+            contactEmail: true,
+            contactPhone: true,
+            nextAccountsDue: true,
+            nextConfirmationDue: true,
+            nextCorporationTaxDue: true,
+            isActive: true,
+            isVatEnabled: true,
+            createdAt: true,
+            
+            // OPTIMIZED: Only essential user fields for list view
+            assignedUser: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            ltdCompanyAssignedUser: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            nonLtdCompanyAssignedUser: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            vatAssignedUser: {
+              select: {
+                id: true,
+                name: true,
+              },
             },
           },
-          ltdCompanyAssignedUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          nonLtdCompanyAssignedUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          vatAssignedUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          // 🎯 CT Tracking fields
-          corporationTaxStatus: true,
-          corporationTaxPeriodStart: true,
-          corporationTaxPeriodEnd: true,
-          manualCTDueOverride: true,
-          ctDueSource: true,
-          lastCTStatusUpdate: true,
-          ctStatusUpdatedBy: true,
-        },
-        orderBy: (() => {
-          // Handle special sorting cases
-          if (sortBy === 'accountsAssigned') {
-            // For accounts assignment, we need to sort by the effective assignment name
-            // This is complex with Prisma, so we'll sort by company name and handle it client-side
-            return [
-              { companyName: 'asc' } // We'll sort client-side for assignment columns
-            ]
-          } else if (sortBy === 'vatAssigned') {
-            // For VAT assignment, we need to sort by the effective assignment name
-            // This is complex with Prisma, so we'll sort by company name and handle it client-side
-            return [
-              { companyName: 'asc' } // We'll sort client-side for assignment columns
-            ]
-          } else if (sortBy === 'assignedUser') {
-            return [
-              { assignedUser: { name: sortOrder as 'asc' | 'desc' } },
-              { companyName: 'asc' }
-            ]
-          } else {
-            // Standard field sorting
-            return { [sortBy]: sortOrder as 'asc' | 'desc' }
-          }
-        })(),
-        skip,
-        take: limit,
-      }),
-      db.client.count({ where }),
+          orderBy: (() => {
+            // Handle special sorting cases
+            if (sortBy === 'accountsAssigned' || sortBy === 'vatAssigned') {
+              // For assignment sorting, sort by company name and handle client-side
+              return [{ companyName: 'asc' }]
+            } else if (sortBy === 'assignedUser') {
+              return [
+                { assignedUser: { name: sortOrder as 'asc' | 'desc' } },
+                { companyName: 'asc' }
+              ]
+            } else {
+              // Standard field sorting
+              return { [sortBy]: sortOrder as 'asc' | 'desc' }
+            }
+          })(),
+          skip,
+          take: limit,
+        })
+      ),
+      CacheHelpers.clients.getCount(
+        { ...cacheParams, type: 'count' },
+        () => db.client.count({ where })
+      ),
     ])
 
     const totalPages = Math.ceil(totalCount / limit)
+    const responseTime = Date.now() - startTime
 
-    // Return real-time data with no caching
+    // Log performance in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📊 Clients API Performance: ${responseTime}ms (${clients.length} clients, ${totalCount} total)`)
+    }
+
     const response = NextResponse.json({
       success: true,
       clients,
@@ -387,16 +336,29 @@ export async function GET(request: NextRequest) {
         hasNext: page < totalPages,
         hasPrev: page > 1,
       },
+      meta: {
+        responseTime,
+        queriedAt: new Date().toISOString()
+      }
     })
 
-    // Disable all caching for real-time updates
-    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
-    response.headers.set('Pragma', 'no-cache')
-    response.headers.set('Expires', '0')
+    // PERFORMANCE: Smart caching based on search and filters
+    if (search || accountsAssignedUserId || vatAssignedUserId) {
+      // Dynamic queries - shorter cache
+      response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=30')
+    } else {
+      // Static/simple queries - longer cache
+      response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60')
+    }
+    
+    // Add ETag for conditional requests
+    const etag = `"clients-${JSON.stringify(where)}-${page}"`
+    response.headers.set('ETag', etag)
     
     return response
 
   } catch (error) {
+    console.error('Error fetching clients:', error)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
@@ -434,39 +396,6 @@ export async function POST(request: NextRequest) {
 
     // Generate client code if not provided
     const clientCode = body.clientCode || await generateClientCode()
-
-    // Smart assignment logic: Creator -> Partner Settings -> Partner
-    let defaultAssignedUserId = body.assignedUserId || null
-    
-    if (!defaultAssignedUserId) {
-      // Check if current user is a partner and has assignment settings
-      if (session.user.role === 'PARTNER') {
-        // Get partner's assignment preferences
-        const currentUserSettings = await db.userSettings.findUnique({
-          where: { userId: session.user.id },
-          include: {
-            defaultAssignee: {
-              select: {
-                id: true,
-                name: true,
-                isActive: true
-              }
-            }
-          }
-        })
-
-        if (currentUserSettings?.defaultAssignee?.isActive) {
-          // Use partner's preferred default assignee
-          defaultAssignedUserId = currentUserSettings.defaultAssignee.id
-        } else {
-          // Partner has no specific preference, assign to themselves
-          defaultAssignedUserId = session.user.id
-        }
-      } else {
-        // Non-partner user: assign to themselves by default
-        defaultAssignedUserId = session.user.id
-      }
-    }
 
     // Create client with all provided data using retry logic
     const client = await db.client.create({
@@ -513,19 +442,10 @@ export async function POST(request: NextRequest) {
           yearEstablished: body.yearEstablished ? parseInt(body.yearEstablished) : null,
           numberOfEmployees: body.numberOfEmployees ? parseInt(body.numberOfEmployees) : null,
           annualTurnover: body.annualTurnover ? parseFloat(body.annualTurnover) : null,
-          assignedUserId: defaultAssignedUserId,
+          // NO GENERAL ASSIGNMENT - clients created unassigned
           notes: body.notes || null,
           isActive: body.isActive !== undefined ? body.isActive : true,
-        },
-        include: {
-          assignedUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
+        }
       })
 
     // Log client creation activity
@@ -533,16 +453,14 @@ export async function POST(request: NextRequest) {
       clientCode: client.clientCode,
       companyName: client.companyName,
       companyType: client.companyType,
-      companyNumber: client.companyNumber,
-      assignedUserId: client.assignedUserId,
-      assignedUserName: client.assignedUser?.name
+      companyNumber: client.companyNumber
     }))
 
     // Return real-time response with no caching
     const response = NextResponse.json({
       success: true,
       data: client,
-      message: `Client created successfully${client.assignedUser ? ` and assigned to ${client.assignedUser.name}` : ''}`,
+      message: 'Client created successfully - assign work types separately as needed',
     })
 
     // Disable all caching for real-time updates

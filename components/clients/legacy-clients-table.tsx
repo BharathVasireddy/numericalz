@@ -26,7 +26,6 @@ import {
   Loader2,
   Mail,
   Phone,
-  MoreHorizontal,
   ChevronUp,
   ChevronDown,
   ArrowUpDown
@@ -632,7 +631,8 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="action-trigger-button">
-                          <MoreHorizontal className="action-trigger-icon" />
+                          <Settings className="action-trigger-icon" />
+                          <span className="sr-only">Open menu</span>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -701,8 +701,9 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="action-trigger-icon" />
+                      <Button variant="ghost" className="action-trigger-button">
+                        <Settings className="action-trigger-icon" />
+                        <span className="sr-only">Open menu</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">

@@ -61,22 +61,23 @@ interface AdvancedFilter {
   groupOperator: 'AND' | 'OR'
 }
 
+interface Filters {
+  companyType: string
+  accountsAssignedUser: string
+  vatAssignedUser: string
+  status: string
+}
+
 interface ClientsHeaderProps {
   searchQuery: string
-  onSearchChange: (value: string) => void
-  filters: {
-    companyType: string
-    assignedUser: string
-    accountsAssignedUser: string
-    vatAssignedUser: string
-    status: string
-  }
-  onFiltersChange: (filters: any) => void
-  onAdvancedFilter?: (filter: AdvancedFilter | null) => void
-  totalCount?: number
-  filteredCount?: number
-  pageTitle?: string
-  pageDescription?: string
+  onSearchChange: (query: string) => void
+  filters: Filters
+  onFiltersChange: (filters: Filters) => void
+  totalClients: number
+  filteredClients: number
+  users: User[]
+  advancedFilter?: AdvancedFilter | null
+  onAdvancedFilterChange: (filter: AdvancedFilter | null) => void
 }
 
 /**
@@ -94,17 +95,16 @@ export function ClientsHeader({
   onSearchChange,
   filters,
   onFiltersChange,
-  onAdvancedFilter,
-  totalCount = 0,
-  filteredCount = 0,
-  pageTitle = "Clients",
-  pageDescription
+  totalClients,
+  filteredClients,
+  users,
+  advancedFilter,
+  onAdvancedFilterChange
 }: ClientsHeaderProps) {
   const router = useRouter()
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false)
   const [currentAdvancedFilter, setCurrentAdvancedFilter] = useState<AdvancedFilter | null>(null)
   const [isExporting, setIsExporting] = useState(false)
-  const [users, setUsers] = useState<User[]>([])
   const [userClientCounts, setUserClientCounts] = useState<Record<string, number>>({})
   const [accountsClientCounts, setAccountsClientCounts] = useState<Record<string, number>>({})
   const [vatClientCounts, setVatClientCounts] = useState<Record<string, number>>({})
@@ -159,7 +159,6 @@ export function ClientsHeader({
       const params = new URLSearchParams()
       if (searchQuery) params.append('search', searchQuery)
       if (filters.companyType) params.append('companyType', filters.companyType)
-      if (filters.assignedUser) params.append('assignedUser', filters.assignedUser)
       if (filters.accountsAssignedUser) params.append('accountsAssignedUser', filters.accountsAssignedUser)
       if (filters.vatAssignedUser) params.append('vatAssignedUser', filters.vatAssignedUser)
 
@@ -187,27 +186,25 @@ export function ClientsHeader({
   const clearFilters = () => {
     onFiltersChange({
       companyType: '',
-      assignedUser: '',
       accountsAssignedUser: '',
       vatAssignedUser: '',
       status: ''
     })
     onSearchChange('')
     setCurrentAdvancedFilter(null)
-    if (onAdvancedFilter) {
-      onAdvancedFilter(null)
+    if (onAdvancedFilterChange) {
+      onAdvancedFilterChange(null)
     }
   }
 
   const handleAdvancedFilter = (filter: AdvancedFilter) => {
     setCurrentAdvancedFilter(filter)
-    if (onAdvancedFilter) {
-      onAdvancedFilter(filter)
+    if (onAdvancedFilterChange) {
+      onAdvancedFilterChange(filter)
     }
     // Clear basic filters when using advanced filters
     onFiltersChange({
       companyType: '',
-      assignedUser: '',
       accountsAssignedUser: '',
       vatAssignedUser: '',
       status: ''
@@ -217,25 +214,25 @@ export function ClientsHeader({
 
   const clearAdvancedFilter = () => {
     setCurrentAdvancedFilter(null)
-    if (onAdvancedFilter) {
-      onAdvancedFilter(null)
+    if (onAdvancedFilterChange) {
+      onAdvancedFilterChange(null)
     }
   }
 
-  const hasActiveFilters = searchQuery || filters.companyType || filters.assignedUser || filters.accountsAssignedUser || filters.vatAssignedUser || currentAdvancedFilter
+  const hasActiveFilters = searchQuery || filters.companyType || filters.accountsAssignedUser || filters.vatAssignedUser || currentAdvancedFilter
 
   return (
     <div className="space-y-4 md:space-y-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold">{pageTitle}</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Clients</h1>
           <p className="text-xs md:text-sm text-muted-foreground">
-            {pageDescription || (hasActiveFilters ? (
-              <>Showing {filteredCount} of {totalCount} clients</>
+            {filteredClients > 0 ? (
+              <>Showing {filteredClients} of {totalClients} clients</>
             ) : (
-              <>Manage all {totalCount} clients</>
-            ))}
+              <>Manage all {totalClients} clients</>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -257,13 +254,13 @@ export function ClientsHeader({
           {/* Quick filter for staff users */}
           {session?.user?.role === 'STAFF' && (
             <Button
-              variant={filters.assignedUser === 'me' ? 'default' : 'outline'}
+              variant={filters.accountsAssignedUser === 'me' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => handleFilterChange('assignedUser', filters.assignedUser === 'me' ? 'all' : 'me')}
+              onClick={() => handleFilterChange('accountsAssignedUser', filters.accountsAssignedUser === 'me' ? 'all' : 'me')}
               className="flex items-center gap-2"
             >
               <Users className="h-4 w-4" />
-              {filters.assignedUser === 'me' ? 'All Clients' : 'My Clients'}
+              {filters.accountsAssignedUser === 'me' ? 'All Clients' : 'My Clients'}
             </Button>
           )}
           
@@ -326,29 +323,6 @@ export function ClientsHeader({
                   <SelectItem value="NON_LIMITED_COMPANY">Non-Limited Company</SelectItem>
                   <SelectItem value="DIRECTOR">Director</SelectItem>
                   <SelectItem value="SUB_CONTRACTOR">Sub Contractor</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                General Assignment
-              </label>
-              <Select
-                value={filters.assignedUser || 'all'}
-                onValueChange={(value) => handleFilterChange('assignedUser', value)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="General Assignment" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  <SelectItem value="me">My Clients</SelectItem>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name} ({userClientCounts[user.id] || 0} clients)
-                    </SelectItem>
-                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -425,13 +399,6 @@ export function ClientsHeader({
           {!currentAdvancedFilter && filters.companyType && (
             <Badge variant="secondary" className="flex items-center gap-1">
               Type: {filters.companyType.replace('_', ' ')}
-            </Badge>
-          )}
-          {!currentAdvancedFilter && filters.assignedUser && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              General: {filters.assignedUser === 'me' ? 'My Clients' : 
-                        filters.assignedUser === 'unassigned' ? 'Unassigned' : 
-                        users.find(u => u.id === filters.assignedUser)?.name || filters.assignedUser}
             </Badge>
           )}
           {!currentAdvancedFilter && filters.accountsAssignedUser && (

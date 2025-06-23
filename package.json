@@ -45,6 +45,8 @@
     "db:monitor": "node scripts/monitor-database.js",
     "fix:vat-dates": "node scripts/fix-vat-return-dates.js",
     "force-logout-all": "node scripts/force-logout-all.js",
+    "performance:test": "node scripts/performance-monitor.js",
+    "performance:monitor": "npm run performance:test",
     "invalidate-jwt-tokens": "node scripts/invalidate-jwt-tokens.js",
     "analyze": "cross-env ANALYZE=true next build",
     "fix-vat-quarters": "node scripts/fix-vat-quarters.js",

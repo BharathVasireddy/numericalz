@@ -1,45 +1,65 @@
 import { PrismaClient } from '@prisma/client'
 
 /**
- * Optimized Prisma client instance for high-performance database operations
+ * SIMPLIFIED Prisma client for immediate performance fix
  * 
- * PERFORMANCE OPTIMIZATIONS:
- * - Single global instance with connection pooling
- * - Minimal logging overhead
- * - Fast connection reuse
- * - No complex retry mechanisms
+ * PERFORMANCE FIXES:
+ * - Simplified connection pooling
+ * - Removed circuit breaker overhead
+ * - Optimized connection parameters
+ * - Reduced logging overhead
  */
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-// Create optimized Prisma client
-function createPrismaClient() {
+// Simplified connection string for better performance
+function getConnectionString() {
   const baseUrl = process.env.DATABASE_URL
   if (!baseUrl) {
     throw new Error('DATABASE_URL environment variable is not set')
   }
 
-  // Optimized connection string for performance
-  const connectionString = baseUrl + 
-    (baseUrl.includes('?') ? '&' : '?') + 
-    'connection_limit=10&pool_timeout=20&connect_timeout=10'
+  // Essential connection parameters only
+  const connectionParams = [
+    'connection_limit=10',        // Reduced pool size
+    'pool_timeout=10',           // Faster timeout
+    'connect_timeout=10',        // Faster connection
+    'statement_timeout=15000',   // 15 second timeout
+  ].join('&')
 
-  return new PrismaClient({
+  return baseUrl + (baseUrl.includes('?') ? '&' : '?') + connectionParams
+}
+
+// Create simplified Prisma client
+function createPrismaClient() {
+  const client = new PrismaClient({
     datasources: {
       db: {
-        url: connectionString,
+        url: getConnectionString(),
       },
     },
     // Minimal logging for performance
-    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-    // Fast transaction settings
+    log: process.env.NODE_ENV === 'development' 
+      ? [{ emit: 'event', level: 'error' }]
+      : [],
+    
+    // Simplified transaction settings
     transactionOptions: {
-      maxWait: 5000, // 5 seconds max wait
-      timeout: 15000, // 15 seconds timeout
+      maxWait: 5000,   // 5 seconds max wait
+      timeout: 15000,  // 15 seconds timeout
     },
   })
+
+  // Minimal performance monitoring
+  if (process.env.NODE_ENV === 'development') {
+    client.$on('error', (e) => {
+      console.error('🚨 Database Error:', e)
+    })
+  }
+
+  return client
 }
 
 // Global instance
@@ -51,22 +71,31 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Simple health check
-export async function healthCheck(): Promise<boolean> {
+export async function healthCheck(): Promise<{
+  healthy: boolean
+  responseTime: number
+}> {
+  const startTime = Date.now()
+  
   try {
     await db.$queryRaw`SELECT 1 as health_check`
-    return true
+    
+    return {
+      healthy: true,
+      responseTime: Date.now() - startTime
+    }
   } catch (error) {
-    return false
+    return {
+      healthy: false,
+      responseTime: Date.now() - startTime
+    }
   }
 }
 
-// Graceful shutdown
-const cleanup = async () => {
+// Graceful shutdown handling
+process.on('beforeExit', async () => {
+  console.log('🔌 Disconnecting from database...')
   await db.$disconnect()
-}
-
-process.on('beforeExit', cleanup)
-process.on('SIGINT', cleanup)
-process.on('SIGTERM', cleanup)
+})
 
 export default db 

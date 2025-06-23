@@ -69,13 +69,6 @@ interface StaffMember {
   isActive: boolean
   lastLoginAt: Date | null
   createdAt: Date
-  assignedClients?: Array<{
-    id: string
-    companyName: string
-    companyType: string | null
-    nextAccountsDue: Date | null
-    nextConfirmationDue: Date | null
-  }>
   _count: {
     assignedClients: number
   }
@@ -358,9 +351,6 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                         <th className="table-header-cell col-status">
                           Status
                         </th>
-                        <th className="table-header-cell col-clients">
-                          Clients
-                        </th>
                         <th className="table-header-cell col-last-login">
                           Last Login
                         </th>
@@ -404,9 +394,6 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                               <Badge variant={user.isActive ? 'default' : 'secondary'}>
                                 {user.isActive ? 'Active' : 'Inactive'}
                               </Badge>
-                            </td>
-                            <td className="table-body-cell">
-                              <span className="font-medium text-sm">{user._count.assignedClients}</span>
                             </td>
                             <td className="table-body-cell">
                               <span className={`text-xs ${
@@ -589,10 +576,6 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                         <Badge variant={user.isActive ? 'default' : 'secondary'}>
                           {user.isActive ? 'Active' : 'Inactive'}
                         </Badge>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">Clients:</span>
-                        <span className="font-medium">{user._count.assignedClients}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">Last Login:</span>

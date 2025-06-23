@@ -154,19 +154,25 @@ export function InactiveClientsTable({ clients }: InactiveClientsTableProps) {
     try {
       const clientIds = clients.map(client => client.id)
       
-      const deletePromises = clientIds.map(id => 
-        fetch(`/api/clients/${id}`, { method: 'DELETE' })
-      )
+      // Use the optimized bulk delete endpoint
+      const response = await fetch('/api/clients/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ clientIds })
+      })
       
-      const results = await Promise.allSettled(deletePromises)
-      const successful = results.filter(result => result.status === 'fulfilled').length
-      const failed = results.length - successful
+      const data = await response.json()
       
-      if (successful > 0) {
-        showToast.success(`${successful} client${successful > 1 ? 's' : ''} deleted successfully`)
-      }
-      if (failed > 0) {
-        showToast.error(`Failed to delete ${failed} client${failed > 1 ? 's' : ''}`)
+      if (response.ok) {
+        if (data.success) {
+          showToast.success(data.message)
+        } else {
+          showToast.error(data.error || 'Some deletions failed')
+        }
+      } else {
+        showToast.error(data.error || 'Failed to delete clients')
       }
       
       setDeleteAllDialog(false)

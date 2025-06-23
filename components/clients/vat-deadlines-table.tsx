@@ -653,7 +653,7 @@ export function VATDeadlinesTable() {
       
       // Handle assignment if assignee changed
       if (selectedAssignee !== (selectedClient.vatAssignedUser?.id || 'unassigned')) {
-        const assignResponse = await fetch(`/api/clients/${selectedClient.id}/assign`, {
+        const assignResponse = await fetch(`/api/clients/${selectedClient.id}/assign-vat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -662,7 +662,7 @@ export function VATDeadlinesTable() {
         })
 
         if (!assignResponse.ok) {
-          throw new Error('Failed to assign user')
+          throw new Error('Failed to assign VAT user')
         }
         
         assignmentUpdated = true
@@ -674,7 +674,12 @@ export function VATDeadlinesTable() {
             if (client.id === selectedClient.id) {
               return {
                 ...client,
-                vatAssignedUser: assignedUser || undefined
+                vatAssignedUser: assignedUser ? {
+                  id: assignedUser.id,
+                  name: assignedUser.name,
+                  email: assignedUser.email,
+                  role: assignedUser.role
+                } : undefined
               }
             }
             return client
@@ -715,27 +720,26 @@ export function VATDeadlinesTable() {
 
   const handleQuickAssign = async (clientId: string, userId: string | null) => {
     try {
-      const response = await fetch(`/api/clients/${clientId}/assign`, {
+      const response = await fetch(`/api/clients/${clientId}/assign-vat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          userId: userId,
-          assignmentType: 'vat'
+          userId: userId
         })
       })
 
       if (!response.ok) {
-        throw new Error('Failed to assign user')
+        throw new Error('Failed to assign VAT user')
       }
 
-      showToast.success('Assignment updated successfully')
+      showToast.success('VAT assignment updated successfully')
       
       // Refresh data
       await fetchVATClients(true)
       
     } catch (error) {
-      console.error('Error assigning user:', error)
-      showToast.error('Failed to assign user. Please try again.')
+      console.error('Error assigning VAT user:', error)
+      showToast.error('Failed to assign VAT user. Please try again.')
     }
   }
 
@@ -784,7 +788,7 @@ export function VATDeadlinesTable() {
       
       // Handle assignment if assignee changed
       if (selectedAssignee !== (selectedClient.vatAssignedUser?.id || 'unassigned')) {
-        const assignResponse = await fetch(`/api/clients/${selectedClient.id}/assign`, {
+        const assignResponse = await fetch(`/api/clients/${selectedClient.id}/assign-vat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -793,7 +797,7 @@ export function VATDeadlinesTable() {
         })
 
         if (!assignResponse.ok) {
-          throw new Error('Failed to assign user')
+          throw new Error('Failed to assign VAT user')
         }
         
         assignmentUpdated = true
@@ -805,7 +809,12 @@ export function VATDeadlinesTable() {
             if (client.id === selectedClient.id) {
               return {
                 ...client,
-                vatAssignedUser: assignedUser || undefined
+                vatAssignedUser: assignedUser ? {
+                  id: assignedUser.id,
+                  name: assignedUser.name,
+                  email: assignedUser.email,
+                  role: assignedUser.role
+                } : undefined
               }
             }
             return client
@@ -1053,15 +1062,15 @@ export function VATDeadlinesTable() {
       <Table>
         <TableHeader>
           <TableRow className="border-b">
-            <SortableHeader column="clientCode" className="col-vat-client-code p-2">Code</SortableHeader>
-            <SortableHeader column="companyName" className="col-vat-company-name p-2">Company</SortableHeader>
-            <SortableHeader column="quarterEnd" className="col-vat-quarter-end p-2">Q.End</SortableHeader>
-            <SortableHeader column="filingMonth" className="col-vat-filing-month p-2">Filing</SortableHeader>
-            <SortableHeader column="due" className="col-vat-due p-2">Due</SortableHeader>
-            <SortableHeader column="status" className="col-vat-status p-2">Status</SortableHeader>
-            <SortableHeader column="assignedTo" className="col-vat-assigned p-2">Assigned</SortableHeader>
-            <TableHead className="col-vat-add-update p-2">Update</TableHead>
-            <TableHead className="col-vat-actions p-2">Action</TableHead>
+                                    <SortableHeader column="clientCode" className="col-vat-client-code p-2 text-center">Code</SortableHeader>
+                        <SortableHeader column="companyName" className="col-vat-company-name p-2">Company</SortableHeader>
+                        <SortableHeader column="quarterEnd" className="col-vat-quarter-end p-2 text-center">Q.End</SortableHeader>
+                        <SortableHeader column="filingMonth" className="col-vat-filing-month p-2 text-center">Filing</SortableHeader>
+                        <SortableHeader column="due" className="col-vat-due p-2 text-center">Due</SortableHeader>
+                        <SortableHeader column="status" className="col-vat-status p-2 text-center">Status</SortableHeader>
+                        <SortableHeader column="assignedTo" className="col-vat-assigned p-2 text-center">Assigned</SortableHeader>
+                          <TableHead className="col-vat-add-update p-2 text-center">Update</TableHead>
+              <TableHead className="col-vat-actions p-2 text-center">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1077,7 +1086,7 @@ export function VATDeadlinesTable() {
             <>
               {/* Main Row */}
               <TableRow key={rowKey} className="hover:bg-muted/50 h-14">
-                <TableCell className="font-mono text-xs p-2">
+                <TableCell className="font-mono text-xs p-2 text-center">
                   {client.clientCode}
                 </TableCell>
                 <TableCell className="font-medium p-2">
@@ -1105,18 +1114,18 @@ export function VATDeadlinesTable() {
                     </button>
                   </div>
                 </TableCell>
-                <TableCell className="text-xs font-medium p-2">
+                <TableCell className="text-xs font-medium p-2 text-center">
                   {getQuarterEndMonth(monthQuarter)}
                 </TableCell>
-                <TableCell className="text-xs font-medium p-2">
+                <TableCell className="text-xs font-medium p-2 text-center">
                   {getFilingMonth(monthQuarter)}
                 </TableCell>
-                <TableCell className="p-2">
+                <TableCell className="p-2 text-center">
                   <span className={`text-xs font-medium ${dueStatus.color}`}>
                     {dueStatus.label}
                   </span>
                 </TableCell>
-                <TableCell className="p-2">
+                <TableCell className="p-2 text-center">
                   <Badge variant="outline" className={`text-xs px-1 py-0 h-5 max-w-[140px] ${workflowStatus.color}`}>
                     <div className="flex items-center gap-1 truncate">
                       <span className="flex-shrink-0">{workflowStatus.icon}</span>
@@ -1126,9 +1135,9 @@ export function VATDeadlinesTable() {
                     </div>
                   </Badge>
                 </TableCell>
-                <TableCell className="p-2">
+                <TableCell className="p-2 text-center">
                   {isApplicable ? (
-                    <div className="flex items-center gap-1 text-xs truncate max-w-[120px]" title={monthQuarter?.assignedUser?.name || client.vatAssignedUser?.name || 'Unassigned'}>
+                    <div className="flex items-center justify-center gap-1 text-xs truncate max-w-[120px]" title={monthQuarter?.assignedUser?.name || client.vatAssignedUser?.name || 'Unassigned'}>
                       <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                       <span className="truncate">
                         {monthQuarter?.assignedUser?.name || 
@@ -1140,7 +1149,7 @@ export function VATDeadlinesTable() {
                     <span className="text-xs text-gray-500">Not Applicable</span>
                   )}
                 </TableCell>
-                <TableCell className="p-2">
+                <TableCell className="p-2 text-center">
                   {isApplicable ? (
                     monthQuarter?.isCompleted || monthQuarter?.currentStage === 'FILED_TO_HMRC' ? (
                       <span className="text-xs text-green-600 font-medium">Complete</span>
@@ -1159,7 +1168,7 @@ export function VATDeadlinesTable() {
                     <span className="text-xs text-gray-400">—</span>
                   )}
                 </TableCell>
-                <TableCell className="p-2">
+                <TableCell className="p-2 text-center">
                   {isApplicable ? (
                     <Button
                       variant="ghost"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { ClientsHeader } from '@/components/clients/clients-header'
 import { ClientsTable } from '@/components/clients/clients-table'
 
@@ -26,6 +26,13 @@ interface AdvancedFilter {
   groupOperator: 'AND' | 'OR'
 }
 
+interface User {
+  id: string
+  name: string
+  email: string
+  role: string
+}
+
 /**
  * Clients listing page
  * 
@@ -42,7 +49,6 @@ export default function ClientsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filters, setFilters] = useState({
     companyType: '',
-    assignedUser: '',
     accountsAssignedUser: '',
     vatAssignedUser: '',
     status: ''
@@ -52,6 +58,7 @@ export default function ClientsPage() {
     total: 0,
     filtered: 0
   })
+  const [users, setUsers] = useState<User[]>([])
 
   const handleClientCountsUpdate = useCallback((total: number, filtered: number) => {
     setClientCounts({ total, filtered })
@@ -59,6 +66,23 @@ export default function ClientsPage() {
 
   const handleAdvancedFilter = useCallback((filter: AdvancedFilter | null) => {
     setAdvancedFilter(filter)
+  }, [])
+
+  // Fetch users on component mount
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('/api/users')
+        if (response.ok) {
+          const data = await response.json()
+          setUsers(data.users || [])
+        }
+      } catch (error) {
+        console.error('Failed to fetch users:', error)
+      }
+    }
+    
+    fetchUsers()
   }, [])
 
   return (
@@ -70,9 +94,11 @@ export default function ClientsPage() {
             onSearchChange={setSearchQuery}
             filters={filters}
             onFiltersChange={setFilters}
-            onAdvancedFilter={handleAdvancedFilter}
-            totalCount={clientCounts.total}
-            filteredCount={clientCounts.filtered}
+            totalClients={clientCounts.total}
+            filteredClients={clientCounts.filtered}
+            users={users}
+            advancedFilter={advancedFilter}
+            onAdvancedFilterChange={handleAdvancedFilter}
           />
           
           <ClientsTable 

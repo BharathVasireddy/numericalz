@@ -12,6 +12,7 @@ export const dynamic = 'force-dynamic'
  * - Client counts (total, ltd, non-ltd, vat)
  * - Staff workload distribution
  * - Monthly deadlines by type
+ * - Upcoming deadlines for calendar
  */
 export async function GET(
   request: NextRequest,
@@ -28,15 +29,16 @@ export async function GET(
     const now = new Date()
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    const next7Days = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000))
 
     // Get all active clients with necessary data
     const allClients = await db.client.findMany({
-        where: { isActive: true },
-        include: {
-          assignedUser: {
-            select: { id: true, name: true, role: true }
-          },
-          vatQuartersWorkflow: {
+      where: { isActive: true },
+      include: {
+        assignedUser: {
+          select: { id: true, name: true, role: true }
+        },
+        vatQuartersWorkflow: {
           where: { 
             filingDueDate: {
               gte: startOfMonth,
@@ -44,21 +46,35 @@ export async function GET(
             }
           },
           orderBy: { quarterEndDate: 'asc' }
-          }
         }
+      }
     })
 
-    // Get all users with their client counts
+    // Get all users with their client counts including VAT and Accounts breakdown
     const allUsers = await db.user.findMany({
-            where: { isActive: true },
-            include: {
-          _count: {
-            select: {
-              assignedClients: {
-                where: { isActive: true }
-              }
-            }
+      where: { isActive: true },
+      include: {
+        vatAssignedClients: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            isVatEnabled: true
           }
+        },
+        ltdCompanyAssignedClients: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            handlesAnnualAccounts: true
+          }
+        },
+        nonLtdCompanyAssignedClients: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            handlesAnnualAccounts: true
+          }
+        }
       },
       orderBy: [
         { role: 'asc' },
@@ -66,21 +82,48 @@ export async function GET(
       ]
     })
 
-    // 1. CLIENT COUNTS
+    // 1. CLIENT COUNTS - Fixed categorization
+    console.log('🔍 Debug client types:', allClients.map(c => ({ 
+      name: c.companyName, 
+      type: c.companyType,
+      isLtd: c.companyType === 'LIMITED_COMPANY',
+      isNonLtd: c.companyType !== 'LIMITED_COMPANY'
+    })))
+    
     const clientCounts = {
       total: allClients.length,
-      ltd: allClients.filter(c => c.companyType === 'LIMITED').length,
-      nonLtd: allClients.filter(c => c.companyType !== 'LIMITED').length,
+      ltd: allClients.filter(c => c.companyType === 'LIMITED_COMPANY').length,
+      nonLtd: allClients.filter(c => c.companyType !== 'LIMITED_COMPANY').length,
       vat: allClients.filter(c => c.isVatEnabled).length
     }
+    
+    console.log('📊 Client counts:', clientCounts)
 
-    // 2. STAFF WORKLOAD
-    const staffWorkload = allUsers.map(user => ({
+    // 2. STAFF WORKLOAD - ONLY specific work-type assignments (NO GENERAL)
+    const staffWorkload = allUsers.map(user => {
+      // Count VAT clients (from vatAssignedClients relation)
+      const vatClients = user.vatAssignedClients.filter(c => c.isVatEnabled).length
+      
+      // Count Accounts clients (from both Ltd and Non-Ltd assigned clients)
+      const accountsClients = [
+        ...user.ltdCompanyAssignedClients.filter(c => c.handlesAnnualAccounts),
+        ...user.nonLtdCompanyAssignedClients.filter(c => c.handlesAnnualAccounts)
+      ].length
+      
+      // Total client count = VAT + Accounts (NO GENERAL ASSIGNMENTS)
+      const totalClients = vatClients + accountsClients
+      
+      console.log(`👤 ${user.name}: VAT=${vatClients}, Accounts=${accountsClients}, Total=${totalClients}`)
+      
+      return {
         id: user.id,
         name: user.name || 'Unknown',
-      role: user.role,
-      clientCount: user._count.assignedClients
-    }))
+        role: user.role,
+        clientCount: totalClients,
+        vatClients: vatClients,
+        accountsClients: accountsClients
+      }
+    })
 
     // 3. MONTHLY DEADLINES
     const monthlyDeadlines = {
@@ -90,19 +133,53 @@ export async function GET(
       ct: 0  // Corporation Tax
     }
 
-    // Count deadlines due this month
+    // 4. UPCOMING DEADLINES for compact calendar
+    const upcomingDeadlines = []
+
+    // Count deadlines due this month and collect upcoming ones
     for (const client of allClients) {
+      const currentDate = new Date()
+      
       // Annual Accounts
       if (client.nextAccountsDue) {
         const accountsDue = new Date(client.nextAccountsDue)
         if (accountsDue >= startOfMonth && accountsDue <= endOfMonth) {
           monthlyDeadlines.accounts++
         }
+        
+        // Add to upcoming deadlines if within next 7 days
+        if (accountsDue >= currentDate && accountsDue <= next7Days) {
+          const daysUntil = Math.ceil((accountsDue.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))
+          upcomingDeadlines.push({
+            id: `accounts-${client.id}`,
+            companyName: client.companyName,
+            type: 'Accounts',
+            date: accountsDue.toISOString(),
+            daysUntil: daysUntil
+          })
+        }
       }
 
       // VAT (already filtered by date in query)
       if (client.isVatEnabled && client.vatQuartersWorkflow.length > 0) {
         monthlyDeadlines.vat += client.vatQuartersWorkflow.length
+        
+        // Add VAT deadlines to upcoming
+        client.vatQuartersWorkflow.forEach(vat => {
+          if (vat.filingDueDate) {
+            const vatDue = new Date(vat.filingDueDate)
+            if (vatDue >= currentDate && vatDue <= next7Days) {
+              const daysUntil = Math.ceil((vatDue.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))
+              upcomingDeadlines.push({
+                id: `vat-${vat.id}`,
+                companyName: client.companyName,
+                type: 'VAT',
+                date: vatDue.toISOString(),
+                daysUntil: daysUntil
+              })
+            }
+          }
+        })
       }
 
       // Confirmation Statements
@@ -110,8 +187,20 @@ export async function GET(
         const confirmationDue = new Date(client.nextConfirmationDue)
         if (confirmationDue >= startOfMonth && confirmationDue <= endOfMonth) {
           monthlyDeadlines.cs++
+        }
+        
+        // Add to upcoming deadlines if within next 7 days
+        if (confirmationDue >= currentDate && confirmationDue <= next7Days) {
+          const daysUntil = Math.ceil((confirmationDue.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))
+          upcomingDeadlines.push({
+            id: `confirmation-${client.id}`,
+            companyName: client.companyName,
+            type: 'Confirmation',
+            date: confirmationDue.toISOString(),
+            daysUntil: daysUntil
+          })
+        }
       }
-    }
 
       // Corporation Tax
       if (client.nextCorporationTaxDue) {
@@ -119,13 +208,29 @@ export async function GET(
         if (ctDue >= startOfMonth && ctDue <= endOfMonth) {
           monthlyDeadlines.ct++
         }
+        
+        // Add to upcoming deadlines if within next 7 days
+        if (ctDue >= currentDate && ctDue <= next7Days) {
+          const daysUntil = Math.ceil((ctDue.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))
+          upcomingDeadlines.push({
+            id: `ct-${client.id}`,
+            companyName: client.companyName,
+            type: 'Corporation Tax',
+            date: ctDue.toISOString(),
+            daysUntil: daysUntil
+          })
+        }
       }
     }
+
+    // Sort upcoming deadlines by days until due
+    upcomingDeadlines.sort((a, b) => a.daysUntil - b.daysUntil)
 
     const dashboardData = {
       clientCounts,
       staffWorkload,
       monthlyDeadlines,
+      upcomingDeadlines: upcomingDeadlines.slice(0, 10), // Limit to 10 most urgent
       monthName: now.toLocaleString('default', { month: 'long' })
     }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { CacheHelpers } from '@/lib/performance-cache'
 import bcrypt from 'bcryptjs'
 
 // Force dynamic rendering for this route since it uses session
@@ -12,9 +13,9 @@ export const revalidate = 0
 /**
  * GET /api/users
  * 
- * Get all users for assignment purposes
+ * OPTIMIZED: Get all users for assignment purposes
  * Only accessible to partners and managers
- * Optimized with caching for better performance
+ * Enhanced with caching and circuit breaker for better performance
  * 
  * Query parameters:
  * - includeSelf: Include the current user in the results (default: false)
@@ -54,29 +55,47 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Optimized database query
-    const users = await db.user.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-      },
-      orderBy: {
-        name: 'asc'
-      }
-    })
+    // OPTIMIZED: Cached database query for better performance
+    const cacheKey = includeSelf ? 'active-with-self' : 'active-without-self'
+    const users = await CacheHelpers.users.getAll(() => 
+      db.user.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+        orderBy: [
+          { role: 'asc' },  // Partners first, then managers, then staff
+          { name: 'asc' }
+        ]
+      })
+    )
 
     const response = NextResponse.json({
       success: true,
       users,
     })
 
-    // Disable all caching for real-time updates
-    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
-    response.headers.set('Pragma', 'no-cache')
-    response.headers.set('Expires', '0')
+    // PERFORMANCE: Smart caching based on role and request type
+    if (includeSelf) {
+      // Cache for 5 minutes when including self (used in dropdowns)
+      response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60')
+    } else {
+      // Cache for 10 minutes when excluding self (used in assignment modals)
+      response.headers.set('Cache-Control', 'public, max-age=600, stale-while-revalidate=120')
+    }
+    
+    // Add ETag for conditional requests
+    const etag = `"users-${session.user.role}-${includeSelf}-${users.length}"`
+    response.headers.set('ETag', etag)
+    
+    // Handle conditional requests (304 Not Modified)
+    const ifNoneMatch = request.headers.get('if-none-match')
+    if (ifNoneMatch === etag) {
+      return new NextResponse(null, { status: 304 })
+    }
     
     return response
 

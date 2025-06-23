@@ -1,0 +1,129 @@
+{
+  "testRun": {
+    "startTime": 1750655067156,
+    "endTime": 1750655067202,
+    "baseUrl": "http://localhost:3000"
+  },
+  "results": [
+    {
+      "endpoint": "/api/users?includeSelf=true",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 24,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.186Z"
+    },
+    {
+      "endpoint": "/api/users?includeSelf=true",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 2,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.188Z"
+    },
+    {
+      "endpoint": "/api/users?includeSelf=true",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 1,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.189Z"
+    },
+    {
+      "endpoint": "/api/users?includeSelf=true",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 1,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.190Z"
+    },
+    {
+      "endpoint": "/api/users?includeSelf=true",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 1,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.191Z"
+    },
+    {
+      "endpoint": "/api/clients/user-counts",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 1,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.192Z"
+    },
+    {
+      "endpoint": "/api/clients/user-counts",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 1,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.193Z"
+    },
+    {
+      "endpoint": "/api/clients/user-counts",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 0,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.193Z"
+    },
+    {
+      "endpoint": "/api/clients?active=true&sortBy=companyName&sortOrder=asc",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 1,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.195Z"
+    },
+    {
+      "endpoint": "/api/clients?active=true&sortBy=companyName&sortOrder=asc",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 1,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.196Z"
+    },
+    {
+      "endpoint": "/api/clients?active=true&sortBy=companyName&sortOrder=asc",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 2,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.198Z"
+    },
+    {
+      "endpoint": "/api/clients/vat-clients",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 1,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.199Z"
+    },
+    {
+      "endpoint": "/api/clients/vat-clients",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 1,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.200Z"
+    },
+    {
+      "endpoint": "/api/dashboard/partner/test-user-id",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 1,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.201Z"
+    },
+    {
+      "endpoint": "/api/dashboard/partner/test-user-id",
+      "method": "GET",
+      "statusCode": 0,
+      "responseTime": 0,
+      "error": "",
+      "timestamp": "2025-06-23T05:04:27.201Z"
+    }
+  ]
+}

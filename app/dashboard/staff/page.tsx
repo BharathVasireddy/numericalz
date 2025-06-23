@@ -28,15 +28,6 @@ export default async function StaffPage() {
   // Fetch all users for team management
   const users = await db.user.findMany({
     include: {
-      assignedClients: {
-        select: {
-          id: true,
-          companyName: true,
-          companyType: true,
-          nextAccountsDue: true,
-          nextConfirmationDue: true,
-        }
-      },
       _count: {
         select: {
           assignedClients: true

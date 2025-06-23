@@ -329,7 +329,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 /**
  * DELETE /api/clients/[id]
  * 
- * Delete a specific client (Manager and Partner only)
+ * FIXED: Delete a specific client with proper cascading delete logic
+ * Handles all related records to prevent foreign key constraint violations
+ * (Manager and Partner only)
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
@@ -353,6 +355,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     // Check if client exists
     const existingClient = await db.client.findUnique({
       where: { id: params.id },
+      include: {
+        // Include related records to understand dependencies
+        ltdAccountsWorkflows: true,
+        vatQuartersWorkflow: true,
+        activityLogs: true
+      }
     })
 
     if (!existingClient) {
@@ -362,20 +370,114 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // Delete client
-    await db.client.delete({
-      where: { id: params.id },
+    // CRITICAL: Use database transaction to ensure all related records are deleted properly
+    await db.$transaction(async (tx) => {
+      console.log(`🗑️ Deleting client ${params.id} with cascading deletes...`)
+      
+      // 1. Delete VAT workflow history first (if any)
+      if (existingClient.vatQuartersWorkflow.length > 0) {
+        console.log(`   Deleting ${existingClient.vatQuartersWorkflow.length} VAT quarters...`)
+        
+        for (const vatQuarter of existingClient.vatQuartersWorkflow) {
+          // Delete VAT workflow history for this quarter (correct model name)
+          await tx.vATWorkflowHistory.deleteMany({
+            where: { vatQuarterId: vatQuarter.id }
+          })
+        }
+        
+        // Delete VAT quarters (correct model name)
+        await tx.vATQuarter.deleteMany({
+          where: { clientId: params.id }
+        })
+      }
+      
+      // 2. Delete Ltd Accounts workflows and their history
+      if (existingClient.ltdAccountsWorkflows.length > 0) {
+        console.log(`   Deleting ${existingClient.ltdAccountsWorkflows.length} Ltd accounts workflows...`)
+        
+        for (const workflow of existingClient.ltdAccountsWorkflows) {
+          // Delete workflow history for this workflow (correct field name)
+          await tx.ltdAccountsWorkflowHistory.deleteMany({
+            where: { ltdAccountsWorkflowId: workflow.id }
+          })
+        }
+        
+        // Delete Ltd accounts workflows
+        await tx.ltdAccountsWorkflow.deleteMany({
+          where: { clientId: params.id }
+        })
+      }
+      
+      // 3. Delete activity logs
+      if (existingClient.activityLogs.length > 0) {
+        console.log(`   Deleting ${existingClient.activityLogs.length} activity logs...`)
+        await tx.activityLog.deleteMany({
+          where: { clientId: params.id }
+        })
+      }
+      
+      // 4. Delete any communications
+      await tx.communication.deleteMany({
+        where: { clientId: params.id }
+      })
+      
+      // 5. Finally, delete the client
+      console.log(`   Deleting client record...`)
+      await tx.client.delete({
+        where: { id: params.id }
+      })
+      
+      console.log(`✅ Client ${params.id} and all related records deleted successfully`)
+    })
+
+    // Log the deletion activity
+    await logActivityEnhanced({
+      action: 'CLIENT_DELETED',
+      userId: session.user.id,
+      details: `Deleted client: ${existingClient.companyName} (${existingClient.clientCode})`,
+      clientId: params.id
     })
 
     return NextResponse.json({
       success: true,
-      message: 'Client deleted successfully',
+      message: 'Client and all related records deleted successfully',
+      deletedClient: {
+        id: existingClient.id,
+        companyName: existingClient.companyName,
+        clientCode: existingClient.clientCode
+      }
     })
 
   } catch (error) {
-    console.error('Error deleting client:', error)
+    console.error('❌ Error deleting client:', error)
+    
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes('Foreign key constraint')) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Cannot delete client: There are still related records. Please contact support.',
+            details: error.message
+          },
+          { status: 409 }
+        )
+      }
+      
+      if (error.message.includes('Record to delete does not exist')) {
+        return NextResponse.json(
+          { success: false, error: 'Client not found or already deleted' },
+          { status: 404 }
+        )
+      }
+    }
+    
     return NextResponse.json(
-      { success: false, error: 'Failed to delete client' },
+      { 
+        success: false, 
+        error: 'Failed to delete client',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }
