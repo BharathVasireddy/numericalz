@@ -102,6 +102,26 @@ export async function GET(
     
     console.log('📊 Client counts:', clientCounts)
 
+    // 1.5. UNASSIGNED CLIENTS COUNTS
+    const unassignedClients = {
+      ltd: allClients.filter(c => 
+        c.companyType === 'LIMITED_COMPANY' && 
+        c.handlesAnnualAccounts && 
+        !c.ltdCompanyAssignedUserId
+      ).length,
+      nonLtd: allClients.filter(c => 
+        c.companyType !== 'LIMITED_COMPANY' && 
+        c.handlesAnnualAccounts && 
+        !c.nonLtdCompanyAssignedUserId
+      ).length,
+      vat: allClients.filter(c => 
+        c.isVatEnabled && 
+        !c.vatAssignedUserId
+      ).length
+    }
+    
+    console.log('🚨 Unassigned clients:', unassignedClients)
+
     // 2. STAFF WORKLOAD - ONLY specific work-type assignments (NO GENERAL)
     const staffWorkload = allUsers.map(user => {
       // Count VAT clients (from vatAssignedClients relation)
@@ -231,9 +251,11 @@ export async function GET(
 
     const dashboardData = {
       clientCounts,
+      unassignedClients,
       staffWorkload,
       monthlyDeadlines,
-      upcomingDeadlines: upcomingDeadlines.slice(0, 10) // Limit to 10 most urgent
+      upcomingDeadlines: upcomingDeadlines.slice(0, 10), // Limit to 10 most urgent
+      monthName: now.toLocaleDateString('en-GB', { month: 'long' })
     }
 
     const response = NextResponse.json({

@@ -613,14 +613,46 @@ export function VATWorkflowModal({
                         <SelectValue placeholder="Select stage" />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(SELECTABLE_VAT_WORKFLOW_STAGES).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>
-                            <div className="flex items-center gap-2">
-                              {getStageInfo(key).icon}
-                              {label}
-                            </div>
-                          </SelectItem>
-                        ))}
+                        {Object.entries(SELECTABLE_VAT_WORKFLOW_STAGES).map(([key, label]) => {
+                          const isCurrentStage = key === vatQuarter.currentStage
+                          const isCompletedStage = vatQuarter.isCompleted && key === 'FILED_TO_HMRC'
+                          
+                          // Determine if stage is "completed" based on workflow progression
+                          const stageOrder = Object.keys(VAT_WORKFLOW_STAGE_NAMES)
+                          const currentStageIndex = stageOrder.indexOf(vatQuarter.currentStage)
+                          const thisStageIndex = stageOrder.indexOf(key)
+                          const isPastStage = currentStageIndex > thisStageIndex
+                          
+                          return (
+                            <SelectItem 
+                              key={key} 
+                              value={key}
+                              className={`
+                                ${isCurrentStage ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}
+                                ${isPastStage || isCompletedStage ? 'opacity-60 text-muted-foreground' : ''}
+                              `}
+                            >
+                              <div className="flex items-center gap-2 w-full">
+                                <div className={`${getStageInfo(key).color}`}>
+                                  {getStageInfo(key).icon}
+                                </div>
+                                <span className={`${isCurrentStage ? 'font-semibold text-blue-700' : ''}`}>
+                                  {label}
+                                </span>
+                                {isCurrentStage && (
+                                  <Badge variant="secondary" className="ml-auto text-xs bg-blue-100 text-blue-700">
+                                    Current
+                                  </Badge>
+                                )}
+                                {(isPastStage || isCompletedStage) && !isCurrentStage && (
+                                  <Badge variant="outline" className="ml-auto text-xs text-muted-foreground border-muted-foreground/30">
+                                    Completed
+                                  </Badge>
+                                )}
+                              </div>
+                            </SelectItem>
+                          )
+                        })}
                       </SelectContent>
                     </Select>
                   </div>

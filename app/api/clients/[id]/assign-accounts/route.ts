@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { logActivityEnhanced } from '@/lib/activity-middleware'
+import { logActivity } from '@/lib/activity-logger'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -138,7 +138,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Log assignment activity
     if (userId) {
-      await logActivityEnhanced(request, {
+      await logActivity({
+        userId: session.user.id,
         action: 'CLIENT_ACCOUNTS_ASSIGNED',
         clientId: params.id,
         details: {
@@ -148,11 +149,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           assigneeName: newAssignee,
           previousAssignee: previousAssignee,
           assignmentType: assignmentType,
-          companyType: currentClient.companyType
+          companyType: currentClient.companyType,
+          message: `${assignmentType} work assigned to ${newAssignee}`
         }
       })
     } else {
-      await logActivityEnhanced(request, {
+      await logActivity({
+        userId: session.user.id,
         action: 'CLIENT_ACCOUNTS_UNASSIGNED',
         clientId: params.id,
         details: {
@@ -160,7 +163,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           clientCode: updatedClient.clientCode,
           previousAssignee: previousAssignee,
           assignmentType: assignmentType,
-          companyType: currentClient.companyType
+          companyType: currentClient.companyType,
+          message: `${assignmentType} work unassigned`
         }
       })
     }

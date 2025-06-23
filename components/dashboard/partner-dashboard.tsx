@@ -16,8 +16,10 @@ import {
   FileText,
   Calculator,
   CheckCircle,
-  Calendar
+  Calendar,
+  AlertTriangle
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface PartnerDashboardProps {
   userId: string
@@ -26,6 +28,11 @@ interface PartnerDashboardProps {
 interface DashboardData {
   clientCounts: {
     total: number
+    ltd: number
+    nonLtd: number
+    vat: number
+  }
+  unassignedClients: {
     ltd: number
     nonLtd: number
     vat: number
@@ -113,7 +120,7 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
     )
   }
 
-  if (!data || !data.clientCounts || !data.staffWorkload || !data.monthlyDeadlines) {
+  if (!data || !data.clientCounts || !data.unassignedClients || !data.staffWorkload || !data.monthlyDeadlines) {
     return (
       <PageLayout maxWidth="xl">
         <div className="space-y-6">
@@ -263,6 +270,116 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
                 </CardContent>
               </Card>
             </div>
+          </div>
+
+          {/* Unassigned Clients Widget */}
+          <div className="px-4 lg:px-0">
+            <Card className="border-amber-200 bg-amber-50/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base md:text-lg flex items-center gap-2 text-amber-800">
+                  <AlertTriangle className="h-4 w-4 md:h-5 md:w-5" />
+                  Unassigned Clients
+                </CardTitle>
+                <p className="text-sm text-amber-700">
+                  Clients requiring assignment for specific work types
+                </p>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {/* Unassigned Ltd Companies */}
+                  <div className="p-3 rounded-lg bg-amber-100 border border-amber-200">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-amber-800">Ltd Companies</p>
+                        <p className="text-lg md:text-xl font-bold text-amber-900">
+                          {data.unassignedClients.ltd}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-amber-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Building2 className="h-4 w-4 text-amber-700" />
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs text-amber-700">
+                      Need accounts assignment
+                    </div>
+                  </div>
+
+                  {/* Unassigned Non-Ltd Companies */}
+                  <div className="p-3 rounded-lg bg-amber-100 border border-amber-200">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-amber-800">Non-Limited</p>
+                        <p className="text-lg md:text-xl font-bold text-amber-900">
+                          {data.unassignedClients.nonLtd}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-amber-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Building className="h-4 w-4 text-amber-700" />
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs text-amber-700">
+                      Need accounts assignment
+                    </div>
+                  </div>
+
+                  {/* Unassigned VAT Clients */}
+                  <div className="p-3 rounded-lg bg-amber-100 border border-amber-200">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-amber-800">VAT Enabled</p>
+                        <p className="text-lg md:text-xl font-bold text-amber-900">
+                          {data.unassignedClients.vat}
+                        </p>
+                      </div>
+                      <div className="h-8 w-8 bg-amber-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Receipt className="h-4 w-4 text-amber-700" />
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs text-amber-700">
+                      Need VAT assignment
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Action buttons for quick navigation */}
+                {(data.unassignedClients.ltd > 0 || data.unassignedClients.nonLtd > 0 || data.unassignedClients.vat > 0) && (
+                  <div className="mt-4 pt-3 border-t border-amber-200">
+                    <div className="flex flex-wrap gap-2">
+                      {data.unassignedClients.ltd > 0 && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                          onClick={() => window.location.href = '/dashboard/clients/ltd-companies?filter=unassigned'}
+                        >
+                          View Ltd Companies
+                        </Button>
+                      )}
+                      {data.unassignedClients.nonLtd > 0 && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                          onClick={() => window.location.href = '/dashboard/clients/non-ltd-companies?filter=unassigned'}
+                        >
+                          View Non-Ltd Companies
+                        </Button>
+                      )}
+                      {data.unassignedClients.vat > 0 && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                          onClick={() => window.location.href = '/dashboard/clients/vat-dt?filter=unassigned'}
+                        >
+                          View VAT Clients
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Team Workload and Monthly Deadlines - Mobile Stack */}
