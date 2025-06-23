@@ -357,6 +357,42 @@ export async function POST(request: NextRequest) {
 
 ## 🎯 MANDATORY BUSINESS LOGIC RULES
 
+### 📅 DATE CALCULATION SYSTEM - ABSOLUTELY CRITICAL
+```typescript
+// 🎯 MANDATORY: Use ONLY centralized date calculation functions
+import { 
+  calculateYearEnd, 
+  calculateAccountsDue, 
+  calculateCorporationTaxDue,
+  formatYearEnd,
+  getYearEndForTable,
+  getYearEndForForm 
+} from '@/lib/year-end-utils'
+
+// ✅ REQUIRED - For all year end calculations
+const yearEnd = calculateYearEnd(clientData)
+const yearEndDisplay = getYearEndForTable(clientData) // Tables: "30 Sept 2024" or "—"
+const yearEndForm = getYearEndForForm(clientData)     // Forms: "30 Sept 2024" or "Not set"
+
+// ✅ REQUIRED - For statutory date calculations  
+const accountsDue = calculateAccountsDue(clientData)     // Year end + 9 months
+const ctDue = calculateCorporationTaxDue(clientData)     // Year end + 12 months
+
+// ❌ FORBIDDEN - NEVER use Companies House dates directly
+// nextAccountsDue: companyData.accounts?.next_due ❌ NEVER DO THIS
+// nextCorporationTaxDue: chData.accounts?.next_due ❌ NEVER DO THIS
+
+// ❌ FORBIDDEN - NEVER calculate dates inline
+// const accountsDue = new Date(yearEnd); accountsDue.setMonth(accountsDue.getMonth() + 9) ❌
+
+// ✅ REQUIRED - ClientYearEndData interface for all calculations
+interface ClientYearEndData {
+  accountingReferenceDate?: string | null  // JSON: {"day":"30","month":"09"} or ISO
+  lastAccountsMadeUpTo?: string | Date | null
+  incorporationDate?: string | Date | null
+}
+```
+
 ### 📊 Client Management - SACRED FUNCTIONALITY
 ```typescript
 // ✅ REQUIRED - Client code generation (NEVER CHANGE)
@@ -422,6 +458,8 @@ VATQuarter -> Milestones -> Compliance     // Legal deadline tracking
 
 ### 🛡️ PRE-WORK MANDATORY CHECKLIST
 Before making ANY changes, MUST verify:
+- [ ] Does this involve date calculations? (If yes → MUST use lib/year-end-utils.ts functions)
+- [ ] Does this use Companies House data? (If yes → NEVER use accounts.next_due directly)
 - [ ] Does this change affect existing functionality? (If yes → User approval required)
 - [ ] Does this involve database schema? (If yes → Follow EXACT safety protocol)
 - [ ] Does this change client assignments? (If yes → Extreme caution required)
@@ -432,6 +470,8 @@ Before making ANY changes, MUST verify:
 
 ### 🔍 POST-WORK MANDATORY VERIFICATION
 After making ANY changes, MUST verify:
+- [ ] All date calculations use centralized functions (no hardcoded date logic)
+- [ ] No Companies House date overrides introduced (accounts.next_due not used)
 - [ ] All existing functionality still works exactly as before
 - [ ] No horizontal scrolling introduced anywhere
 - [ ] Contact icons still work (email opens mailto, phone opens tel)
@@ -444,10 +484,11 @@ After making ANY changes, MUST verify:
 ### 🚨 VIOLATION CONSEQUENCES
 Violating these rules results in:
 1. **Database Safety Violations**: Immediate project termination
-2. **Functionality Removal**: Immediate rollback required  
-3. **Design Inconsistency**: Must fix before any other work
-4. **Security Violations**: Immediate security review required
-5. **Business Logic Changes**: User approval and comprehensive testing required
+2. **Date Calculation Violations**: Immediate fix required - NEVER use hardcoded dates or Companies House overrides
+3. **Functionality Removal**: Immediate rollback required  
+4. **Design Inconsistency**: Must fix before any other work
+5. **Security Violations**: Immediate security review required
+6. **Business Logic Changes**: User approval and comprehensive testing required
 
 ### 📚 MANDATORY REFERENCE DOCUMENTATION
 Before ANY development work, MUST review:
@@ -456,6 +497,7 @@ Before ANY development work, MUST review:
 - `docs/DATABASE_SCHEMA.md` - Database structure and relationships
 - `docs/API_DOCUMENTATION.md` - API endpoint specifications
 - `docs/DESIGN_SYSTEM.md` - UI/UX standards and components
+- `docs/DATE_CALCULATION_SYSTEM.md` - Centralized date calculation functions and rules
 
 ### 🎯 DEVELOPMENT PHILOSOPHY
 **REMEMBER**: This system manages critical UK accounting firm operations
@@ -482,6 +524,8 @@ Before ANY development work, MUST review:
 **ZERO TOLERANCE for violations of these rules. The integrity of this accounting firm management system depends on strict adherence to these standards.**
 
 ### 🚫 FORBIDDEN MODIFICATIONS WITHOUT APPROVAL
+- **Date calculation logic** (must use centralized functions from lib/year-end-utils.ts)
+- **Companies House date overrides** (NEVER use companyData.accounts.next_due directly)
 - Client code generation logic (NZ-1, NZ-2 format)
 - Contact icon functionality (email/phone click actions)
 - User assignment system and API endpoints
