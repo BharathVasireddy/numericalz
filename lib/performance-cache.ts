@@ -1,8 +1,8 @@
 /**
  * PERFORMANCE CACHE SYSTEM
  * 
- * This system implements aggressive caching to reduce database calls
- * and improve performance when database latency is high.
+ * This system implements smart caching to reduce database calls
+ * and improve performance while maintaining real-time updates for critical data.
  */
 
 interface CacheEntry<T> {
@@ -14,13 +14,19 @@ interface CacheEntry<T> {
 class PerformanceCache {
   private cache = new Map<string, CacheEntry<any>>()
   
-  // Cache TTL settings (in milliseconds)
+  // Cache TTL settings (in milliseconds) - BALANCED for real-time + performance
   private readonly TTL = {
-    USERS: 5 * 60 * 1000,        // 5 minutes
-    CLIENTS: 2 * 60 * 1000,      // 2 minutes  
-    CLIENT_COUNTS: 1 * 60 * 1000, // 1 minute
-    USER_COUNTS: 2 * 60 * 1000,   // 2 minutes
-    STATIC_DATA: 10 * 60 * 1000,  // 10 minutes
+    // Critical dashboard data - shorter TTL for real-time updates
+    DASHBOARD_DATA: 30 * 1000,    // 30 seconds for dashboard
+    USER_COUNTS: 60 * 1000,       // 1 minute for user counts
+    CLIENT_COUNTS: 30 * 1000,     // 30 seconds for client counts
+    
+    // General data - moderate TTL
+    USERS: 2 * 60 * 1000,         // 2 minutes (reduced from 5)
+    CLIENTS: 60 * 1000,           // 1 minute (reduced from 2)
+    
+    // Static/reference data - longer TTL
+    STATIC_DATA: 5 * 60 * 1000,   // 5 minutes (reduced from 10)
   }
   
   set<T>(key: string, data: T, ttl?: number): void {
@@ -51,6 +57,19 @@ class PerformanceCache {
   
   clear(): void {
     this.cache.clear()
+  }
+  
+  // Force refresh by clearing specific cache patterns
+  invalidatePattern(pattern: string): number {
+    let invalidated = 0
+    const keys = Array.from(this.cache.keys())
+    keys.forEach(key => {
+      if (key.includes(pattern)) {
+        this.cache.delete(key)
+        invalidated++
+      }
+    })
+    return invalidated
   }
   
   // Generate cache keys
@@ -119,6 +138,28 @@ export function withCache<T>(
 
 // Specific cache functions for common queries
 export const CacheHelpers = {
+  // Dashboard cache - SHORT TTL for real-time updates
+  dashboard: {
+    getPartnerData: (userId: string, fetcher: () => Promise<any>) => 
+      withCache(`dashboard:partner:${userId}`, fetcher, performanceCache['TTL'].DASHBOARD_DATA),
+    
+    getManagerData: (userId: string, fetcher: () => Promise<any>) => 
+      withCache(`dashboard:manager:${userId}`, fetcher, performanceCache['TTL'].DASHBOARD_DATA),
+    
+    getStaffData: (userId: string, fetcher: () => Promise<any>) => 
+      withCache(`dashboard:staff:${userId}`, fetcher, performanceCache['TTL'].DASHBOARD_DATA),
+    
+    invalidate: (userId?: string) => {
+      if (userId) {
+        performanceCache.delete(`dashboard:partner:${userId}`)
+        performanceCache.delete(`dashboard:manager:${userId}`)
+        performanceCache.delete(`dashboard:staff:${userId}`)
+      } else {
+        performanceCache.invalidatePattern('dashboard:')
+      }
+    }
+  },
+  
   // Users cache
   users: {
     getAll: (fetcher: () => Promise<any[]>) => 
@@ -133,6 +174,7 @@ export const CacheHelpers = {
     invalidate: () => {
       performanceCache.delete('users:all')
       performanceCache.delete('users:active')
+      performanceCache.invalidatePattern('user:')
     }
   },
   
@@ -154,20 +196,11 @@ export const CacheHelpers = {
     invalidate: (pattern?: string) => {
       if (pattern) {
         // Invalidate specific pattern
-        const keys = Array.from(performanceCache['cache'].keys())
-        keys.forEach(key => {
-          if (key.includes(pattern)) {
-            performanceCache.delete(key)
-          }
-        })
+        performanceCache.invalidatePattern(pattern)
       } else {
         // Invalidate all client caches
-        const keys = Array.from(performanceCache['cache'].keys())
-        keys.forEach(key => {
-          if (key.startsWith('clients:') || key.startsWith('client:')) {
-            performanceCache.delete(key)
-          }
-        })
+        performanceCache.invalidatePattern('clients:')
+        performanceCache.invalidatePattern('client:')
       }
     }
   },
@@ -180,22 +213,27 @@ export const CacheHelpers = {
     },
     
     invalidate: () => {
-      const keys = Array.from(performanceCache['cache'].keys())
-      keys.forEach(key => {
-        if (key.startsWith('vat:')) {
-          performanceCache.delete(key)
-        }
-      })
+      performanceCache.invalidatePattern('vat:')
     }
   }
 }
 
-// Auto-cleanup every 5 minutes
+// Auto-cleanup every 2 minutes (more frequent)
 setInterval(() => {
   const cleaned = performanceCache.cleanup()
   if (cleaned > 0) {
     console.log(`🧹 Cache cleanup: removed ${cleaned} expired entries`)
   }
-}, 5 * 60 * 1000)
+}, 2 * 60 * 1000)
 
-export default performanceCache 
+// Export cache invalidation function for manual use
+export function clearAllCaches(): void {
+  performanceCache.clear()
+  console.log('🧹 All caches cleared manually')
+}
+
+// Export dashboard cache invalidation
+export function invalidateDashboardCache(userId?: string): void {
+  CacheHelpers.dashboard.invalidate(userId)
+  console.log(`🧹 Dashboard cache invalidated${userId ? ` for user ${userId}` : ' for all users'}`)
+} 

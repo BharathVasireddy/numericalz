@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       })
       
       // Cache staff response for longer since it's static
-      response.headers.set('Cache-Control', 'public, max-age=1800, stale-while-revalidate=900') // 30 min cache
+      response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=30') // 1 min cache for real-time updates
       return response
     }
 
@@ -99,8 +99,8 @@ export async function GET(request: NextRequest) {
       vatClientCounts
     })
 
-    // PERFORMANCE: Cache response for 5 minutes with stale-while-revalidate
-    response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60')
+    // PERFORMANCE: Cache response for 1 minute with stale-while-revalidate for real-time updates
+    response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=30')
     response.headers.set('ETag', `"user-counts-${Date.now()}"`)
 
     return response

@@ -345,10 +345,10 @@ export async function GET(request: NextRequest) {
     // PERFORMANCE: Smart caching based on search and filters
     if (search || accountsAssignedUserId || vatAssignedUserId) {
       // Dynamic queries - shorter cache
-      response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=30')
+      response.headers.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=15')
     } else {
       // Static/simple queries - longer cache
-      response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60')
+              response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=30')
     }
     
     // Add ETag for conditional requests

@@ -5,6 +5,8 @@ import { useSession } from 'next-auth/react'
 import { PageLayout, PageContent } from '@/components/layout/page-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 import { 
   Building,
   Users, 
@@ -16,7 +18,8 @@ import {
   FileText,
   Calculator,
   CheckCircle,
-  Calendar
+  Calendar,
+  RefreshCw
 } from 'lucide-react'
 
 interface PartnerDashboardProps {
@@ -58,6 +61,7 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
   const { data: session } = useSession()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
   const fetchData = async () => {
     try {
@@ -88,6 +92,44 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
   useEffect(() => {
     fetchData()
   }, [userId])
+
+  const handleRefreshCache = async () => {
+    setRefreshing(true)
+    try {
+      // Invalidate cache first
+      const cacheResponse = await fetch('/api/dashboard/invalidate-cache', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          scope: 'dashboard',
+          userId: userId
+        }),
+      })
+
+      if (cacheResponse.ok) {
+        // Wait a moment for cache to clear
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Fetch fresh data
+        await fetchData()
+        
+        toast.success('Dashboard refreshed with latest data', {
+          description: 'Cache cleared and data updated successfully'
+        })
+      } else {
+        throw new Error('Failed to clear cache')
+      }
+    } catch (error) {
+      console.error('Error refreshing cache:', error)
+      toast.error('Failed to refresh dashboard', {
+        description: 'Please try again or contact support'
+      })
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -169,12 +211,24 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
     <PageLayout maxWidth="xl">
       <PageContent>
         <div className="space-y-6">
-          {/* Header without separator line */}
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold">Partner Dashboard</h1>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              Overview of clients, team workload, and monthly deadlines
-            </p>
+          {/* Header with refresh button */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold">Partner Dashboard</h1>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                Overview of clients, team workload, and monthly deadlines
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshCache}
+              disabled={refreshing}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
           </div>
 
           {/* Client Overview - 4 Compact Cards */}
