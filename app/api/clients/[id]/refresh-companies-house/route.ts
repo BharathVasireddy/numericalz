@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getComprehensiveCompanyData } from '@/lib/companies-house'
 import { logActivityEnhanced } from '@/lib/activity-middleware'
-import { calculateAccountsDue, calculateCorporationTaxDue } from '@/lib/year-end-utils'
+import { calculateCorporationTaxDue } from '@/lib/year-end-utils'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -79,17 +79,16 @@ export async function POST(
       ? new Date(companyData.date_of_creation) 
       : client.incorporationDate
 
-    // Calculate statutory dates using our centralized logic (NOT Companies House dates)
+    // Calculate CT due date only - use Companies House data for accounts due date
     const clientDataForCalculation = {
       accountingReferenceDate: updatedAccountingReferenceDate,
       lastAccountsMadeUpTo: updatedLastAccountsMadeUpTo,
       incorporationDate: updatedIncorporationDate
     }
 
-    const calculatedAccountsDue = calculateAccountsDue(clientDataForCalculation)
     const calculatedCTDue = calculateCorporationTaxDue(clientDataForCalculation)
 
-    // Update client with Companies House data BUT use our calculated statutory dates
+    // Update client with Companies House data and use their official accounts due date
     const updatedClient = await db.client.update({
       where: { id },
       data: {
@@ -100,8 +99,9 @@ export async function POST(
         cessationDate: companyData.date_of_cessation ? new Date(companyData.date_of_cessation) : client.cessationDate,
         registeredOfficeAddress: companyData.registered_office_address ? JSON.stringify(companyData.registered_office_address) : client.registeredOfficeAddress,
         sicCodes: companyData.sic_codes ? JSON.stringify(companyData.sic_codes) : client.sicCodes,
-        // 🎯 CRITICAL: Use our calculated dates, NOT Companies House dates
-        nextAccountsDue: calculatedAccountsDue,
+        // 🎯 CRITICAL: Use Companies House accounts due date directly (official HMRC deadline)
+        nextAccountsDue: companyData.accounts?.next_due ? new Date(companyData.accounts.next_due) : client.nextAccountsDue,
+        // Only calculate CT due date (9 months after year end)
         nextCorporationTaxDue: calculatedCTDue,
         // Keep Companies House reference data for calculations
         lastAccountsMadeUpTo: updatedLastAccountsMadeUpTo,

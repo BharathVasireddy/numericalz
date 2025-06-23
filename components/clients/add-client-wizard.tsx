@@ -22,7 +22,7 @@ import { ClientCreatedModal } from './client-created-modal'
 import { ClientPostCreationQuestionnaire } from './client-post-creation-questionnaire'
 import { NonLtdCompanyForm } from './non-ltd-company-form'
 import { calculateCTDueFromYearEnd, calculateCTPeriod } from '@/lib/ct-tracking'
-import { calculateAccountsDue, calculateCorporationTaxDue } from '@/lib/year-end-utils'
+import { calculateCorporationTaxDue } from '@/lib/year-end-utils'
 
 interface CompaniesHouseSearchResult {
   company_number: string
@@ -428,7 +428,9 @@ export function AddClientWizard() {
             }
             
             return {
-              nextAccountsDue: calculateAccountsDue(clientDataForCalculation),
+              // Use Companies House accounts due date directly (official HMRC deadline)
+              nextAccountsDue: companyData.accounts?.next_due ? new Date(companyData.accounts.next_due) : undefined,
+              // Only calculate CT due date (9 months after year end)
               nextCorporationTaxDue: calculateCorporationTaxDue(clientDataForCalculation),
             }
           })(),

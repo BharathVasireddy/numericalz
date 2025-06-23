@@ -359,33 +359,34 @@ export async function POST(request: NextRequest) {
 
 ### 📅 DATE CALCULATION SYSTEM - ABSOLUTELY CRITICAL
 ```typescript
-// 🎯 MANDATORY: Use ONLY centralized date calculation functions
+// 🎯 MANDATORY: Use Companies House official dates and centralized calculations
 import { 
   calculateYearEnd, 
-  calculateAccountsDue, 
   calculateCorporationTaxDue,
   formatYearEnd,
   getYearEndForTable,
   getYearEndForForm 
 } from '@/lib/year-end-utils'
 
-// ✅ REQUIRED - For all year end calculations
+// ✅ REQUIRED - Use Companies House accounts due date directly (official HMRC deadline)
+nextAccountsDue: companyData.accounts?.next_due ? new Date(companyData.accounts.next_due) : null
+
+// ✅ REQUIRED - For year end display calculations
 const yearEnd = calculateYearEnd(clientData)
 const yearEndDisplay = getYearEndForTable(clientData) // Tables: "30 Sept 2024" or "—"
 const yearEndForm = getYearEndForForm(clientData)     // Forms: "30 Sept 2024" or "Not set"
 
-// ✅ REQUIRED - For statutory date calculations  
-const accountsDue = calculateAccountsDue(clientData)     // Year end + 9 months
+// ✅ REQUIRED - Calculate CT due date only (not provided by Companies House)
 const ctDue = calculateCorporationTaxDue(clientData)     // Year end + 12 months
 
-// ❌ FORBIDDEN - NEVER use Companies House dates directly
-// nextAccountsDue: companyData.accounts?.next_due ❌ NEVER DO THIS
-// nextCorporationTaxDue: chData.accounts?.next_due ❌ NEVER DO THIS
+// ❌ FORBIDDEN - NEVER calculate accounts due dates ourselves
+// const accountsDue = calculateAccountsDue(clientData) ❌ NEVER DO THIS
+// nextAccountsDue: calculatedAccountsDue ❌ NEVER DO THIS
 
 // ❌ FORBIDDEN - NEVER calculate dates inline
 // const accountsDue = new Date(yearEnd); accountsDue.setMonth(accountsDue.getMonth() + 9) ❌
 
-// ✅ REQUIRED - ClientYearEndData interface for all calculations
+// ✅ REQUIRED - ClientYearEndData interface for calculations
 interface ClientYearEndData {
   accountingReferenceDate?: string | null  // JSON: {"day":"30","month":"09"} or ISO
   lastAccountsMadeUpTo?: string | Date | null
@@ -459,7 +460,7 @@ VATQuarter -> Milestones -> Compliance     // Legal deadline tracking
 ### 🛡️ PRE-WORK MANDATORY CHECKLIST
 Before making ANY changes, MUST verify:
 - [ ] Does this involve date calculations? (If yes → MUST use lib/year-end-utils.ts functions)
-- [ ] Does this use Companies House data? (If yes → NEVER use accounts.next_due directly)
+- [ ] Does this use Companies House data? (If yes → ALWAYS use accounts.next_due directly for accounts due dates)
 - [ ] Does this change affect existing functionality? (If yes → User approval required)
 - [ ] Does this involve database schema? (If yes → Follow EXACT safety protocol)
 - [ ] Does this change client assignments? (If yes → Extreme caution required)
@@ -471,7 +472,7 @@ Before making ANY changes, MUST verify:
 ### 🔍 POST-WORK MANDATORY VERIFICATION
 After making ANY changes, MUST verify:
 - [ ] All date calculations use centralized functions (no hardcoded date logic)
-- [ ] No Companies House date overrides introduced (accounts.next_due not used)
+- [ ] Companies House accounts due dates used directly (accounts.next_due IS used for official deadlines)
 - [ ] All existing functionality still works exactly as before
 - [ ] No horizontal scrolling introduced anywhere
 - [ ] Contact icons still work (email opens mailto, phone opens tel)
@@ -484,7 +485,7 @@ After making ANY changes, MUST verify:
 ### 🚨 VIOLATION CONSEQUENCES
 Violating these rules results in:
 1. **Database Safety Violations**: Immediate project termination
-2. **Date Calculation Violations**: Immediate fix required - NEVER use hardcoded dates or Companies House overrides
+2. **Date Calculation Violations**: Immediate fix required - ALWAYS use Companies House accounts due dates, NEVER calculate them ourselves
 3. **Functionality Removal**: Immediate rollback required  
 4. **Design Inconsistency**: Must fix before any other work
 5. **Security Violations**: Immediate security review required
@@ -525,7 +526,7 @@ Before ANY development work, MUST review:
 
 ### 🚫 FORBIDDEN MODIFICATIONS WITHOUT APPROVAL
 - **Date calculation logic** (must use centralized functions from lib/year-end-utils.ts)
-- **Companies House date overrides** (NEVER use companyData.accounts.next_due directly)
+- **Accounts due date calculations** (ALWAYS use companyData.accounts.next_due directly from Companies House)
 - Client code generation logic (NZ-1, NZ-2 format)
 - Contact icon functionality (email/phone click actions)
 - User assignment system and API endpoints

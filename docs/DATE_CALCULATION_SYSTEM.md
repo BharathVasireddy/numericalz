@@ -1,8 +1,38 @@
-# Date Calculation System Documentation
+# Numericalz Date Calculation System Documentation
 
-## 📅 Overview
+## 🎯 Overview
 
-The Numericalz system uses a **centralized date calculation system** to ensure 100% consistent and accurate statutory dates across all components. This system eliminates discrepancies and provides a single source of truth for all UK accounting compliance dates.
+This document outlines the **centralized date calculation system** for Numericalz, ensuring 100% consistency across all components, APIs, and user interfaces.
+
+## 🚨 CRITICAL PRINCIPLE: Companies House Official Data
+
+### **WHAT WE USE DIRECTLY FROM COMPANIES HOUSE**
+- **✅ Accounts Due Date**: Use `companyData.accounts.next_due` directly (official HMRC deadline)
+- **✅ Confirmation Statement Due**: Use `companyData.confirmation_statement.next_due` directly
+- **✅ Reference Data**: Accounting reference date, last accounts, incorporation date
+
+### **WHAT WE CALCULATE OURSELVES**
+- **✅ Year End Date**: For display purposes and CT calculations
+- **✅ Corporation Tax Due**: 12 months after year end (not provided by Companies House)
+
+### **Implementation Pattern**
+```typescript
+// ✅ CORRECT: Use Companies House accounts due date directly
+nextAccountsDue: companyData.accounts?.next_due ? new Date(companyData.accounts.next_due) : null
+
+// ✅ CORRECT: Calculate year end for display and CT calculations
+const yearEnd = calculateYearEnd(clientData)
+const ctDue = calculateCorporationTaxDue(clientData)
+
+// ❌ FORBIDDEN: Calculate accounts due dates ourselves
+// nextAccountsDue: calculateAccountsDue(clientData) // DON'T DO THIS
+```
+
+### **Why This Approach?**
+- **Official Data**: Companies House provides the official HMRC filing deadlines
+- **Always Current**: Refreshing from Companies House updates all deadlines automatically
+- **No Calculation Errors**: Eliminates discrepancies between our calculations and official dates
+- **Compliance**: Ensures we always use the legally binding deadlines
 
 ## 🎯 Core Principles
 
