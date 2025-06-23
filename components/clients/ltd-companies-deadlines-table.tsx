@@ -69,6 +69,7 @@ import {
 import { showToast } from '@/lib/toast'
 import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 import { AdvancedFilterModal } from './advanced-filter-modal'
+import { getYearEndForTable } from '@/lib/year-end-utils'
 
 interface LtdAccountsWorkflow {
   id: string
@@ -117,6 +118,7 @@ interface LtdClient {
   incorporationDate?: string
   accountingReferenceDate?: string
   nextAccountsDue?: string
+  lastAccountsMadeUpTo?: string
   nextCorporationTaxDue?: string
   nextConfirmationDue?: string
   
@@ -204,6 +206,7 @@ export function LtdCompaniesDeadlinesTable() {
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all')
   const [selectedWorkflowStageFilter, setSelectedWorkflowStageFilter] = useState<string>('all')
   const [refreshingCompaniesHouse, setRefreshingCompaniesHouse] = useState(false)
+  const [refreshingClientId, setRefreshingClientId] = useState<string | null>(null)
   const [showActivityLogModal, setShowActivityLogModal] = useState(false)
   const [activityLogClient, setActivityLogClient] = useState<LtdClient | null>(null)
   
@@ -218,9 +221,20 @@ export function LtdCompaniesDeadlinesTable() {
   const fetchLtdClients = useCallback(async (forceRefresh: boolean = false) => {
     try {
       setLoading(true)
-      const response = await fetch('/api/clients/ltd-deadlines', {
-        // Add timestamp to prevent caching when forcing refresh
-        ...(forceRefresh && { cache: 'no-store' })
+      // Add timestamp to prevent caching when forcing refresh
+      const url = forceRefresh 
+        ? `/api/clients/ltd-deadlines?_t=${Date.now()}`
+        : '/api/clients/ltd-deadlines'
+      
+      const response = await fetch(url, {
+        ...(forceRefresh && { 
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        })
       })
       
       if (!response.ok) {
@@ -427,6 +441,15 @@ export function LtdCompaniesDeadlinesTable() {
       day: '2-digit',
       month: 'short',
       year: 'numeric'
+    })
+  }
+
+  // Use centralized year end calculation
+  const getYearEndFromAccountingRef = (accountingRefDate?: string, lastAccounts?: string, incorporationDate?: string) => {
+    return getYearEndForTable({
+      accountingReferenceDate: accountingRefDate,
+      lastAccountsMadeUpTo: lastAccounts,
+      incorporationDate: incorporationDate
     })
   }
 
@@ -890,6 +913,55 @@ export function LtdCompaniesDeadlinesTable() {
     setShowActivityLogModal(true)
   }
 
+  // Handle individual client Companies House refresh
+  const handleRefreshCompaniesHouse = async (client: LtdClient) => {
+    if (!client.companyNumber) {
+      showToast.error('Client has no company number to refresh')
+      return
+    }
+
+    // Only allow managers and partners
+    if (session?.user?.role !== 'MANAGER' && session?.user?.role !== 'PARTNER') {
+      showToast.error('Only managers and partners can refresh Companies House data')
+      return
+    }
+
+    // Set loading state for this specific client
+    setRefreshingClientId(client.id)
+    
+    try {
+      showToast.info(`Refreshing Companies House data for ${client.companyName}...`)
+      
+      const response = await fetch(`/api/clients/${client.id}/refresh-companies-house`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to refresh Companies House data')
+      }
+
+      const result = await response.json()
+      
+      if (result.success) {
+        showToast.success(`Successfully refreshed Companies House data for ${client.companyName}`)
+        // Refresh the table data to show updated information
+        await fetchLtdClients(true)
+      } else {
+        throw new Error(result.error || 'Failed to refresh Companies House data')
+      }
+      
+    } catch (error) {
+      console.error('Error refreshing Companies House data:', error)
+      showToast.error(error instanceof Error ? error.message : 'Failed to refresh Companies House data')
+    } finally {
+      setRefreshingClientId(null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="page-container">
@@ -1124,7 +1196,7 @@ export function LtdCompaniesDeadlinesTable() {
                         <SortableHeader column="companyName" className="w-40 col-ltd-company-name">Company Name</SortableHeader>
                         <SortableHeader column="yearEnd" className="w-16 col-ltd-year-end text-center">Year End</SortableHeader>
                         <SortableHeader column="accountsDue" className="w-20 col-ltd-accounts-due text-center">Accounts</SortableHeader>
-                        <SortableHeader column="ctDue" className="w-16 col-ltd-ct-due text-center">CT</SortableHeader>
+                        <SortableHeader column="ctDue" className="w-16 col-ltd-ct-due text-center">CT600</SortableHeader>
                         <SortableHeader column="csDue" className="w-16 col-ltd-cs-due text-center">CS</SortableHeader>
                         <SortableHeader column="assignedTo" className="w-20 col-ltd-assigned text-center">Assigned</SortableHeader>
                         <SortableHeader column="status" className="w-24 col-ltd-status text-center">Status</SortableHeader>
@@ -1188,8 +1260,8 @@ export function LtdCompaniesDeadlinesTable() {
                                 </button>
                               </div>
                             </TableCell>
-                            <TableCell className="text-xs p-1 text-center">
-                              {client.accountingReferenceDate ? formatDate(client.accountingReferenceDate) : '—'}
+                            <TableCell className="text-xs p-1 text-center" title="Current accounting year end">
+                              {getYearEndFromAccountingRef(client.accountingReferenceDate, client.lastAccountsMadeUpTo, client.incorporationDate)}
                             </TableCell>
                             <TableCell className="p-1 text-center">
                               <div className="text-xs">
@@ -1290,6 +1362,16 @@ export function LtdCompaniesDeadlinesTable() {
                                     <Clock className="h-4 w-4" />
                                     View Log
                                   </DropdownMenuItem>
+                                  {client.companyNumber && (
+                                    <DropdownMenuItem 
+                                      onClick={() => handleRefreshCompaniesHouse(client)}
+                                      className="flex items-center gap-2 cursor-pointer"
+                                      disabled={refreshingClientId === client.id}
+                                    >
+                                      <RefreshCw className={`h-4 w-4 ${refreshingClientId === client.id ? 'animate-spin' : ''}`} />
+                                      {refreshingClientId === client.id ? 'Refreshing...' : 'Refresh CH Data'}
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem 
                                     onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}

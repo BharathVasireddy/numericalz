@@ -22,6 +22,7 @@ import { ClientCreatedModal } from './client-created-modal'
 import { ClientPostCreationQuestionnaire } from './client-post-creation-questionnaire'
 import { NonLtdCompanyForm } from './non-ltd-company-form'
 import { calculateCTDueFromYearEnd, calculateCTPeriod } from '@/lib/ct-tracking'
+import { calculateAccountsDue, calculateCorporationTaxDue } from '@/lib/year-end-utils'
 
 interface CompaniesHouseSearchResult {
   company_number: string
@@ -418,33 +419,22 @@ export function AddClientWizard() {
           cessationDate: companyData.date_of_cessation ? new Date(companyData.date_of_cessation) : undefined,
           registeredOfficeAddress: companyData.registered_office_address ? JSON.stringify(companyData.registered_office_address) : undefined,
           sicCodes: companyData.sic_codes ? companyData.sic_codes : undefined,
-          nextAccountsDue: companyData.accounts?.next_due ? new Date(companyData.accounts.next_due) : undefined,
+          // 🎯 CRITICAL: Calculate statutory dates using our centralized logic (NOT Companies House dates)
+          ...(() => {
+            const clientDataForCalculation = {
+              accountingReferenceDate: companyData.accounts?.accounting_reference_date ? JSON.stringify(companyData.accounts.accounting_reference_date) : undefined,
+              lastAccountsMadeUpTo: companyData.accounts?.last_accounts?.made_up_to ? new Date(companyData.accounts.last_accounts.made_up_to) : undefined,
+              incorporationDate: companyData.date_of_creation ? new Date(companyData.date_of_creation) : undefined
+            }
+            
+            return {
+              nextAccountsDue: calculateAccountsDue(clientDataForCalculation),
+              nextCorporationTaxDue: calculateCorporationTaxDue(clientDataForCalculation),
+            }
+          })(),
+          // Keep Companies House reference data for future calculations
           lastAccountsMadeUpTo: companyData.accounts?.last_accounts?.made_up_to ? new Date(companyData.accounts.last_accounts.made_up_to) : undefined,
           accountingReferenceDate: companyData.accounts?.accounting_reference_date ? JSON.stringify(companyData.accounts.accounting_reference_date) : undefined,
-          // 🎯 Auto-calculate CT due from year end (12 months)
-          nextCorporationTaxDue: (() => {
-            if (companyData.accounts?.last_accounts?.made_up_to) {
-              const lastAccountsDate = new Date(companyData.accounts.last_accounts.made_up_to)
-              // First calculate the year end (last accounts + 1 year)
-              const yearEnd = new Date(lastAccountsDate)
-              yearEnd.setFullYear(yearEnd.getFullYear() + 1)
-              // Then calculate CT due from the year end
-              return calculateCTDueFromYearEnd(yearEnd)
-            }
-            if (companyData.accounts?.accounting_reference_date) {
-              const { day, month } = companyData.accounts.accounting_reference_date
-              if (day && month) {
-                const today = new Date()
-                const currentYear = today.getFullYear()
-                const yearEnd = new Date(currentYear, month - 1, day)
-                if (yearEnd < today) {
-                  yearEnd.setFullYear(currentYear + 1)
-                }
-                return calculateCTDueFromYearEnd(yearEnd)
-              }
-            }
-            return undefined
-          })(),
           nextConfirmationDue: companyData.confirmation_statement?.next_due ? new Date(companyData.confirmation_statement.next_due) : undefined,
           lastConfirmationMadeUpTo: companyData.confirmation_statement?.last_made_up_to ? new Date(companyData.confirmation_statement.last_made_up_to) : undefined,
           jurisdiction: companyData.jurisdiction,

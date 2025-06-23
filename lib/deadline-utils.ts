@@ -58,6 +58,123 @@ function checkCompletionStatus(
   }
 }
 
+/**
+ * UK ACCOUNTING DEADLINE CALCULATIONS
+ * 
+ * These functions implement the official UK deadlines for accounting compliance:
+ * - Accounts filing: 9 months after year end
+ * - Corporation Tax (CT600): 12 months after year end
+ * - Corporation Tax payment: 9 months and 1 day after year end
+ * - Confirmation Statement: Annual on anniversary of incorporation
+ */
+
+/**
+ * Calculate accounts filing deadline (9 months after year end)
+ * @param yearEndDate The accounting period end date
+ * @returns Accounts filing deadline
+ */
+export function calculateAccountsFilingDeadline(yearEndDate: Date): Date {
+  const deadline = new Date(yearEndDate)
+  deadline.setMonth(deadline.getMonth() + 9)
+  return deadline
+}
+
+/**
+ * Calculate Corporation Tax (CT600) filing deadline (12 months after year end)
+ * @param yearEndDate The accounting period end date
+ * @returns CT600 filing deadline
+ */
+export function calculateCorporationTaxFilingDeadline(yearEndDate: Date): Date {
+  const deadline = new Date(yearEndDate)
+  deadline.setFullYear(deadline.getFullYear() + 1)
+  return deadline
+}
+
+/**
+ * Calculate Corporation Tax payment deadline (9 months and 1 day after year end)
+ * @param yearEndDate The accounting period end date
+ * @returns CT payment deadline
+ */
+export function calculateCorporationTaxPaymentDeadline(yearEndDate: Date): Date {
+  const deadline = new Date(yearEndDate)
+  deadline.setMonth(deadline.getMonth() + 9)
+  deadline.setDate(deadline.getDate() + 1)
+  return deadline
+}
+
+/**
+ * Parse Companies House accounting reference date format
+ * @param accountingReferenceDate JSON string like '{"day":"30","month":"09"}'
+ * @param lastAccountsMadeUpTo Optional last accounts date to determine correct year
+ * @returns Parsed year end date or null if invalid
+ */
+export function parseCompaniesHouseYearEnd(
+  accountingReferenceDate: string | null,
+  lastAccountsMadeUpTo: Date | null = null
+): Date | null {
+  if (!accountingReferenceDate) return null
+  
+  try {
+    const parsed = JSON.parse(accountingReferenceDate)
+    if (typeof parsed === 'object' && parsed && 'day' in parsed && 'month' in parsed) {
+      // Calculate the correct year based on last accounts made up to date + 1 year
+      let yearToUse = new Date().getFullYear() // Default fallback
+      
+      if (lastAccountsMadeUpTo) {
+        // Use last accounts made up to date + 1 year for next year end
+        const lastAccountsDate = new Date(lastAccountsMadeUpTo)
+        yearToUse = lastAccountsDate.getFullYear() + 1
+      } else {
+        // Use current year or next year based on whether this year's year end has passed
+        const today = new Date()
+        const thisYearEnd = new Date(yearToUse, parseInt(parsed.month) - 1, parseInt(parsed.day))
+        if (thisYearEnd <= today) {
+          yearToUse = yearToUse + 1
+        }
+      }
+      
+      const month = parseInt(parsed.month) - 1 // JS months are 0-indexed
+      const day = parseInt(parsed.day)
+      const yearEndDate = new Date(yearToUse, month, day)
+      
+      return isNaN(yearEndDate.getTime()) ? null : yearEndDate
+    }
+  } catch (error) {
+    console.warn('Error parsing accounting reference date:', error)
+  }
+  
+  return null
+}
+
+/**
+ * Calculate days until due date
+ * @param dueDateString ISO date string
+ * @returns Number of days (negative if overdue)
+ */
+export function calculateDaysUntilDue(dueDateString: string | null): number {
+  if (!dueDateString) return 0
+  
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  const dueDate = new Date(dueDateString)
+  dueDate.setHours(0, 0, 0, 0)
+  
+  const diffTime = dueDate.getTime() - today.getTime()
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+}
+
+/**
+ * Format days until due for display
+ * @param days Number of days until due
+ * @returns Formatted string like "Due in 15 days" or "Overdue by 3 days"
+ */
+export function formatDaysUntilDue(days: number): string {
+  if (days === 0) return 'Due today'
+  if (days > 0) return `Due in ${days} day${days === 1 ? '' : 's'}`
+  return `Overdue by ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'}`
+}
+
 export interface DeadlineItem {
   id: string
   clientId: string

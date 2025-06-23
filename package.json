@@ -68,7 +68,9 @@
     "prepare": "husky install",
     "postinstall": "prisma generate",
     "vat:auto-assign": "node scripts/auto-assign-vat-partners.js",
-    "cron:start": "node scripts/setup-cron-jobs.js"
+    "cron:start": "node scripts/setup-cron-jobs.js",
+    "debug-ct": "node scripts/debug-ct-calculation.js",
+    "test-companies": "node scripts/test-companies-calculations.js"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",

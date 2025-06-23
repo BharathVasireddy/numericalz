@@ -5,6 +5,8 @@
  * Documentation: https://developer.company-information.service.gov.uk/
  */
 
+import { calculateAccountsDue, calculateCorporationTaxDue } from '@/lib/year-end-utils'
+
 const COMPANIES_HOUSE_BASE_URL = 'https://api.company-information.service.gov.uk'
 const API_KEY = process.env.COMPANIES_HOUSE_API_KEY
 
@@ -253,6 +255,16 @@ export function transformCompaniesHouseData(
   officers?: any,
   psc?: any
 ) {
+  // Calculate statutory dates using our centralized logic (NOT Companies House dates)
+  const clientDataForCalculation = {
+    accountingReferenceDate: chData.accounts?.accounting_reference_date ? JSON.stringify(chData.accounts.accounting_reference_date) : null,
+    lastAccountsMadeUpTo: chData.accounts?.last_accounts?.made_up_to ? new Date(chData.accounts.last_accounts.made_up_to) : null,
+    incorporationDate: chData.date_of_creation ? new Date(chData.date_of_creation) : null
+  }
+  
+  const calculatedAccountsDue = calculateAccountsDue(clientDataForCalculation)
+  const calculatedCTDue = calculateCorporationTaxDue(clientDataForCalculation)
+
   return {
     companyNumber: chData.company_number,
     companyName: chData.company_name,
@@ -263,9 +275,13 @@ export function transformCompaniesHouseData(
     cessationDate: chData.date_of_cessation ? new Date(chData.date_of_cessation) : null,
     registeredOfficeAddress: chData.registered_office_address ? JSON.stringify(chData.registered_office_address) : null,
     sicCodes: chData.sic_codes ? JSON.stringify(chData.sic_codes) : null,
-    nextAccountsDue: chData.accounts?.next_due ? new Date(chData.accounts.next_due) : null,
+    // 🎯 CRITICAL: Use our calculated dates, NOT Companies House dates
+    nextAccountsDue: calculatedAccountsDue,
+    nextCorporationTaxDue: calculatedCTDue,
+    // Keep Companies House reference data for future calculations
     lastAccountsMadeUpTo: chData.accounts?.last_accounts?.made_up_to ? new Date(chData.accounts.last_accounts.made_up_to) : null,
     accountingReferenceDate: chData.accounts?.accounting_reference_date ? JSON.stringify(chData.accounts.accounting_reference_date) : null,
+    // Confirmation statements come from Companies House (we don't calculate these)
     nextConfirmationDue: chData.confirmation_statement?.next_due ? new Date(chData.confirmation_statement.next_due) : null,
     lastConfirmationMadeUpTo: chData.confirmation_statement?.last_made_up_to ? new Date(chData.confirmation_statement.last_made_up_to) : null,
     jurisdiction: chData.jurisdiction || null,

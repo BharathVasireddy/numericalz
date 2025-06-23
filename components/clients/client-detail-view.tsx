@@ -20,6 +20,7 @@ import {
   TrendingUp
 } from 'lucide-react'
 import { VAT_WORKFLOW_STAGE_NAMES, formatQuarterPeriodForDisplay } from '@/lib/vat-workflow'
+import { getYearEndForForm } from '@/lib/year-end-utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -108,59 +109,14 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
     }
   }
 
-  // Handle Companies House JSON format for year end date
+  // Use centralized year end formatting
   const formatYearEndDate = (accountingRefDate: string | null) => {
-    if (!accountingRefDate) return 'Not set'
-    
-    try {
-      // First try to parse as JSON (Companies House format)
-      const parsed = JSON.parse(accountingRefDate)
-      if (parsed.day && parsed.month) {
-        // Companies House provides day/month only for accounting reference date
-        // We need to calculate the correct year based on last accounts made up to date
-        let yearToUse = new Date().getFullYear() // Default fallback
-        
-        if (client.lastAccountsMadeUpTo) {
-          // Use last accounts made up to date + 1 year for next year end
-          const lastAccountsDate = new Date(client.lastAccountsMadeUpTo)
-          yearToUse = lastAccountsDate.getFullYear() + 1
-        } else if (client.nextAccountsDue) {
-          // Fallback: use next accounts due date year - 1 (since accounts are due 9 months after year end)
-          const nextDueDate = new Date(client.nextAccountsDue)
-          yearToUse = nextDueDate.getFullYear() - 1
-        }
-        
-        const month = parseInt(parsed.month) - 1 // JS months are 0-indexed
-        const day = parseInt(parsed.day)
-        const yearEndDate = new Date(yearToUse, month, day)
-        
-        if (!isNaN(yearEndDate.getTime())) {
-          return yearEndDate.toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric'
-          })
-        }
-      }
-    } catch (e) {
-      // Not JSON, try parsing as regular date string
-    }
-    
-    // Fallback: try to parse as regular date string
-    try {
-      const date = new Date(accountingRefDate)
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric'
-        })
-      }
-    } catch (e) {
-      // If all parsing fails
-    }
-    
-    return 'Not set'
+    return getYearEndForForm({
+      accountingReferenceDate: accountingRefDate,
+      lastAccountsMadeUpTo: client.lastAccountsMadeUpTo,
+      incorporationDate: client.incorporationDate,
+      nextAccountsDue: client.nextAccountsDue
+    })
   }
 
   const isDateOverdue = (dateString: string | null) => {

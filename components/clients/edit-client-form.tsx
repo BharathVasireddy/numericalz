@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { showToast } from '@/lib/toast'
 import { ArrowLeft, Save, RefreshCw, AlertTriangle, Clock, CheckCircle, Calculator } from 'lucide-react'
+import { getYearEndForForm, calculateYearEnd, calculateCorporationTaxDue, formatCorporationTaxDue } from '@/lib/year-end-utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -82,121 +83,22 @@ export function EditClientForm({ client }: EditClientFormProps) {
     })
   }
 
+  // Use centralized year end calculation
   const getYearEnd = (accountingRefDate: string | null, lastAccountsMadeUpTo: string | null) => {
-    // If we have last accounts made up to date, calculate next year end from that
-    if (lastAccountsMadeUpTo) {
-      try {
-        const lastAccountsDate = new Date(lastAccountsMadeUpTo)
-        if (!isNaN(lastAccountsDate.getTime())) {
-          // Next year end is one year after last accounts made up to
-          const nextYearEnd = new Date(lastAccountsDate)
-          nextYearEnd.setFullYear(nextYearEnd.getFullYear() + 1)
-          
-          return nextYearEnd.toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-          })
-        }
-      } catch (e) {
-        // Fall through to accounting reference date calculation
-      }
-    }
-    
-    // Fallback to accounting reference date calculation if no last accounts
-    if (!accountingRefDate) return 'Not set'
-    try {
-      const parsed = JSON.parse(accountingRefDate)
-      if (parsed.day && parsed.month) {
-        // Companies House provides day/month only for accounting reference date
-        // We need to calculate the next year end based on current date
-        const today = new Date()
-        const currentYear = today.getFullYear()
-        
-        // Create this year's year end date
-        const thisYearEnd = new Date(currentYear, parsed.month - 1, parsed.day)
-        
-        // If this year's year end has passed, next year end is next year
-        // If this year's year end hasn't passed, next year end is this year
-        const nextYearEnd = thisYearEnd <= today 
-          ? new Date(currentYear + 1, parsed.month - 1, parsed.day)
-          : thisYearEnd
-        
-        // Return the next year end date in full format
-        return nextYearEnd.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric'
-        })
-      }
-    } catch (e) {
-      // Fallback for invalid JSON - treat as date string
-      const date = new Date(accountingRefDate)
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-GB', { 
-          day: '2-digit', 
-          month: '2-digit',
-          year: 'numeric'
-        })
-      }
-    }
-    return 'Not set'
+    return getYearEndForForm({
+      accountingReferenceDate: accountingRefDate,
+      lastAccountsMadeUpTo: lastAccountsMadeUpTo,
+      incorporationDate: client.incorporationDate
+    })
   }
 
+  // Use centralized CT calculation
   const calculateCTDue = (accountingReferenceDate: string | null, lastAccountsMadeUpTo: string | null) => {
-    // If we have last accounts made up to date, calculate CT due from the year end (last accounts + 1 year)
-    if (lastAccountsMadeUpTo) {
-      try {
-        const lastAccountsDate = new Date(lastAccountsMadeUpTo)
-        if (!isNaN(lastAccountsDate.getTime())) {
-          // First calculate the year end (last accounts + 1 year)
-          const yearEnd = new Date(lastAccountsDate)
-          yearEnd.setFullYear(yearEnd.getFullYear() + 1)
-          
-          // Then calculate CT due (year end + 12 months)
-          const ctDue = new Date(yearEnd)
-          ctDue.setFullYear(ctDue.getFullYear() + 1)
-          
-          return ctDue.toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-          })
-        }
-      } catch (e) {
-        console.warn('Error calculating CT due from last accounts:', e)
-      }
-    }
-    
-    // Fallback: calculate from accounting reference date
-    if (!accountingReferenceDate) return 'Not set'
-    
-    try {
-      const parsed = JSON.parse(accountingReferenceDate)
-      if (parsed.day && parsed.month) {
-        const today = new Date()
-        const currentYear = today.getFullYear()
-        const yearEnd = new Date(currentYear, parsed.month - 1, parsed.day)
-        
-        if (yearEnd < today) {
-          yearEnd.setFullYear(currentYear + 1)
-        }
-        
-        // CT due = 12 months from year end
-        const ctDue = new Date(yearEnd)
-        ctDue.setFullYear(ctDue.getFullYear() + 1)
-        
-        return ctDue.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric'
-        })
-      }
-    } catch (e) {
-      console.warn('Error calculating CT due:', e)
-    }
-    
-    return 'Not set'
+    return formatCorporationTaxDue({
+      accountingReferenceDate: accountingReferenceDate,
+      lastAccountsMadeUpTo: lastAccountsMadeUpTo,
+      incorporationDate: client.incorporationDate
+    })
   }
 
   const isDateOverdue = (dateString: string | null) => {
@@ -287,60 +189,33 @@ export function EditClientForm({ client }: EditClientFormProps) {
   // Get registered office address for copying
   const registeredOfficeAddress = parseAddress(client.registeredOfficeAddress)
 
-  // 🎯 Add function to calculate CT due date and set it in form
+  // 🎯 Calculate CT due date using centralized utility
   const handleCalculateCTDue = () => {
-    // Try to calculate from last accounts first
-    if (client.lastAccountsMadeUpTo) {
-      try {
-        const lastAccountsDate = new Date(client.lastAccountsMadeUpTo)
-        if (!isNaN(lastAccountsDate.getTime())) {
-          // First calculate the year end (last accounts + 1 year)
-          const yearEnd = new Date(lastAccountsDate)
-          yearEnd.setFullYear(yearEnd.getFullYear() + 1)
-          
-          // Then calculate CT due (year end + 12 months)
-          const ctDue = new Date(yearEnd)
-          ctDue.setFullYear(ctDue.getFullYear() + 1)
-          
-          const isoString = ctDue.toISOString()
-          const formattedDate = isoString.substring(0, 10)
-          handleInputChange('nextCorporationTaxDue', formattedDate)
-          showToast.success('CT due date calculated from year end')
-          return
-        }
-      } catch (e) {
-        console.warn('Error calculating CT due from last accounts:', e)
-      }
+    const clientData = {
+      accountingReferenceDate: client.accountingReferenceDate,
+      lastAccountsMadeUpTo: client.lastAccountsMadeUpTo,
+      incorporationDate: client.incorporationDate
     }
     
-    // Fallback to accounting reference date
-    if (!client.accountingReferenceDate) {
+    const ctDue = calculateCorporationTaxDue(clientData)
+    
+    if (!ctDue) {
       showToast.error('No year end or last accounts date available to calculate from')
       return
     }
     
-    try {
-      const parsed = JSON.parse(client.accountingReferenceDate)
-      if (parsed.day && parsed.month) {
-        const today = new Date()
-        const currentYear = today.getFullYear()
-        const yearEnd = new Date(currentYear, parsed.month - 1, parsed.day)
-        
-        if (yearEnd < today) {
-          yearEnd.setFullYear(currentYear + 1)
-        }
-        
-        // CT due = 12 months from year end
-        const ctDue = new Date(yearEnd)
-        ctDue.setFullYear(ctDue.getFullYear() + 1)
-        
-        const isoString = ctDue.toISOString()
-        const formattedDate = isoString.substring(0, 10)
-        handleInputChange('nextCorporationTaxDue', formattedDate)
-        showToast.success('CT due date calculated from year end')
-      }
-    } catch (e) {
-      showToast.error('Error calculating CT due date')
+    const isoString = ctDue.toISOString()
+    const formattedDate = isoString.substring(0, 10)
+    handleInputChange('nextCorporationTaxDue', formattedDate)
+    
+    // Show success message with calculated dates
+    const yearEnd = calculateYearEnd(clientData)
+    if (yearEnd) {
+      showToast.success(
+        `CT due date calculated: ${ctDue.toLocaleDateString('en-GB')} (12 months after year end ${yearEnd.toLocaleDateString('en-GB')})`
+      )
+    } else {
+      showToast.success(`CT due date calculated: ${ctDue.toLocaleDateString('en-GB')}`)
     }
   }
 

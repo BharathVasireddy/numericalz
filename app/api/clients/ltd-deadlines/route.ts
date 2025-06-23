@@ -77,13 +77,30 @@ export async function GET(request: NextRequest) {
             if (typeof parsedDate === 'object' && parsedDate && 'day' in parsedDate && 'month' in parsedDate) {
               const companiesHouseDate = parsedDate as CompaniesHouseDate
               
-              // Calculate the correct year based on last accounts made up to date + 1 year
+              // Calculate the correct year based on company status (first-time filer vs established)
               let yearToUse = new Date().getFullYear() // Default fallback
               
               if (client.lastAccountsMadeUpTo) {
-                // Use last accounts made up to date + 1 year
+                // Established company: Use last accounts made up to date + 1 year
                 const lastAccountsDate = new Date(client.lastAccountsMadeUpTo)
                 yearToUse = lastAccountsDate.getFullYear() + 1
+              } else if (client.incorporationDate) {
+                // First-time filer: Calculate first year end after incorporation
+                const incorpDate = new Date(client.incorporationDate)
+                const incorpYear = incorpDate.getFullYear()
+                
+                // Calculate first accounting reference date after incorporation
+                let firstYearEnd = new Date(incorpYear, parseInt(companiesHouseDate.month) - 1, parseInt(companiesHouseDate.day))
+                
+                // UK Rule: First accounting period must be at least 6 months but can be up to 18 months
+                // If the ARD in incorporation year is too close (less than 6 months), use next year
+                const monthsDifference = (firstYearEnd.getTime() - incorpDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+                
+                if (firstYearEnd <= incorpDate || monthsDifference < 6) {
+                  firstYearEnd.setFullYear(incorpYear + 1)
+                }
+                
+                yearToUse = firstYearEnd.getFullYear()
               } else if (client.nextAccountsDue) {
                 // Fallback: use next accounts due date year - 1 (since accounts are due 9 months after year end)
                 const nextDueDate = new Date(client.nextAccountsDue)
@@ -110,6 +127,7 @@ export async function GET(request: NextRequest) {
           }
         })() : null,
       nextAccountsDue: client.nextAccountsDue?.toISOString(),
+      lastAccountsMadeUpTo: client.lastAccountsMadeUpTo?.toISOString(),
       nextCorporationTaxDue: client.nextCorporationTaxDue?.toISOString(),
       nextConfirmationDue: client.nextConfirmationDue?.toISOString(),
       ltdCompanyAssignedUser: client.ltdCompanyAssignedUser,

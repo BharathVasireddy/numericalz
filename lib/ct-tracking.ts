@@ -33,6 +33,10 @@ export interface CTUpdateResult {
 /**
  * Calculate the next CT due date from a given year end
  * CT is due 12 months after the end of the accounting period (year end)
+ * 
+ * IMPORTANT: This function calculates the CT600 FILING deadline, not payment deadline
+ * - CT600 filing: 12 months after year end
+ * - CT payment: 9 months and 1 day after year end (different deadline)
  */
 export function calculateCTDueFromYearEnd(yearEndDate: Date): Date {
   const ctDue = new Date(yearEndDate)

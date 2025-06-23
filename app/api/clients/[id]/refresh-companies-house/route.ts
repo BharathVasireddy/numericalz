@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getComprehensiveCompanyData } from '@/lib/companies-house'
 import { logActivityEnhanced } from '@/lib/activity-middleware'
+import { calculateAccountsDue, calculateCorporationTaxDue } from '@/lib/year-end-utils'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -65,20 +66,47 @@ export async function POST(
       )
     }
 
-    // Update client with all Companies House data
+    // Prepare client data for centralized date calculations
+    const updatedLastAccountsMadeUpTo = companyData.accounts?.last_accounts?.made_up_to 
+      ? new Date(companyData.accounts.last_accounts.made_up_to) 
+      : client.lastAccountsMadeUpTo
+
+    const updatedAccountingReferenceDate = companyData.accounts?.accounting_reference_date 
+      ? JSON.stringify(companyData.accounts.accounting_reference_date) 
+      : client.accountingReferenceDate
+
+    const updatedIncorporationDate = companyData.date_of_creation 
+      ? new Date(companyData.date_of_creation) 
+      : client.incorporationDate
+
+    // Calculate statutory dates using our centralized logic (NOT Companies House dates)
+    const clientDataForCalculation = {
+      accountingReferenceDate: updatedAccountingReferenceDate,
+      lastAccountsMadeUpTo: updatedLastAccountsMadeUpTo,
+      incorporationDate: updatedIncorporationDate
+    }
+
+    const calculatedAccountsDue = calculateAccountsDue(clientDataForCalculation)
+    const calculatedCTDue = calculateCorporationTaxDue(clientDataForCalculation)
+
+    // Update client with Companies House data BUT use our calculated statutory dates
     const updatedClient = await db.client.update({
       where: { id },
       data: {
         companyName: companyData.company_name || client.companyName,
         companyStatus: companyData.company_status || client.companyStatus,
         companyStatusDetail: companyData.company_status_detail || client.companyStatusDetail,
-        incorporationDate: companyData.date_of_creation ? new Date(companyData.date_of_creation) : client.incorporationDate,
+        incorporationDate: updatedIncorporationDate,
         cessationDate: companyData.date_of_cessation ? new Date(companyData.date_of_cessation) : client.cessationDate,
         registeredOfficeAddress: companyData.registered_office_address ? JSON.stringify(companyData.registered_office_address) : client.registeredOfficeAddress,
         sicCodes: companyData.sic_codes ? JSON.stringify(companyData.sic_codes) : client.sicCodes,
-        nextAccountsDue: companyData.accounts?.next_due ? new Date(companyData.accounts.next_due) : client.nextAccountsDue,
-        lastAccountsMadeUpTo: companyData.accounts?.last_accounts?.made_up_to ? new Date(companyData.accounts.last_accounts.made_up_to) : client.lastAccountsMadeUpTo,
-        accountingReferenceDate: companyData.accounts?.accounting_reference_date ? JSON.stringify(companyData.accounts.accounting_reference_date) : client.accountingReferenceDate,
+        // 🎯 CRITICAL: Use our calculated dates, NOT Companies House dates
+        nextAccountsDue: calculatedAccountsDue,
+        nextCorporationTaxDue: calculatedCTDue,
+        // Keep Companies House reference data for calculations
+        lastAccountsMadeUpTo: updatedLastAccountsMadeUpTo,
+        accountingReferenceDate: updatedAccountingReferenceDate,
+        // Confirmation statements come from Companies House (we don't calculate these)
         nextConfirmationDue: companyData.confirmation_statement?.next_due ? new Date(companyData.confirmation_statement.next_due) : client.nextConfirmationDue,
         lastConfirmationMadeUpTo: companyData.confirmation_statement?.last_made_up_to ? new Date(companyData.confirmation_statement.last_made_up_to) : client.lastConfirmationMadeUpTo,
         jurisdiction: companyData.jurisdiction || client.jurisdiction,
