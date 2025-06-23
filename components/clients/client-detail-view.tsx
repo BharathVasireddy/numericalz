@@ -282,10 +282,10 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
             </Card>
           </div>
 
-          {/* Main Content Grid */}
-          <div className="grid gap-4 lg:grid-cols-2">
+          {/* Main Content Grid - Dynamic Layout */}
+          <div className="two-col-adaptive">
             {/* Left Column */}
-            <div className="space-y-4">
+            <div className="card-stack">
               {/* Basic Information */}
               <Card className="shadow-professional">
                 <CardHeader className="pb-3">
@@ -380,10 +380,23 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Notes Section - Only show if exists */}
+              {client.notes && (
+                <Card className="shadow-professional">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Notes</CardTitle>
+                    <CardDescription>Additional client information</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="text-sm whitespace-pre-wrap">{client.notes}</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Right Column */}
-            <div className="space-y-4">
+            <div className="card-stack">
               {/* Statutory Dates & Deadlines */}
               <Card className="shadow-professional">
                 <CardHeader className="pb-3">
@@ -452,7 +465,7 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                 currentUser={currentUser}
               />
 
-              {/* VAT Information */}
+              {/* VAT Information - Only show if VAT enabled */}
               {client.isVatEnabled && (
                 <Card className="shadow-professional">
                   <CardHeader>
@@ -648,7 +661,7 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                 </CardContent>
               </Card>
 
-              {/* Companies House Data */}
+              {/* Companies House Data - Only show if company number exists */}
               {client.companyNumber && (
                 <Card className="shadow-professional">
                   <CardHeader>
@@ -755,263 +768,258 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
             </div>
           </div>
 
-          {/* Notes Section */}
-          {client.notes && (
-            <Card className="shadow-professional">
-              <CardHeader>
-                <CardTitle className="text-base md:text-lg">Notes</CardTitle>
-                <CardDescription>Additional client information</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-wrap">{client.notes}</p>
-              </CardContent>
-            </Card>
+          {/* Address Information - Dynamic Grid - Only show if any addresses exist */}
+          {(client.registeredOfficeAddress || client.tradingAddress || client.residentialAddress) && (
+            <div className="auto-fit-cards">
+              {/* Registered Office Address */}
+              {client.registeredOfficeAddress && (
+                <Card className="shadow-professional">
+                  <CardHeader>
+                    <CardTitle className="text-base md:text-lg">Registered Office Address</CardTitle>
+                    <CardDescription>Official registered address from Companies House</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {(() => {
+                        try {
+                          const address = JSON.parse(client.registeredOfficeAddress)
+                          return (
+                            <div className="text-sm">
+                              {address.address_line_1 && <p>{address.address_line_1}</p>}
+                              {address.address_line_2 && <p>{address.address_line_2}</p>}
+                              {address.locality && <p>{address.locality}</p>}
+                              {address.region && <p>{address.region}</p>}
+                              {address.postal_code && <p className="font-medium">{address.postal_code}</p>}
+                              {address.country && <p className="text-muted-foreground">{address.country}</p>}
+                            </div>
+                          )
+                        } catch {
+                          return <p className="text-sm text-muted-foreground">Invalid address format</p>
+                        }
+                      })()}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Trading Address */}
+              {client.tradingAddress && (
+                <Card className="shadow-professional">
+                  <CardHeader>
+                    <CardTitle className="text-base md:text-lg">Trading Address</CardTitle>
+                    <CardDescription>Business trading address</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {(() => {
+                        try {
+                          const address = JSON.parse(client.tradingAddress)
+                          return (
+                            <div className="text-sm">
+                              {address.address_line_1 && <p>{address.address_line_1}</p>}
+                              {address.address_line_2 && <p>{address.address_line_2}</p>}
+                              {address.locality && <p>{address.locality}</p>}
+                              {address.region && <p>{address.region}</p>}
+                              {address.postal_code && <p className="font-medium">{address.postal_code}</p>}
+                              {address.country && <p className="text-muted-foreground">{address.country}</p>}
+                            </div>
+                          )
+                        } catch {
+                          return <p className="text-sm text-muted-foreground">Invalid address format</p>
+                        }
+                      })()}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Residential Address */}
+              {client.residentialAddress && (
+                <Card className="shadow-professional">
+                  <CardHeader>
+                    <CardTitle className="text-base md:text-lg">Residential Address</CardTitle>
+                    <CardDescription>Residential address for correspondence</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {(() => {
+                        try {
+                          const address = JSON.parse(client.residentialAddress)
+                          return (
+                            <div className="text-sm">
+                              {address.address_line_1 && <p>{address.address_line_1}</p>}
+                              {address.address_line_2 && <p>{address.address_line_2}</p>}
+                              {address.locality && <p>{address.locality}</p>}
+                              {address.region && <p>{address.region}</p>}
+                              {address.postal_code && <p className="font-medium">{address.postal_code}</p>}
+                              {address.country && <p className="text-muted-foreground">{address.country}</p>}
+                            </div>
+                          )
+                        } catch {
+                          return <p className="text-sm text-muted-foreground">Invalid address format</p>
+                        }
+                      })()}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
 
-          {/* Address Information */}
-          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
-            {/* Registered Office Address */}
-            {client.registeredOfficeAddress && (
-              <Card className="shadow-professional">
-                <CardHeader>
-                  <CardTitle className="text-base md:text-lg">Registered Office Address</CardTitle>
-                  <CardDescription>Official registered address from Companies House</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {(() => {
-                      try {
-                        const address = JSON.parse(client.registeredOfficeAddress)
-                        return (
-                          <div className="text-sm">
-                            {address.address_line_1 && <p>{address.address_line_1}</p>}
-                            {address.address_line_2 && <p>{address.address_line_2}</p>}
-                            {address.locality && <p>{address.locality}</p>}
-                            {address.region && <p>{address.region}</p>}
-                            {address.postal_code && <p className="font-medium">{address.postal_code}</p>}
-                            {address.country && <p className="text-muted-foreground">{address.country}</p>}
-                          </div>
-                        )
-                      } catch {
-                        return <p className="text-sm text-muted-foreground">Invalid address format</p>
-                      }
-                    })()}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Trading Address */}
-            {client.tradingAddress && (
-              <Card className="shadow-professional">
-                <CardHeader>
-                  <CardTitle className="text-base md:text-lg">Trading Address</CardTitle>
-                  <CardDescription>Business trading address</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {(() => {
-                      try {
-                        const address = JSON.parse(client.tradingAddress)
-                        return (
-                          <div className="text-sm">
-                            {address.address_line_1 && <p>{address.address_line_1}</p>}
-                            {address.address_line_2 && <p>{address.address_line_2}</p>}
-                            {address.locality && <p>{address.locality}</p>}
-                            {address.region && <p>{address.region}</p>}
-                            {address.postal_code && <p className="font-medium">{address.postal_code}</p>}
-                            {address.country && <p className="text-muted-foreground">{address.country}</p>}
-                          </div>
-                        )
-                      } catch {
-                        return <p className="text-sm text-muted-foreground">Invalid address format</p>
-                      }
-                    })()}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Residential Address */}
-            {client.residentialAddress && (
-              <Card className="shadow-professional">
-                <CardHeader>
-                  <CardTitle className="text-base md:text-lg">Residential Address</CardTitle>
-                  <CardDescription>Residential address for correspondence</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {(() => {
-                      try {
-                        const address = JSON.parse(client.residentialAddress)
-                        return (
-                          <div className="text-sm">
-                            {address.address_line_1 && <p>{address.address_line_1}</p>}
-                            {address.address_line_2 && <p>{address.address_line_2}</p>}
-                            {address.locality && <p>{address.locality}</p>}
-                            {address.region && <p>{address.region}</p>}
-                            {address.postal_code && <p className="font-medium">{address.postal_code}</p>}
-                            {address.country && <p className="text-muted-foreground">{address.country}</p>}
-                          </div>
-                        )
-                      } catch {
-                        return <p className="text-sm text-muted-foreground">Invalid address format</p>
-                      }
-                    })()}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Owner Information */}
-          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-            {/* Company Officers */}
-            <Card className="shadow-professional">
-              <CardHeader>
-                <CardTitle className="text-base md:text-lg">Company Officers</CardTitle>
-                <CardDescription>Directors and company officers from Companies House</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {(() => {
-                    if (!client.officers) {
-                      return <p className="text-sm text-muted-foreground">No officer data available</p>
-                    }
-                    try {
-                      const officers = JSON.parse(client.officers)
-                      if (officers.items && officers.items.length > 0) {
-                        return officers.items.map((officer: OfficerData, index: number) => {
-                          // Determine officer status
-                          const isResigned = officer.resigned_on
-                          const status = isResigned ? 'Resigned' : 'Active'
-                          const statusColor = isResigned ? 'text-red-600' : 'text-green-600'
-                          const statusBg = isResigned ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
-                          
-                          return (
-                            <div key={index} className={`p-3 border rounded-sm ${statusBg}`}>
-                              <div className="space-y-2">
-                                <div className="flex justify-between items-start">
-                                  <h4 className="font-medium text-sm">{officer.name}</h4>
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant={isResigned ? "outline" : "secondary"} className={`text-xs ${statusColor}`}>
-                                      {status}
-                                    </Badge>
-                                    <span className="text-xs bg-muted px-2 py-1 rounded">
-                                      {officer.officer_role?.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                                    </span>
+          {/* Owner Information - Only show if data exists */}
+          {(client.officers || client.personsWithSignificantControl) && (
+            <div className="responsive-card-grid">
+              {/* Company Officers */}
+              {client.officers && (
+                <Card className="shadow-professional">
+                  <CardHeader>
+                    <CardTitle className="text-base md:text-lg">Company Officers</CardTitle>
+                    <CardDescription>Directors and company officers from Companies House</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {(() => {
+                        if (!client.officers) {
+                          return <p className="text-sm text-muted-foreground">No officer data available</p>
+                        }
+                        try {
+                          const officers = JSON.parse(client.officers)
+                          if (officers.items && officers.items.length > 0) {
+                            return officers.items.map((officer: OfficerData, index: number) => {
+                              // Determine officer status
+                              const isResigned = officer.resigned_on
+                              const status = isResigned ? 'Resigned' : 'Active'
+                              const statusColor = isResigned ? 'text-red-600' : 'text-green-600'
+                              const statusBg = isResigned ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
+                              
+                              return (
+                                <div key={index} className={`p-3 border rounded-sm ${statusBg}`}>
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between items-start">
+                                      <h4 className="font-medium text-sm">{officer.name}</h4>
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant={isResigned ? "outline" : "secondary"} className={`text-xs ${statusColor}`}>
+                                          {status}
+                                        </Badge>
+                                        <span className="text-xs bg-muted px-2 py-1 rounded">
+                                          {officer.officer_role?.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                      {officer.appointed_on && (
+                                        <p>
+                                          Appointed: {new Date(officer.appointed_on).toLocaleDateString('en-GB')}
+                                        </p>
+                                      )}
+                                      {officer.resigned_on && (
+                                        <p className="text-red-600">
+                                          Resigned: {new Date(officer.resigned_on).toLocaleDateString('en-GB')}
+                                        </p>
+                                      )}
+                                      {officer.nationality && (
+                                        <p>
+                                          Nationality: {officer.nationality}
+                                        </p>
+                                      )}
+                                      {officer.occupation && (
+                                        <p>
+                                          Occupation: {officer.occupation}
+                                        </p>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-muted-foreground">
-                                  {officer.appointed_on && (
-                                    <p>
-                                      Appointed: {new Date(officer.appointed_on).toLocaleDateString('en-GB')}
-                                    </p>
-                                  )}
-                                  {officer.resigned_on && (
-                                    <p className="text-red-600">
-                                      Resigned: {new Date(officer.resigned_on).toLocaleDateString('en-GB')}
-                                    </p>
-                                  )}
-                                  {officer.nationality && (
-                                    <p>
-                                      Nationality: {officer.nationality}
-                                    </p>
-                                  )}
-                                  {officer.occupation && (
-                                    <p>
-                                      Occupation: {officer.occupation}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })
-                      } else {
-                        return <p className="text-sm text-muted-foreground">No officers found</p>
-                      }
-                    } catch {
-                      return <p className="text-sm text-muted-foreground">Unable to parse officer data</p>
-                    }
-                  })()}
-                </div>
-              </CardContent>
-            </Card>
+                              )
+                            })
+                          } else {
+                            return <p className="text-sm text-muted-foreground">No officers found</p>
+                          }
+                        } catch {
+                          return <p className="text-sm text-muted-foreground">Unable to parse officer data</p>
+                        }
+                      })()}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
-            {/* Persons with Significant Control */}
-            <Card className="shadow-professional">
-              <CardHeader>
-                <CardTitle className="text-base md:text-lg">Persons with Significant Control</CardTitle>
-                <CardDescription>PSC information from Companies House</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {(() => {
-                    if (!client.personsWithSignificantControl) {
-                      return <p className="text-sm text-muted-foreground">No PSC data available</p>
-                    }
-                    try {
-                      const psc = JSON.parse(client.personsWithSignificantControl)
-                      if (psc.items && psc.items.length > 0) {
-                        return psc.items.map((person: PSCData, index: number) => {
-                          // Determine PSC status
-                          const isCeased = person.ceased_on
-                          const status = isCeased ? 'Ceased' : 'Active'
-                          const statusColor = isCeased ? 'text-red-600' : 'text-green-600'
-                          const statusBg = isCeased ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
-                          
-                          return (
-                            <div key={index} className={`p-3 border rounded-sm ${statusBg}`}>
-                              <div className="space-y-2">
-                                <div className="flex justify-between items-start">
-                                  <h4 className="font-medium text-sm">{person.name}</h4>
-                                  <Badge variant={isCeased ? "outline" : "secondary"} className={`text-xs ${statusColor}`}>
-                                    {status}
-                                  </Badge>
-                                </div>
-                                <div className="grid grid-cols-1 gap-2 text-xs text-muted-foreground">
-                                  {person.kind && (
-                                    <p>
-                                      Type: {person.kind.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                                    </p>
-                                  )}
-                                  {person.notified_on && (
-                                    <p>
-                                      Notified: {new Date(person.notified_on).toLocaleDateString('en-GB')}
-                                    </p>
-                                  )}
-                                  {person.ceased_on && (
-                                    <p className="text-red-600">
-                                      Ceased: {new Date(person.ceased_on).toLocaleDateString('en-GB')}
-                                    </p>
-                                  )}
-                                  {person.natures_of_control && person.natures_of_control.length > 0 && (
-                                    <div>
-                                      <p>Nature of Control:</p>
-                                      <ul className="list-disc list-inside ml-2">
-                                        {person.natures_of_control.map((nature: string, i: number) => (
-                                          <li key={i}>{nature.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</li>
-                                        ))}
-                                      </ul>
+              {/* Persons with Significant Control */}
+              {client.personsWithSignificantControl && (
+                <Card className="shadow-professional">
+                  <CardHeader>
+                    <CardTitle className="text-base md:text-lg">Persons with Significant Control</CardTitle>
+                    <CardDescription>PSC information from Companies House</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {(() => {
+                        if (!client.personsWithSignificantControl) {
+                          return <p className="text-sm text-muted-foreground">No PSC data available</p>
+                        }
+                        try {
+                          const psc = JSON.parse(client.personsWithSignificantControl)
+                          if (psc.items && psc.items.length > 0) {
+                            return psc.items.map((person: PSCData, index: number) => {
+                              // Determine PSC status
+                              const isCeased = person.ceased_on
+                              const status = isCeased ? 'Ceased' : 'Active'
+                              const statusColor = isCeased ? 'text-red-600' : 'text-green-600'
+                              const statusBg = isCeased ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
+                              
+                              return (
+                                <div key={index} className={`p-3 border rounded-sm ${statusBg}`}>
+                                  <div className="space-y-2">
+                                    <div className="flex justify-between items-start">
+                                      <h4 className="font-medium text-sm">{person.name}</h4>
+                                      <Badge variant={isCeased ? "outline" : "secondary"} className={`text-xs ${statusColor}`}>
+                                        {status}
+                                      </Badge>
                                     </div>
-                                  )}
+                                    <div className="grid grid-cols-1 gap-2 text-xs text-muted-foreground">
+                                      {person.kind && (
+                                        <p>
+                                          Type: {person.kind.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                        </p>
+                                      )}
+                                      {person.notified_on && (
+                                        <p>
+                                          Notified: {new Date(person.notified_on).toLocaleDateString('en-GB')}
+                                        </p>
+                                      )}
+                                      {person.ceased_on && (
+                                        <p className="text-red-600">
+                                          Ceased: {new Date(person.ceased_on).toLocaleDateString('en-GB')}
+                                        </p>
+                                      )}
+                                      {person.natures_of_control && person.natures_of_control.length > 0 && (
+                                        <div>
+                                          <p>Nature of Control:</p>
+                                          <ul className="list-disc list-inside ml-2">
+                                            {person.natures_of_control.map((nature: string, i: number) => (
+                                              <li key={i}>{nature.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                            </div>
-                          )
-                        })
-                      } else {
-                        return <p className="text-sm text-muted-foreground">No PSC information found</p>
-                      }
-                    } catch {
-                      return <p className="text-sm text-muted-foreground">Unable to parse PSC data</p>
-                    }
-                  })()}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                              )
+                            })
+                          } else {
+                            return <p className="text-sm text-muted-foreground">No PSC information found</p>
+                          }
+                        } catch {
+                          return <p className="text-sm text-muted-foreground">Unable to parse PSC data</p>
+                        }
+                      })()}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
         </div>
       </div>
       

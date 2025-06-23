@@ -787,5 +787,119 @@
 }
 
 .col-ltd-action {
-  @apply w-16; /* Compact action dropdown */
+  @apply w-16; /* 64px */
+}
+
+/* Dynamic Card Layout System - Eliminates gaps when cards are conditionally hidden */
+.auto-fit-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .auto-fit-cards {
+    gap: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .auto-fit-cards {
+    gap: 2rem;
+  }
+}
+
+/* Card stack layout - stacks cards vertically with no gaps for missing content */
+.card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .card-stack {
+    gap: 1.5rem;
+  }
+}
+
+/* Responsive card grid that adapts to content */
+.responsive-card-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .responsive-card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-card-grid {
+    gap: 2rem;
+  }
+}
+
+/* Two column layout that collapses to single column */
+.two-col-adaptive {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .two-col-adaptive {
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+}
+
+/* Compact card spacing for better visual density */
+.card-compact {
+  @apply p-3;
+}
+
+.card-compact .card-header {
+  @apply pb-2;
+}
+
+.card-compact .card-content {
+  @apply pt-0;
+}
+
+/* Hide empty sections to prevent white space */
+.section-conditional {
+  display: none;
+}
+
+.section-conditional:has(> *) {
+  display: block;
+}
+
+/* Masonry-style layout for variable height cards */
+.masonry-cards {
+  column-count: 1;
+  column-gap: 1rem;
+  column-fill: balance;
+}
+
+@media (min-width: 768px) {
+  .masonry-cards {
+    column-count: 2;
+    column-gap: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .masonry-cards {
+    column-count: 3;
+    column-gap: 2rem;
+  }
+}
+
+.masonry-cards > * {
+  break-inside: avoid;
+  margin-bottom: 1rem;
 } 
