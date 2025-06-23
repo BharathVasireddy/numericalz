@@ -64,7 +64,8 @@ import {
   Settings,
   Edit,
   UserPlus,
-  Filter
+  Filter,
+  Undo2
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
 import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
@@ -207,6 +208,7 @@ export function LtdCompaniesDeadlinesTable() {
   const [selectedWorkflowStageFilter, setSelectedWorkflowStageFilter] = useState<string>('all')
   const [refreshingCompaniesHouse, setRefreshingCompaniesHouse] = useState(false)
   const [refreshingClientId, setRefreshingClientId] = useState<string | null>(null)
+  const [undoingClientId, setUndoingClientId] = useState<string | null>(null)
   const [showActivityLogModal, setShowActivityLogModal] = useState(false)
   const [activityLogClient, setActivityLogClient] = useState<LtdClient | null>(null)
   
@@ -796,8 +798,18 @@ export function LtdCompaniesDeadlinesTable() {
   }
 
   const handleSubmitUpdate = async () => {
-    if (!selectedClient || (!selectedStage && selectedAssignee === (selectedClient?.ltdCompanyAssignedUser?.id || 'unassigned'))) {
-      showToast.error('Please select a stage to update or assign a user')
+    if (!selectedClient) {
+      showToast.error('No client selected')
+      return
+    }
+
+    // Allow update if either stage is changed OR assignee is changed
+    const currentAssigneeId = selectedClient?.ltdCompanyAssignedUser?.id || 'unassigned'
+    const hasStageChange = selectedStage && selectedStage !== selectedClient?.currentLtdAccountsWorkflow?.currentStage
+    const hasAssigneeChange = selectedAssignee !== currentAssigneeId
+
+    if (!hasStageChange && !hasAssigneeChange) {
+      showToast.error('Please select a stage to update or change the assignment')
       return
     }
 
@@ -911,6 +923,45 @@ export function LtdCompaniesDeadlinesTable() {
   const handleViewActivityLog = (client: LtdClient) => {
     setActivityLogClient(client)
     setShowActivityLogModal(true)
+  }
+
+  const handleUndoLtdFiling = async (client: LtdClient) => {
+    if (!client.currentLtdAccountsWorkflow) return
+    
+    try {
+      setUndoingClientId(client.id)
+      
+      // Use client ID, not workflow ID
+      const response = await fetch(`/api/clients/ltd-deadlines/${client.id}/workflow`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage: 'SUBMISSION_APPROVED_PARTNER', // Reset to previous stage
+          comments: 'Filing undone - workflow reopened for corrections',
+          assignedUserId: client.ltdCompanyAssignedUser?.id || null
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to undo filing')
+      }
+
+      const data = await response.json()
+      
+      if (data.success) {
+        showToast.success('Filing undone successfully - workflow reopened')
+        await fetchLtdClients(true)
+      } else {
+        throw new Error(data.error || 'Failed to undo filing')
+      }
+      
+    } catch (error) {
+      console.error('Error undoing filing:', error)
+      showToast.error('Failed to undo filing. Please try again.')
+    } finally {
+      setUndoingClientId(null)
+    }
   }
 
   // Handle individual client Companies House refresh
@@ -1320,7 +1371,23 @@ export function LtdCompaniesDeadlinesTable() {
                             <TableCell className="p-1 text-center">
                               {client.currentLtdAccountsWorkflow?.isCompleted || 
                                client.currentLtdAccountsWorkflow?.currentStage === 'FILED_CH_HMRC' ? (
-                                <span className="text-xs text-green-600 font-medium">Complete</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-green-600 font-medium">Complete</span>
+                                  <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleUndoLtdFiling(client)}
+                          disabled={undoingClientId === client.id}
+                          className="action-trigger-button h-8 w-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                          title="Undo filing (reopen workflow)"
+                        >
+                          {undoingClientId === client.id ? (
+                            <RefreshCw className="action-trigger-icon animate-spin" />
+                          ) : (
+                            <Undo2 className="action-trigger-icon" />
+                          )}
+                        </Button>
+                                </div>
                               ) : (
                                 <Button
                                   variant="outline"
@@ -1454,16 +1521,19 @@ export function LtdCompaniesDeadlinesTable() {
                   <Briefcase className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-medium">Current Status</span>
                 </div>
-                <div className="space-y-1">
+                <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className={getWorkflowStatus(selectedClient.currentLtdAccountsWorkflow).color}>
                       {getWorkflowStatus(selectedClient.currentLtdAccountsWorkflow).label}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Assigned to: {selectedClient.currentLtdAccountsWorkflow.assignedUser?.name || 
-                                  selectedClient.ltdCompanyAssignedUser?.name || 'Unassigned'}
-                  </p>
+                  <div className="flex items-center gap-2 text-sm">
+                    <User className="h-3 w-3 text-muted-foreground" />
+                    <span className="font-medium">
+                      {selectedClient.currentLtdAccountsWorkflow.assignedUser?.name || 
+                       selectedClient.ltdCompanyAssignedUser?.name || 'Unassigned'}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
@@ -1568,7 +1638,7 @@ export function LtdCompaniesDeadlinesTable() {
             </Button>
             <Button 
               onClick={handleSubmitUpdate}
-              disabled={updating || (!selectedStage && selectedAssignee === (selectedClient?.ltdCompanyAssignedUser?.id || 'unassigned'))}
+              disabled={updating}
             >
               {updating ? (
                 <>

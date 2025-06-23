@@ -50,7 +50,6 @@ import {
 } from '@/components/ui/dialog'
 
 import { BulkOperations } from './bulk-operations'
-import { AssignUserModal } from './assign-user-modal'
 import { Badge } from '@/components/ui/badge'
 
 interface Client {
@@ -147,17 +146,13 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
   const [clients, setClients] = useState<Client[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [totalClientCount, setTotalClientCount] = useState(0)
   const [sortBy, setSortBy] = useState<string>('companyName')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [selectedClients, setSelectedClients] = useState<string[]>([])
   
-  // Modal state for resign functionality
-  const [showResignModal, setShowResignModal] = useState(false)
-  const [clientToResign, setClientToResign] = useState<Client | null>(null)
-  
-  // Modal state for assign functionality
-  const [showAssignModal, setShowAssignModal] = useState(false)
-  const [clientToAssign, setClientToAssign] = useState<Client | null>(null)
+  const [refreshingCompaniesHouse, setRefreshingCompaniesHouse] = useState(false)
+  const [refreshingClientId, setRefreshingClientId] = useState<string | null>(null)
 
   const fetchClients = useCallback(async () => {
     if (!session?.user?.id) return
@@ -198,6 +193,7 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
       if (response.ok) {
         const data = await response.json()
         setClients(data.clients || [])
+        setTotalClientCount(data.totalClientCount || 0)
       }
     } catch (error) {
       console.error('Error fetching clients:', error)
@@ -366,49 +362,6 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
     return diffDays <= daysThreshold && diffDays > 0
   }
 
-  const handleAssignUser = (client: Client) => {
-    setClientToAssign(client)
-    setShowAssignModal(true)
-  }
-
-  const handleResignClient = (client: Client) => {
-    setClientToResign(client)
-    setShowResignModal(true)
-  }
-
-  const confirmResignClient = async () => {
-    if (!clientToResign) return
-
-    try {
-      const loadingToast = showToast.loading('Resigning client...')
-      
-      const response = await fetch(`/api/clients/${clientToResign.id}/resign`, {
-        method: 'POST',
-      })
-      
-      if (response.ok) {
-        showToast.dismiss(loadingToast)
-        showToast.success('Client resigned successfully')
-        // Refresh the clients list to remove the resigned client
-        fetchClients()
-        setShowResignModal(false)
-        setClientToResign(null)
-      } else {
-        const error = await response.json()
-        showToast.dismiss(loadingToast)
-        showToast.error(`Failed to resign client: ${error.error || 'Unknown error'}`)
-      }
-    } catch (error) {
-      console.error('Error resigning client:', error)
-      showToast.error('Error resigning client')
-    }
-  }
-
-  const cancelResignClient = () => {
-    setShowResignModal(false)
-    setClientToResign(null)
-  }
-
   const handleRefreshCompaniesHouse = async (client: Client) => {
     if (!client.companyNumber) {
       showToast.error('No company number available for refresh')
@@ -436,10 +389,6 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
       console.error('Error refreshing Companies House data:', error)
       showToast.error('Error refreshing Companies House data')
     }
-  }
-
-  const handleAssignSuccess = () => {
-    fetchClients() // Refresh the clients list
   }
 
   if (loading) {
@@ -652,13 +601,6 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
                               <Edit className="h-4 w-4" />
                               Edit Client
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleAssignUser(client)}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <UserPlus className="h-4 w-4" />
-                              Assign User
-                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               onClick={() => handleRefreshCompaniesHouse(client)}
@@ -667,15 +609,6 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
                               <RefreshCw className="h-4 w-4" />
                               Refresh from Companies House
                             </DropdownMenuItem>
-                            {client.isActive && (
-                              <DropdownMenuItem 
-                                onClick={() => handleResignClient(client)}
-                                className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                              >
-                                <UserX className="h-4 w-4" />
-                                Resign Client
-                              </DropdownMenuItem>
-                            )}
                           </>
                         }
                       </DropdownMenuContent>
@@ -723,13 +656,6 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
                             <Edit className="h-4 w-4" />
                             Edit Client
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleAssignUser(client)}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <UserPlus className="h-4 w-4" />
-                            Assign User
-                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem 
                             onClick={() => handleRefreshCompaniesHouse(client)}
@@ -738,15 +664,6 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
                             <RefreshCw className="h-4 w-4" />
                             Refresh from Companies House
                           </DropdownMenuItem>
-                          {client.isActive && (
-                            <DropdownMenuItem 
-                              onClick={() => handleResignClient(client)}
-                              className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                            >
-                              <UserX className="h-4 w-4" />
-                              Resign Client
-                            </DropdownMenuItem>
-                          )}
                         </>
                       )}
                     </DropdownMenuContent>
@@ -834,36 +751,6 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
           </div>
         )}
       </Card>
-
-      {/* Assign User Modal */}
-      <AssignUserModal
-        client={clientToAssign}
-        users={users}
-        isOpen={showAssignModal}
-        onClose={() => setShowAssignModal(false)}
-        onSuccess={handleAssignSuccess}
-      />
-
-      {/* Resign Confirmation Modal */}
-      <Dialog open={showResignModal} onOpenChange={setShowResignModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Client Resignation</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to resign <strong>{clientToResign?.companyName}</strong>? 
-              This will move the client to inactive status and remove them from the active clients list.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={cancelResignClient}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmResignClient}>
-              Resign Client
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   )
 } 

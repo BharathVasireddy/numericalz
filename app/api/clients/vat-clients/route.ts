@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
                 quarterEndDate: currentQuarterInfo.quarterEndDate,
                 filingDueDate: currentQuarterInfo.filingDueDate,
                 quarterGroup: currentQuarterInfo.quarterGroup,
-                assignedUserId: client.vatAssignedUser?.id || client.assignedUser?.id || null,
+                assignedUserId: null, // Future quarters should be unassigned by default
                 currentStage: 'PAPERWORK_PENDING_CHASE',
                 isCompleted: false
               },
@@ -277,7 +277,7 @@ export async function GET(request: NextRequest) {
                     quarterEndDate: nextQuarterInfo.quarterEndDate,
                     filingDueDate: nextQuarterInfo.filingDueDate,
                     quarterGroup: nextQuarterInfo.quarterGroup,
-                    assignedUserId: client.vatAssignedUser?.id || client.assignedUser?.id || null,
+                    assignedUserId: null, // Future quarters should be unassigned by default
                     currentStage: 'PAPERWORK_PENDING_CHASE',
                     isCompleted: false
                   },

@@ -183,7 +183,7 @@ export function ActivityLogViewer({
     return 'bg-blue-100 text-blue-800'
   }
 
-  // Format activity details
+  // Format activity details with much clearer information
   const formatActivityDetails = (activity: ActivityLogEntry) => {
     try {
       if (activity.details) {
@@ -204,6 +204,100 @@ export function ActivityLogViewer({
     return {}
   }
 
+  // Format activity into human-readable description
+  const formatActivityDescription = (activity: ActivityLogEntry) => {
+    const details = formatActivityDetails(activity)
+    const clientName = activity.client?.companyName || details.companyName || 'Unknown Client'
+    const userName = activity.user?.name || 'System'
+    
+    switch (activity.action) {
+      case 'CLIENT_CREATED':
+        return `Created new client: ${clientName}`
+        
+      case 'CLIENT_UPDATED':
+        if (details.changedFields && details.changedFields.length > 0) {
+          return `Updated client ${clientName} - Changed: ${details.changedFields.join(', ')}`
+        }
+        return `Updated client: ${clientName}`
+        
+      case 'CLIENT_ASSIGNED':
+        return `Assigned ${clientName} to ${details.assigneeName || 'staff member'}`
+        
+      case 'CLIENT_VAT_ASSIGNED':
+        return `Assigned VAT responsibility for ${clientName} to ${details.assigneeName || 'staff member'}`
+        
+      case 'CLIENT_ACCOUNTS_ASSIGNED':
+        return `Assigned accounts responsibility for ${clientName} to ${details.assigneeName || 'staff member'}`
+        
+      case 'CLIENT_UNASSIGNED':
+        return `Removed assignment for ${clientName}`
+        
+      case 'CLIENT_VAT_UNASSIGNED':
+        return `Removed VAT assignment for ${clientName}`
+        
+      case 'CLIENT_ACCOUNTS_UNASSIGNED':
+        return `Removed accounts assignment for ${clientName}`
+        
+      case 'WORKFLOW_STAGE_UPDATED':
+        if (details.oldStage && details.newStage) {
+          return `Updated ${clientName} workflow: ${details.oldStage.replace(/_/g, ' ')} → ${details.newStage.replace(/_/g, ' ')}`
+        }
+        return `Updated workflow stage for ${clientName}`
+        
+      case 'VAT_WORKFLOW_UPDATED':
+        if (details.oldStage && details.newStage) {
+          return `Updated VAT workflow for ${clientName}: ${details.oldStage.replace(/_/g, ' ')} → ${details.newStage.replace(/_/g, ' ')}`
+        }
+        return `Updated VAT workflow for ${clientName}`
+        
+      case 'LTD_WORKFLOW_UPDATED':
+        if (details.oldStage && details.newStage) {
+          return `Updated Ltd company workflow for ${clientName}: ${details.oldStage.replace(/_/g, ' ')} → ${details.newStage.replace(/_/g, ' ')}`
+        }
+        return `Updated Ltd company workflow for ${clientName}`
+        
+      case 'WORKFLOW_COMPLETED':
+        return `Completed workflow for ${clientName}`
+        
+      case 'VAT_QUARTER_CREATED':
+        return `Created new VAT quarter for ${clientName} (${details.quarterPeriod || 'period unknown'})`
+        
+      case 'VAT_RETURN_FILED':
+        return `Filed VAT return for ${clientName} to HMRC`
+        
+      case 'ACCOUNTS_FILED':
+        return `Filed accounts for ${clientName} to Companies House & HMRC`
+        
+      case 'CLIENT_SELF_FILING':
+        return `Marked ${clientName} as self-filing (client handling their own returns)`
+        
+      case 'COMPANIES_HOUSE_REFRESH':
+        return `Refreshed Companies House data for ${clientName}`
+        
+      case 'CLIENT_RESIGNED':
+        return `Resigned from managing ${clientName} (moved to inactive)`
+        
+      case 'USER_LOGIN':
+        return `${userName} logged into the system`
+        
+      case 'USER_LOGOUT':
+        return `${userName} logged out of the system`
+        
+      case 'USER_CREATED':
+        return `Created new user account: ${details.userName || userName}`
+        
+      case 'USER_UPDATED':
+        return `Updated user account: ${details.userName || userName}`
+        
+      case 'EMAIL_SENT':
+        return `Sent email to ${details.recipientEmail || 'client'} regarding ${clientName}`
+        
+      default:
+        // Fallback: convert action code to readable format
+        return activity.action.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+    }
+  }
+
   // Format timestamp
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString('en-GB', {
@@ -218,14 +312,22 @@ export function ActivityLogViewer({
   // Export activity logs
   const handleExport = () => {
     const csvContent = [
-      ['Timestamp', 'Action', 'User', 'Client', 'Details'].join(','),
-      ...filteredActivities.map(activity => [
-        formatTimestamp(activity.timestamp),
-        activity.action,
-        activity.user?.name || 'System',
-        activity.client?.companyName || '-',
-        activity.details ? JSON.stringify(activity.details).replace(/,/g, ';') : '-'
-      ].join(','))
+      ['Timestamp', 'Type', 'User', 'Description', 'Details'].join(','),
+      ...filteredActivities.map(activity => {
+        const details = formatActivityDetails(activity)
+        return [
+          formatTimestamp(activity.timestamp),
+          activity.action.includes('CLIENT') ? 'Client' :
+          activity.action.includes('WORKFLOW') ? 'Workflow' :
+          activity.action.includes('VAT') ? 'VAT' :
+          activity.action.includes('USER') ? 'User' :
+          activity.action.includes('LOGIN') ? 'Auth' :
+          activity.action.includes('FILED') ? 'Filing' : 'System',
+          activity.user?.name || 'System',
+          formatActivityDescription(activity).replace(/,/g, ';'),
+          details.comments ? details.comments.replace(/,/g, ';') : '-'
+        ].join(',')
+      })
     ].join('\\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv' })
@@ -331,10 +433,10 @@ export function ActivityLogViewer({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[140px]">Time</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Details</TableHead>
+                  <TableHead className="w-[100px]">Type</TableHead>
+                  <TableHead className="w-[120px]">User</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="w-[200px]">Additional Details</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -348,62 +450,53 @@ export function ActivityLogViewer({
                       </TableCell>
                       
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className={getActivityColor(activity.action)}>
-                            <div className="flex items-center gap-1">
-                              {getActivityIcon(activity.action)}
-                              <span className="text-xs">
-                                {activity.action.replace(/_/g, ' ').toLowerCase()}
-                              </span>
-                            </div>
-                          </Badge>
-                        </div>
+                        <Badge variant="outline" className={getActivityColor(activity.action)}>
+                          <div className="flex items-center gap-1">
+                            {getActivityIcon(activity.action)}
+                            <span className="text-xs font-medium">
+                              {activity.action.includes('CLIENT') ? 'Client' :
+                               activity.action.includes('WORKFLOW') ? 'Workflow' :
+                               activity.action.includes('VAT') ? 'VAT' :
+                               activity.action.includes('USER') ? 'User' :
+                               activity.action.includes('LOGIN') ? 'Auth' :
+                               activity.action.includes('FILED') ? 'Filing' : 'System'}
+                            </span>
+                          </div>
+                        </Badge>
                       </TableCell>
                       
                       <TableCell>
                         <div className="text-sm">
                           <div className="font-medium">{activity.user?.name || 'System'}</div>
                           {activity.user?.role && (
-                            <div className="text-xs text-muted-foreground">
-                              {activity.user.role}
+                            <div className="text-xs text-muted-foreground capitalize">
+                              {activity.user.role.toLowerCase()}
                             </div>
                           )}
                         </div>
                       </TableCell>
                       
                       <TableCell>
-                        {activity.client ? (
-                          <div className="text-sm">
-                            <div className="font-medium">{activity.client.companyName}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {activity.client.clientCode}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                        <div className="text-sm font-medium">
+                          {formatActivityDescription(activity)}
+                        </div>
                       </TableCell>
                       
-                      <TableCell className="max-w-[300px]">
-                        <div className="text-sm space-y-1">
-                          {details.oldStage && details.newStage && (
-                            <div className="text-xs">
-                              Stage: {details.oldStage} → {details.newStage}
-                            </div>
-                          )}
-                          {details.assigneeName && (
-                            <div className="text-xs">
-                              Assigned to: {details.assigneeName}
-                            </div>
-                          )}
+                      <TableCell className="max-w-[200px]">
+                        <div className="text-xs space-y-1">
                           {details.comments && (
-                            <div className="text-xs text-muted-foreground truncate">
-                              {details.comments}
+                            <div className="p-2 bg-muted/50 rounded text-muted-foreground">
+                              <span className="font-medium">Note:</span> {details.comments}
                             </div>
                           )}
                           {details.changedFields && details.changedFields.length > 0 && (
-                            <div className="text-xs text-muted-foreground">
-                              Changed: {details.changedFields.join(', ')}
+                            <div className="text-muted-foreground">
+                              <span className="font-medium">Fields:</span> {details.changedFields.join(', ')}
+                            </div>
+                          )}
+                          {details.quarterPeriod && (
+                            <div className="text-muted-foreground">
+                              <span className="font-medium">Period:</span> {details.quarterPeriod}
                             </div>
                           )}
                         </div>

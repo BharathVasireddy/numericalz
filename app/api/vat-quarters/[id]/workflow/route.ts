@@ -138,8 +138,9 @@ export async function PUT(
       return NextResponse.json({ error: 'VAT quarter not found' }, { status: 404 })
     }
 
-    // Check if quarter is already completed
-    if (vatQuarter.isCompleted) {
+    // Check if quarter is already completed (allow undo operations)
+    const isUndoOperation = vatQuarter.isCompleted && stage !== 'FILED_TO_HMRC'
+    if (vatQuarter.isCompleted && !isUndoOperation) {
       return NextResponse.json({ 
         error: 'Cannot update workflow for completed VAT quarter' 
       }, { status: 400 })
@@ -161,7 +162,9 @@ export async function PUT(
 
     // Determine assignee - use provided assignedUserId or auto-assign based on stage
     let finalAssigneeId = assignedUserId
-    if (!assignedUserId) {
+    // Only auto-assign if assignedUserId is not explicitly provided (undefined)
+    // If assignedUserId is null, respect that as "unassigned"
+    if (assignedUserId === undefined) {
       finalAssigneeId = await getAutoAssigneeForStage(stage, vatQuarter.assignedUserId, prisma)
     }
 
@@ -199,6 +202,21 @@ export async function PUT(
         where: { id: updatedVatQuarter.clientId },
         data: { vatAssignedUserId: finalAssigneeId }
       })
+
+      // REQUIREMENT: Unassign future quarters for this client (only current filing month workflow should have assigned user)
+      // Find all future VAT quarters for this client and unassign them
+      const currentQuarterEndDate = new Date(vatQuarter.quarterEndDate)
+      await prisma.vATQuarter.updateMany({
+        where: {
+          clientId: updatedVatQuarter.clientId,
+          id: { not: vatQuarterId }, // Exclude current quarter
+          quarterEndDate: { gt: currentQuarterEndDate }, // Only future quarters
+          assignedUserId: { not: null } // Only assigned quarters
+        },
+        data: {
+          assignedUserId: null // Unassign future quarters
+        }
+      })
     }
 
     // Create workflow history entry
@@ -226,16 +244,30 @@ export async function PUT(
       comments
     ))
 
-    // Log assignment changes if assignee was updated
-    if (assignedUserId && finalAssigneeId !== updatedVatQuarter.assignedUserId) {
-      const assignedUser = updatedVatQuarter.assignedUser
-      if (assignedUser) {
-        await logActivityEnhanced(request, ActivityHelpers.workflowAssigned(
-          'VAT',
-          updatedVatQuarter.clientId,
-          assignedUser.id,
-          assignedUser.name
-        ))
+    // Log assignment changes if assignee was updated (including unassignment)
+    if (assignedUserId !== undefined && finalAssigneeId !== vatQuarter.assignedUserId) {
+      if (finalAssigneeId) {
+        // Assignment to a user
+        const assignedUser = updatedVatQuarter.assignedUser
+        if (assignedUser) {
+          await logActivityEnhanced(request, ActivityHelpers.workflowAssigned(
+            'VAT',
+            updatedVatQuarter.clientId,
+            assignedUser.id,
+            assignedUser.name
+          ))
+        }
+      } else {
+        // Unassignment
+        await logActivityEnhanced(request, {
+          action: 'VAT_WORKFLOW_UNASSIGNED',
+          clientId: updatedVatQuarter.clientId,
+          details: {
+            companyName: updatedVatQuarter.client.companyName,
+            quarterPeriod: updatedVatQuarter.quarterPeriod,
+            previousAssignee: vatQuarter.assignedUserId
+          }
+        })
       }
     }
 

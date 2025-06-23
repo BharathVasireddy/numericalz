@@ -61,6 +61,24 @@ export async function PUT(
     const currentWorkflow = client.ltdAccountsWorkflows[0]
     let workflow
 
+    // Check if workflow is already completed (allow undo operations)
+    if (currentWorkflow?.isCompleted) {
+      const isUndoOperation = stage && stage !== 'FILED_CH_HMRC'
+      if (!isUndoOperation) {
+        return NextResponse.json({ 
+          error: 'Cannot update workflow for completed Ltd accounts workflow' 
+        }, { status: 400 })
+      }
+      
+      // For undo operations, set isCompleted to false
+      if (isUndoOperation) {
+        await db.ltdAccountsWorkflow.update({
+          where: { id: currentWorkflow.id },
+          data: { isCompleted: false }
+        })
+      }
+    }
+
     if (!currentWorkflow) {
       // Create new workflow if none exists
       const currentYear = new Date().getFullYear()
@@ -100,6 +118,7 @@ export async function PUT(
       
       if (stage) {
         updateData.currentStage = stage as LtdAccountsWorkflowStage
+        updateData.isCompleted = stage === 'FILED_CH_HMRC'
         
         // Set milestone dates based on stage
         const milestoneField = getMilestoneFieldForStage(stage)

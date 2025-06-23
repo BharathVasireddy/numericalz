@@ -56,7 +56,6 @@ import {
 } from '@/components/ui/dialog'
 
 import { BulkOperations } from './bulk-operations'
-import { AssignUserModal } from './assign-user-modal'
 import { Badge } from '@/components/ui/badge'
 import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 
@@ -188,10 +187,6 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
   // Modal state for resign functionality
   const [showResignModal, setShowResignModal] = useState(false)
   const [clientToResign, setClientToResign] = useState<Client | null>(null)
-  
-  // Modal state for assign functionality
-  const [showAssignModal, setShowAssignModal] = useState(false)
-  const [clientToAssign, setClientToAssign] = useState<Client | null>(null)
   
   // Modal state for activity log
   const [showActivityLogModal, setShowActivityLogModal] = useState(false)
@@ -494,11 +489,6 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
     return diffDays <= daysThreshold && diffDays > 0
   }
 
-  const handleAssignUser = (client: Client) => {
-    setClientToAssign(client)
-    setShowAssignModal(true)
-  }
-
   const handleResignClient = (client: Client) => {
     setClientToResign(client)
     setShowResignModal(true)
@@ -564,10 +554,6 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
       console.error('Error refreshing Companies House data:', error)
       showToast.error('Error refreshing Companies House data')
     }
-  }
-
-  const handleAssignSuccess = () => {
-    fetchClients() // Refresh the clients list
   }
 
   const handleViewActivityLog = (client: Client) => {
@@ -816,13 +802,6 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
                                   <Edit className="h-4 w-4" />
                                   Edit Client
                                 </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => handleAssignUser(client)}
-                                  className="flex items-center gap-2 cursor-pointer"
-                                >
-                                  <UserPlus className="h-4 w-4" />
-                                  Assign User
-                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                   onClick={() => handleRefreshCompaniesHouse(client)}
@@ -853,15 +832,6 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
           </div>
         </CardContent>
       </Card>
-
-      {/* Assign User Modal */}
-      <AssignUserModal
-        client={clientToAssign}
-        users={users}
-        isOpen={showAssignModal}
-        onClose={() => setShowAssignModal(false)}
-        onSuccess={handleAssignSuccess}
-      />
 
       {/* Resign Confirmation Modal */}
       <Dialog open={showResignModal} onOpenChange={setShowResignModal}>

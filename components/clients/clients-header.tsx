@@ -30,35 +30,12 @@ import {
   XCircle
 } from 'lucide-react'
 import Link from 'next/link'
-import { AdvancedFilterModal } from './advanced-filter-modal'
 
 interface User {
   id: string
   name: string
   email: string
   role: string
-}
-
-// Advanced filter interfaces
-interface FilterCondition {
-  id: string
-  field: string
-  operator: string
-  value: string | string[] | boolean | null
-  value2?: string
-}
-
-interface FilterGroup {
-  id: string
-  operator: 'AND' | 'OR'
-  conditions: FilterCondition[]
-}
-
-interface AdvancedFilter {
-  id: string
-  name: string
-  groups: FilterGroup[]
-  groupOperator: 'AND' | 'OR'
 }
 
 interface Filters {
@@ -76,8 +53,8 @@ interface ClientsHeaderProps {
   totalClients: number
   filteredClients: number
   users: User[]
-  advancedFilter?: AdvancedFilter | null
-  onAdvancedFilterChange: (filter: AdvancedFilter | null) => void
+  advancedFilter?: any | null
+  onAdvancedFilterChange: (filter: any | null) => void
 }
 
 /**
@@ -102,8 +79,6 @@ export function ClientsHeader({
   onAdvancedFilterChange
 }: ClientsHeaderProps) {
   const router = useRouter()
-  const [showAdvancedFilter, setShowAdvancedFilter] = useState(false)
-  const [currentAdvancedFilter, setCurrentAdvancedFilter] = useState<AdvancedFilter | null>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [userClientCounts, setUserClientCounts] = useState<Record<string, number>>({})
   const [accountsClientCounts, setAccountsClientCounts] = useState<Record<string, number>>({})
@@ -180,218 +155,12 @@ export function ClientsHeader({
       status: ''
     })
     onSearchChange('')
-    setCurrentAdvancedFilter(null)
     if (onAdvancedFilterChange) {
       onAdvancedFilterChange(null)
     }
   }
 
-  const handleAdvancedFilter = (filterOptions: any) => {
-    // Convert FilterOptions to AdvancedFilter format
-    const conditions: FilterCondition[] = []
-    
-    // Add search term condition
-    if (filterOptions.searchTerm) {
-      conditions.push({
-        id: 'search',
-        field: 'companyName',
-        operator: 'contains',
-        value: filterOptions.searchTerm
-      })
-    }
-    
-    // Add assigned user condition
-    if (filterOptions.assignedUser !== 'all') {
-      conditions.push({
-        id: 'assigned',
-        field: 'assignedUser',
-        operator: 'equals',
-        value: filterOptions.assignedUser
-      })
-    }
-    
-    // Add company type condition
-    if (filterOptions.companyType !== 'all') {
-      conditions.push({
-        id: 'companyType',
-        field: 'companyType',
-        operator: 'equals',
-        value: filterOptions.companyType
-      })
-    }
-    
-    // Add workflow stage conditions
-    if (filterOptions.workflowStage.length > 0) {
-      conditions.push({
-        id: 'workflowStage',
-        field: 'workflowStage',
-        operator: 'in',
-        value: filterOptions.workflowStage
-      })
-    }
-    
-    // Add date conditions
-    if (filterOptions.dueDateFrom) {
-      conditions.push({
-        id: 'dueDateFrom',
-        field: 'dueDate',
-        operator: 'gte',
-        value: filterOptions.dueDateFrom
-      })
-    }
-    
-    if (filterOptions.dueDateTo) {
-      conditions.push({
-        id: 'dueDateTo',
-        field: 'dueDate',
-        operator: 'lte',
-        value: filterOptions.dueDateTo
-      })
-    }
-    
-    // Add completion status condition
-    if (filterOptions.isCompleted !== null) {
-      conditions.push({
-        id: 'isCompleted',
-        field: 'isCompleted',
-        operator: 'equals',
-        value: filterOptions.isCompleted
-      })
-    }
-    
-    // Add overdue status condition
-    if (filterOptions.isOverdue !== null) {
-      conditions.push({
-        id: 'isOverdue',
-        field: 'isOverdue',
-        operator: 'equals',
-        value: filterOptions.isOverdue
-      })
-    }
-    
-    // Create AdvancedFilter object
-    const advancedFilter: AdvancedFilter = {
-      id: `filter-${Date.now()}`,
-      name: 'Advanced Filter',
-      groups: [{
-        id: 'main',
-        operator: 'AND',
-        conditions
-      }],
-      groupOperator: 'AND'
-    }
-    
-    setCurrentAdvancedFilter(advancedFilter)
-    if (onAdvancedFilterChange) {
-      onAdvancedFilterChange(advancedFilter)
-    }
-    
-    // Clear basic filters when using advanced filters
-    onFiltersChange({
-      companyType: '',
-      accountsAssignedUser: '',
-      vatAssignedUser: '',
-      status: ''
-    })
-    onSearchChange('')
-  }
-
-  // Convert AdvancedFilter to FilterOptions for the modal
-  const convertAdvancedFilterToOptions = (advancedFilter: AdvancedFilter | null) => {
-    if (!advancedFilter) {
-      return {
-        searchTerm: '',
-        assignedUser: 'all',
-        workflowStage: [] as string[],
-        dueDateFrom: '',
-        dueDateTo: '',
-        overdueDays: null as number | null,
-        isCompleted: null as boolean | null,
-        isOverdue: null as boolean | null,
-        hasRecentActivity: null as boolean | null,
-        priorityLevel: 'all',
-        companyType: 'all',
-        incorporationDateFrom: '',
-        incorporationDateTo: '',
-        vatFrequency: [] as string[],
-        vatQuarterGroup: [] as string[]
-      }
-    }
-
-    const options = {
-      searchTerm: '',
-      assignedUser: 'all',
-      workflowStage: [] as string[],
-      dueDateFrom: '',
-      dueDateTo: '',
-      overdueDays: null as number | null,
-      isCompleted: null as boolean | null,
-      isOverdue: null as boolean | null,
-      hasRecentActivity: null as boolean | null,
-      priorityLevel: 'all',
-      companyType: 'all',
-      incorporationDateFrom: '',
-      incorporationDateTo: '',
-      vatFrequency: [] as string[],
-      vatQuarterGroup: [] as string[]
-    }
-
-    // Extract values from conditions
-    advancedFilter.groups.forEach(group => {
-      group.conditions.forEach(condition => {
-        switch (condition.field) {
-          case 'companyName':
-            if (condition.operator === 'contains' && typeof condition.value === 'string') {
-              options.searchTerm = condition.value
-            }
-            break
-          case 'assignedUser':
-            if (condition.operator === 'equals' && typeof condition.value === 'string') {
-              options.assignedUser = condition.value
-            }
-            break
-          case 'companyType':
-            if (condition.operator === 'equals' && typeof condition.value === 'string') {
-              options.companyType = condition.value
-            }
-            break
-          case 'workflowStage':
-            if (condition.operator === 'in' && Array.isArray(condition.value)) {
-              options.workflowStage = condition.value as string[]
-            }
-            break
-          case 'dueDate':
-            if (condition.operator === 'gte' && typeof condition.value === 'string') {
-              options.dueDateFrom = condition.value
-            } else if (condition.operator === 'lte' && typeof condition.value === 'string') {
-              options.dueDateTo = condition.value
-            }
-            break
-          case 'isCompleted':
-            if (condition.operator === 'equals' && typeof condition.value === 'boolean') {
-              options.isCompleted = condition.value
-            }
-            break
-          case 'isOverdue':
-            if (condition.operator === 'equals' && typeof condition.value === 'boolean') {
-              options.isOverdue = condition.value
-            }
-            break
-        }
-      })
-    })
-
-    return options
-  }
-
-  const clearAdvancedFilter = () => {
-    setCurrentAdvancedFilter(null)
-    if (onAdvancedFilterChange) {
-      onAdvancedFilterChange(null)
-    }
-  }
-
-  const hasActiveFilters = searchQuery || filters.companyType || filters.accountsAssignedUser || filters.vatAssignedUser || currentAdvancedFilter
+  const hasActiveFilters = searchQuery || filters.companyType || filters.accountsAssignedUser || filters.vatAssignedUser || advancedFilter
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -408,21 +177,6 @@ export function ClientsHeader({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant={currentAdvancedFilter ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setShowAdvancedFilter(true)}
-            className="btn-outline flex items-center gap-2"
-          >
-            <Settings className="h-4 w-4" />
-            Advanced Filters
-            {currentAdvancedFilter && (
-              <Badge variant="secondary" className="ml-1 px-1 py-0 text-xs">
-                ON
-              </Badge>
-            )}
-          </Button>
-          
           {/* Quick filter for staff users */}
           {session?.user?.role === 'STAFF' && (
             <Button
@@ -475,7 +229,7 @@ export function ClientsHeader({
       </Card>
 
       {/* General Filters - Always Visible */}
-      {!currentAdvancedFilter && (
+      {!advancedFilter && (
         <Card className="p-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
@@ -551,36 +305,30 @@ export function ClientsHeader({
       {/* Active Filters Display */}
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2">
-          {currentAdvancedFilter && (
+          {advancedFilter && (
             <Badge variant="default" className="flex items-center gap-1">
               <Settings className="h-3 w-3" />
-              Advanced: {currentAdvancedFilter.name}
-              <button
-                onClick={clearAdvancedFilter}
-                className="ml-1 hover:bg-white/20 rounded-full p-0.5"
-              >
-                ×
-              </button>
+              Advanced: {advancedFilter.name}
             </Badge>
           )}
-          {!currentAdvancedFilter && searchQuery && (
+          {!advancedFilter && searchQuery && (
             <Badge variant="secondary" className="flex items-center gap-1">
               Search: "{searchQuery}"
             </Badge>
           )}
-          {!currentAdvancedFilter && filters.companyType && (
+          {!advancedFilter && filters.companyType && (
             <Badge variant="secondary" className="flex items-center gap-1">
               Type: {filters.companyType.replace('_', ' ')}
             </Badge>
           )}
-          {!currentAdvancedFilter && filters.accountsAssignedUser && (
+          {!advancedFilter && filters.accountsAssignedUser && (
             <Badge variant="secondary" className="flex items-center gap-1">
               Accounts: {filters.accountsAssignedUser === 'me' ? 'My Clients' : 
                          filters.accountsAssignedUser === 'unassigned' ? 'Unassigned' : 
                          users.find(u => u.id === filters.accountsAssignedUser)?.name || filters.accountsAssignedUser}
             </Badge>
           )}
-          {!currentAdvancedFilter && filters.vatAssignedUser && (
+          {!advancedFilter && filters.vatAssignedUser && (
             <Badge variant="secondary" className="flex items-center gap-1">
               VAT: {filters.vatAssignedUser === 'me' ? 'My Clients' : 
                     filters.vatAssignedUser === 'unassigned' ? 'Unassigned' : 
@@ -589,16 +337,6 @@ export function ClientsHeader({
           )}
         </div>
       )}
-
-      {/* Advanced Filter Modal */}
-      <AdvancedFilterModal
-        isOpen={showAdvancedFilter}
-        onClose={() => setShowAdvancedFilter(false)}
-        onApplyFilters={handleAdvancedFilter}
-        currentFilter={currentAdvancedFilter}
-        users={users}
-        tableType="ltd"
-      />
     </div>
   )
 } 

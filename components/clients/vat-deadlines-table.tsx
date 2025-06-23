@@ -55,7 +55,8 @@ import {
   UserPlus,
   Edit,
   Settings,
-  Filter
+  Filter,
+  Undo2
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
 import { 
@@ -599,8 +600,8 @@ export function VATDeadlinesTable() {
           bValue = getWorkflowStatus(bQuarter).label
           break
         case 'assignedTo':
-          aValue = aQuarter?.assignedUser?.name || a.vatAssignedUser?.name || 'Unassigned'
-          bValue = bQuarter?.assignedUser?.name || b.vatAssignedUser?.name || 'Unassigned'
+                  aValue = aQuarter?.assignedUser?.name || a.vatAssignedUser?.name || ''
+        bValue = bQuarter?.assignedUser?.name || b.vatAssignedUser?.name || ''
           break
         default:
           return 0
@@ -642,6 +643,44 @@ export function VATDeadlinesTable() {
     setShowActivityLogModal(true)
   }
 
+  const handleUndoFiling = async (client: VATClient, quarter: VATQuarter | null) => {
+    if (!quarter) return
+    
+    try {
+      setUpdating(true)
+      
+      const response = await fetch(`/api/vat-quarters/${quarter.id}/workflow`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage: 'CLIENT_APPROVED', // Reset to previous stage
+          comments: 'Filing undone - workflow reopened for corrections',
+          assignedUserId: client.vatAssignedUser?.id || null
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to undo filing')
+      }
+
+      const data = await response.json()
+      
+      if (data.success) {
+        showToast.success('Filing undone successfully - workflow reopened')
+        await fetchVATClients(true)
+      } else {
+        throw new Error(data.error || 'Failed to undo filing')
+      }
+      
+    } catch (error) {
+      console.error('Error undoing filing:', error)
+      showToast.error('Failed to undo filing. Please try again.')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
   const handleStageChange = (stageKey: string) => {
     if (!selectedClient?.currentVATQuarter?.currentStage) {
       setSelectedStage(stageKey)
@@ -661,8 +700,19 @@ export function VATDeadlinesTable() {
   }
 
   const handleSubmitUpdate = async () => {
-    if (!selectedClient || (!selectedStage && selectedAssignee === (selectedClient?.vatAssignedUser?.id || 'unassigned'))) {
-      showToast.error('Please select a stage to update or assign a user')
+    if (!selectedClient) {
+      showToast.error('No client selected')
+      return
+    }
+
+    // Allow update if either stage is changed OR assignee is changed (use same logic as Ltd table)
+    const currentAssigneeId = selectedClient?.vatAssignedUser?.id || null
+    const selectedAssigneeId = selectedAssignee === 'unassigned' ? null : selectedAssignee
+    const hasStageChange = selectedStage && selectedStage !== selectedClient?.currentVATQuarter?.currentStage
+    const hasAssigneeChange = selectedAssigneeId !== currentAssigneeId
+
+    if (!hasStageChange && !hasAssigneeChange) {
+      showToast.error('Please select a stage to update or change the assignment')
       return
     }
 
@@ -674,67 +724,33 @@ export function VATDeadlinesTable() {
 
     setUpdating(true)
     try {
-      let assignmentUpdated = false
-      
-      // Handle assignment if assignee changed
-      if (selectedAssignee !== (selectedClient.vatAssignedUser?.id || 'unassigned')) {
-        const assignResponse = await fetch(`/api/clients/${selectedClient.id}/assign-vat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            userId: selectedAssignee === 'unassigned' ? null : selectedAssignee
-          })
-        })
-
-        if (!assignResponse.ok) {
-          throw new Error('Failed to assign VAT user')
-        }
-        
-        assignmentUpdated = true
-        
-        // Update local state immediately for responsive UI
-        const assignedUser = selectedAssignee === 'unassigned' ? null : users.find(u => u.id === selectedAssignee)
-        setVatClients(prevClients => 
-          prevClients.map(client => {
-            if (client.id === selectedClient.id) {
-              return {
-                ...client,
-                vatAssignedUser: assignedUser ? {
-                  id: assignedUser.id,
-                  name: assignedUser.name,
-                  email: assignedUser.email,
-                  role: assignedUser.role
-                } : undefined
-              }
-            }
-            return client
-          })
-        )
+      // Use single API call like Ltd table (simpler approach)
+      if (!selectedClient.currentVATQuarter) {
+        showToast.error('No active VAT quarter found for this client')
+        return
       }
 
-      // Handle workflow stage update if stage selected
-      if (selectedStage && selectedClient.currentVATQuarter) {
-        const workflowResponse = await fetch(`/api/vat-quarters/${selectedClient.currentVATQuarter.id}/workflow`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            stage: selectedStage,
-            comments: updateComments,
-            assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee
-          })
+      const response = await fetch(`/api/vat-quarters/${selectedClient.currentVATQuarter.id}/workflow`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage: selectedStage || selectedClient.currentVATQuarter.currentStage,
+          assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
+          comments: updateComments || (hasAssigneeChange && !hasStageChange ? 'Assignment updated' : '')
         })
+      })
 
-        if (!workflowResponse.ok) {
-          throw new Error('Failed to update workflow stage')
-        }
+      const data = await response.json()
+
+      if (data.success) {
+        showToast.success('Update completed successfully')
+        setUpdateModalOpen(false)
+        setSelectedStage(undefined)
+        setUpdateComments('')
+        await fetchVATClients(true)
+      } else {
+        showToast.error(data.error || 'Failed to update workflow')
       }
-
-      showToast.success('Update completed successfully')
-      setUpdateModalOpen(false)
-      
-      // Force refresh data from server to ensure consistency
-      await fetchVATClients(true)
-      
     } catch (error) {
       console.error('Error updating:', error)
       showToast.error('Failed to update. Please try again.')
@@ -809,67 +825,33 @@ export function VATDeadlinesTable() {
 
     setUpdating(true)
     try {
-      let assignmentUpdated = false
-      
-      // Handle assignment if assignee changed
-      if (selectedAssignee !== (selectedClient.vatAssignedUser?.id || 'unassigned')) {
-        const assignResponse = await fetch(`/api/clients/${selectedClient.id}/assign-vat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            userId: selectedAssignee === 'unassigned' ? null : selectedAssignee
-          })
-        })
-
-        if (!assignResponse.ok) {
-          throw new Error('Failed to assign VAT user')
-        }
-        
-        assignmentUpdated = true
-        
-        // Update local state immediately for responsive UI
-        const assignedUser = selectedAssignee === 'unassigned' ? null : users.find(u => u.id === selectedAssignee)
-        setVatClients(prevClients => 
-          prevClients.map(client => {
-            if (client.id === selectedClient.id) {
-              return {
-                ...client,
-                vatAssignedUser: assignedUser ? {
-                  id: assignedUser.id,
-                  name: assignedUser.name,
-                  email: assignedUser.email,
-                  role: assignedUser.role
-                } : undefined
-              }
-            }
-            return client
-          })
-        )
+      if (!selectedClient.currentVATQuarter) {
+        showToast.error('No active VAT quarter found for this client')
+        return
       }
 
-      // Handle workflow stage update
-      if (selectedClient.currentVATQuarter) {
-        const workflowResponse = await fetch(`/api/vat-quarters/${selectedClient.currentVATQuarter.id}/workflow`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            stage: selectedStage,
-            comments: updateComments || 'Filed to HMRC - VAT return completed',
-            assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee
-          })
+      const response = await fetch(`/api/vat-quarters/${selectedClient.currentVATQuarter.id}/workflow`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage: selectedStage,
+          assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
+          comments: updateComments || 'Filed to HMRC - VAT return completed'
         })
+      })
 
-        if (!workflowResponse.ok) {
-          throw new Error('Failed to update workflow stage')
-        }
+      const data = await response.json()
+
+      if (data.success) {
+        showToast.success('VAT return successfully filed to HMRC')
+        setUpdateModalOpen(false)
+        setShowFiledToHMRCConfirm(false)
+        setSelectedStage(undefined)
+        setUpdateComments('')
+        await fetchVATClients(true)
+      } else {
+        showToast.error(data.error || 'Failed to file to HMRC')
       }
-
-      showToast.success('VAT return successfully filed to HMRC')
-      setUpdateModalOpen(false)
-      setShowFiledToHMRCConfirm(false)
-      
-      // Force refresh data from server to ensure consistency
-      await fetchVATClients(true)
       
     } catch (error) {
       console.error('Error filing to HMRC:', error)
@@ -1163,12 +1145,16 @@ export function VATDeadlinesTable() {
                 <TableCell className="p-2 text-center">
                   {isApplicable ? (
                     <div className="flex items-center justify-center gap-1 text-xs truncate max-w-[120px]" title={monthQuarter?.assignedUser?.name || client.vatAssignedUser?.name || 'Unassigned'}>
-                      <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                      <span className="truncate">
-                        {monthQuarter?.assignedUser?.name || 
-                         client.vatAssignedUser?.name || 
-                         'Unassigned'}
-                      </span>
+                      {monthQuarter?.assignedUser?.name || client.vatAssignedUser?.name ? (
+                        <>
+                          <User className="h-3 w-3 text-blue-600 flex-shrink-0" />
+                          <span className="truncate text-blue-600">
+                            {monthQuarter?.assignedUser?.name || client.vatAssignedUser?.name}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Unassigned</span>
+                      )}
                     </div>
                   ) : (
                     <span className="text-xs text-gray-500">Not Applicable</span>
@@ -1177,7 +1163,18 @@ export function VATDeadlinesTable() {
                 <TableCell className="p-2 text-center">
                   {isApplicable ? (
                     monthQuarter?.isCompleted || monthQuarter?.currentStage === 'FILED_TO_HMRC' ? (
-                      <span className="text-xs text-green-600 font-medium">Complete</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-green-600 font-medium">Complete</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleUndoFiling(client, monthQuarter)}
+                          className="action-trigger-button h-8 w-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                          title="Undo filing (reopen workflow)"
+                        >
+                          <Undo2 className="action-trigger-icon" />
+                        </Button>
+                      </div>
                     ) : (
                       <Button
                         variant="outline"
@@ -1533,6 +1530,30 @@ export function VATDeadlinesTable() {
           </DialogHeader>
           
           <div className="space-y-4">
+            {/* Current Status Display */}
+            {selectedClient?.currentVATQuarter && (
+              <div className="bg-muted/20 p-3 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Current Status</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={getWorkflowStatus(selectedClient.currentVATQuarter).color}>
+                      {getWorkflowStatus(selectedClient.currentVATQuarter).label}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <User className="h-3 w-3 text-muted-foreground" />
+                    <span className="font-medium">
+                      {selectedClient.currentVATQuarter.assignedUser?.name || 
+                       selectedClient.vatAssignedUser?.name || 'Unassigned'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Assignment Section - Only for Managers/Partners */}
             {(session?.user?.role === 'MANAGER' || session?.user?.role === 'PARTNER') && (
               <div>
@@ -1654,7 +1675,7 @@ export function VATDeadlinesTable() {
             </Button>
             <Button 
               onClick={handleSubmitUpdate}
-              disabled={updating || (!selectedStage && selectedAssignee === (selectedClient?.vatAssignedUser?.id || 'unassigned'))}
+              disabled={updating}
             >
               {updating ? 'Updating...' : 'Update'}
             </Button>
