@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
-import { CacheHelpers } from '@/lib/performance-cache'
+
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -239,16 +239,9 @@ export async function GET(request: NextRequest) {
     // Calculate pagination
     const skip = (page - 1) * limit
 
-        // OPTIMIZED: Cached parallel database queries
-    const cacheParams = {
-      search, companyType, accountsAssignedUserId, vatAssignedUserId,
-      isActive, sortBy, sortOrder, page, limit
-    }
-    
+        // Direct parallel database queries - no caching for real-time updates
     const [clients, totalCount] = await Promise.all([
-      CacheHelpers.clients.getPage(
-        { ...cacheParams, type: 'data' },
-        () => db.client.findMany({
+      db.client.findMany({
           where,
           select: {
             id: true,
@@ -309,12 +302,8 @@ export async function GET(request: NextRequest) {
           })(),
           skip,
           take: limit,
-        })
-      ),
-      CacheHelpers.clients.getCount(
-        { ...cacheParams, type: 'count' },
-        () => db.client.count({ where })
-      ),
+        }),
+      db.client.count({ where }),
     ])
 
     const totalPages = Math.ceil(totalCount / limit)
@@ -345,10 +334,14 @@ export async function GET(request: NextRequest) {
     // PERFORMANCE: Smart caching based on search and filters
     if (search || accountsAssignedUserId || vatAssignedUserId) {
       // Dynamic queries - shorter cache
-      response.headers.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=15')
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+      response.headers.set('Pragma', 'no-cache')
+      response.headers.set('Expires', '0')
     } else {
       // Static/simple queries - longer cache
-              response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=30')
+              response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+        response.headers.set('Pragma', 'no-cache')
+        response.headers.set('Expires', '0')
     }
     
     // Add ETag for conditional requests

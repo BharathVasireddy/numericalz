@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { CacheHelpers } from '@/lib/performance-cache'
+
 
 /**
  * GET /api/clients/user-counts
@@ -37,41 +37,41 @@ export async function GET(request: NextRequest) {
       })
       
       // Cache staff response for longer since it's static
-      response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=30') // 1 min cache for real-time updates
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
       return response
     }
 
-    // OPTIMIZED: Cached query to get all users with their client counts
-    const usersWithCounts = await CacheHelpers.clients.getUserCounts(() => 
-      db.user.findMany({
-        where: { isActive: true },
-        select: {
-          id: true,
-          name: true,
-          _count: {
-            select: {
-              // General assignment count
-              assignedClients: {
-                where: { isActive: true }
-              },
-              // Ltd company accounts assignment count
-              ltdCompanyAssignedClients: {
-                where: { isActive: true }
-              },
-              // Non-Ltd company accounts assignment count
-              nonLtdCompanyAssignedClients: {
-                where: { isActive: true }
-              },
-              // VAT assignment count
-              vatAssignedClients: {
-                where: { isActive: true }
-              }
+    // Direct database query - no caching for real-time updates
+    const usersWithCounts = await db.user.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        _count: {
+          select: {
+            // General assignment count
+            assignedClients: {
+              where: { isActive: true }
+            },
+            // Ltd company accounts assignment count
+            ltdCompanyAssignedClients: {
+              where: { isActive: true }
+            },
+            // Non-Ltd company accounts assignment count
+            nonLtdCompanyAssignedClients: {
+              where: { isActive: true }
+            },
+            // VAT assignment count
+            vatAssignedClients: {
+              where: { isActive: true }
             }
           }
-        },
-        orderBy: { name: 'asc' }
-      })
-    )
+        }
+      },
+      orderBy: { name: 'asc' }
+    })
 
     // OPTIMIZED: Process results without additional database queries
     const userClientCounts: Record<string, number> = {}
@@ -99,8 +99,10 @@ export async function GET(request: NextRequest) {
       vatClientCounts
     })
 
-    // PERFORMANCE: Cache response for 1 minute with stale-while-revalidate for real-time updates
-    response.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=30')
+    // REAL-TIME: No caching for immediate updates
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
     response.headers.set('ETag', `"user-counts-${Date.now()}"`)
 
     return response
