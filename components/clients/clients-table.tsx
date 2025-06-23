@@ -243,9 +243,9 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
                   bValue = b.nonLtdCompanyAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
                 }
               } else if (sortBy === 'vatAssigned') {
-                // Get effective VAT assignment
-                aValue = a.vatAssignedUser?.name || a.assignedUser?.name || 'Unassigned'
-                bValue = b.vatAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
+                // Get effective VAT assignment with proper handling for non-VAT clients
+                aValue = a.isVatEnabled ? (a.vatAssignedUser?.name || 'Unassigned') : 'Not Opted'
+                bValue = b.isVatEnabled ? (b.vatAssignedUser?.name || 'Unassigned') : 'Not Opted'
               }
               
               const comparison = aValue.localeCompare(bValue)
@@ -337,9 +337,9 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
                 bValue = b.nonLtdCompanyAssignedUser?.name || 'Unassigned'
               }
             } else if (sortBy === 'vatAssigned') {
-              // Get specific VAT assignment only (no fallback)
-              aValue = a.vatAssignedUser?.name || 'Unassigned'
-              bValue = b.vatAssignedUser?.name || 'Unassigned'
+              // Get effective VAT assignment with proper handling for non-VAT clients
+              aValue = a.isVatEnabled ? (a.vatAssignedUser?.name || 'Unassigned') : 'Not Opted'
+              bValue = b.isVatEnabled ? (b.vatAssignedUser?.name || 'Unassigned') : 'Not Opted'
             }
             
             const comparison = aValue.localeCompare(bValue)
@@ -768,15 +768,19 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
                       </TableCell>
                       <TableCell className="p-2 text-center">
                         <div className="text-xs">
-                          {client.vatAssignedUser ? (
-                            <div className="flex items-center justify-center gap-1 truncate max-w-[100px]" title={client.vatAssignedUser.name}>
-                              <User className="h-3 w-3 text-green-600 flex-shrink-0" />
-                              <span className="text-green-600 font-medium truncate">
-                                {client.vatAssignedUser.name}
-                              </span>
-                            </div>
+                          {client.isVatEnabled ? (
+                            client.vatAssignedUser ? (
+                              <div className="flex items-center justify-center gap-1 truncate max-w-[100px]" title={client.vatAssignedUser.name}>
+                                <User className="h-3 w-3 text-green-600 flex-shrink-0" />
+                                <span className="text-green-600 font-medium truncate">
+                                  {client.vatAssignedUser.name}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">Unassigned</span>
+                            )
                           ) : (
-                            <span className="text-muted-foreground">Unassigned</span>
+                            <span className="text-muted-foreground">Not Opted</span>
                           )}
                         </div>
                       </TableCell>
