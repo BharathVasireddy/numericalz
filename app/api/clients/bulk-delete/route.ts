@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { logActivityEnhanced } from '@/lib/activity-middleware'
+import { logActivity, ActivityTypes } from '@/lib/activity-logger'
 
 /**
  * POST /api/clients/bulk-delete
@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
 
     let deletedCount = 0
     let failedCount = 0
-    const deletedClients = []
-    const failedClients = []
+    const deletedClients: Array<{ id: string; companyName: string; clientCode: string }> = []
+    const failedClients: Array<{ id: string; companyName: string; error: string }> = []
 
     // Process deletions in batches to avoid memory issues
     const batchSize = 10
@@ -144,11 +144,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Log bulk deletion activity
-    await logActivityEnhanced({
-      action: 'BULK_CLIENT_DELETE',
+    await logActivity({
       userId: session.user.id,
-      details: `Bulk deleted ${deletedCount} clients. Failed: ${failedCount}`,
-      metadata: {
+      action: 'BULK_CLIENT_DELETE',
+      details: {
+        message: `Bulk deleted ${deletedCount} clients. Failed: ${failedCount}`,
         requested: clientIds.length,
         deleted: deletedCount,
         failed: failedCount,

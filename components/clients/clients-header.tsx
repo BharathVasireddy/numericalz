@@ -110,25 +110,14 @@ export function ClientsHeader({
   const [vatClientCounts, setVatClientCounts] = useState<Record<string, number>>({})
   const { data: session } = useSession()
 
-  // Fetch users for filtering (only for managers and partners)
+  // Fetch user client counts for filtering (only for managers and partners)
   useEffect(() => {
     if (session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') {
-      fetchUsers()
       fetchUserClientCounts()
     }
   }, [session])
 
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch('/api/users?includeSelf=true')
-      if (response.ok) {
-        const data = await response.json()
-        setUsers(data.users || [])
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error)
-    }
-  }
+  // Users are now passed as props from parent component
 
   const fetchUserClientCounts = async () => {
     try {

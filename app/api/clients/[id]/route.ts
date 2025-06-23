@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { VAT_QUARTER_GROUPS } from '@/lib/vat-workflow'
+import { logClientActivity, ActivityTypes } from '@/lib/activity-logger'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -431,12 +432,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     })
 
     // Log the deletion activity
-    await logActivityEnhanced({
-      action: 'CLIENT_DELETED',
-      userId: session.user.id,
-      details: `Deleted client: ${existingClient.companyName} (${existingClient.clientCode})`,
-      clientId: params.id
-    })
+    await logClientActivity(
+      session.user.id,
+      ActivityTypes.CLIENT_DELETED,
+      params.id,
+      {
+        clientName: existingClient.companyName,
+        companyNumber: existingClient.companyNumber || undefined,
+        reason: `Deleted client: ${existingClient.companyName} (${existingClient.clientCode})`
+      },
+      request
+    )
 
     return NextResponse.json({
       success: true,

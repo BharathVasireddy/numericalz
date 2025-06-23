@@ -21,11 +21,21 @@ export default function NonLtdCompaniesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filters, setFilters] = useState({
     companyType: 'NON_LIMITED_COMPANY',
-    assignedUser: '',
     accountsAssignedUser: '',
     vatAssignedUser: '',
     status: ''
   })
+  
+  // Legacy filters for LegacyClientsTable compatibility
+  const legacyFilters = {
+    companyType: filters.companyType,
+    assignedUser: '', // Not used for this page since we removed general assignments
+    status: filters.status
+  }
+  const [users, setUsers] = useState<any[]>([])
+  const [totalClients, setTotalClients] = useState(0)
+  const [filteredClients, setFilteredClients] = useState(0)
+  const [advancedFilter, setAdvancedFilter] = useState<any>(null)
 
   useEffect(() => {
     if (status === 'loading') return // Still loading
@@ -64,13 +74,16 @@ export default function NonLtdCompaniesPage() {
             onSearchChange={setSearchQuery}
             filters={filters}
             onFiltersChange={setFilters}
-            pageTitle="Non Ltd Companies"
-            pageDescription="Manage all Non Limited Company clients"
+            totalClients={totalClients}
+            filteredClients={filteredClients}
+            users={users}
+            advancedFilter={advancedFilter}
+            onAdvancedFilterChange={setAdvancedFilter}
           />
           
           <LegacyClientsTable 
             searchQuery={searchQuery}
-            filters={filters}
+            filters={legacyFilters}
           />
         </div>
       </div>
