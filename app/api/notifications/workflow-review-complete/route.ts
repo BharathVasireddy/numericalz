@@ -142,6 +142,8 @@ export async function POST(request: NextRequest) {
     // Create email log entry
     const emailLog = await db.emailLog.create({
       data: {
+        fromEmail: 'noreply@numericalz.com',
+        fromName: 'Numericalz',
         recipientEmail: assignedUser.email,
         recipientName: assignedUser.name,
         subject: emailSubject,

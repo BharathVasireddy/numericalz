@@ -483,6 +483,8 @@ model EmailLog {
   updatedAt   DateTime @updatedAt
 
   // Email details
+  fromEmail      String   @default("noreply@numericalz.com")
+  fromName       String   @default("Numericalz")
   recipientEmail String
   recipientName  String?
   subject        String
