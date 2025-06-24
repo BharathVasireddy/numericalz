@@ -225,12 +225,12 @@ export default function EmailLogsPage() {
                     />
                   </div>
                   
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <Select value={statusFilter || 'all'} onValueChange={(value) => setStatusFilter(value === 'all' ? '' : value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="All Statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Statuses</SelectItem>
+                      <SelectItem value="all">All Statuses</SelectItem>
                       <SelectItem value="PENDING">Pending</SelectItem>
                       <SelectItem value="SENT">Sent</SelectItem>
                       <SelectItem value="DELIVERED">Delivered</SelectItem>
@@ -239,12 +239,12 @@ export default function EmailLogsPage() {
                     </SelectContent>
                   </Select>
                   
-                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <Select value={typeFilter || 'all'} onValueChange={(value) => setTypeFilter(value === 'all' ? '' : value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="All Types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Types</SelectItem>
+                      <SelectItem value="all">All Types</SelectItem>
                       <SelectItem value="WORKFLOW_REVIEW_COMPLETE">Workflow Review</SelectItem>
                       <SelectItem value="DEADLINE_REMINDER">Deadline Reminder</SelectItem>
                       <SelectItem value="CLIENT_NOTIFICATION">Client Notification</SelectItem>
