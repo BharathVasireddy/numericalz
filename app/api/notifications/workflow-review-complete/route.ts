@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { emailService } from '@/lib/email-service'
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,145 +57,56 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Prepare email content
-    const getStageDisplayName = (stage: string) => {
-      const stageNames: { [key: string]: string } = {
-        'REVIEWED_BY_MANAGER': 'Reviewed by Manager',
-        'REVIEWED_BY_PARTNER': 'Reviewed by Partner',
-        'REVIEW_PENDING_PARTNER': 'Partner Review',
-        'EMAILED_TO_CLIENT': 'Ready to Email Client',
-        'REVIEW_BY_PARTNER': 'Partner Review',
-        'REVIEW_DONE_HELLO_SIGN': 'Ready for HelloSign'
-      }
-      return stageNames[stage] || stage
-    }
 
-    const workflowTypeDisplay = workflowType === 'vat' ? 'VAT Return' : 'Annual Accounts'
-    const reviewerRole = reviewedBy === 'PARTNER' ? 'Partner' : 'Manager'
-    const nextStageDisplay = getStageDisplayName(nextStage)
-    
-    const isApproved = action === 'approve'
-    const actionEmoji = isApproved ? '✅' : '🔄'
-    const actionText = isApproved ? 'Review Approved' : 'Rework Requested'
-    const actionColor = isApproved ? '#2e7d32' : '#f57c00'
-    const actionBg = isApproved ? '#e8f5e8' : '#fff3e0'
 
-    // Email subject and content
-    const emailSubject = `${actionEmoji} ${actionText} - ${clientName} (${clientCode})`
-    
-    const emailContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-          <h1 style="margin: 0; font-size: 24px;">${actionText} ${actionEmoji}</h1>
-        </div>
-        
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px;">
-          <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <h2 style="color: #333; margin-top: 0;">Client: ${clientName} (${clientCode})</h2>
-            <p style="color: #666; font-size: 16px; margin: 10px 0;">
-              The <strong>${workflowTypeDisplay}</strong> has been ${isApproved ? 'approved' : 'sent back for rework'} by the ${reviewerRole}.
-            </p>
-            
-            ${comments ? `
-            <div style="background: #f5f5f5; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid ${actionColor};">
-              <p style="margin: 0; color: #333; font-weight: bold;">${isApproved ? 'Review Comments:' : 'Rework Instructions:'}</p>
-              <p style="margin: 5px 0 0 0; color: #666;">${comments}</p>
-            </div>
-            ` : ''}
-            
-            <div style="background: ${actionBg}; padding: 15px; border-radius: 6px; margin: 15px 0;">
-              <p style="margin: 0; color: ${actionColor};">
-                <strong>Status:</strong> ${isApproved ? nextStageDisplay + ' - Ready for next steps' : 'Requires corrections - Please address the feedback above'}
-              </p>
-            </div>
-          </div>
-          
-          <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="color: #333; margin-top: 0;">What's Next?</h3>
-            <ul style="color: #666; padding-left: 20px;">
-              ${isApproved ? (
-                nextStage === 'REVIEWED_BY_MANAGER' ? 
-                  '<li>Manager has completed their review</li><li>Work can now proceed to the next stage</li><li>Update workflow status when ready to continue</li>' :
-                  nextStage === 'REVIEWED_BY_PARTNER' ?
-                  '<li>Partner has completed their review</li><li>Work is approved and ready for next steps</li><li>Proceed with client communication or filing as appropriate</li>' :
-                  '<li>Continue with the next stage of the workflow</li><li>Update progress as work continues</li>'
-              ) : (
-                '<li>Review the feedback provided above</li><li>Make the necessary corrections or improvements</li><li>Update the workflow once changes are complete</li><li>The work will be re-reviewed once corrections are made</li>'
-              )}
-            </ul>
-          </div>
-          
-          <div style="text-align: center; margin: 20px 0;">
-            <a href="${process.env.NEXTAUTH_URL}/dashboard/clients/${workflowType === 'vat' ? 'vat-dt' : 'ltd-companies'}?client=${clientId}" 
-               style="background: #1976d2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-              View Workflow Details
-            </a>
-          </div>
-          
-          <div style="border-top: 1px solid #eee; padding-top: 15px; margin-top: 20px; text-align: center; color: #666; font-size: 12px;">
-            <p>This is an automated notification from Numericalz Internal Management System</p>
-            <p>Reviewed by: ${session.user.name || session.user.email} (${reviewerRole})</p>
-          </div>
-        </div>
-      </div>
-    `
+    // Send email using the new email service
+    const emailResult = await emailService.sendWorkflowNotification({
+      to: {
+        email: assignedUser.email,
+        name: assignedUser.name
+      },
+      clientName,
+      clientCode,
+      workflowType: workflowType.toUpperCase() as 'VAT' | 'ACCOUNTS',
+      action,
+      reviewedBy: reviewedBy as 'PARTNER' | 'MANAGER',
+      nextStage,
+      comments,
+      reviewerName: session.user.name || session.user.email || 'Unknown',
+      clientId
+    })
 
-    // Create email log entry
+    // Create email log entry with actual sending result
     const emailLog = await db.emailLog.create({
       data: {
-        fromEmail: 'noreply@numericalz.com',
+        fromEmail: 'notifications@cloud9digital.in',
         fromName: 'Numericalz',
         recipientEmail: assignedUser.email,
         recipientName: assignedUser.name,
-        subject: emailSubject,
-        content: emailContent,
+        subject: `${action === 'approve' ? '✅ Review Approved' : '🔄 Rework Requested'} - ${clientName} (${clientCode})`,
+        content: '', // Content is generated in email service
         emailType: 'WORKFLOW_REVIEW_COMPLETE',
-        status: 'PENDING',
+        status: emailResult.success ? 'SENT' : 'FAILED',
+        sentAt: emailResult.success ? new Date() : null,
+        failedAt: emailResult.success ? null : new Date(),
+        failureReason: emailResult.success ? null : emailResult.error,
         clientId: clientId,
         workflowType: workflowType,
         triggeredBy: session.user.id
       }
     })
 
-    // In a real implementation, you would send the email here
-    // For now, we'll simulate email sending and update the log
-    try {
-      // TODO: Integrate with actual email service (SendGrid, AWS SES, etc.)
-      // Example:
-      // await sendEmail({
-      //   to: assignedUser.email,
-      //   subject: emailSubject,
-      //   html: emailContent
-      // })
-      
-      // Simulate successful email sending
-      await db.emailLog.update({
-        where: { id: emailLog.id },
-        data: {
-          status: 'SENT',
-          sentAt: new Date()
-        }
-      })
-      
-      console.log('📧 Email Notification Logged:', {
+    if (emailResult.success) {
+      console.log('📧 Email sent successfully:', {
         id: emailLog.id,
         to: assignedUser.email,
-        subject: emailSubject,
-        status: 'SENT'
+        messageId: emailResult.messageId
       })
-      
-    } catch (emailError) {
-      // Log email failure
-      await db.emailLog.update({
-        where: { id: emailLog.id },
-        data: {
-          status: 'FAILED',
-          failedAt: new Date(),
-          failureReason: emailError instanceof Error ? emailError.message : 'Unknown error'
-        }
+    } else {
+      console.error('📧 Email sending failed:', {
+        id: emailLog.id,
+        error: emailResult.error
       })
-      
-      console.error('📧 Email sending failed:', emailError)
     }
 
     return NextResponse.json({
@@ -207,7 +119,7 @@ export async function POST(request: NextRequest) {
           email: assignedUser.email
         },
         workflowType,
-        nextStage: nextStageDisplay
+        nextStage: nextStage
       }
     })
 

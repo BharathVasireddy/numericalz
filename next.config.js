@@ -31,14 +31,16 @@ const nextConfig = {
     }
   },
   
-  // Enhanced compiler optimizations
-  compiler: {
-    removeConsole: process.env.NODE_ENV === 'production' ? {
-      exclude: ['error', 'warn']
-    } : false,
-    // Remove React dev tools in production
-    reactRemoveProperties: process.env.NODE_ENV === 'production',
-  },
+  // Enhanced compiler optimizations (conditionally applied for Turbopack compatibility)
+  ...(process.env.TURBOPACK ? {} : {
+    compiler: {
+      removeConsole: process.env.NODE_ENV === 'production' ? {
+        exclude: ['error', 'warn']
+      } : false,
+      // Remove React dev tools in production
+      reactRemoveProperties: process.env.NODE_ENV === 'production',
+    },
+  }),
   
   // Advanced image optimization
   images: {
