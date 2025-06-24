@@ -195,10 +195,20 @@ export function VATDeadlinesTable() {
   // Initialize filter state from URL parameters
   const getInitialFilter = () => {
     const filterParam = searchParams.get('filter')
+    const tabParam = searchParams.get('tab')
+    
     if (filterParam === 'unassigned') {
-      return { filter: 'all' as const, userFilter: 'unassigned' }
+      return { 
+        filter: 'all' as const, 
+        userFilter: 'unassigned',
+        showAllMonths: tabParam === 'all' // Special flag to show all months for unassigned
+      }
     }
-    return { filter: 'assigned_to_me' as const, userFilter: 'all' }
+    return { 
+      filter: 'assigned_to_me' as const, 
+      userFilter: 'all',
+      showAllMonths: false
+    }
   }
   
   const initialFilterState = getInitialFilter()
@@ -228,6 +238,7 @@ export function VATDeadlinesTable() {
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>(initialFilterState.userFilter)
   const [selectedWorkflowStageFilter, setSelectedWorkflowStageFilter] = useState<string>('all')
   const [filter, setFilter] = useState<'assigned_to_me' | 'all'>(initialFilterState.filter)
+  const [showAllMonths, setShowAllMonths] = useState(initialFilterState.showAllMonths)
 
   // Advanced filter state
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false)
@@ -1471,6 +1482,48 @@ export function VATDeadlinesTable() {
                 )}
               </Button>
             </div>
+
+            {/* Unassigned Clients Alert - Show when filtering by unassigned */}
+            {selectedUserFilter === 'unassigned' && (
+              <div className="mb-4">
+                <Card className="border-amber-200 bg-amber-50/50">
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-amber-800 mb-1">
+                          Viewing Unassigned VAT Clients
+                        </h4>
+                        <p className="text-sm text-amber-700 mb-2">
+                          You're viewing unassigned VAT clients. Check different month tabs to see all unassigned clients across filing periods.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {MONTHS.map((month) => {
+                            const monthClients = getClientsForMonth(month.number)
+                            const unassignedInMonth = monthClients.filter(client => !client.vatAssignedUser?.id).length
+                            
+                            if (unassignedInMonth > 0) {
+                              return (
+                                <Button
+                                  key={month.key}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs h-7 px-2 text-amber-700 border-amber-300 hover:bg-amber-100"
+                                  onClick={() => setActiveMonth(month.key)}
+                                >
+                                  {month.short} ({unassignedInMonth})
+                                </Button>
+                              )
+                            }
+                            return null
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* Monthly Tabs */}
             <Card>

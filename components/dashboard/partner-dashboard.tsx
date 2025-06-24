@@ -68,22 +68,20 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
 
   const fetchData = async () => {
     try {
+      setLoading(true)
       const response = await fetch(`/api/dashboard/partner/${userId}`, {
-        method: 'GET',
+        cache: 'no-store',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch dashboard data')
-      }
-
       const result = await response.json()
-      if (result.success && result.data) {
+      
+      if (result.success) {
         setData(result.data)
       } else {
-        throw new Error(result.error || 'Failed to fetch dashboard data')
+        console.error('Failed to fetch dashboard data:', result.error)
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
@@ -96,7 +94,23 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
     fetchData()
   }, [userId])
 
-  // No caching - real-time updates
+  // Enhanced navigation handlers for unassigned clients
+  const handleUnassignedNavigation = (type: 'ltd' | 'nonLtd' | 'vat') => {
+    switch (type) {
+      case 'ltd':
+        window.location.href = '/dashboard/clients/ltd-companies?filter=unassigned'
+        break
+      case 'nonLtd':
+        window.location.href = '/dashboard/clients/non-ltd-companies?filter=unassigned'
+        break
+      case 'vat':
+        // For VAT, we need to navigate to the VAT deadline table with unassigned filter
+        // Since unassigned VAT clients might be in different months, we'll go to the main page
+        // and let the user filter by unassigned, then they can switch months as needed
+        window.location.href = '/dashboard/clients/vat-dt?filter=unassigned&tab=all'
+        break
+    }
+  }
 
   if (loading) {
     return (
@@ -272,9 +286,9 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
             </div>
           </div>
 
-          {/* Unassigned Clients Widget - Compact */}
+          {/* Unassigned Clients Widget - Enhanced Clickable */}
           <div className="px-4 lg:px-0">
-            <Card className="border-amber-200 bg-amber-50/50">
+            <Card className="border-amber-200 bg-amber-50/50 hover:bg-amber-50/70 transition-colors">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -287,74 +301,85 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
                     {data.unassignedClients.ltd + data.unassignedClients.nonLtd + data.unassignedClients.vat} total
                   </div>
                 </div>
+                <p className="text-xs text-amber-700 mt-1">
+                  Click on any section below to view and assign clients
+                </p>
               </CardHeader>
               <CardContent className="pt-0 pb-3">
                 <div className="grid grid-cols-3 gap-2">
-                  {/* Unassigned Ltd Companies */}
-                  <div className="text-center p-2 rounded bg-amber-100 border border-amber-200">
-                    <div className="text-lg font-bold text-amber-900">
+                  {/* Unassigned Ltd Companies - Clickable */}
+                  <div 
+                    className={`text-center p-3 rounded-lg bg-amber-100 border border-amber-200 transition-all duration-200 ${
+                      data.unassignedClients.ltd > 0 
+                        ? 'hover:bg-amber-200 hover:border-amber-300 cursor-pointer hover:shadow-sm' 
+                        : 'opacity-60'
+                    }`}
+                    onClick={() => data.unassignedClients.ltd > 0 && handleUnassignedNavigation('ltd')}
+                  >
+                    <div className="text-xl font-bold text-amber-900">
                       {data.unassignedClients.ltd}
                     </div>
                     <div className="text-xs text-amber-700 leading-tight">
                       Ltd Accounts
                     </div>
+                    {data.unassignedClients.ltd > 0 && (
+                      <div className="text-xs text-amber-600 mt-1 font-medium">
+                        Click to assign →
+                      </div>
+                    )}
                   </div>
 
-                  {/* Unassigned Non-Ltd Companies */}
-                  <div className="text-center p-2 rounded bg-amber-100 border border-amber-200">
-                    <div className="text-lg font-bold text-amber-900">
+                  {/* Unassigned Non-Ltd Companies - Clickable */}
+                  <div 
+                    className={`text-center p-3 rounded-lg bg-amber-100 border border-amber-200 transition-all duration-200 ${
+                      data.unassignedClients.nonLtd > 0 
+                        ? 'hover:bg-amber-200 hover:border-amber-300 cursor-pointer hover:shadow-sm' 
+                        : 'opacity-60'
+                    }`}
+                    onClick={() => data.unassignedClients.nonLtd > 0 && handleUnassignedNavigation('nonLtd')}
+                  >
+                    <div className="text-xl font-bold text-amber-900">
                       {data.unassignedClients.nonLtd}
                     </div>
                     <div className="text-xs text-amber-700 leading-tight">
                       Non-Ltd Accounts
                     </div>
+                    {data.unassignedClients.nonLtd > 0 && (
+                      <div className="text-xs text-amber-600 mt-1 font-medium">
+                        Click to assign →
+                      </div>
+                    )}
                   </div>
 
-                  {/* Unassigned VAT Clients */}
-                  <div className="text-center p-2 rounded bg-amber-100 border border-amber-200">
-                    <div className="text-lg font-bold text-amber-900">
+                  {/* Unassigned VAT Clients - Clickable with Special Handling */}
+                  <div 
+                    className={`text-center p-3 rounded-lg bg-amber-100 border border-amber-200 transition-all duration-200 ${
+                      data.unassignedClients.vat > 0 
+                        ? 'hover:bg-amber-200 hover:border-amber-300 cursor-pointer hover:shadow-sm' 
+                        : 'opacity-60'
+                    }`}
+                    onClick={() => data.unassignedClients.vat > 0 && handleUnassignedNavigation('vat')}
+                  >
+                    <div className="text-xl font-bold text-amber-900">
                       {data.unassignedClients.vat}
                     </div>
                     <div className="text-xs text-amber-700 leading-tight">
                       VAT Returns
                     </div>
+                    {data.unassignedClients.vat > 0 && (
+                      <div className="text-xs text-amber-600 mt-1 font-medium">
+                        Click to assign →
+                      </div>
+                    )}
                   </div>
                 </div>
                 
-                {/* Quick Action Buttons - Only show if there are unassigned clients */}
+                {/* Enhanced Action Message */}
                 {(data.unassignedClients.ltd > 0 || data.unassignedClients.nonLtd > 0 || data.unassignedClients.vat > 0) && (
                   <div className="mt-3 pt-2 border-t border-amber-200">
-                    <div className="flex flex-wrap gap-1">
-                      {data.unassignedClients.ltd > 0 && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="text-xs h-6 px-2 text-amber-700 border-amber-300 hover:bg-amber-100"
-                          onClick={() => window.location.href = '/dashboard/clients/ltd-companies?filter=unassigned'}
-                        >
-                          Ltd ({data.unassignedClients.ltd})
-                        </Button>
-                      )}
-                      {data.unassignedClients.nonLtd > 0 && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="text-xs h-6 px-2 text-amber-700 border-amber-300 hover:bg-amber-100"
-                          onClick={() => window.location.href = '/dashboard/clients/non-ltd-companies?filter=unassigned'}
-                        >
-                          Non-Ltd ({data.unassignedClients.nonLtd})
-                        </Button>
-                      )}
-                      {data.unassignedClients.vat > 0 && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="text-xs h-6 px-2 text-amber-700 border-amber-300 hover:bg-amber-100"
-                          onClick={() => window.location.href = '/dashboard/clients/vat-dt?filter=unassigned'}
-                        >
-                          VAT ({data.unassignedClients.vat})
-                        </Button>
-                      )}
+                    <div className="text-xs text-amber-700 text-center">
+                      <AlertTriangle className="h-3 w-3 inline mr-1" />
+                      These clients need immediate assignment for proper workflow management
                     </div>
                   </div>
                 )}
