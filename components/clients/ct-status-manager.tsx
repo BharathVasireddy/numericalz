@@ -55,8 +55,18 @@ export function CTStatusManager({ client, currentUser, onUpdate }: CTStatusManag
 
   const summary = getCTTrackingSummary(ctData)
 
-  const formatDate = (date: Date | null | undefined) => 
-    date ? new Date(date).toLocaleDateString('en-GB') : 'Not set'
+  const formatDate = (date: Date | null | undefined) => {
+    if (!date) return 'Not set'
+    try {
+      return new Date(date).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    } catch (e) {
+      return 'Not set'
+    }
+  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {

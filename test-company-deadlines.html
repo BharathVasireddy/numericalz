@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Deadlines Tester - Numericalz</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .input-section {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 15px;
+            align-items: end;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+        
+        input, select {
+            padding: 12px 16px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .results-section {
+            margin-top: 30px;
+        }
+        
+        .results-grid {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .company-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e5e7eb;
+            transition: all 0.3s;
+        }
+        
+        .company-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .company-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .company-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1f2937;
+            flex: 1;
+        }
+        
+        .company-number {
+            background: #f3f4f6;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            color: #4b5563;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .status-loading {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .deadlines-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .deadline-item {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #6b7280;
+        }
+        
+        .deadline-item.overdue {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        
+        .deadline-item.due-soon {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+        }
+        
+        .deadline-item.upcoming {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        
+        .deadline-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+        
+        .deadline-date {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        
+        .deadline-days {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+        
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid #fecaca;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #6b7280;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e5e7eb;
+            border-top: 2px solid #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #4f46e5;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .preset-btn {
+            padding: 8px 16px;
+            background: #e5e7eb;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        
+        .preset-btn:hover {
+            background: #d1d5db;
+        }
+        
+        @media (max-width: 768px) {
+            .input-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .deadlines-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .company-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏢 Company Deadlines Tester</h1>
+            <p>Test deadline calculations for UK Companies House data</p>
+        </div>
+        
+        <div class="content">
+            <div class="input-section">
+                <h3 style="margin-bottom: 20px; color: #374151;">Test Company Numbers</h3>
+                
+                <div class="preset-buttons">
+                    <button class="preset-btn" onclick="loadPresetNumbers('test-set-1')">Test Set 1</button>
+                    <button class="preset-btn" onclick="loadPresetNumbers('test-set-2')">Test Set 2</button>
+                    <button class="preset-btn" onclick="loadPresetNumbers('problem-cases')">Problem Cases</button>
+                    <button class="preset-btn" onclick="loadPresetNumbers('recent-companies')">Recent Companies</button>
+                </div>
+                
+                <div class="input-group">
+                    <div class="form-group">
+                        <label for="companyNumbers">Company Numbers (comma-separated)</label>
+                        <input 
+                            type="text" 
+                            id="companyNumbers" 
+                            placeholder="e.g., 12658287, 09876543, 01234567"
+                            value="12658287"
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="apiUrl">API Base URL</label>
+                        <select id="apiUrl">
+                            <option value="http://localhost:3000">Local Dev</option>
+                            <option value="https://numericalz.cloud9digital.in">Production</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="testCompanies()">
+                        🚀 Test Companies
+                    </button>
+                </div>
+                
+                <div style="margin-top: 15px; display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" onclick="exportResults()">📊 Export Results</button>
+                    <button class="btn btn-danger" onclick="clearResults()">🗑️ Clear Results</button>
+                </div>
+            </div>
+            
+            <div id="summaryStats" class="summary-stats" style="display: none;">
+                <div class="stat-item">
+                    <div id="totalTested" class="stat-number">0</div>
+                    <div class="stat-label">Total Tested</div>
+                </div>
+                <div class="stat-item">
+                    <div id="successCount" class="stat-number">0</div>
+                    <div class="stat-label">Successful</div>
+                </div>
+                <div class="stat-item">
+                    <div id="errorCount" class="stat-number">0</div>
+                    <div class="stat-label">Errors</div>
+                </div>
+                <div class="stat-item">
+                    <div id="overdueCount" class="stat-number">0</div>
+                    <div class="stat-label">Overdue</div>
+                </div>
+            </div>
+            
+            <div class="results-section">
+                <div id="results" class="results-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+        
+        const presetNumbers = {
+            'test-set-1': '12658287,09876543,01234567,12345678',
+            'test-set-2': '11111111,22222222,33333333,44444444',
+            'problem-cases': '00000001,99999999,12658287',
+            'recent-companies': '13579246,24681357,11223344'
+        };
+        
+        function loadPresetNumbers(setName) {
+            const numbers = presetNumbers[setName];
+            if (numbers) {
+                document.getElementById('companyNumbers').value = numbers;
+            }
+        }
+        
+        async function testCompanies() {
+            const numbersInput = document.getElementById('companyNumbers').value.trim();
+            const apiUrl = document.getElementById('apiUrl').value;
+            
+            if (!numbersInput) {
+                alert('Please enter at least one company number');
+                return;
+            }
+            
+            const companyNumbers = numbersInput.split(',').map(num => num.trim()).filter(num => num);
+            const resultsDiv = document.getElementById('results');
+            
+            // Clear previous results
+            resultsDiv.innerHTML = '';
+            testResults = [];
+            
+            // Show summary stats
+            document.getElementById('summaryStats').style.display = 'grid';
+            updateSummaryStats();
+            
+            for (const companyNumber of companyNumbers) {
+                await testSingleCompany(companyNumber, apiUrl);
+            }
+            
+            updateSummaryStats();
+        }
+        
+        async function testSingleCompany(companyNumber, apiUrl) {
+            const resultsDiv = document.getElementById('results');
+            
+            // Create company card
+            const cardId = `company-${companyNumber}`;
+            const cardHtml = `
+                <div id="${cardId}" class="company-card">
+                    <div class="company-header">
+                        <div class="company-name">Company ${companyNumber}</div>
+                        <div class="company-number">${companyNumber}</div>
+                        <div class="status-badge status-loading">Testing...</div>
+                    </div>
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <span>Fetching Companies House data...</span>
+                    </div>
+                </div>
+            `;
+            
+            resultsDiv.insertAdjacentHTML('beforeend', cardHtml);
+            const card = document.getElementById(cardId);
+            
+            try {
+                // Test Companies House API
+                const startTime = Date.now();
+                const response = await fetch(`${apiUrl}/api/companies-house/company/${companyNumber}`);
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const companyData = await response.json();
+                
+                // Calculate deadlines
+                const deadlines = calculateDeadlines(companyData);
+                
+                // Update card with results
+                updateCompanyCard(card, companyNumber, companyData, deadlines, responseTime, 'success');
+                
+                // Store result
+                testResults.push({
+                    companyNumber,
+                    status: 'success',
+                    data: companyData,
+                    deadlines,
+                    responseTime
+                });
+                
+            } catch (error) {
+                console.error(`Error testing company ${companyNumber}:`, error);
+                
+                // Update card with error
+                updateCompanyCard(card, companyNumber, null, null, 0, 'error', error.message);
+                
+                // Store error result
+                testResults.push({
+                    companyNumber,
+                    status: 'error',
+                    error: error.message,
+                    responseTime: 0
+                });
+            }
+        }
+        
+        function calculateDeadlines(companyData) {
+            const deadlines = {};
+            const today = new Date();
+            
+            // Accounts due date
+            if (companyData.accounts?.next_due) {
+                const accountsDue = new Date(companyData.accounts.next_due);
+                deadlines.accounts = {
+                    date: accountsDue,
+                    formatted: formatDate(accountsDue),
+                    daysFromNow: calculateDaysFromNow(accountsDue),
+                    status: getDeadlineStatus(accountsDue)
+                };
+            }
+            
+            // Confirmation statement due
+            if (companyData.confirmation_statement?.next_due) {
+                const csDue = new Date(companyData.confirmation_statement.next_due);
+                deadlines.confirmationStatement = {
+                    date: csDue,
+                    formatted: formatDate(csDue),
+                    daysFromNow: calculateDaysFromNow(csDue),
+                    status: getDeadlineStatus(csDue)
+                };
+            }
+            
+            // Corporation Tax (calculated from year end)
+            if (companyData.accounts?.accounting_reference_date) {
+                const yearEnd = calculateYearEnd(companyData);
+                if (yearEnd) {
+                    const ctDue = new Date(yearEnd);
+                    ctDue.setFullYear(ctDue.getFullYear() + 1); // Next year
+                    
+                    deadlines.corporationTax = {
+                        date: ctDue,
+                        formatted: formatDate(ctDue),
+                        daysFromNow: calculateDaysFromNow(ctDue),
+                        status: getDeadlineStatus(ctDue)
+                    };
+                }
+            }
+            
+            return deadlines;
+        }
+        
+        function calculateYearEnd(companyData) {
+            const accountingRef = companyData.accounts?.accounting_reference_date;
+            if (!accountingRef) return null;
+            
+            const currentYear = new Date().getFullYear();
+            const refDate = new Date(`${currentYear}-${accountingRef.month.padStart(2, '0')}-${accountingRef.day.padStart(2, '0')}`);
+            
+            // If the date has passed this year, use next year
+            if (refDate < new Date()) {
+                refDate.setFullYear(currentYear + 1);
+            }
+            
+            return refDate;
+        }
+        
+        function calculateDaysFromNow(date) {
+            const today = new Date();
+            const diffTime = date.getTime() - today.getTime();
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }
+        
+        function getDeadlineStatus(date) {
+            const days = calculateDaysFromNow(date);
+            if (days < 0) return 'overdue';
+            if (days <= 30) return 'due-soon';
+            return 'upcoming';
+        }
+        
+        function formatDate(date) {
+            return date.toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+        }
+        
+        function updateCompanyCard(card, companyNumber, companyData, deadlines, responseTime, status, errorMessage = null) {
+            if (status === 'success') {
+                card.innerHTML = `
+                    <div class="company-header">
+                        <div class="company-name">${companyData.company_name || `Company ${companyNumber}`}</div>
+                        <div class="company-number">${companyNumber}</div>
+                        <div class="status-badge status-success">✅ Success</div>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px; font-size: 0.9rem; color: #6b7280;">
+                        <strong>Status:</strong> ${companyData.company_status || 'Unknown'} • 
+                        <strong>Type:</strong> ${companyData.type || 'Unknown'} • 
+                        <strong>Response:</strong> ${responseTime}ms
+                    </div>
+                    
+                    ${deadlines && Object.keys(deadlines).length > 0 ? `
+                        <div class="deadlines-grid">
+                            ${deadlines.accounts ? `
+                                <div class="deadline-item ${deadlines.accounts.status}">
+                                    <div class="deadline-label">Accounts Due</div>
+                                    <div class="deadline-date">${deadlines.accounts.formatted}</div>
+                                    <div class="deadline-days">${deadlines.accounts.daysFromNow > 0 ? `${deadlines.accounts.daysFromNow} days` : `${Math.abs(deadlines.accounts.daysFromNow)} days overdue`}</div>
+                                </div>
+                            ` : ''}
+                            
+                            ${deadlines.confirmationStatement ? `
+                                <div class="deadline-item ${deadlines.confirmationStatement.status}">
+                                    <div class="deadline-label">CS Due</div>
+                                    <div class="deadline-date">${deadlines.confirmationStatement.formatted}</div>
+                                    <div class="deadline-days">${deadlines.confirmationStatement.daysFromNow > 0 ? `${deadlines.confirmationStatement.daysFromNow} days` : `${Math.abs(deadlines.confirmationStatement.daysFromNow)} days overdue`}</div>
+                                </div>
+                            ` : ''}
+                            
+                            ${deadlines.corporationTax ? `
+                                <div class="deadline-item ${deadlines.corporationTax.status}">
+                                    <div class="deadline-label">CT Due (Est.)</div>
+                                    <div class="deadline-date">${deadlines.corporationTax.formatted}</div>
+                                    <div class="deadline-days">${deadlines.corporationTax.daysFromNow > 0 ? `${deadlines.corporationTax.daysFromNow} days` : `${Math.abs(deadlines.corporationTax.daysFromNow)} days overdue`}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : '<div style="color: #6b7280; font-style: italic;">No deadline information available</div>'}
+                `;
+            } else {
+                card.innerHTML = `
+                    <div class="company-header">
+                        <div class="company-name">Company ${companyNumber}</div>
+                        <div class="company-number">${companyNumber}</div>
+                        <div class="status-badge status-error">❌ Error</div>
+                    </div>
+                    <div class="error-message">
+                        <strong>Error:</strong> ${errorMessage || 'Unknown error occurred'}
+                    </div>
+                `;
+            }
+        }
+        
+        function updateSummaryStats() {
+            const total = testResults.length;
+            const successful = testResults.filter(r => r.status === 'success').length;
+            const errors = testResults.filter(r => r.status === 'error').length;
+            const overdue = testResults.filter(r => {
+                if (r.status !== 'success' || !r.deadlines) return false;
+                return Object.values(r.deadlines).some(deadline => deadline.status === 'overdue');
+            }).length;
+            
+            document.getElementById('totalTested').textContent = total;
+            document.getElementById('successCount').textContent = successful;
+            document.getElementById('errorCount').textContent = errors;
+            document.getElementById('overdueCount').textContent = overdue;
+        }
+        
+        function exportResults() {
+            if (testResults.length === 0) {
+                alert('No results to export');
+                return;
+            }
+            
+            const csvData = convertToCSV(testResults);
+            downloadCSV(csvData, `company-deadlines-test-${new Date().toISOString().split('T')[0]}.csv`);
+        }
+        
+        function convertToCSV(results) {
+            const headers = [
+                'Company Number',
+                'Status',
+                'Company Name',
+                'Company Status',
+                'Accounts Due',
+                'Accounts Days',
+                'CS Due',
+                'CS Days',
+                'CT Due (Est.)',
+                'CT Days',
+                'Response Time (ms)',
+                'Error Message'
+            ];
+            
+            const rows = results.map(result => {
+                if (result.status === 'error') {
+                    return [
+                        result.companyNumber,
+                        'ERROR',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        result.responseTime,
+                        result.error
+                    ];
+                }
+                
+                const deadlines = result.deadlines || {};
+                return [
+                    result.companyNumber,
+                    'SUCCESS',
+                    result.data.company_name || '',
+                    result.data.company_status || '',
+                    deadlines.accounts?.formatted || '',
+                    deadlines.accounts?.daysFromNow || '',
+                    deadlines.confirmationStatement?.formatted || '',
+                    deadlines.confirmationStatement?.daysFromNow || '',
+                    deadlines.corporationTax?.formatted || '',
+                    deadlines.corporationTax?.daysFromNow || '',
+                    result.responseTime,
+                    ''
+                ];
+            });
+            
+            return [headers, ...rows].map(row => 
+                row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+            ).join('\n');
+        }
+        
+        function downloadCSV(csvData, filename) {
+            const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('summaryStats').style.display = 'none';
+            testResults = [];
+        }
+        
+        // Auto-focus on input
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('companyNumbers').focus();
+        });
+        
+        // Allow Enter key to trigger test
+        document.getElementById('companyNumbers').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                testCompanies();
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -1078,7 +1078,7 @@ export function LtdCompaniesDeadlinesTable() {
                 </div>
 
                 {/* Quick Stats */}
-                <div className="grid grid-cols-4 gap-4 md:col-span-3">
+                <div className="grid grid-cols-3 gap-4 md:col-span-3">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">{next30DaysClients.length}</div>
                     <p className="text-xs text-muted-foreground">Due in 0-30 days</p>
@@ -1090,10 +1090,6 @@ export function LtdCompaniesDeadlinesTable() {
                   <div className="text-center">
                     <div className="text-2xl font-bold text-yellow-600">{next90DaysClients.length}</div>
                     <p className="text-xs text-muted-foreground">Due in 61-90 days</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">{sortedFilteredClients.length}</div>
-                    <p className="text-xs text-muted-foreground">Total clients</p>
                   </div>
                 </div>
               </div>
