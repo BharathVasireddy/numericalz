@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { showToast } from '@/lib/toast'
 import { debounce } from '@/lib/utils'
+import { useUsers, type User as UserType } from '@/lib/hooks/useUsers'
 import {
   Eye,
   Edit,
@@ -97,12 +98,7 @@ interface Client {
   createdAt: string
 }
 
-interface User {
-  id: string
-  name: string
-  email: string
-  role: string
-}
+
 
 // Advanced filter interfaces
 interface FilterCondition {
@@ -177,8 +173,10 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
   const { data: session } = useSession()
   const router = useRouter()
   const [clients, setClients] = useState<Client[]>([])
-  const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // Use centralized user fetching hook with includeSelf option
+  const { users, loading: usersLoading, error: usersError } = useUsers({ includeSelf: true })
   const [totalClientCount, setTotalClientCount] = useState(0)
   const [sortBy, setSortBy] = useState<string>('companyName')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
@@ -373,11 +371,7 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
     }
   }, [searchQuery, filters, advancedFilter, sortBy, sortOrder, session?.user?.id])
 
-  useEffect(() => {
-    if (session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') {
-      fetchUsers()
-    }
-  }, [session])
+
 
   // Debounced fetch effect - separate from the debounced function to avoid dependency issues
   useEffect(() => {
@@ -395,23 +389,7 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
     }
   }, [fetchClients])
 
-  const fetchUsers = async () => {
-    try {
-      // Include the current user in the list for assignment
-      const response = await fetch('/api/users?includeSelf=true')
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Fetched users for assignment:', data.users) // Debug log
-        setUsers(data.users || [])
-      } else {
-        console.error('Failed to fetch users:', response.status, response.statusText)
-        const errorData = await response.json().catch(() => ({}))
-        console.error('Error details:', errorData)
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error)
-    }
-  }
+
 
   const handleSort = (column: string) => {
     if (sortBy === column) {

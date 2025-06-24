@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { useUsers, type User as UserType } from '@/lib/hooks/useUsers'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
 import { Button } from '@/components/ui/button'
@@ -142,12 +143,7 @@ interface WorkflowStage {
   color: string
 }
 
-interface User {
-  id: string
-  name: string
-  email: string
-  role: string
-}
+
 
 const WORKFLOW_STAGES: WorkflowStage[] = [
   { key: 'PAPERWORK_PENDING_CHASE', label: 'Pending to Chase Paperwork', icon: <Clock className="h-4 w-4" />, color: 'bg-amber-100 text-amber-800' },
@@ -189,8 +185,10 @@ export function LtdCompaniesDeadlinesTable() {
   const { data: session } = useSession()
   const router = useRouter()
   const [ltdClients, setLtdClients] = useState<LtdClient[]>([])
-  const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // Use centralized user fetching hook
+  const { users, loading: usersLoading, error: usersError } = useUsers()
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [updateModalOpen, setUpdateModalOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<LtdClient | null>(null)
@@ -253,23 +251,9 @@ export function LtdCompaniesDeadlinesTable() {
     }
   }, [])
 
-  const fetchUsers = useCallback(async () => {
-    try {
-      const response = await fetch('/api/users')
-      if (!response.ok) {
-        throw new Error('Failed to fetch users')
-      }
-      const data = await response.json()
-      setUsers(data.users || [])
-    } catch (error) {
-      console.error('Error fetching users:', error)
-    }
-  }, [])
-
   useEffect(() => {
     fetchLtdClients()
-    fetchUsers()
-  }, [fetchLtdClients, fetchUsers])
+  }, [fetchLtdClients])
 
   // Bulk refresh Companies House data for all filtered clients
   const handleBulkRefreshCompaniesHouse = async () => {

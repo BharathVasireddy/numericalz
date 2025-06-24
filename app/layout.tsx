@@ -228,22 +228,7 @@ export default function RootLayout({
           }}
         />
 
-        {/* Service Worker registration for PWA capabilities */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator && '${process.env.NODE_ENV}' === 'production') {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                    console.log('✅ Service Worker registered successfully:', registration.scope);
-                  }).catch(function(error) {
-                    console.log('❌ Service Worker registration failed:', error);
-                  });
-                });
-              }
-            `
-          }}
-        />
+        {/* Service Worker registration disabled - no sw.js file */}
       </body>
     </html>
   )

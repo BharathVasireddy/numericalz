@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { ClientsHeader } from '@/components/clients/clients-header'
 import { ClientsTable } from '@/components/clients/clients-table'
+import { useUsers } from '@/lib/hooks/useUsers'
 
 // Advanced filter interfaces
 interface FilterCondition {
@@ -26,12 +27,7 @@ interface AdvancedFilter {
   groupOperator: 'AND' | 'OR'
 }
 
-interface User {
-  id: string
-  name: string
-  email: string
-  role: string
-}
+
 
 /**
  * Clients listing page
@@ -58,7 +54,9 @@ export default function ClientsPage() {
     total: 0,
     filtered: 0
   })
-  const [users, setUsers] = useState<User[]>([])
+
+  // Use centralized user fetching hook
+  const { users, loading: usersLoading, error: usersError } = useUsers()
 
   const handleClientCountsUpdate = useCallback((total: number, filtered: number) => {
     setClientCounts({ total, filtered })
@@ -66,23 +64,6 @@ export default function ClientsPage() {
 
   const handleAdvancedFilter = useCallback((filter: AdvancedFilter | null) => {
     setAdvancedFilter(filter)
-  }, [])
-
-  // Fetch users on component mount
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await fetch('/api/users')
-        if (response.ok) {
-          const data = await response.json()
-          setUsers(data.users || [])
-        }
-      } catch (error) {
-        console.error('Failed to fetch users:', error)
-      }
-    }
-    
-    fetchUsers()
   }, [])
 
   return (

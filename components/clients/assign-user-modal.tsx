@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { showToast } from '@/lib/toast'
+import { useErrorHandler } from '@/lib/hooks/useErrorHandler'
 import { UserPlus, Save, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -46,6 +47,7 @@ export function AssignUserModal({ client, users, isOpen, onClose, onSuccess }: A
   const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string>('unassigned')
+  const { handleApiError } = useErrorHandler()
 
   // Debug: Log users array when modal opens
   useEffect(() => {
@@ -104,8 +106,7 @@ export function AssignUserModal({ client, users, isOpen, onClose, onSuccess }: A
         showToast.error(data.error || 'Failed to assign user')
       }
     } catch (error: any) {
-      console.error('Assignment error:', error)
-      showToast.error('Error assigning user')
+      handleApiError(error, 'Failed to assign user')
     } finally {
       setIsLoading(false)
     }
