@@ -157,6 +157,13 @@ export default function EmailLogsPage() {
   }
 
   const filteredLogs = emailLogs.filter(log => {
+    // Status filter
+    if (statusFilter && log.status !== statusFilter) return false
+    
+    // Type filter
+    if (typeFilter && log.emailType !== typeFilter) return false
+    
+    // Search filter
     if (!searchTerm) return true
     const searchLower = searchTerm.toLowerCase()
     return (
@@ -164,7 +171,7 @@ export default function EmailLogsPage() {
       log.recipientEmail.toLowerCase().includes(searchLower) ||
       log.client?.companyName.toLowerCase().includes(searchLower) ||
       log.client?.clientCode.toLowerCase().includes(searchLower) ||
-      log.triggeredByUser.name.toLowerCase().includes(searchLower)
+      log.triggeredByUser?.name.toLowerCase().includes(searchLower)
     )
   })
 
