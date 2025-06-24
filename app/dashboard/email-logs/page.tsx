@@ -47,7 +47,7 @@ interface EmailLog {
     clientCode: string
     companyName: string
   }
-  triggeredByUser: {
+  triggeredByUser?: {
     id: string
     name: string
     email: string
@@ -330,13 +330,15 @@ export default function EmailLogsPage() {
                                   <Calendar className="h-3 w-3" />
                                   <span>{formatDate(log.createdAt)}</span>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <User className="h-3 w-3" />
-                                  <span>{log.triggeredByUser.name}</span>
-                                  <Badge variant="outline" className="text-xs px-1 py-0">
-                                    {log.triggeredByUser.role}
-                                  </Badge>
-                                </div>
+                                {log.triggeredByUser && (
+                                  <div className="flex items-center gap-1">
+                                    <User className="h-3 w-3" />
+                                    <span>{log.triggeredByUser.name}</span>
+                                    <Badge variant="outline" className="text-xs px-1 py-0">
+                                      {log.triggeredByUser.role}
+                                    </Badge>
+                                  </div>
+                                )}
                                 <div className="flex items-center gap-1">
                                   <Mail className="h-3 w-3" />
                                   <span>{getEmailTypeDisplay(log.emailType)}</span>
@@ -471,16 +473,18 @@ export default function EmailLogsPage() {
                     </div>
                   )}
                   
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground">Triggered By</label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <User className="h-3 w-3" />
-                      <span className="text-sm">{selectedEmail.triggeredByUser.name}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {selectedEmail.triggeredByUser.role}
-                      </Badge>
+                  {selectedEmail.triggeredByUser && (
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">Triggered By</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <User className="h-3 w-3" />
+                        <span className="text-sm">{selectedEmail.triggeredByUser.name}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {selectedEmail.triggeredByUser.role}
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
+                  )}
                   
                   {selectedEmail.client && (
                     <div>

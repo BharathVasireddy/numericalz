@@ -63,6 +63,8 @@ export async function GET(request: NextRequest) {
       id: log.id,
       createdAt: log.createdAt,
       updatedAt: log.updatedAt,
+      fromEmail: log.fromEmail,
+      fromName: log.fromName,
       recipientEmail: log.recipientEmail,
       recipientName: log.recipientName,
       subject: log.subject,
@@ -79,12 +81,12 @@ export async function GET(request: NextRequest) {
         clientCode: log.client.clientCode,
         companyName: log.client.companyName
       } : null,
-      triggeredBy: {
+      triggeredByUser: log.triggeredByUser ? {
         id: log.triggeredByUser.id,
         name: log.triggeredByUser.name,
         email: log.triggeredByUser.email,
         role: log.triggeredByUser.role
-      }
+      } : null
     }))
 
     return NextResponse.json({
