@@ -196,14 +196,12 @@ export async function PUT(
       }
     })
     
-    // SYNC: Also update client-level VAT assignment if assignedUserId was changed
+    // REMOVED: Client-level VAT assignment sync to maintain quarter independence
+    // Each VAT quarter assignment is independent and should not affect client-level assignment
+    // or other quarters. This ensures true quarter workflow independence.
+    
     if (finalAssigneeId !== vatQuarter.assignedUserId) {
-      await prisma.client.update({
-        where: { id: updatedVatQuarter.clientId },
-        data: { vatAssignedUserId: finalAssigneeId }
-      })
-
-      // REQUIREMENT: Unassign future quarters for this client (only current filing month workflow should have assigned user)
+      // REQUIREMENT: Unassign future quarters for this client (only current quarter should have assigned user)
       // Find all future VAT quarters for this client and unassign them
       const currentQuarterEndDate = new Date(vatQuarter.quarterEndDate)
       await prisma.vATQuarter.updateMany({
