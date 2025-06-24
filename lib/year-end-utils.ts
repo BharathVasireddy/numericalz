@@ -10,23 +10,37 @@ export interface ClientYearEndData {
   lastAccountsMadeUpTo?: string | Date | null
   incorporationDate?: string | Date | null
   nextAccountsDue?: string | Date | null
+  nextMadeUpTo?: string | Date | null  // Year end from Companies House
 }
 
 /**
  * Calculate the correct year end date based on UK accounting rules
  * 
  * Priority order:
- * 1. If company has filed accounts before → last accounts + 1 year
- * 2. If first-time filer → calculate first year end after incorporation (6-18 month rule)
- * 3. Fallback → current/next year based on accounting reference date
+ * 1. Use Companies House next_made_up_to if available (official year end)
+ * 2. If company has filed accounts before → last accounts + 1 year
+ * 3. If first-time filer → calculate first year end after incorporation (6-18 month rule)
+ * 4. Fallback → current/next year based on accounting reference date
  * 
  * @param clientData - Client data containing relevant dates
  * @returns Date object representing the year end, or null if cannot calculate
  */
 export function calculateYearEnd(clientData: ClientYearEndData): Date | null {
-  const { accountingReferenceDate, lastAccountsMadeUpTo, incorporationDate } = clientData
+  const { accountingReferenceDate, lastAccountsMadeUpTo, incorporationDate, nextMadeUpTo } = clientData
   
-  // Priority 1: If company has filed accounts before, calculate next year end from that
+  // Priority 1: Use Companies House next_made_up_to if available (official year end)
+  if (nextMadeUpTo) {
+    try {
+      const yearEnd = typeof nextMadeUpTo === 'string' ? new Date(nextMadeUpTo) : nextMadeUpTo
+      if (!isNaN(yearEnd.getTime())) {
+        return yearEnd
+      }
+    } catch (e) {
+      console.warn('Error parsing next_made_up_to date:', e)
+    }
+  }
+  
+  // Priority 2: If company has filed accounts before, calculate next year end from that
   if (lastAccountsMadeUpTo) {
     try {
       const lastAccountsDate = typeof lastAccountsMadeUpTo === 'string' 
@@ -44,7 +58,7 @@ export function calculateYearEnd(clientData: ClientYearEndData): Date | null {
     }
   }
   
-  // Priority 2: Parse accounting reference date
+  // Priority 3: Parse accounting reference date
   if (!accountingReferenceDate) return null
   
   try {
@@ -64,7 +78,7 @@ export function calculateYearEnd(clientData: ClientYearEndData): Date | null {
     const today = new Date()
     const currentYear = today.getFullYear()
     
-    // Priority 2a: First-time filer logic
+    // Priority 3a: First-time filer logic
     if (!lastAccountsMadeUpTo && incorporationDate) {
       const incorpDate = typeof incorporationDate === 'string' 
         ? new Date(incorporationDate) 
@@ -88,7 +102,7 @@ export function calculateYearEnd(clientData: ClientYearEndData): Date | null {
       }
     }
     
-    // Priority 2b: Established company logic
+    // Priority 3b: Established company logic
     let yearEnd = new Date(currentYear, parseInt(parsed.month) - 1, parseInt(parsed.day))
     
     // If this year's year end has passed, use next year

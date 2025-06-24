@@ -366,8 +366,8 @@
                         <input 
                             type="text" 
                             id="companyNumbers" 
-                            placeholder="e.g., 12658287, 09876543, 01234567"
-                            value="12658287"
+                            placeholder="e.g., 15170062, 12658287, 13647416"
+                            value="15170062,12658287,13647416,13868206,14054439"
                         >
                     </div>
                     <div class="form-group">
@@ -417,8 +417,8 @@
         let testResults = [];
         
         const presetNumbers = {
-            'test-set-1': '12658287,09876543,01234567,12345678',
-            'test-set-2': '11111111,22222222,33333333,44444444',
+            'test-set-1': '15170062,12658287,13647416,13868206,14054439',
+            'test-set-2': '12658287,09876543,01234567,12345678',
             'problem-cases': '00000001,99999999,12658287',
             'recent-companies': '13579246,24681357,11223344'
         };
@@ -523,9 +523,12 @@
             }
         }
         
-        function calculateDeadlines(companyData) {
+        function calculateDeadlines(apiResponse) {
             const deadlines = {};
             const today = new Date();
+            
+            // Extract the actual company data from API response
+            const companyData = apiResponse.data || apiResponse;
             
             // Accounts due date
             if (companyData.accounts?.next_due) {
@@ -550,7 +553,23 @@
             }
             
             // Corporation Tax (calculated from year end)
-            if (companyData.accounts?.accounting_reference_date) {
+            // 🎯 Priority 1: Use next_made_up_to if available (official year end from Companies House)
+            if (companyData.accounts?.next_made_up_to) {
+                const yearEnd = new Date(companyData.accounts.next_made_up_to);
+                const ctDue = new Date(yearEnd);
+                ctDue.setFullYear(ctDue.getFullYear() + 1); // CT due 12 months after year end
+                
+                deadlines.corporationTax = {
+                    date: ctDue,
+                    formatted: formatDate(ctDue),
+                    daysFromNow: calculateDaysFromNow(ctDue),
+                    status: getDeadlineStatus(ctDue),
+                    yearEnd: formatDate(yearEnd),
+                    source: 'next_made_up_to' // Track data source
+                };
+            }
+            // Fallback: Calculate from accounting reference date
+            else if (companyData.accounts?.accounting_reference_date) {
                 const yearEnd = calculateYearEnd(companyData);
                 if (yearEnd) {
                     const ctDue = new Date(yearEnd);
@@ -560,7 +579,9 @@
                         date: ctDue,
                         formatted: formatDate(ctDue),
                         daysFromNow: calculateDaysFromNow(ctDue),
-                        status: getDeadlineStatus(ctDue)
+                        status: getDeadlineStatus(ctDue),
+                        yearEnd: formatDate(yearEnd),
+                        source: 'calculated' // Track data source
                     };
                 }
             }
@@ -639,9 +660,10 @@
                             
                             ${deadlines.corporationTax ? `
                                 <div class="deadline-item ${deadlines.corporationTax.status}">
-                                    <div class="deadline-label">CT Due (Est.)</div>
+                                    <div class="deadline-label">CT Due ${deadlines.corporationTax.source === 'next_made_up_to' ? '✅' : '(Est.)'}</div>
                                     <div class="deadline-date">${deadlines.corporationTax.formatted}</div>
                                     <div class="deadline-days">${deadlines.corporationTax.daysFromNow > 0 ? `${deadlines.corporationTax.daysFromNow} days` : `${Math.abs(deadlines.corporationTax.daysFromNow)} days overdue`}</div>
+                                    ${deadlines.corporationTax.yearEnd ? `<div style="font-size: 11px; color: #6b7280; margin-top: 2px;">Year End: ${deadlines.corporationTax.yearEnd} ${deadlines.corporationTax.source === 'next_made_up_to' ? '(Official CH)' : '(Calculated)'}</div>` : ''}
                                 </div>
                             ` : ''}
                         </div>

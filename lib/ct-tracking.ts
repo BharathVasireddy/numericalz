@@ -267,7 +267,11 @@ export function getCTTrackingSummary(data: Partial<CTTrackingData>): {
   const formatDate = (date: Date | string | null | undefined) => {
     if (!date) return 'Not set'
     const dateObj = typeof date === 'string' ? new Date(date) : date
-    return dateObj.toLocaleDateString('en-GB')
+    return dateObj.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    })
   }
   
   return {

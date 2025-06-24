@@ -31,6 +31,7 @@ interface CompaniesHouseAddress {
 
 interface CompaniesHouseAccounts {
   next_due?: string
+  next_made_up_to?: string  // Year end date from Companies House
   last_accounts?: {
     made_up_to?: string
     type?: string
@@ -259,7 +260,8 @@ export function transformCompaniesHouseData(
   const clientDataForCalculation = {
     accountingReferenceDate: chData.accounts?.accounting_reference_date ? JSON.stringify(chData.accounts.accounting_reference_date) : null,
     lastAccountsMadeUpTo: chData.accounts?.last_accounts?.made_up_to ? new Date(chData.accounts.last_accounts.made_up_to) : null,
-    incorporationDate: chData.date_of_creation ? new Date(chData.date_of_creation) : null
+    incorporationDate: chData.date_of_creation ? new Date(chData.date_of_creation) : null,
+    nextMadeUpTo: chData.accounts?.next_made_up_to ? new Date(chData.accounts.next_made_up_to) : null
   }
   
   const calculatedCTDue = calculateCorporationTaxDue(clientDataForCalculation)

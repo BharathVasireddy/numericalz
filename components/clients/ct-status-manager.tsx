@@ -172,12 +172,7 @@ export function CTStatusManager({ client, currentUser, onUpdate }: CTStatusManag
             </div>
           </div>
 
-          {summary.periodInfo !== 'Period not set' && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">CT Period:</span>
-              <span className="text-sm">{summary.periodInfo}</span>
-            </div>
-          )}
+
 
           {ctData.lastCTStatusUpdate && (
             <div className="flex items-center justify-between">
