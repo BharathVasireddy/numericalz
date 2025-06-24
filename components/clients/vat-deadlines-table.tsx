@@ -221,6 +221,7 @@ export function VATDeadlinesTable() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [updateModalOpen, setUpdateModalOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<VATClient | null>(null)
+  const [selectedQuarter, setSelectedQuarter] = useState<VATQuarter | null>(null)
   const [selectedStage, setSelectedStage] = useState<string | undefined>(undefined)
   const [selectedAssignee, setSelectedAssignee] = useState<string>('unassigned')
   const [updateComments, setUpdateComments] = useState<string>('')
@@ -634,10 +635,16 @@ export function VATDeadlinesTable() {
     setExpandedRows(newExpanded)
   }
 
-  const handleAddUpdate = (client: VATClient) => {
+  const handleAddUpdate = (client: VATClient, quarter?: VATQuarter | null) => {
     setSelectedClient(client)
+    setSelectedQuarter(quarter || null)
     setSelectedStage(undefined)
-    setSelectedAssignee(client.vatAssignedUser?.id || 'unassigned')
+    
+    // Use the specific quarter's assigned user if available, otherwise default to unassigned
+    // This ensures each quarter is independent and future quarters don't inherit assignments
+    const quarterAssignedUserId = quarter?.assignedUser?.id
+    setSelectedAssignee(quarterAssignedUserId || 'unassigned')
+    
     setUpdateComments('')
     setUpdateModalOpen(true)
   }
@@ -691,12 +698,12 @@ export function VATDeadlinesTable() {
   }
 
   const handleStageChange = (stageKey: string) => {
-    if (!selectedClient?.currentVATQuarter?.currentStage) {
+    if (!selectedQuarter?.currentStage) {
       setSelectedStage(stageKey)
       return
     }
 
-    const currentStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === selectedClient.currentVATQuarter!.currentStage)
+    const currentStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === selectedQuarter.currentStage)
     const newStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === stageKey)
     
     // If trying to move backwards, show confirmation
@@ -709,15 +716,15 @@ export function VATDeadlinesTable() {
   }
 
   const handleSubmitUpdate = async () => {
-    if (!selectedClient) {
-      showToast.error('No client selected')
+    if (!selectedClient || !selectedQuarter) {
+      showToast.error('No client or quarter selected')
       return
     }
 
-    // Allow update if either stage is changed OR assignee is changed (use same logic as Ltd table)
-    const currentAssigneeId = selectedClient?.vatAssignedUser?.id || null
+    // Allow update if either stage is changed OR assignee is changed
+    const currentAssigneeId = selectedQuarter.assignedUser?.id || null
     const selectedAssigneeId = selectedAssignee === 'unassigned' ? null : selectedAssignee
-    const hasStageChange = selectedStage && selectedStage !== selectedClient?.currentVATQuarter?.currentStage
+    const hasStageChange = selectedStage && selectedStage !== selectedQuarter.currentStage
     const hasAssigneeChange = selectedAssigneeId !== currentAssigneeId
 
     if (!hasStageChange && !hasAssigneeChange) {
@@ -733,17 +740,35 @@ export function VATDeadlinesTable() {
 
     setUpdating(true)
     try {
-      // Use single API call like Ltd table (simpler approach)
-      if (!selectedClient.currentVATQuarter) {
-        showToast.error('No active VAT quarter found for this client')
-        return
+      // For calculated quarters (future quarters), we need to create the quarter first
+      let quarterId = selectedQuarter.id
+      
+      if (selectedQuarter.id.startsWith('calculated-')) {
+        // This is a future quarter that doesn't exist yet - create it first
+        const createResponse = await fetch(`/api/clients/${selectedClient.id}/vat-quarters`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quarterPeriod: selectedQuarter.quarterPeriod,
+            quarterStartDate: selectedQuarter.quarterStartDate,
+            quarterEndDate: selectedQuarter.quarterEndDate,
+            filingDueDate: selectedQuarter.filingDueDate
+          })
+        })
+
+        const createData = await createResponse.json()
+        if (!createData.success) {
+          throw new Error(createData.error || 'Failed to create VAT quarter')
+        }
+        
+        quarterId = createData.data.id
       }
 
-      const response = await fetch(`/api/vat-quarters/${selectedClient.currentVATQuarter.id}/workflow`, {
+      const response = await fetch(`/api/vat-quarters/${quarterId}/workflow`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stage: selectedStage || selectedClient.currentVATQuarter.currentStage,
+          stage: selectedStage || selectedQuarter.currentStage,
           assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
           comments: updateComments || (hasAssigneeChange && !hasStageChange ? 'Assignment updated' : '')
         })
@@ -755,6 +780,7 @@ export function VATDeadlinesTable() {
         showToast.success('Update completed successfully')
         setUpdateModalOpen(false)
         setSelectedStage(undefined)
+        setSelectedQuarter(null)
         setUpdateComments('')
         await fetchVATClients(true)
       } else {
@@ -1188,7 +1214,7 @@ export function VATDeadlinesTable() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleAddUpdate(client)}
+                        onClick={() => handleAddUpdate(client, monthQuarter)}
                         className="flex items-center gap-1 h-6 px-2 text-xs"
                       >
                         <Plus className="h-3 w-3" />
@@ -1582,7 +1608,7 @@ export function VATDeadlinesTable() {
           
           <div className="space-y-4">
             {/* Current Status Display */}
-            {selectedClient?.currentVATQuarter && (
+            {selectedQuarter && (
               <div className="bg-muted/20 p-3 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
@@ -1590,15 +1616,14 @@ export function VATDeadlinesTable() {
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={getWorkflowStatus(selectedClient.currentVATQuarter).color}>
-                      {getWorkflowStatus(selectedClient.currentVATQuarter).label}
+                    <Badge variant="outline" className={getWorkflowStatus(selectedQuarter).color}>
+                      {getWorkflowStatus(selectedQuarter).label}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <User className="h-3 w-3 text-muted-foreground" />
                     <span className="font-medium">
-                      {selectedClient.currentVATQuarter.assignedUser?.name || 
-                       selectedClient.vatAssignedUser?.name || 'Unassigned'}
+                      {selectedQuarter.assignedUser?.name || 'Unassigned'}
                     </span>
                   </div>
                 </div>
@@ -1653,7 +1678,7 @@ export function VATDeadlinesTable() {
                 </SelectTrigger>
                 <SelectContent>
                   {WORKFLOW_STAGES.map((stage) => {
-                    const currentStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === selectedClient?.currentVATQuarter?.currentStage)
+                    const currentStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === selectedQuarter?.currentStage)
                     const stageIndex = WORKFLOW_STAGES.findIndex(s => s.key === stage.key)
                     const isCompletedStage = currentStageIndex !== -1 && stageIndex < currentStageIndex
                     
@@ -1870,7 +1895,7 @@ export function VATDeadlinesTable() {
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-amber-800">Stage Change Warning</p>
                   <p className="text-xs text-amber-700">
-                    Current: {WORKFLOW_STAGES.find(s => s.key === selectedClient?.currentVATQuarter?.currentStage)?.label}
+                    Current: {WORKFLOW_STAGES.find(s => s.key === selectedQuarter?.currentStage)?.label}
                     <br />
                     Moving to: {WORKFLOW_STAGES.find(s => s.key === selectedStage)?.label}
                   </p>
@@ -1883,7 +1908,7 @@ export function VATDeadlinesTable() {
               variant="outline" 
               onClick={() => {
                 setShowBackwardStageConfirm(false)
-                setSelectedStage(selectedClient?.currentVATQuarter?.currentStage || '')
+                setSelectedStage(selectedQuarter?.currentStage || '')
               }}
               disabled={updating}
             >
