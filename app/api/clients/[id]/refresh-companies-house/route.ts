@@ -8,6 +8,7 @@ import { calculateCorporationTaxDue } from '@/lib/year-end-utils'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
+export const revalidate = 0 // Always fetch fresh data
 
 /**
  * POST /api/clients/[id]/refresh-companies-house
@@ -135,11 +136,18 @@ export async function POST(
       }
     })
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: updatedClient,
       message: 'Client updated with latest Companies House data'
     })
+
+    // Ensure no caching for real-time data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+
+    return response
 
   } catch (error) {
     console.error('Refresh Companies House data error:', error)

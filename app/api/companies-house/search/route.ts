@@ -5,6 +5,7 @@ import { searchCompanies } from '@/lib/companies-house'
 
 // Force dynamic rendering for this route since it uses request parameters
 export const dynamic = 'force-dynamic'
+export const revalidate = 0 // Always fetch fresh data
 
 /**
  * GET /api/companies-house/search
@@ -48,10 +49,17 @@ export async function GET(request: NextRequest) {
 
     const results = await searchCompanies(query, itemsPerPage, startIndex)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: results,
     })
+
+    // Ensure no caching for real-time data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+
+    return response
 
   } catch (error) {
     console.error('Companies House search error:', error)

@@ -5,6 +5,7 @@ import { getComprehensiveCompanyData } from '@/lib/companies-house'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
+export const revalidate = 0 // Always fetch fresh data
 
 /**
  * GET /api/companies-house/company/[companyNumber]
@@ -36,7 +37,7 @@ export async function GET(
 
     const { company: companyData, officers, psc } = await getComprehensiveCompanyData(companyNumber)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         ...companyData,
@@ -44,6 +45,13 @@ export async function GET(
         psc
       },
     })
+
+    // Ensure no caching for real-time data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+
+    return response
 
   } catch (error) {
     console.error('Companies House company details error:', error)

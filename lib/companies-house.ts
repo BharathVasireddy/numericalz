@@ -137,6 +137,7 @@ async function makeRequest(endpoint: string): Promise<any> {
         'Authorization': `Basic ${auth}`,
         'Accept': 'application/json',
       },
+      cache: 'no-store', // Always fetch fresh data from Companies House
     })
 
     if (!response.ok) {
