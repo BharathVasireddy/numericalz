@@ -195,7 +195,7 @@ async function fixVATQuarters() {
           quarterEndDate: targetQuarterInfo.quarterEndDate,
           filingDueDate: targetQuarterInfo.filingDueDate,
           quarterGroup: targetQuarterInfo.quarterGroup,
-          assignedUserId: client.vatAssignedUserId || client.assignedUserId || null,
+          assignedUserId: null, // Each VAT quarter starts unassigned and independent
           currentStage: 'CLIENT_BOOKKEEPING',
           isCompleted: false
         }

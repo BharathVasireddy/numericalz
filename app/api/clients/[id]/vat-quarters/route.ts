@@ -150,7 +150,7 @@ export async function POST(
         quarterEndDate: quarterInfo.quarterEndDate,
         filingDueDate: quarterInfo.filingDueDate,
         quarterGroup: quarterInfo.quarterGroup,
-        assignedUserId: client.assignedUserId,
+        assignedUserId: null, // Each VAT quarter is independent and starts unassigned
       },
       include: {
         assignedUser: {

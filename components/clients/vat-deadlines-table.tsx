@@ -402,6 +402,7 @@ export function VATDeadlinesTable() {
     }
     
     // Return calculated quarter info (quarter doesn't exist yet)
+    // Future quarters should be unassigned by default - each quarter is independent
     return {
       id: `calculated-${client.id}-${quarterInfo.quarterPeriod}`,
       quarterPeriod: quarterInfo.quarterPeriod,
@@ -410,7 +411,7 @@ export function VATDeadlinesTable() {
       filingDueDate: quarterInfo.filingDueDate.toISOString(),
       currentStage: 'PAPERWORK_PENDING_CHASE',
       isCompleted: false,
-      assignedUser: client.vatAssignedUser
+      assignedUser: undefined // Future quarters are unassigned - each quarter is independent
     }
   }, [vatClients])
 
