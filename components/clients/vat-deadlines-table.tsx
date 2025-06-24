@@ -141,8 +141,9 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
   { key: 'WORK_IN_PROGRESS', label: 'Work in progress', icon: <Clock className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
   { key: 'QUERIES_PENDING', label: 'Queries pending', icon: <Clock className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-800' },
   { key: 'REVIEW_PENDING_MANAGER', label: 'Review pending by manager', icon: <UserCheck className="h-4 w-4" />, color: 'bg-orange-100 text-orange-800' },
+  { key: 'REVIEWED_BY_MANAGER', label: 'Reviewed by manager', icon: <CheckCircle className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
   { key: 'REVIEW_PENDING_PARTNER', label: 'Review pending by partner', icon: <UserCheck className="h-4 w-4" />, color: 'bg-purple-100 text-purple-800' },
-  { key: 'WORK_FINISHED', label: 'Work finished', icon: <CheckCircle className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
+  { key: 'REVIEWED_BY_PARTNER', label: 'Reviewed by partner', icon: <CheckCircle className="h-4 w-4" />, color: 'bg-emerald-100 text-emerald-800' },
   { key: 'EMAILED_TO_PARTNER', label: 'Emailed to partner', icon: <Send className="h-4 w-4" />, color: 'bg-indigo-100 text-indigo-800' },
   { key: 'EMAILED_TO_CLIENT', label: 'Emailed to client', icon: <Send className="h-4 w-4" />, color: 'bg-cyan-100 text-cyan-800' },
   { key: 'CLIENT_APPROVED', label: 'Client approved', icon: <CheckCircle className="h-4 w-4" />, color: 'bg-emerald-100 text-emerald-800' },
@@ -187,7 +188,15 @@ interface AdvancedFilter {
   groupOperator: 'AND' | 'OR'
 }
 
-export function VATDeadlinesTable() {
+interface VATDeadlinesTableProps {
+  focusClientId?: string
+  focusWorkflowId?: string
+}
+
+export function VATDeadlinesTable({ 
+  focusClientId, 
+  focusWorkflowId 
+}: VATDeadlinesTableProps = {}) {
   const { data: session } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -286,6 +295,30 @@ export function VATDeadlinesTable() {
   useEffect(() => {
     fetchVATClients()
   }, [fetchVATClients])
+
+  // Auto-focus on specific client/workflow when navigated from notifications
+  useEffect(() => {
+    if (focusClientId && vatClients.length > 0) {
+      const targetClient = vatClients.find(client => client.id === focusClientId)
+      if (targetClient) {
+        // Expand the client row if it has a workflow
+        setExpandedRows(prev => ({ ...prev, [`${focusClientId}-${currentMonth}`]: true }))
+        
+        // Scroll to the client after a short delay
+        setTimeout(() => {
+          const element = document.getElementById(`vat-client-${focusClientId}`)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            // Add highlight effect
+            element.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50')
+            setTimeout(() => {
+              element.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50')
+            }, 3000)
+          }
+        }, 500)
+      }
+    }
+  }, [focusClientId, vatClients, currentMonth])
 
   // Advanced filter handlers
   const handleApplyAdvancedFilters = (filter: AdvancedFilter | null) => {
@@ -1127,7 +1160,11 @@ export function VATDeadlinesTable() {
             return (
             <>
               {/* Main Row */}
-              <TableRow key={rowKey} className="hover:bg-muted/50 h-14">
+              <TableRow 
+                key={rowKey} 
+                id={`vat-client-${client.id}`}
+                className="hover:bg-muted/50 h-14"
+              >
                 <TableCell className="font-mono text-xs p-2 text-center">
                   {client.clientCode}
                 </TableCell>

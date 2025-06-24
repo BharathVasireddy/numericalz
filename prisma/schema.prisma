@@ -8,166 +8,153 @@ datasource db {
 }
 
 model User {
-  id                 String          @id @default(cuid())
-  email              String          @unique
-  name               String
-  password           String
-  role               String          @default("STAFF")
-  isActive           Boolean         @default(true)
-  lastLoginAt        DateTime?
-  
-  // OTP Authentication fields
-  otpCode            String?         // 6-digit OTP code
-  otpExpiresAt       DateTime?       // When the OTP expires
-  otpAttempts        Int             @default(0) // Failed OTP attempts counter
-  lastOtpSentAt      DateTime?       // When OTP was last sent (rate limiting)
-  isOtpVerified      Boolean         @default(false) // Whether current session has verified OTP
-  
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  accounts           Account[]
-  activityLogs       ActivityLog[]
-  
-  // ENHANCED ASSIGNMENT RELATIONS - Different client assignments for different work types
-  assignedClients           Client[]  @relation("ClientAssignedUser")
-  ltdCompanyAssignedClients Client[]  @relation("ClientLtdAssignedUser")
-  nonLtdCompanyAssignedClients Client[] @relation("ClientNonLtdAssignedUser")
-  vatAssignedClients        Client[]  @relation("ClientVATAssignedUser")
-  
-  sentCommunications Communication[]
-  notifications      Notification[]
-  sessions           Session[]
-  defaultAssigneeFor UserSettings[]  @relation("DefaultAssignee")
-  settings           UserSettings?
-  assignedVATQuarters VATQuarter[]
-  vatWorkflowHistory VATWorkflowHistory[]
+  id                           String                       @id @default(cuid())
+  email                        String                       @unique
+  name                         String
+  password                     String
+  role                         String                       @default("STAFF")
+  isActive                     Boolean                      @default(true)
+  lastLoginAt                  DateTime?
+  createdAt                    DateTime                     @default(now())
+  updatedAt                    DateTime                     @updatedAt
+  otpCode                      String?
+  otpExpiresAt                 DateTime?
+  otpAttempts                  Int                          @default(0)
+  lastOtpSentAt                DateTime?
+  isOtpVerified                Boolean                      @default(false)
+  accounts                     Account[]
+  activityLogs                 ActivityLog[]
+  assignedClients              Client[]                     @relation("ClientAssignedUser")
+  ltdCompanyAssignedClients    Client[]                     @relation("ClientLtdAssignedUser")
+  nonLtdCompanyAssignedClients Client[]                     @relation("ClientNonLtdAssignedUser")
+  vatAssignedClients           Client[]                     @relation("ClientVATAssignedUser")
+  sentCommunications           Communication[]
+  ltdAccountsWorkflowHistory   LtdAccountsWorkflowHistory[]
   assignedLtdAccountsWorkflows LtdAccountsWorkflow[]
-  ltdAccountsWorkflowHistory LtdAccountsWorkflowHistory[]
+  notifications                Notification[]
+  sessions                     Session[]
+  defaultAssigneeFor           UserSettings[]               @relation("DefaultAssignee")
+  settings                     UserSettings?
+  assignedVATQuarters          VATQuarter[]
+  vatWorkflowHistory           VATWorkflowHistory[]
 
   @@index([email])
   @@index([role])
   @@index([isActive])
+  @@index([otpCode])
+  @@index([otpExpiresAt])
   @@map("users")
 }
 
 model Client {
-  id                            String          @id @default(cuid())
-  clientCode                    String          @unique
-  companyNumber                 String?         @unique
-  companyName                   String
-  companyType                   String?
-  companyStatus                 String?
-  companyStatusDetail           String?
-  incorporationDate             DateTime?
-  cessationDate                 DateTime?
-  registeredOfficeAddress       String?
-  registeredOfficeAddressLine1  String?
-  registeredOfficeAddressLine2  String?
-  registeredOfficeAddressCity   String?
-  registeredOfficeAddressCounty String?
+  id                              String                @id @default(cuid())
+  clientCode                      String                @unique
+  companyName                     String
+  companyNumber                   String?               @unique
+  companyType                     String?
+  companyStatus                   String?
+  companyStatusDetail             String?
+  incorporationDate               DateTime?
+  cessationDate                   DateTime?
+  registeredOfficeAddress         String?
+  sicCodes                        String?
+  nextAccountsDue                 DateTime?
+  lastAccountsMadeUpTo            DateTime?
+  accountingReferenceDate         String?
+  nextConfirmationDue             DateTime?
+  lastConfirmationMadeUpTo        DateTime?
+  jurisdiction                    String?
+  hasBeenLiquidated               Boolean               @default(false)
+  hasCharges                      Boolean               @default(false)
+  hasInsolvencyHistory            Boolean               @default(false)
+  officers                        String?
+  personsWithSignificantControl   String?
+  contactName                     String
+  contactEmail                    String
+  contactPhone                    String?
+  contactFax                      String?
+  website                         String?
+  vatNumber                       String?
+  yearEstablished                 Int?
+  numberOfEmployees               Int?
+  annualTurnover                  Float?
+  paperworkFrequency              String?
+  assignedUserId                  String?
+  isActive                        Boolean               @default(true)
+  notes                           String?
+  createdAt                       DateTime              @default(now())
+  updatedAt                       DateTime              @updatedAt
+  additionalComments              String?
+  annualAccountingScheme          Boolean               @default(false)
+  businessType                    String?
+  corporationTaxPeriodEnd         DateTime?
+  corporationTaxPeriodStart       DateTime?
+  corporationTaxStatus            String?               @default("UNKNOWN")
+  ctDueSource                     String?               @default("AUTO")
+  ctStatusUpdatedBy               String?
+  dormantStatus                   Boolean               @default(false)
+  flatRatePercentage              Float?
+  handlesAnnualAccounts           Boolean               @default(true)
+  isVatEnabled                    Boolean               @default(false)
+  jobCompleted                    Boolean               @default(false)
+  jobCompletedDate                DateTime?
+  lastCTStatusUpdate              DateTime?
+  ltdCompanyAssignedUserId        String?
+  manualCTDueOverride             DateTime?
+  nationalInsuranceNumber         String?
+  natureOfBusiness                String?
+  natureOfTrade                   String?
+  nextCorporationTaxDue           DateTime?
+  nextVatReturnDue                DateTime?
+  nonLtdCompanyAssignedUserId     String?
+  numberOfPartners                Int?
+  paperWorkReceived               Boolean               @default(false)
+  paperWorkReceivedDate           DateTime?
+  partnershipTaxReturn            Boolean               @default(false)
+  preferredContactMethod          String?
+  previousYearEnded               DateTime?
+  previousYearJobCompletedDate    DateTime?
+  previousYearSA100FiledDate      DateTime?
+  previousYearWorkReceivedDate    DateTime?
+  registeredOfficeAddressCity     String?
+  registeredOfficeAddressCountry  String?
+  registeredOfficeAddressCounty   String?
+  registeredOfficeAddressLine1    String?
+  registeredOfficeAddressLine2    String?
   registeredOfficeAddressPostCode String?
-  registeredOfficeAddressCountry String?
-  sicCodes                      String?
-  natureOfBusiness              String?
-  nextAccountsDue               DateTime?
-  lastAccountsMadeUpTo          DateTime?
-  accountingReferenceDate       String?
-  nextConfirmationDue           DateTime?
-  lastConfirmationMadeUpTo      DateTime?
-  nextCorporationTaxDue         DateTime?
-  // Corporation Tax tracking fields
-  corporationTaxStatus          String?         @default("UNKNOWN") // UNKNOWN, CURRENT, OVERDUE, DORMANT
-  corporationTaxPeriodStart     DateTime?       // Start of current CT period
-  corporationTaxPeriodEnd       DateTime?       // End of current CT period (year end)
-  manualCTDueOverride           DateTime?       // Manual override by accountant
-  ctDueSource                   String?         @default("AUTO") // AUTO, MANUAL
-  lastCTStatusUpdate            DateTime?       // When CT status was last changed
-  ctStatusUpdatedBy             String?         // User who updated CT status
-  jurisdiction                  String?
-  hasBeenLiquidated             Boolean         @default(false)
-  hasCharges                    Boolean         @default(false)
-  hasInsolvencyHistory          Boolean         @default(false)
-  officers                      String?
-  personsWithSignificantControl String?
-  contactName                   String
-  contactEmail                  String
-  contactPhone                  String?
-  contactFax                    String?
-  website                       String?
-  vatNumber                     String?
-  yearEstablished               Int?
-  numberOfEmployees             Int?
-  annualTurnover                Float?
-  paperworkFrequency            String?
-  
-  // ENHANCED ASSIGNMENT SYSTEM - Different staff for different work types
-  assignedUserId                String?         // General assignment (legacy, kept for compatibility)
-  ltdCompanyAssignedUserId      String?         // Staff assigned for Ltd company accounts work
-  nonLtdCompanyAssignedUserId   String?         // Staff assigned for Non-Ltd company accounts work
-  vatAssignedUserId             String?         // Staff assigned for VAT work
-  
-  isActive                      Boolean         @default(true)
-  notes                         String?
-  createdAt                     DateTime        @default(now())
-  updatedAt                     DateTime        @updatedAt
-  additionalComments            String?
-  annualAccountingScheme        Boolean         @default(false)
-  businessType                  String?
-  dormantStatus                 Boolean         @default(false)
-  flatRatePercentage            Float?
-  jobCompleted                  Boolean         @default(false)
-  jobCompletedDate              DateTime?
-  nationalInsuranceNumber       String?
-  natureOfTrade                 String?
-  numberOfPartners              Int?
-  paperWorkReceived             Boolean         @default(false)
-  paperWorkReceivedDate         DateTime?
-  partnershipTaxReturn          Boolean         @default(false)
-  previousYearEnded             DateTime?
-  previousYearJobCompletedDate  DateTime?
-  previousYearSA100FiledDate    DateTime?
-  previousYearWorkReceivedDate  DateTime?
-  residentialAddressCountry     String?
-  residentialAddressLine1       String?
-  residentialAddressLine2       String?
-  residentialAddressPostCode    String?
-  sa100Filed                    Boolean         @default(false)
-  sa100FiledDate                DateTime?
-  smallCompanyExemption         Boolean         @default(false)
-  staff                         String?
-  tradingAddressCountry         String?
-  tradingAddressLine1           String?
-  tradingAddressLine2           String?
-  tradingAddressPostCode        String?
-  utrNumber                     String?
-  vatDeregistrationDate         DateTime?
-  vatFrequency                  String?
-  vatQuartersWorkflow           VATQuarter[]
-  vatRegistrationDate           DateTime?
-  vatScheme                     String?
-  workStatus                    String?
-  ltdAccountsWorkflows          LtdAccountsWorkflow[]
-  // Post-creation questionnaire fields
-  isVatEnabled                  Boolean         @default(false)
-  vatReturnsFrequency           String?
-  vatQuarterGroup               String?         // For quarterly VAT: "1_4_7_10", "2_5_8_11", "3_6_9_12"
-  nextVatReturnDue              DateTime?
-  requiresPayroll               Boolean         @default(false)
-  requiresBookkeeping           Boolean         @default(false)
-  requiresManagementAccounts    Boolean         @default(false)
-  preferredContactMethod        String?
-  specialInstructions           String?
-  // Service management fields
-  handlesAnnualAccounts         Boolean         @default(true)  // Whether we handle their annual accounts
-  activityLogs                  ActivityLog[]
-  
-  // ENHANCED ASSIGNMENT RELATIONS
-  assignedUser                  User?           @relation("ClientAssignedUser", fields: [assignedUserId], references: [id])
-  ltdCompanyAssignedUser        User?           @relation("ClientLtdAssignedUser", fields: [ltdCompanyAssignedUserId], references: [id])
-  nonLtdCompanyAssignedUser     User?           @relation("ClientNonLtdAssignedUser", fields: [nonLtdCompanyAssignedUserId], references: [id])
-  vatAssignedUser               User?           @relation("ClientVATAssignedUser", fields: [vatAssignedUserId], references: [id])
-  
-  communications                Communication[]
+  requiresBookkeeping             Boolean               @default(false)
+  requiresManagementAccounts      Boolean               @default(false)
+  requiresPayroll                 Boolean               @default(false)
+  residentialAddressCountry       String?
+  residentialAddressLine1         String?
+  residentialAddressLine2         String?
+  residentialAddressPostCode      String?
+  sa100Filed                      Boolean               @default(false)
+  sa100FiledDate                  DateTime?
+  smallCompanyExemption           Boolean               @default(false)
+  specialInstructions             String?
+  staff                           String?
+  tradingAddressCountry           String?
+  tradingAddressLine1             String?
+  tradingAddressLine2             String?
+  tradingAddressPostCode          String?
+  utrNumber                       String?
+  vatAssignedUserId               String?
+  vatDeregistrationDate           DateTime?
+  vatFrequency                    String?
+  vatQuarterGroup                 String?
+  vatRegistrationDate             DateTime?
+  vatReturnsFrequency             String?
+  vatScheme                       String?
+  workStatus                      String?
+  activityLogs                    ActivityLog[]
+  assignedUser                    User?                 @relation("ClientAssignedUser", fields: [assignedUserId], references: [id])
+  ltdCompanyAssignedUser          User?                 @relation("ClientLtdAssignedUser", fields: [ltdCompanyAssignedUserId], references: [id])
+  nonLtdCompanyAssignedUser       User?                 @relation("ClientNonLtdAssignedUser", fields: [nonLtdCompanyAssignedUserId], references: [id])
+  vatAssignedUser                 User?                 @relation("ClientVATAssignedUser", fields: [vatAssignedUserId], references: [id])
+  communications                  Communication[]
+  ltdAccountsWorkflows            LtdAccountsWorkflow[]
+  vatQuartersWorkflow             VATQuarter[]
 
   @@index([companyNumber])
   @@index([assignedUserId])
@@ -317,88 +304,142 @@ model UserSettings {
   @@map("user_settings")
 }
 
-// VAT Workflow Management
 model VATQuarter {
-  id        String   @id @default(cuid())
-  clientId  String
-  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  // Quarter Identification (full period)
-  quarterPeriod     String    // e.g., "2023-11-01_to_2024-01-31"
-  quarterStartDate  DateTime
-  quarterEndDate    DateTime
-  filingDueDate     DateTime
-  quarterGroup      String    // "1/4/7/10", "2/5/8/11", "3/6/9/12"
-
-  // Current Status
-  currentStage      VATWorkflowStage @default(PAPERWORK_PENDING_CHASE)
-  isCompleted       Boolean          @default(false)
-  assignedUserId    String?
-  assignedUser      User?            @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
-
-  // Key Milestone Dates with User Tracking
-  chaseStartedDate           DateTime?
-  chaseStartedByUserId       String?
-  chaseStartedByUserName     String?
-  
-  paperworkReceivedDate      DateTime?
-  paperworkReceivedByUserId  String?
+  id                          String               @id @default(cuid())
+  clientId                    String
+  quarterPeriod               String
+  quarterStartDate            DateTime
+  quarterEndDate              DateTime
+  filingDueDate               DateTime
+  quarterGroup                String
+  currentStage                VATWorkflowStage     @default(PAPERWORK_PENDING_CHASE)
+  isCompleted                 Boolean              @default(false)
+  assignedUserId              String?
+  chaseStartedDate            DateTime?
+  chaseStartedByUserId        String?
+  chaseStartedByUserName      String?
+  paperworkReceivedDate       DateTime?
+  paperworkReceivedByUserId   String?
   paperworkReceivedByUserName String?
-  
-  workStartedDate            DateTime?
-  workStartedByUserId        String?
-  workStartedByUserName      String?
-  
-  workFinishedDate           DateTime?
-  workFinishedByUserId       String?
-  workFinishedByUserName     String?
-  
-  sentToClientDate           DateTime?
-  sentToClientByUserId       String?
-  sentToClientByUserName     String?
-  
-  clientApprovedDate         DateTime?
-  clientApprovedByUserId     String?
-  clientApprovedByUserName   String?
-  
-  filedToHMRCDate            DateTime?
-  filedToHMRCByUserId        String?
-  filedToHMRCByUserName      String?
-
-  // Workflow History
-  workflowHistory VATWorkflowHistory[]
-
-  // Metadata
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  workStartedDate             DateTime?
+  workStartedByUserId         String?
+  workStartedByUserName       String?
+  workFinishedDate            DateTime?
+  workFinishedByUserId        String?
+  workFinishedByUserName      String?
+  sentToClientDate            DateTime?
+  sentToClientByUserId        String?
+  sentToClientByUserName      String?
+  clientApprovedDate          DateTime?
+  clientApprovedByUserId      String?
+  clientApprovedByUserName    String?
+  filedToHMRCDate             DateTime?
+  filedToHMRCByUserId         String?
+  filedToHMRCByUserName       String?
+  createdAt                   DateTime             @default(now())
+  updatedAt                   DateTime             @updatedAt
+  assignedUser                User?                @relation(fields: [assignedUserId], references: [id])
+  client                      Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  workflowHistory             VATWorkflowHistory[]
 
   @@unique([clientId, quarterPeriod])
   @@map("vat_quarters")
 }
 
 model VATWorkflowHistory {
-  id            String   @id @default(cuid())
-  vatQuarterId  String
-  vatQuarter    VATQuarter @relation(fields: [vatQuarterId], references: [id], onDelete: Cascade)
-
-  // Stage Change Information
-  fromStage            VATWorkflowStage?
-  toStage              VATWorkflowStage
-  stageChangedAt       DateTime
-  daysInPreviousStage  Int?
-
-  // Preserved User Data (even if user is deleted)
-  userId     String?
-  user       User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-  userName   String
-  userEmail  String
-  userRole   String
-
-  // Additional Information
-  notes      String?
-  createdAt  DateTime @default(now())
+  id                  String            @id @default(cuid())
+  vatQuarterId        String
+  fromStage           VATWorkflowStage?
+  toStage             VATWorkflowStage
+  stageChangedAt      DateTime
+  daysInPreviousStage Int?
+  userId              String?
+  userName            String
+  userEmail           String
+  userRole            String
+  notes               String?
+  createdAt           DateTime          @default(now())
+  user                User?             @relation(fields: [userId], references: [id])
+  vatQuarter          VATQuarter        @relation(fields: [vatQuarterId], references: [id], onDelete: Cascade)
 
   @@map("vat_workflow_history")
+}
+
+model LtdAccountsWorkflow {
+  id                          String                       @id @default(cuid())
+  clientId                    String
+  filingPeriodStart           DateTime
+  filingPeriodEnd             DateTime
+  accountsDueDate             DateTime
+  ctDueDate                   DateTime
+  csDueDate                   DateTime
+  currentStage                LtdAccountsWorkflowStage     @default(PAPERWORK_PENDING_CHASE)
+  assignedUserId              String?
+  isCompleted                 Boolean                      @default(false)
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @default(now()) @updatedAt
+  chaseStartedDate            DateTime?
+  chaseStartedByUserId        String?
+  chaseStartedByUserName      String?
+  paperworkReceivedDate       DateTime?
+  paperworkReceivedByUserId   String?
+  paperworkReceivedByUserName String?
+  workStartedDate             DateTime?
+  workStartedByUserId         String?
+  workStartedByUserName       String?
+  managerDiscussionDate       DateTime?
+  managerDiscussionByUserId   String?
+  managerDiscussionByUserName String?
+  partnerReviewDate           DateTime?
+  partnerReviewByUserId       String?
+  partnerReviewByUserName     String?
+  reviewCompletedDate         DateTime?
+  reviewCompletedByUserId     String?
+  reviewCompletedByUserName   String?
+  sentToClientDate            DateTime?
+  sentToClientByUserId        String?
+  sentToClientByUserName      String?
+  clientApprovedDate          DateTime?
+  clientApprovedByUserId      String?
+  clientApprovedByUserName    String?
+  partnerApprovedDate         DateTime?
+  partnerApprovedByUserId     String?
+  partnerApprovedByUserName   String?
+  filedDate                   DateTime?
+  filedByUserId               String?
+  filedByUserName             String?
+  clientSelfFilingDate        DateTime?
+  clientSelfFilingByUserId    String?
+  clientSelfFilingByUserName  String?
+  workflowHistory             LtdAccountsWorkflowHistory[]
+  assignedUser                User?                        @relation(fields: [assignedUserId], references: [id])
+  client                      Client                       @relation(fields: [clientId], references: [id])
+
+  @@index([assignedUserId])
+  @@index([clientId])
+  @@index([currentStage])
+  @@index([filingPeriodEnd])
+  @@map("ltd_accounts_workflows")
+}
+
+model LtdAccountsWorkflowHistory {
+  id                    String                    @id @default(cuid())
+  ltdAccountsWorkflowId String
+  fromStage             LtdAccountsWorkflowStage?
+  toStage               LtdAccountsWorkflowStage
+  stageChangedAt        DateTime                  @default(now())
+  userId                String
+  userName              String
+  userEmail             String
+  userRole              String
+  notes                 String?
+  createdAt             DateTime                  @default(now())
+  daysInPreviousStage   Int?
+  ltdAccountsWorkflow   LtdAccountsWorkflow       @relation(fields: [ltdAccountsWorkflowId], references: [id])
+  user                  User                      @relation(fields: [userId], references: [id])
+
+  @@index([ltdAccountsWorkflowId])
+  @@map("ltd_accounts_workflow_history")
 }
 
 enum VATWorkflowStage {
@@ -408,111 +449,13 @@ enum VATWorkflowStage {
   WORK_IN_PROGRESS
   QUERIES_PENDING
   REVIEW_PENDING_MANAGER
+  REVIEWED_BY_MANAGER
   REVIEW_PENDING_PARTNER
+  REVIEWED_BY_PARTNER
   EMAILED_TO_PARTNER
   EMAILED_TO_CLIENT
   CLIENT_APPROVED
   FILED_TO_HMRC
-}
-
-// Ltd Company Accounts Workflow Management
-model LtdAccountsWorkflow {
-  id        String   @id @default(cuid())
-  clientId  String
-  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  // Filing Period Identification
-  filingPeriodStart    DateTime   // Start of accounting period (year end + 1 day of previous year)
-  filingPeriodEnd      DateTime   // End of accounting period (year end date)
-  accountsDueDate      DateTime   // 9 months after year end
-  ctDueDate            DateTime   // 12 months after year end  
-  csDueDate            DateTime   // Companies House confirmation statement due
-  
-  // Current Status
-  currentStage         LtdAccountsWorkflowStage @default(PAPERWORK_PENDING_CHASE)
-  isCompleted          Boolean                   @default(false)
-  assignedUserId       String?
-  assignedUser         User?                    @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
-
-  // Key Milestone Dates with User Tracking
-  chaseStartedDate              DateTime?
-  chaseStartedByUserId          String?
-  chaseStartedByUserName        String?
-  
-  paperworkReceivedDate         DateTime?
-  paperworkReceivedByUserId     String?
-  paperworkReceivedByUserName   String?
-  
-  workStartedDate               DateTime?
-  workStartedByUserId           String?
-  workStartedByUserName         String?
-  
-  managerDiscussionDate         DateTime?
-  managerDiscussionByUserId     String?
-  managerDiscussionByUserName   String?
-  
-  partnerReviewDate             DateTime?
-  partnerReviewByUserId         String?
-  partnerReviewByUserName       String?
-  
-  reviewCompletedDate           DateTime?
-  reviewCompletedByUserId       String?
-  reviewCompletedByUserName     String?
-  
-  sentToClientDate              DateTime?
-  sentToClientByUserId          String?
-  sentToClientByUserName        String?
-  
-  clientApprovedDate            DateTime?
-  clientApprovedByUserId        String?
-  clientApprovedByUserName      String?
-  
-  partnerApprovedDate           DateTime?
-  partnerApprovedByUserId       String?
-  partnerApprovedByUserName     String?
-  
-  filedDate                     DateTime?
-  filedByUserId                 String?
-  filedByUserName               String?
-  
-  clientSelfFilingDate          DateTime?
-  clientSelfFilingByUserId      String?
-  clientSelfFilingByUserName    String?
-
-  // Workflow History
-  workflowHistory LtdAccountsWorkflowHistory[]
-
-  // Metadata
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([clientId, filingPeriodEnd])
-  @@map("ltd_accounts_workflows")
-}
-
-model LtdAccountsWorkflowHistory {
-  id                    String   @id @default(cuid())
-  ltdAccountsWorkflowId String
-  ltdAccountsWorkflow   LtdAccountsWorkflow @relation(fields: [ltdAccountsWorkflowId], references: [id], onDelete: Cascade)
-
-  // Stage Change Information
-  fromStage            LtdAccountsWorkflowStage?
-  toStage              LtdAccountsWorkflowStage
-  stageChangedAt       DateTime
-  daysInPreviousStage  Int?
-
-  // Preserved User Data (even if user is deleted)
-  userId     String?
-  user       User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-  userName   String
-  userEmail  String
-  userRole   String
-
-  // Additional Information
-  notes      String?
-  createdAt  DateTime @default(now())
-
-  @@map("ltd_accounts_workflow_history")
 }
 
 enum LtdAccountsWorkflowStage {
@@ -521,7 +464,9 @@ enum LtdAccountsWorkflowStage {
   PAPERWORK_RECEIVED
   WORK_IN_PROGRESS
   DISCUSS_WITH_MANAGER
+  REVIEWED_BY_MANAGER
   REVIEW_BY_PARTNER
+  REVIEWED_BY_PARTNER
   REVIEW_DONE_HELLO_SIGN
   SENT_TO_CLIENT_HELLO_SIGN
   APPROVED_BY_CLIENT

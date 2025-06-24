@@ -181,7 +181,15 @@ interface AdvancedFilter {
   groupOperator: 'AND' | 'OR'
 }
 
-export function LtdCompaniesDeadlinesTable() {
+interface LtdCompaniesDeadlinesTableProps {
+  focusClientId?: string
+  focusWorkflowId?: string
+}
+
+export function LtdCompaniesDeadlinesTable({ 
+  focusClientId, 
+  focusWorkflowId 
+}: LtdCompaniesDeadlinesTableProps = {}) {
   const { data: session } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()

@@ -9,7 +9,11 @@ export const metadata = {
   description: 'Track VAT deadlines for all VAT-enabled clients',
 }
 
-export default async function VATDeadlineTrackerPage() {
+export default async function VATDeadlineTrackerPage({
+  searchParams
+}: {
+  searchParams: { focus?: string; workflow?: string }
+}) {
   const session = await getServerSession(authOptions)
 
   if (!session) {
@@ -18,7 +22,10 @@ export default async function VATDeadlineTrackerPage() {
 
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <VATDeadlinesTable />
+      <VATDeadlinesTable 
+        focusClientId={searchParams.focus}
+        focusWorkflowId={searchParams.workflow}
+      />
     </Suspense>
   )
 } 

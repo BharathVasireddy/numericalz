@@ -21,12 +21,21 @@ export const metadata: Metadata = {
  * 
  * Authentication: Server-side authentication with automatic redirect
  */
-export default async function LtdCompaniesPage() {
+export default async function LtdCompaniesPage({
+  searchParams
+}: {
+  searchParams: { focus?: string; workflow?: string }
+}) {
   const session = await getServerSession(authOptions)
 
   if (!session?.user) {
     redirect('/auth/login')
   }
 
-  return <LtdCompaniesDeadlinesTable />
+  return (
+    <LtdCompaniesDeadlinesTable 
+      focusClientId={searchParams.focus}
+      focusWorkflowId={searchParams.workflow}
+    />
+  )
 } 

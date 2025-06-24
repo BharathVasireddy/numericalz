@@ -232,7 +232,9 @@ export const VAT_WORKFLOW_STAGE_NAMES = {
   WORK_IN_PROGRESS: "Work in progress",
   QUERIES_PENDING: "Queries pending",
   REVIEW_PENDING_MANAGER: "Review pending by manager",
+  REVIEWED_BY_MANAGER: "Reviewed by manager",
   REVIEW_PENDING_PARTNER: "Review pending by partner",
+  REVIEWED_BY_PARTNER: "Reviewed by partner",
   EMAILED_TO_PARTNER: "Emailed to partner",
   EMAILED_TO_CLIENT: "Emailed to client",
   CLIENT_APPROVED: "Client approved",
@@ -279,6 +281,16 @@ export function stageRequiresNotification(stage: string): boolean {
     'REVIEW_PENDING_PARTNER',
     'EMAILED_TO_PARTNER',
     'EMAILED_TO_CLIENT'
+  ].includes(stage)
+}
+
+/**
+ * Check if a stage is a "reviewed" status stage (not selectable in dropdowns)
+ */
+export function isReviewedStage(stage: string): boolean {
+  return [
+    'REVIEWED_BY_MANAGER',
+    'REVIEWED_BY_PARTNER'
   ].includes(stage)
 }
 

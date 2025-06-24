@@ -8,6 +8,7 @@ import { WorkReviewWidget } from './widgets/work-review-widget'
 import { WorkloadDistributionWidget } from './widgets/workload-distribution-widget'
 import { WorkflowStageWidget } from './widgets/workflow-stage-widget'
 import { NotificationWidget } from './widgets/notification-widget'
+import { WorkflowReviewNotificationWidget } from './widgets/workflow-review-notification-widget'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -116,6 +117,26 @@ interface ManagerDashboardData {
     createdAt: Date
     actionUrl?: string
   }>
+  workflowReviews: Array<{
+    id: string
+    type: 'vat' | 'ltd'
+    clientId: string
+    clientName: string
+    clientCode: string
+    workflowId: string
+    currentStage: string
+    stageLabel: string
+    assignedUser: {
+      id: string
+      name: string
+      role: string
+    }
+    submittedDate: Date | string
+    daysWaiting: number
+    priority: 'high' | 'medium' | 'low'
+    quarterPeriod?: string
+    filingPeriod?: string
+  }>
   analytics: {
     completionRate: number
     averageProcessingTime: number
@@ -129,6 +150,8 @@ export function ManagerDashboard({ userId }: ManagerDashboardProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<ManagerDashboardData | null>(null)
+  const [workflowReviews, setWorkflowReviews] = useState<any[]>([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
 
   const fetchDashboardData = async () => {
     try {
@@ -146,8 +169,31 @@ export function ManagerDashboard({ userId }: ManagerDashboardProps) {
     }
   }
 
+  const fetchWorkflowReviews = async () => {
+    try {
+      setReviewsLoading(true)
+      const response = await fetch('/api/notifications/workflow-reviews?role=MANAGER')
+      const result = await response.json()
+      
+      if (result.success) {
+        setWorkflowReviews(result.data.reviewItems)
+      }
+    } catch (error) {
+      console.error('Error fetching workflow reviews:', error)
+    } finally {
+      setReviewsLoading(false)
+    }
+  }
+
+  const handleReviewComplete = () => {
+    // Refresh both dashboard data and workflow reviews
+    fetchDashboardData()
+    fetchWorkflowReviews()
+  }
+
   useEffect(() => {
     fetchDashboardData()
+    fetchWorkflowReviews()
   }, [userId])
 
   const handleMarkNotificationRead = async (notificationId: string) => {
@@ -231,10 +277,13 @@ export function ManagerDashboard({ userId }: ManagerDashboardProps) {
       >
         <Button 
           variant="outline" 
-          onClick={fetchDashboardData}
-          disabled={loading}
+          onClick={() => {
+            fetchDashboardData()
+            fetchWorkflowReviews()
+          }}
+          disabled={loading || reviewsLoading}
         >
-          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading || reviewsLoading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </PageHeader>
@@ -321,6 +370,17 @@ export function ManagerDashboard({ userId }: ManagerDashboardProps) {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {/* Workflow Review Notifications - Top Priority */}
+        {workflowReviews.length > 0 && (
+          <div className="mb-6">
+            <WorkflowReviewNotificationWidget
+              items={workflowReviews}
+              userRole="MANAGER"
+              onReviewComplete={handleReviewComplete}
+            />
           </div>
         )}
 

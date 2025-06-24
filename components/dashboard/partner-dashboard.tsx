@@ -20,6 +20,7 @@ import {
   AlertTriangle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { WorkflowReviewNotificationWidget } from './widgets/workflow-review-notification-widget'
 
 interface PartnerDashboardProps {
   userId: string
@@ -65,6 +66,8 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
   const { data: session } = useSession()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [workflowReviews, setWorkflowReviews] = useState<any[]>([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
 
   const fetchData = async () => {
     try {
@@ -90,8 +93,31 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
     }
   }
 
+  const fetchWorkflowReviews = async () => {
+    try {
+      setReviewsLoading(true)
+      const response = await fetch('/api/notifications/workflow-reviews?role=PARTNER')
+      const result = await response.json()
+      
+      if (result.success) {
+        setWorkflowReviews(result.data.reviewItems)
+      }
+    } catch (error) {
+      console.error('Error fetching workflow reviews:', error)
+    } finally {
+      setReviewsLoading(false)
+    }
+  }
+
+  const handleReviewComplete = () => {
+    // Refresh both dashboard data and workflow reviews
+    fetchData()
+    fetchWorkflowReviews()
+  }
+
   useEffect(() => {
     fetchData()
+    fetchWorkflowReviews()
   }, [userId])
 
   // Enhanced navigation handlers for unassigned clients
@@ -199,6 +225,17 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
               Overview of clients, team workload, and monthly deadlines
             </p>
           </div>
+
+          {/* Workflow Review Notifications - Top Priority */}
+          {workflowReviews.length > 0 && (
+            <div className="px-4 lg:px-0">
+              <WorkflowReviewNotificationWidget
+                items={workflowReviews}
+                userRole="PARTNER"
+                onReviewComplete={handleReviewComplete}
+              />
+            </div>
+          )}
 
           {/* Client Overview - Mobile-First Responsive Grid */}
           <div className="px-4 lg:px-0">
