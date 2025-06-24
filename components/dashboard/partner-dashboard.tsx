@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { WorkflowReviewNotificationWidget } from './widgets/workflow-review-notification-widget'
+import { EmailLogWidget } from './widgets/email-log-widget'
 
 interface PartnerDashboardProps {
   userId: string
@@ -236,6 +237,11 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
               />
             </div>
           )}
+
+          {/* Email Log Widget - Communication Tracking */}
+          <div className="px-4 lg:px-0">
+            <EmailLogWidget />
+          </div>
 
           {/* Client Overview - Mobile-First Responsive Grid */}
           <div className="px-4 lg:px-0">

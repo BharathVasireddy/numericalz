@@ -37,6 +37,7 @@ model User {
   settings                     UserSettings?
   assignedVATQuarters          VATQuarter[]
   vatWorkflowHistory           VATWorkflowHistory[]
+  triggeredEmailLogs           EmailLog[]
 
   @@index([email])
   @@index([role])
@@ -155,6 +156,7 @@ model Client {
   communications                  Communication[]
   ltdAccountsWorkflows            LtdAccountsWorkflow[]
   vatQuartersWorkflow             VATQuarter[]
+  emailLogs                       EmailLog[]
 
   @@index([companyNumber])
   @@index([assignedUserId])
@@ -473,4 +475,44 @@ enum LtdAccountsWorkflowStage {
   SUBMISSION_APPROVED_PARTNER
   FILED_CH_HMRC
   CLIENT_SELF_FILING
+}
+
+model EmailLog {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Email details
+  recipientEmail String
+  recipientName  String?
+  subject        String
+  content        String   @db.Text
+  emailType      String   // 'WORKFLOW_REVIEW_COMPLETE', 'DEADLINE_REMINDER', etc.
+  
+  // Status tracking
+  status         EmailStatus @default(PENDING)
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  failedAt       DateTime?
+  failureReason  String?
+  
+  // Context information
+  clientId       String?
+  workflowType   String?   // 'vat', 'accounts'
+  workflowId     String?
+  triggeredBy    String    // User ID who triggered the email
+  
+  // Relations
+  client         Client?   @relation(fields: [clientId], references: [id])
+  triggeredByUser User     @relation(fields: [triggeredBy], references: [id])
+  
+  @@map("email_logs")
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
 }

@@ -1,0 +1,323 @@
+{
+  "timestamp": "2025-06-24T08:17:30.204Z",
+  "database": {
+    "users": {
+      "count": 5,
+      "records": [
+        {
+          "id": "cmc8vn0xw0000e3dqhcfakadb",
+          "email": "manager@test.com",
+          "name": "Test Manager",
+          "role": "MANAGER",
+          "isActive": true,
+          "createdAt": "2025-06-23T09:11:09.956Z",
+          "updatedAt": "2025-06-23T09:11:09.956Z"
+        },
+        {
+          "id": "cmc5c8gl800006h5elp4vmk7m",
+          "email": "partner@numericalz.co.uk",
+          "name": "Test Partner",
+          "role": "PARTNER",
+          "isActive": true,
+          "createdAt": "2025-06-20T21:44:39.164Z",
+          "updatedAt": "2025-06-20T21:44:39.164Z"
+        },
+        {
+          "id": "cmc7qfqec000013ncgvnks14j",
+          "email": "test@numericalz.com",
+          "name": "Test User",
+          "role": "STAFF",
+          "isActive": true,
+          "createdAt": "2025-06-22T13:57:45.431Z",
+          "updatedAt": "2025-06-22T14:05:30.890Z"
+        },
+        {
+          "id": "cmc5889sp0000699mygkbm269",
+          "email": "bharat@cloud9digital.in",
+          "name": "Bharat Vasireddy",
+          "role": "PARTNER",
+          "isActive": true,
+          "createdAt": "2025-06-20T19:52:31.897Z",
+          "updatedAt": "2025-06-24T07:28:30.571Z"
+        },
+        {
+          "id": "cmc5979ft000082w1zpye2aby",
+          "email": "mukul@numericalz.com",
+          "name": "Mukul Malik",
+          "role": "PARTNER",
+          "isActive": true,
+          "createdAt": "2025-06-20T20:19:44.393Z",
+          "updatedAt": "2025-06-23T17:03:06.762Z"
+        }
+      ]
+    },
+    "clients": {
+      "count": 6,
+      "records": [
+        {
+          "id": "cmc9gv6gr0000mpisu2vm93mv",
+          "clientCode": "NZ-4",
+          "companyName": "AUREY LTD",
+          "companyNumber": "15170062",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-06-23T19:05:22.299Z",
+          "updatedAt": "2025-06-24T08:06:16.608Z"
+        },
+        {
+          "id": "cmc8xzmue00007x3vz9pz7vu4",
+          "clientCode": "NZ-2",
+          "companyName": "PAWLALAND LTD",
+          "companyNumber": "14054439",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-06-23T10:16:57.446Z",
+          "updatedAt": "2025-06-24T08:06:22.572Z"
+        },
+        {
+          "id": "cmc94hctt0004ten20n0re6qf",
+          "clientCode": "NZ-3",
+          "companyName": "FISERMED LTD",
+          "companyNumber": "13647416",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-06-23T13:18:41.969Z",
+          "updatedAt": "2025-06-24T08:06:18.915Z"
+        },
+        {
+          "id": "cmca5q3rm000699q7c0ujc90n",
+          "clientCode": "NZ-6",
+          "companyName": "TESTING ENDEAVOURS LIMITED",
+          "companyNumber": "09050253",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-06-24T06:41:15.923Z",
+          "updatedAt": "2025-06-24T08:06:26.050Z"
+        },
+        {
+          "id": "cmc9pqbne0000elfyvhob6x2j",
+          "clientCode": "NZ-5",
+          "companyName": "DREAM HOUSE PROJECT LTD",
+          "companyNumber": "12658287",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-06-23T23:13:32.283Z",
+          "updatedAt": "2025-06-24T08:06:24.340Z"
+        },
+        {
+          "id": "cmc8mxc9b000ij51ob5jq4bt7",
+          "clientCode": "NZ-1",
+          "companyName": "NUMERICALZ ADMIN SERVICES LTD",
+          "companyNumber": "13868206",
+          "assignedUserId": "cmc5979ft000082w1zpye2aby",
+          "isActive": true,
+          "createdAt": "2025-06-23T05:07:14.637Z",
+          "updatedAt": "2025-06-24T08:10:17.244Z"
+        }
+      ]
+    },
+    "userSettings": {
+      "count": 2,
+      "records": [
+        {
+          "id": "cmc5do2tw0001qwo3mzb1yeid",
+          "userId": "cmc5979ft000082w1zpye2aby",
+          "defaultAssigneeId": null,
+          "emailNotifications": true,
+          "smsNotifications": false,
+          "createdAt": "2025-06-20T22:24:47.443Z",
+          "updatedAt": "2025-06-20T22:24:47.443Z"
+        },
+        {
+          "id": "cmc7myy1c0005c6otbp4nu444",
+          "userId": "cmc5889sp0000699mygkbm269",
+          "defaultAssigneeId": "cmc5979ft000082w1zpye2aby",
+          "emailNotifications": true,
+          "smsNotifications": false,
+          "createdAt": "2025-06-22T12:20:43.343Z",
+          "updatedAt": "2025-06-23T05:08:18.345Z"
+        }
+      ]
+    },
+    "communications": {
+      "count": 0
+    },
+    "notifications": {
+      "count": 0
+    },
+    "activityLogs": {
+      "count": 284
+    }
+  },
+  "foreignKeyConstraints": [
+    {
+      "table_name": "accounts",
+      "constraint_name": "accounts_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "activity_logs",
+      "constraint_name": "activity_logs_clientId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "clientId",
+      "foreign_table_name": "clients",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "activity_logs",
+      "constraint_name": "activity_logs_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "clients",
+      "constraint_name": "clients_assignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "assignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "clients",
+      "constraint_name": "clients_ltdCompanyAssignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "ltdCompanyAssignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "clients",
+      "constraint_name": "clients_nonLtdCompanyAssignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "nonLtdCompanyAssignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "clients",
+      "constraint_name": "clients_vatAssignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "vatAssignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "communications",
+      "constraint_name": "communications_clientId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "clientId",
+      "foreign_table_name": "clients",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "communications",
+      "constraint_name": "communications_sentByUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "sentByUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "ltd_accounts_workflow_history",
+      "constraint_name": "ltd_accounts_workflow_history_ltdAccountsWorkflowId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "ltdAccountsWorkflowId",
+      "foreign_table_name": "ltd_accounts_workflows",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "ltd_accounts_workflow_history",
+      "constraint_name": "ltd_accounts_workflow_history_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "ltd_accounts_workflows",
+      "constraint_name": "ltd_accounts_workflows_assignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "assignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "ltd_accounts_workflows",
+      "constraint_name": "ltd_accounts_workflows_clientId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "clientId",
+      "foreign_table_name": "clients",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "notifications",
+      "constraint_name": "notifications_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "sessions",
+      "constraint_name": "sessions_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "user_settings",
+      "constraint_name": "user_settings_defaultAssigneeId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "defaultAssigneeId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "user_settings",
+      "constraint_name": "user_settings_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "vat_quarters",
+      "constraint_name": "vat_quarters_assignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "assignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "vat_quarters",
+      "constraint_name": "vat_quarters_clientId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "clientId",
+      "foreign_table_name": "clients",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "vat_workflow_history",
+      "constraint_name": "vat_workflow_history_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "vat_workflow_history",
+      "constraint_name": "vat_workflow_history_vatQuarterId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "vatQuarterId",
+      "foreign_table_name": "vat_quarters",
+      "foreign_column_name": "id"
+    }
+  ],
+  "orphanedRecords": []
+}

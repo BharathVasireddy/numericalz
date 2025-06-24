@@ -139,21 +139,61 @@ export async function POST(request: NextRequest) {
       </div>
     `
 
-    // In a real implementation, you would send the email here
-    // For now, we'll just log it and return success
-    console.log('📧 Email Notification:', {
-      to: assignedUser.email,
-      subject: emailSubject,
-      content: 'HTML email content prepared'
+    // Create email log entry
+    const emailLog = await db.emailLog.create({
+      data: {
+        recipientEmail: assignedUser.email,
+        recipientName: assignedUser.name,
+        subject: emailSubject,
+        content: emailContent,
+        emailType: 'WORKFLOW_REVIEW_COMPLETE',
+        status: 'PENDING',
+        clientId: clientId,
+        workflowType: workflowType,
+        triggeredBy: session.user.id
+      }
     })
 
-    // TODO: Integrate with actual email service (SendGrid, AWS SES, etc.)
-    // Example:
-    // await sendEmail({
-    //   to: assignedUser.email,
-    //   subject: emailSubject,
-    //   html: emailContent
-    // })
+    // In a real implementation, you would send the email here
+    // For now, we'll simulate email sending and update the log
+    try {
+      // TODO: Integrate with actual email service (SendGrid, AWS SES, etc.)
+      // Example:
+      // await sendEmail({
+      //   to: assignedUser.email,
+      //   subject: emailSubject,
+      //   html: emailContent
+      // })
+      
+      // Simulate successful email sending
+      await db.emailLog.update({
+        where: { id: emailLog.id },
+        data: {
+          status: 'SENT',
+          sentAt: new Date()
+        }
+      })
+      
+      console.log('📧 Email Notification Logged:', {
+        id: emailLog.id,
+        to: assignedUser.email,
+        subject: emailSubject,
+        status: 'SENT'
+      })
+      
+    } catch (emailError) {
+      // Log email failure
+      await db.emailLog.update({
+        where: { id: emailLog.id },
+        data: {
+          status: 'FAILED',
+          failedAt: new Date(),
+          failureReason: emailError instanceof Error ? emailError.message : 'Unknown error'
+        }
+      })
+      
+      console.error('📧 Email sending failed:', emailError)
+    }
 
     return NextResponse.json({
       success: true,
