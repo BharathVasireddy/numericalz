@@ -410,6 +410,7 @@ export function LtdCompaniesDeadlinesTable() {
     return dueDate.getMonth() + 1 === currentMonth
   })
 
+  // Fix date range calculations to be mutually exclusive
   const next30DaysClients = sortedFilteredClients.filter(client => {
     if (!client.nextAccountsDue) return false
     const dueDate = new Date(client.nextAccountsDue)
@@ -423,7 +424,7 @@ export function LtdCompaniesDeadlinesTable() {
     const dueDate = new Date(client.nextAccountsDue)
     const today = new Date()
     const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    return daysDiff <= 60 && daysDiff >= 0
+    return daysDiff <= 60 && daysDiff > 30 // 31-60 days range
   })
 
   const next90DaysClients = sortedFilteredClients.filter(client => {
@@ -431,7 +432,7 @@ export function LtdCompaniesDeadlinesTable() {
     const dueDate = new Date(client.nextAccountsDue)
     const today = new Date()
     const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    return daysDiff <= 90 && daysDiff >= 0
+    return daysDiff <= 90 && daysDiff > 60 // 61-90 days range
   })
 
   const formatDate = (dateString?: string) => {
@@ -1080,15 +1081,15 @@ export function LtdCompaniesDeadlinesTable() {
                 <div className="grid grid-cols-4 gap-4 md:col-span-3">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">{next30DaysClients.length}</div>
-                    <p className="text-xs text-muted-foreground">Due in 30 days</p>
+                    <p className="text-xs text-muted-foreground">Due in 0-30 days</p>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-orange-600">{next60DaysClients.length}</div>
-                    <p className="text-xs text-muted-foreground">Due in 60 days</p>
+                    <p className="text-xs text-muted-foreground">Due in 31-60 days</p>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-yellow-600">{next90DaysClients.length}</div>
-                    <p className="text-xs text-muted-foreground">Due in 90 days</p>
+                    <p className="text-xs text-muted-foreground">Due in 61-90 days</p>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-purple-600">{sortedFilteredClients.length}</div>
