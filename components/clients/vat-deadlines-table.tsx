@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useUsers, type User as UserType } from '@/lib/hooks/useUsers'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
@@ -190,6 +190,19 @@ interface AdvancedFilter {
 export function VATDeadlinesTable() {
   const { data: session } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Initialize filter state from URL parameters
+  const getInitialFilter = () => {
+    const filterParam = searchParams.get('filter')
+    if (filterParam === 'unassigned') {
+      return { filter: 'all' as const, userFilter: 'unassigned' }
+    }
+    return { filter: 'assigned_to_me' as const, userFilter: 'all' }
+  }
+  
+  const initialFilterState = getInitialFilter()
+  
   const [vatClients, setVatClients] = useState<VATClient[]>([])
   const [loading, setLoading] = useState(true)
   
@@ -212,9 +225,9 @@ export function VATDeadlinesTable() {
   const [showBackwardStageConfirm, setShowBackwardStageConfirm] = useState(false)
   const [showActivityLogModal, setShowActivityLogModal] = useState(false)
   const [activityLogClient, setActivityLogClient] = useState<VATClient | null>(null)
-  const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all')
+  const [selectedUserFilter, setSelectedUserFilter] = useState<string>(initialFilterState.userFilter)
   const [selectedWorkflowStageFilter, setSelectedWorkflowStageFilter] = useState<string>('all')
-  const [filter, setFilter] = useState<'assigned_to_me' | 'all'>('assigned_to_me')
+  const [filter, setFilter] = useState<'assigned_to_me' | 'all'>(initialFilterState.filter)
 
   // Advanced filter state
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false)

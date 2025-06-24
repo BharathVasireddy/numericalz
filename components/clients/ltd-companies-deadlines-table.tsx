@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useUsers, type User as UserType } from '@/lib/hooks/useUsers'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
@@ -184,6 +184,19 @@ interface AdvancedFilter {
 export function LtdCompaniesDeadlinesTable() {
   const { data: session } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Initialize filter state from URL parameters
+  const getInitialFilter = () => {
+    const filterParam = searchParams.get('filter')
+    if (filterParam === 'unassigned') {
+      return { filter: 'all' as const, userFilter: 'unassigned' }
+    }
+    return { filter: 'all' as const, userFilter: 'all' }
+  }
+  
+  const initialFilterState = getInitialFilter()
+  
   const [ltdClients, setLtdClients] = useState<LtdClient[]>([])
   const [loading, setLoading] = useState(true)
   
@@ -201,8 +214,8 @@ export function LtdCompaniesDeadlinesTable() {
   const [showClientSelfFilingConfirm, setShowClientSelfFilingConfirm] = useState(false)
   const [showFiledConfirm, setShowFiledConfirm] = useState(false)
   const [showBackwardStageConfirm, setShowBackwardStageConfirm] = useState(false)
-  const [filter, setFilter] = useState<'all' | 'assigned_to_me'>('all')
-  const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all')
+  const [filter, setFilter] = useState<'all' | 'assigned_to_me'>(initialFilterState.filter)
+  const [selectedUserFilter, setSelectedUserFilter] = useState<string>(initialFilterState.userFilter)
   const [selectedWorkflowStageFilter, setSelectedWorkflowStageFilter] = useState<string>('all')
   const [refreshingCompaniesHouse, setRefreshingCompaniesHouse] = useState(false)
   const [refreshingClientId, setRefreshingClientId] = useState<string | null>(null)
