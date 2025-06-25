@@ -26,20 +26,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Build where clause based on user role
+    // Build where clause - All roles can see all VAT clients
+    // Filtering by assignment is handled on the frontend
     let whereClause: any = {
       isVatEnabled: true,
       isActive: true
-    }
-
-    // Staff can only see clients with VAT quarters assigned to them
-    // Since VAT assignments are now quarter-specific, we need to filter by quarter assignments
-    if (session.user.role === 'STAFF') {
-      whereClause.vatQuartersWorkflow = {
-        some: {
-          assignedUserId: session.user.id
-        }
-      }
     }
 
     // Fetch VAT-enabled clients with ALL recent quarter workflow info
