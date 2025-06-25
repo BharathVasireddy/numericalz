@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd'
 import { PageLayout, PageContent } from '@/components/layout/page-layout'
 import { PendingToChaseWidget } from './widgets/pending-to-chase-widget'
 import { VATUnassignedWidget } from './widgets/vat-unassigned-widget'
+import { ReviewWidget } from './widgets/review-widget'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { 
@@ -20,8 +20,7 @@ import {
   Calculator,
   CheckCircle,
   Calendar,
-  AlertTriangle,
-  GripVertical
+  AlertTriangle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -65,19 +64,10 @@ interface DashboardData {
   monthName: string
 }
 
-interface DashboardWidget {
-  id: string
-  title: string
-  component: React.ReactNode
-  row: number
-  col: number
-}
-
 export function PartnerDashboard({ userId }: PartnerDashboardProps) {
   const { data: session } = useSession()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [widgets, setWidgets] = useState<DashboardWidget[]>([])
 
   const fetchData = async () => {
     try {
@@ -106,131 +96,6 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
   useEffect(() => {
     fetchData()
   }, [userId])
-
-  // Initialize widgets when data is loaded
-  useEffect(() => {
-    if (data && widgets.length === 0) { // Only initialize if widgets array is empty
-      const defaultWidgets: DashboardWidget[] = [
-        // Row 1
-        {
-          id: 'client-overview',
-          title: 'Client Overview',
-          component: <ClientOverviewWidget data={data} />,
-          row: 1,
-          col: 1
-        },
-        {
-          id: 'monthly-deadlines',
-          title: `${data.monthName} Deadlines`,
-          component: <MonthlyDeadlinesWidget data={data} />,
-          row: 1,
-          col: 2
-        },
-        {
-          id: 'unassigned-clients',
-          title: 'Unassigned Clients',
-          component: <UnassignedClientsWidget data={data} onNavigate={handleUnassignedNavigation} />,
-          row: 1,
-          col: 3
-        },
-        // Row 2
-        {
-          id: 'vat-unassigned',
-          title: 'VAT Unassigned',
-          component: <VATUnassignedWidget compact={true} />,
-          row: 2,
-          col: 1
-        },
-        {
-          id: 'pending-to-chase',
-          title: 'Pending to Chase',
-          component: <PendingToChaseWidget userRole="PARTNER" userId={userId} />,
-          row: 2,
-          col: 2
-        },
-        {
-          id: 'upcoming-deadlines',
-          title: 'Upcoming Deadlines',
-          component: <UpcomingDeadlinesWidget data={data} />,
-          row: 2,
-          col: 3
-        },
-        // Row 3
-        {
-          id: 'team-workload',
-          title: 'Team Workload',
-          component: <TeamWorkloadWidget data={data} />,
-          row: 3,
-          col: 1
-        }
-      ]
-
-      // Load saved layout from localStorage or use default
-      const savedLayout = localStorage.getItem('partner-dashboard-layout')
-      if (savedLayout) {
-        try {
-          const parsedLayout = JSON.parse(savedLayout)
-          setWidgets(parsedLayout.map((item: any) => ({
-            ...item,
-            component: defaultWidgets.find(w => w.id === item.id)?.component
-          })))
-        } catch {
-          setWidgets(defaultWidgets)
-        }
-      } else {
-        setWidgets(defaultWidgets)
-      }
-    }
-  }, [data, userId])
-
-  // Update widget components when data changes (without resetting layout)
-  useEffect(() => {
-    if (data && widgets.length > 0) {
-      const updatedWidgets = widgets.map(widget => ({
-        ...widget,
-        component: getWidgetComponent(widget.id, data)
-      }))
-      setWidgets(updatedWidgets)
-    }
-  }, [data])
-
-  const getWidgetComponent = (widgetId: string, data: DashboardData) => {
-    switch (widgetId) {
-      case 'client-overview':
-        return <ClientOverviewWidget data={data} />
-      case 'monthly-deadlines':
-        return <MonthlyDeadlinesWidget data={data} />
-      case 'unassigned-clients':
-        return <UnassignedClientsWidget data={data} onNavigate={handleUnassignedNavigation} />
-      case 'vat-unassigned':
-        return <VATUnassignedWidget compact={true} />
-      case 'pending-to-chase':
-        return <PendingToChaseWidget userRole="PARTNER" userId={userId} />
-      case 'upcoming-deadlines':
-        return <UpcomingDeadlinesWidget data={data} />
-      case 'team-workload':
-        return <TeamWorkloadWidget data={data} />
-      default:
-        return null
-    }
-  }
-
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination) return
-
-    const items = Array.from(widgets)
-    const [reorderedItem] = items.splice(result.source.index, 1)
-    
-    if (!reorderedItem) return // Add safety check
-    
-    items.splice(result.destination.index, 0, reorderedItem)
-
-    setWidgets(items)
-    
-    // Save layout to localStorage
-    const layoutToSave = items.map(({ component, ...rest }) => rest)
-    localStorage.setItem('partner-dashboard-layout', JSON.stringify(layoutToSave))
-  }
 
   // Enhanced navigation handlers for unassigned clients
   const handleUnassignedNavigation = (type: 'ltd' | 'nonLtd' | 'vat') => {
@@ -283,25 +148,6 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
     }
   }
 
-  // Organize widgets by rows for layout
-  const organizeWidgetsByRows = () => {
-    const rows: { [key: number]: DashboardWidget[] } = {}
-    widgets.forEach(widget => {
-      if (!rows[widget.row]) rows[widget.row] = []
-      rows[widget.row]!.push(widget) // Add non-null assertion
-    })
-    
-    // Sort widgets within each row by column
-    Object.keys(rows).forEach(rowKey => {
-      const rowNum = parseInt(rowKey)
-      if (rows[rowNum]) {
-        rows[rowNum].sort((a, b) => a.col - b.col)
-      }
-    })
-    
-    return rows
-  }
-
   if (loading) {
     return (
       <PageLayout maxWidth="2xl">
@@ -343,8 +189,6 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
     )
   }
 
-  const widgetRows = organizeWidgetsByRows()
-
   return (
     <PageLayout maxWidth="2xl">
       <div className="space-y-6">
@@ -352,58 +196,49 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
         <div>
           <h1 className="text-xl md:text-2xl font-bold">Partner Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Drag widgets to rearrange • Overview of clients, team workload, and monthly deadlines
+            Overview of clients, team workload, and monthly deadlines
           </p>
         </div>
 
-        {/* Draggable Dashboard Grid */}
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="space-y-6">
-            {Object.keys(widgetRows).sort().map(rowKey => {
-              const rowNumber = parseInt(rowKey)
-              const rowWidgets = widgetRows[rowNumber]
-              
-              return (
-                <Droppable key={`row-${rowNumber}`} droppableId={`row-${rowNumber}`} direction="horizontal">
-                  {(provided) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`grid gap-6 ${
-                        rowNumber === 3 ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'
-                      }`}
-                    >
-                      {rowWidgets?.map((widget, index) => (
-                        <Draggable key={widget.id} draggableId={widget.id} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              className={`${
-                                snapshot.isDragging ? 'rotate-2 shadow-xl' : ''
-                              } transition-transform duration-200`}
-                            >
-                              <Card className="relative group">
-                                <div
-                                  {...provided.dragHandleProps}
-                                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-grab active:cursor-grabbing z-10"
-                                >
-                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                </div>
-                                {getWidgetComponent(widget.id, data)}
-                              </Card>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              )
-            })}
-          </div>
-        </DragDropContext>
+        {/* Row 1: Review Widget (Top Priority) */}
+        <div className="grid grid-cols-1 gap-6">
+          <Card>
+            <ReviewWidget userRole="PARTNER" />
+          </Card>
+        </div>
+
+        {/* Row 2: Client Overview, Monthly Deadlines, Unassigned Clients */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card>
+            <ClientOverviewWidget data={data} />
+          </Card>
+          <Card>
+            <MonthlyDeadlinesWidget data={data} />
+          </Card>
+          <Card>
+            <UnassignedClientsWidget data={data} onNavigate={handleUnassignedNavigation} />
+          </Card>
+        </div>
+
+        {/* Row 3: VAT Unassigned, Pending to Chase, Upcoming Deadlines */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card>
+            <VATUnassignedWidget compact={true} />
+          </Card>
+          <Card>
+            <PendingToChaseWidget userRole="PARTNER" userId={userId} />
+          </Card>
+          <Card>
+            <UpcomingDeadlinesWidget data={data} />
+          </Card>
+        </div>
+
+        {/* Row 4: Team Workload (Single Column) */}
+        <div className="grid grid-cols-1 gap-6">
+          <Card>
+            <TeamWorkloadWidget data={data} />
+          </Card>
+        </div>
       </div>
     </PageLayout>
   )
@@ -428,7 +263,7 @@ function ClientOverviewWidget({ data }: { data: DashboardData }) {
             </div>
             <p className="text-xs text-blue-600 font-medium mt-1">Total Clients</p>
           </div>
-          
+
           <div className="p-3 rounded-lg bg-green-50">
             <div className="flex items-center justify-between">
               <Building2 className="h-4 w-4 text-green-600" />
@@ -436,7 +271,7 @@ function ClientOverviewWidget({ data }: { data: DashboardData }) {
             </div>
             <p className="text-xs text-green-600 font-medium mt-1">Ltd Companies</p>
           </div>
-          
+
           <div className="p-3 rounded-lg bg-orange-50">
             <div className="flex items-center justify-between">
               <Building className="h-4 w-4 text-orange-600" />
@@ -444,7 +279,7 @@ function ClientOverviewWidget({ data }: { data: DashboardData }) {
             </div>
             <p className="text-xs text-orange-600 font-medium mt-1">Non-Limited</p>
           </div>
-          
+
           <div className="p-3 rounded-lg bg-purple-50">
             <div className="flex items-center justify-between">
               <Receipt className="h-4 w-4 text-purple-600" />

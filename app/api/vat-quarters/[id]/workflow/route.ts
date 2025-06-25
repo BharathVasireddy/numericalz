@@ -263,7 +263,7 @@ export async function PUT(
           (await prisma.user.findUnique({ 
             where: { id: vatQuarter.assignedUserId }, 
             select: { name: true } 
-          }))?.name || 'Unknown User' : 'Unassigned'
+          }))?.name : null
         
         await logActivityEnhanced(request, {
           action: 'VAT_QUARTER_ASSIGNED',
@@ -273,7 +273,7 @@ export async function PUT(
             clientCode: updatedVatQuarter.client.clientCode,
             workflowType: 'VAT',
             assigneeId: assignedUser?.id,
-            assigneeName: assignedUser?.name || 'Unknown User',
+            assigneeName: assignedUser?.name,
             quarterPeriod: updatedVatQuarter.quarterPeriod,
             previousAssignee: previousAssigneeName,
             quarterStartDate: updatedVatQuarter.quarterStartDate.toISOString(),
@@ -287,7 +287,7 @@ export async function PUT(
           (await prisma.user.findUnique({ 
             where: { id: vatQuarter.assignedUserId }, 
             select: { name: true } 
-          }))?.name || 'Unknown User' : 'Unassigned'
+          }))?.name : null
         
         await logActivityEnhanced(request, {
           action: 'VAT_QUARTER_UNASSIGNED',

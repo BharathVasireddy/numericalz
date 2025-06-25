@@ -326,9 +326,18 @@ export function ActivityLogViewer({
       case 'VAT_QUARTER_ASSIGNED':
       case 'LTD_WORKFLOW_ASSIGNED':
         const assignedWorkflowType = getWorkflowTypeDisplay(activity.action)
-        const assignedTo = details.assigneeName || 'Unknown User'
-        const prevAssignee = details.previousAssignee || 'Unassigned'
-        let assignmentDescription = `👥 Assigned ${assignedWorkflowType} for ${clientName} to ${assignedTo} (previously: ${prevAssignee}) by ${userName}`
+        const assignedTo = details.assigneeName
+        const prevAssignee = details.previousAssignee
+        
+        let assignmentDescription = `👥 Assigned ${assignedWorkflowType} for ${clientName} to ${assignedTo || 'Unassigned'}`
+        
+        if (prevAssignee) {
+          assignmentDescription += ` (previously: ${prevAssignee})`
+        } else {
+          assignmentDescription += ` (previously: Unassigned)`
+        }
+        
+        assignmentDescription += ` by ${userName}`
         
         if (details.quarterPeriod) {
           assignmentDescription += ` (${details.quarterPeriod})`

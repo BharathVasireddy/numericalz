@@ -38,6 +38,14 @@ export async function PUT(
         isActive: true
       },
       include: {
+        ltdCompanyAssignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          }
+        },
         ltdAccountsWorkflows: {
           orderBy: { filingPeriodEnd: 'desc' },
           take: 1
@@ -201,16 +209,26 @@ export async function PUT(
     }
 
     if (assignedUserId !== undefined) {
-      const assignedUser = workflow.assignedUser
+      // Get the updated client data with the new assignment
+      const updatedClient = await db.client.findUnique({
+        where: { id: clientId },
+        include: {
+          ltdCompanyAssignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            }
+          }
+        }
+      })
       
       // Get previous assignee name for better logging
-      const previousAssigneeName = currentWorkflow?.assignedUserId ? 
-        (await db.user.findUnique({ 
-          where: { id: currentWorkflow.assignedUserId }, 
-          select: { name: true } 
-        }))?.name || 'Unknown User' : 'Unassigned'
+      const previousAssigneeName = client.ltdCompanyAssignedUserId ? 
+        client.ltdCompanyAssignedUser?.name : null
       
-      if (assignedUser) {
+      if (updatedClient?.ltdCompanyAssignedUser) {
         await logActivityEnhanced(request, {
           action: 'LTD_WORKFLOW_ASSIGNED',
           clientId,
@@ -218,8 +236,8 @@ export async function PUT(
             companyName: client.companyName,
             clientCode: client.clientCode,
             workflowType: 'LTD',
-            assigneeId: assignedUser.id,
-            assigneeName: assignedUser.name,
+            assigneeId: updatedClient.ltdCompanyAssignedUser.id,
+            assigneeName: updatedClient.ltdCompanyAssignedUser.name,
             quarterPeriod: `${workflow.filingPeriodEnd.getFullYear()} accounts`,
             previousAssignee: previousAssigneeName,
             filingPeriodEnd: workflow.filingPeriodEnd.toISOString()
