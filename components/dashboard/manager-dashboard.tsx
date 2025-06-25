@@ -320,32 +320,37 @@ export function ManagerDashboard({ userId }: ManagerDashboardProps) {
           {/* Middle Column - Staff Workload */}
           <div className="lg:col-span-4 space-y-6">
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   Staff Workload
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2">
                 {data.teamMembers.slice(0, 8).map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50">
-                    <div className="flex items-center gap-3">
+                  <div key={member.id} className="flex items-center justify-between p-2 rounded-lg border border-gray-200 hover:bg-gray-50">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       {getRoleIcon(member.role)}
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{member.name}</span>
-                          <Badge variant={getRoleBadgeVariant(member.role)} className="text-xs">
-                            {member.role}
+                          <span className="font-medium text-sm truncate">{member.name}</span>
+                          <Badge variant={getRoleBadgeVariant(member.role)} className="text-xs px-1 py-0">
+                            {member.role.charAt(0)}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {member.clientCount} clients • {member.overdueCount} overdue
-                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium">{member.completedThisMonth}</div>
-                      <p className="text-xs text-muted-foreground">completed</p>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-blue-100 border border-blue-200">
+                        <Users className="h-3 w-3 text-blue-600" />
+                        <span className="text-xs font-bold text-blue-800">{member.clientCount}</span>
+                      </div>
+                      {member.overdueCount > 0 && (
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-red-100 border border-red-200">
+                          <AlertTriangle className="h-3 w-3 text-red-600" />
+                          <span className="text-xs font-bold text-red-800">{member.overdueCount}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -353,7 +358,7 @@ export function ManagerDashboard({ userId }: ManagerDashboardProps) {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="w-full"
+                    className="w-full mt-2"
                     onClick={() => router.push('/dashboard/staff')}
                   >
                     View All Team Members
@@ -363,8 +368,11 @@ export function ManagerDashboard({ userId }: ManagerDashboardProps) {
             </Card>
           </div>
 
-          {/* Right Column - Pending to Chase & Deadlines */}
+          {/* Right Column - VAT Unassigned (Top Priority) & Pending to Chase */}
           <div className="lg:col-span-4 space-y-6">
+            
+            {/* VAT Unassigned Widget - Moved to Top */}
+            <VATUnassignedWidget />
             
             {/* Pending to Chase Widget */}
             <PendingToChaseWidget userRole="MANAGER" userId={userId} />
@@ -421,9 +429,6 @@ export function ManagerDashboard({ userId }: ManagerDashboardProps) {
                 </div>
               </CardContent>
             </Card>
-
-            {/* VAT Unassigned Widget */}
-            <VATUnassignedWidget />
           </div>
         </div>
 

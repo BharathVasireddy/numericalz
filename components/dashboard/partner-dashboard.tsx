@@ -366,87 +366,56 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
           {/* Middle Column - Team Workload */}
           <div className="lg:col-span-4 space-y-6">
             <Card>
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   Team Workload
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Current client assignments
-                </p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {data.staffWorkload.map((staff) => {
                     const totalClients = staff.vatClients + staff.accountsClients
                     const hasWork = totalClients > 0
                     
                     return (
-                      <div key={staff.id} className={`p-3 rounded-lg border transition-all duration-200 ${
+                      <div key={staff.id} className={`p-2 rounded-lg border transition-all duration-200 ${
                         hasWork ? 'bg-slate-50 border-slate-200' : 'bg-gray-50 border-gray-200 opacity-70'
                       }`}>
-                        {/* Staff Header */}
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
+                        {/* Staff Header - More Compact */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
                             {getRoleIcon(staff.role)}
                             <span className="text-sm font-medium truncate">{staff.name}</span>
-                            <Badge variant={getRoleBadgeVariant(staff.role)} className="text-xs px-1.5 py-0.5">
+                            <Badge variant={getRoleBadgeVariant(staff.role)} className="text-xs px-1 py-0">
                               {staff.role.charAt(0)}
                             </Badge>
                           </div>
-                          <div className="text-sm font-bold text-slate-700">
-                            {totalClients}
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {staff.vatClients > 0 && (
+                              <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-blue-100 border border-blue-200">
+                                <Receipt className="h-3 w-3 text-blue-600" />
+                                <span className="text-xs font-bold text-blue-800">{staff.vatClients}</span>
+                              </div>
+                            )}
+                            {staff.accountsClients > 0 && (
+                              <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-green-100 border border-green-200">
+                                <FileText className="h-3 w-3 text-green-600" />
+                                <span className="text-xs font-bold text-green-800">{staff.accountsClients}</span>
+                              </div>
+                            )}
+                            {!hasWork && (
+                              <span className="text-xs text-gray-500 px-2">No assignments</span>
+                            )}
                           </div>
                         </div>
-                        
-                        {/* Work Breakdown */}
-                        {hasWork ? (
-                          <div className="grid grid-cols-2 gap-2">
-                            {staff.vatClients > 0 && (
-                              <div className="flex items-center justify-between p-2 rounded bg-blue-50 border border-blue-100">
-                                <div className="flex items-center gap-1">
-                                  <Receipt className="h-3 w-3 text-blue-600" />
-                                  <span className="text-xs font-medium text-blue-700">VAT</span>
-                                </div>
-                                <span className="text-sm font-bold text-blue-800">{staff.vatClients}</span>
-                              </div>
-                            )}
-                            
-                            {staff.accountsClients > 0 && (
-                              <div className="flex items-center justify-between p-2 rounded bg-green-50 border border-green-100">
-                                <div className="flex items-center gap-1">
-                                  <FileText className="h-3 w-3 text-green-600" />
-                                  <span className="text-xs font-medium text-green-700">Accounts</span>
-                                </div>
-                                <span className="text-sm font-bold text-green-800">{staff.accountsClients}</span>
-                              </div>
-                            )}
-                            
-                            {/* Fill empty space if only one type */}
-                            {(staff.vatClients > 0 && staff.accountsClients === 0) && (
-                              <div className="flex items-center justify-center p-2 rounded bg-gray-50 border border-gray-100 opacity-50">
-                                <span className="text-xs text-gray-500">No accounts</span>
-                              </div>
-                            )}
-                            
-                            {(staff.accountsClients > 0 && staff.vatClients === 0) && (
-                              <div className="flex items-center justify-center p-2 rounded bg-gray-50 border border-gray-100 opacity-50">
-                                <span className="text-xs text-gray-500">No VAT</span>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-center py-2">
-                            <span className="text-xs text-gray-500">No active assignments</span>
-                          </div>
-                        )}
                       </div>
                     )
                   })}
                   
                   {data.staffWorkload.length === 0 && (
-                    <div className="text-center py-6 text-muted-foreground">
-                      <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <div className="text-center py-4 text-muted-foreground">
+                      <Users className="h-6 w-6 mx-auto mb-1 opacity-50" />
                       <p className="text-sm">No staff members found</p>
                     </div>
                   )}
@@ -455,8 +424,11 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
             </Card>
           </div>
 
-          {/* Right Column - Pending to Chase & Upcoming Deadlines */}
+          {/* Right Column - VAT Unassigned (Top Priority) & Pending to Chase */}
           <div className="lg:col-span-4 space-y-6">
+            
+            {/* VAT Unassigned Widget - Moved to Top */}
+            <VATUnassignedWidget />
             
             {/* Pending to Chase Widget */}
             <PendingToChaseWidget userRole="PARTNER" userId={userId} />
@@ -504,9 +476,6 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
                 </CardContent>
               </Card>
             )}
-            
-            {/* VAT Unassigned Widget */}
-            <VATUnassignedWidget />
           </div>
         </div>
       </div>
