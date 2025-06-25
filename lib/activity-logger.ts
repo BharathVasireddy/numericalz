@@ -212,4 +212,41 @@ export async function logSystemActivity(
     ipAddress: request ? getClientIP(request) : undefined,
     userAgent: request ? getUserAgent(request) : undefined,
   })
+}
+
+/**
+ * Log system-automated activity (for automated processes)
+ * 
+ * @param action Action type
+ * @param clientId Optional client ID
+ * @param details Additional details
+ */
+export async function logSystemAutomatedActivity(
+  action: string,
+  clientId?: string,
+  details?: ActivityDetails & { 
+    automatedBy?: string, 
+    reason?: string,
+    trigger?: string 
+  }
+): Promise<boolean> {
+  try {
+    await db.activityLog.create({
+      data: {
+        userId: null, // System automated actions have no user
+        action,
+        clientId,
+        details: JSON.stringify({
+          ...details,
+          performedBy: 'System',
+          automated: true,
+          timestamp: new Date().toISOString(),
+        }),
+      }
+    })
+    return true
+  } catch (error) {
+    console.error('Failed to log system automated activity:', error)
+    return false
+  }
 } 

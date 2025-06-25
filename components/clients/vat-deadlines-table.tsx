@@ -135,6 +135,7 @@ interface WorkflowStage {
 
 
 const WORKFLOW_STAGES: WorkflowStage[] = [
+  { key: 'WAITING_FOR_QUARTER_END', label: 'Waiting for quarter end', icon: <Calendar className="h-4 w-4" />, color: 'bg-gray-100 text-gray-800' },
   { key: 'PAPERWORK_PENDING_CHASE', label: 'Pending to chase', icon: <Clock className="h-4 w-4" />, color: 'bg-amber-100 text-amber-800' },
   { key: 'PAPERWORK_CHASED', label: 'Paperwork chased', icon: <Phone className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-800' },
   { key: 'PAPERWORK_RECEIVED', label: 'Paperwork received', icon: <FileText className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
@@ -227,7 +228,7 @@ export function VATDeadlinesTable({
   
   // Use centralized user fetching hook
   const { users, loading: usersLoading, error: usersError } = useUsers()
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
   const [updateModalOpen, setUpdateModalOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<VATClient | null>(null)
   const [selectedQuarter, setSelectedQuarter] = useState<VATQuarter | null>(null)
@@ -437,13 +438,23 @@ export function VATDeadlinesTable({
     
     // Return calculated quarter info (quarter doesn't exist yet)
     // Future quarters should be unassigned by default - each quarter is independent
+    
+    // Determine the appropriate stage based on whether quarter has ended
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const quarterEndDateForStage = new Date(quarterInfo.quarterEndDate)
+    quarterEndDateForStage.setHours(0, 0, 0, 0)
+    
+    // If quarter has ended, it should be ready for chase; otherwise, waiting for quarter end
+    const defaultStage = today > quarterEndDateForStage ? 'PAPERWORK_PENDING_CHASE' : 'WAITING_FOR_QUARTER_END'
+    
     return {
       id: `calculated-${client.id}-${quarterInfo.quarterPeriod}`,
       quarterPeriod: quarterInfo.quarterPeriod,
       quarterStartDate: quarterInfo.quarterStartDate.toISOString(),
       quarterEndDate: quarterInfo.quarterEndDate.toISOString(),
       filingDueDate: quarterInfo.filingDueDate.toISOString(),
-      currentStage: 'PAPERWORK_PENDING_CHASE',
+      currentStage: defaultStage,
       isCompleted: false,
       assignedUser: undefined // Future quarters are unassigned - each quarter is independent
     }
@@ -643,8 +654,8 @@ export function VATDeadlinesTable({
           bValue = getWorkflowStatus(bQuarter).label
           break
         case 'assignedTo':
-                  aValue = aQuarter?.assignedUser?.name || a.vatAssignedUser?.name || ''
-        bValue = bQuarter?.assignedUser?.name || b.vatAssignedUser?.name || ''
+                  aValue = aQuarter?.assignedUser?.name || ''
+        bValue = bQuarter?.assignedUser?.name || ''
           break
         default:
           return 0
@@ -659,13 +670,10 @@ export function VATDeadlinesTable({
   const toggleRowExpansion = (clientId: string, monthNumber?: number) => {
     // Create unique key for client + month combination
     const key = monthNumber ? `${clientId}-${monthNumber}` : clientId
-    const newExpanded = new Set(expandedRows)
-    if (newExpanded.has(key)) {
-      newExpanded.delete(key)
-    } else {
-      newExpanded.add(key)
-    }
-    setExpandedRows(newExpanded)
+    setExpandedRows(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }))
   }
 
   const handleAddUpdate = (client: VATClient, quarter?: VATQuarter | null) => {
@@ -1216,12 +1224,12 @@ export function VATDeadlinesTable({
                 </TableCell>
                 <TableCell className="p-2 text-center">
                   {isApplicable ? (
-                    <div className="flex items-center justify-center gap-1 text-xs truncate max-w-[120px]" title={monthQuarter?.assignedUser?.name || client.vatAssignedUser?.name || 'Unassigned'}>
-                      {monthQuarter?.assignedUser?.name || client.vatAssignedUser?.name ? (
+                    <div className="flex items-center justify-center gap-1 text-xs truncate max-w-[120px]" title={monthQuarter?.assignedUser?.name || 'Unassigned'}>
+                      {monthQuarter?.assignedUser?.name ? (
                         <>
                           <User className="h-3 w-3 text-blue-600 flex-shrink-0" />
                           <span className="truncate text-blue-600">
-                            {monthQuarter?.assignedUser?.name || client.vatAssignedUser?.name}
+                            {monthQuarter?.assignedUser?.name}
                           </span>
                         </>
                       ) : (
@@ -1271,7 +1279,7 @@ export function VATDeadlinesTable({
                       onClick={() => toggleRowExpansion(client.id, monthNumber)}
                       title="Show/Hide Workflow Timeline"
                     >
-                      {expandedRows.has(rowKey) ? (
+                      {expandedRows[rowKey] ? (
                         <ChevronDown className="h-4 w-4 text-foreground" />
                       ) : (
                         <ChevronRight className="h-4 w-4 text-foreground" />
@@ -1284,7 +1292,7 @@ export function VATDeadlinesTable({
               </TableRow>
               
               {/* Expanded Row - Workflow Timeline */}
-              {expandedRows.has(rowKey) && isApplicable && (
+              {expandedRows[rowKey] && isApplicable && (
                 <TableRow>
                   <TableCell colSpan={9} className="p-0">
                     {renderWorkflowTimeline(client, monthQuarter)}
@@ -1718,13 +1726,43 @@ export function VATDeadlinesTable({
                     const currentStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === selectedQuarter?.currentStage)
                     const stageIndex = WORKFLOW_STAGES.findIndex(s => s.key === stage.key)
                     const isCompletedStage = currentStageIndex !== -1 && stageIndex < currentStageIndex
+                    const isCurrentStage = stage.key === selectedQuarter?.currentStage
                     
                     return (
-                      <SelectItem key={stage.key} value={stage.key}>
-                        <div className={`flex items-center gap-2 ${isCompletedStage ? 'opacity-50' : ''}`}>
-                          {stage.icon}
-                          <span>{stage.label}</span>
-                          {isCompletedStage && <span className="text-xs text-muted-foreground ml-1">(Completed)</span>}
+                      <SelectItem 
+                        key={stage.key} 
+                        value={stage.key}
+                        className={`
+                          ${isCurrentStage ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-l-blue-500 font-medium' : ''}
+                          ${isCompletedStage ? 'bg-gray-50 opacity-70 text-gray-500' : ''}
+                          ${!isCurrentStage && !isCompletedStage ? 'hover:bg-gray-50' : ''}
+                          transition-all duration-200
+                        `}
+                      >
+                        <div className="flex items-center gap-2 w-full">
+                          <div className={`
+                            ${isCurrentStage ? 'scale-110 text-blue-600' : ''} 
+                            ${isCompletedStage ? 'grayscale opacity-60' : ''}
+                            transition-all duration-200
+                          `}>
+                            {stage.icon}
+                          </div>
+                          <span className={`
+                            ${isCurrentStage ? 'font-bold text-blue-800' : ''} 
+                            ${isCompletedStage ? 'text-gray-500 line-through' : ''}
+                          `}>
+                            {stage.label}
+                          </span>
+                          {isCurrentStage && (
+                            <Badge className="ml-auto text-xs bg-blue-600 text-white font-semibold shadow-md animate-pulse">
+                              ⚡ CURRENT
+                            </Badge>
+                          )}
+                          {isCompletedStage && !isCurrentStage && (
+                            <Badge variant="outline" className="ml-auto text-xs text-gray-400 border-gray-300">
+                              ✅ COMPLETED
+                            </Badge>
+                          )}
                         </div>
                       </SelectItem>
                     )

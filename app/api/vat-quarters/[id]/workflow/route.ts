@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db as prisma } from '@/lib/db'
 import { getNextVATWorkflowStage, VAT_WORKFLOW_STAGE_NAMES, calculateDaysBetween } from '@/lib/vat-workflow'
 import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
+import { workflowNotificationService } from '@/lib/workflow-notifications'
 
 /**
  * Map workflow stages to their corresponding milestone date fields
@@ -122,6 +123,7 @@ export async function PUT(
           select: {
             id: true,
             companyName: true,
+            clientCode: true,
             assignedUserId: true,
           }
         },
@@ -190,6 +192,7 @@ export async function PUT(
           select: {
             id: true,
             companyName: true,
+            clientCode: true,
             vatQuarterGroup: true,
           }
         }
@@ -281,6 +284,30 @@ export async function PUT(
           daysInWorkflow: daysSinceLastUpdate
         }
       })
+    }
+
+    // 📧 Send workflow stage change notifications
+    try {
+      await workflowNotificationService.sendStageChangeNotifications({
+        clientId: updatedVatQuarter.clientId,
+        clientName: updatedVatQuarter.client.companyName,
+        clientCode: vatQuarter.client.clientCode || `Client-${updatedVatQuarter.clientId.slice(0, 8)}`,
+        workflowType: 'VAT',
+        fromStage: currentHistory?.toStage || null,
+        toStage: stage,
+        changedBy: {
+          id: session.user.id,
+          name: session.user.name || session.user.email || 'Unknown',
+          email: session.user.email || '',
+          role: session.user.role || 'USER'
+        },
+        assignedUserId: finalAssigneeId,
+        comments,
+        quarterPeriod: updatedVatQuarter.quarterPeriod
+      })
+    } catch (notificationError) {
+      console.error('❌ Failed to send workflow notifications:', notificationError)
+      // Don't fail the main request if notifications fail
     }
 
     return NextResponse.json({

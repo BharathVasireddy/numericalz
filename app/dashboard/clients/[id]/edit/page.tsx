@@ -58,9 +58,38 @@ export default async function EditClientPage({ params }: EditClientPageProps) {
     },
   })
 
+  // Fetch chase team users separately if they exist
+  let chaseTeamUsers: Array<{
+    id: string
+    name: string | null
+    email: string
+    role: string
+  }> = []
+  if (client && client.chaseTeamUserIds && client.chaseTeamUserIds.length > 0) {
+    chaseTeamUsers = await db.user.findMany({
+      where: {
+        id: {
+          in: client.chaseTeamUserIds
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    })
+  }
+
   if (!client) {
     notFound()
   }
 
-  return <EditClientForm client={client} />
+  // Include chase team users in client data
+  const clientWithChaseTeam = {
+    ...client,
+    chaseTeamUsers,
+  }
+
+  return <EditClientForm client={clientWithChaseTeam} />
 } 

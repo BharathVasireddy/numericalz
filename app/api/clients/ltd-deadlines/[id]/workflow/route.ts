@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 import { LtdAccountsWorkflowStage } from '@prisma/client'
 import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
+import { workflowNotificationService } from '@/lib/workflow-notifications'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -206,6 +207,33 @@ export async function PUT(
           accountsDueDate: workflow.accountsDueDate.toISOString()
         }
       })
+    }
+
+    // 📧 Send workflow stage change notifications (only if stage was updated)
+    if (stage) {
+      try {
+        const filingPeriodEnd = workflow.filingPeriodEnd.getFullYear()
+        await workflowNotificationService.sendStageChangeNotifications({
+          clientId,
+          clientName: client.companyName,
+          clientCode: client.clientCode,
+          workflowType: 'ACCOUNTS',
+          fromStage: currentWorkflow?.currentStage || null,
+          toStage: stage,
+          changedBy: {
+            id: session.user.id,
+            name: session.user.name || session.user.email || 'Unknown',
+            email: session.user.email || '',
+            role: session.user.role || 'USER'
+          },
+          assignedUserId: workflow.assignedUserId,
+          comments,
+          filingPeriod: `${filingPeriodEnd}`
+        })
+      } catch (notificationError) {
+        console.error('❌ Failed to send workflow notifications:', notificationError)
+        // Don't fail the main request if notifications fail
+      }
     }
 
     return NextResponse.json({ 

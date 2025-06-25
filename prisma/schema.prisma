@@ -29,6 +29,7 @@ model User {
   nonLtdCompanyAssignedClients Client[]                     @relation("ClientNonLtdAssignedUser")
   vatAssignedClients           Client[]                     @relation("ClientVATAssignedUser")
   sentCommunications           Communication[]
+  triggeredEmailLogs           EmailLog[]
   ltdAccountsWorkflowHistory   LtdAccountsWorkflowHistory[]
   assignedLtdAccountsWorkflows LtdAccountsWorkflow[]
   notifications                Notification[]
@@ -37,7 +38,6 @@ model User {
   settings                     UserSettings?
   assignedVATQuarters          VATQuarter[]
   vatWorkflowHistory           VATWorkflowHistory[]
-  triggeredEmailLogs           EmailLog[]
 
   @@index([email])
   @@index([role])
@@ -148,15 +148,16 @@ model Client {
   vatReturnsFrequency             String?
   vatScheme                       String?
   workStatus                      String?
+  chaseTeamUserIds                String[]              @default([])
   activityLogs                    ActivityLog[]
   assignedUser                    User?                 @relation("ClientAssignedUser", fields: [assignedUserId], references: [id])
   ltdCompanyAssignedUser          User?                 @relation("ClientLtdAssignedUser", fields: [ltdCompanyAssignedUserId], references: [id])
   nonLtdCompanyAssignedUser       User?                 @relation("ClientNonLtdAssignedUser", fields: [nonLtdCompanyAssignedUserId], references: [id])
   vatAssignedUser                 User?                 @relation("ClientVATAssignedUser", fields: [vatAssignedUserId], references: [id])
   communications                  Communication[]
+  emailLogs                       EmailLog[]
   ltdAccountsWorkflows            LtdAccountsWorkflow[]
   vatQuartersWorkflow             VATQuarter[]
-  emailLogs                       EmailLog[]
 
   @@index([companyNumber])
   @@index([assignedUserId])
@@ -172,6 +173,7 @@ model Client {
   @@index([corporationTaxStatus])
   @@index([corporationTaxPeriodEnd])
   @@index([ctDueSource])
+  @@index([chaseTeamUserIds], type: Gin)
   @@map("clients")
 }
 
@@ -444,20 +446,54 @@ model LtdAccountsWorkflowHistory {
   @@map("ltd_accounts_workflow_history")
 }
 
+model EmailLog {
+  id              String      @id @default(cuid())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  recipientEmail  String
+  recipientName   String?
+  subject         String
+  content         String
+  emailType       String
+  status          EmailStatus @default(PENDING)
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+  clientId        String?
+  workflowType    String?
+  workflowId      String?
+  triggeredBy     String
+  fromEmail       String?     @default("noreply@numericalz.com")
+  fromName        String?     @default("Numericalz")
+  client          Client?     @relation(fields: [clientId], references: [id])
+  triggeredByUser User        @relation(fields: [triggeredBy], references: [id])
+
+  @@index([clientId])
+  @@index([createdAt])
+  @@index([emailType])
+  @@index([recipientEmail])
+  @@index([sentAt])
+  @@index([status])
+  @@index([triggeredBy])
+  @@map("email_logs")
+}
+
 enum VATWorkflowStage {
+  WAITING_FOR_QUARTER_END
   PAPERWORK_PENDING_CHASE
   PAPERWORK_CHASED
   PAPERWORK_RECEIVED
   WORK_IN_PROGRESS
   QUERIES_PENDING
   REVIEW_PENDING_MANAGER
-  REVIEWED_BY_MANAGER
   REVIEW_PENDING_PARTNER
-  REVIEWED_BY_PARTNER
   EMAILED_TO_PARTNER
   EMAILED_TO_CLIENT
   CLIENT_APPROVED
   FILED_TO_HMRC
+  REVIEWED_BY_MANAGER
+  REVIEWED_BY_PARTNER
 }
 
 enum LtdAccountsWorkflowStage {
@@ -466,49 +502,15 @@ enum LtdAccountsWorkflowStage {
   PAPERWORK_RECEIVED
   WORK_IN_PROGRESS
   DISCUSS_WITH_MANAGER
-  REVIEWED_BY_MANAGER
   REVIEW_BY_PARTNER
-  REVIEWED_BY_PARTNER
   REVIEW_DONE_HELLO_SIGN
   SENT_TO_CLIENT_HELLO_SIGN
   APPROVED_BY_CLIENT
   SUBMISSION_APPROVED_PARTNER
   FILED_CH_HMRC
   CLIENT_SELF_FILING
-}
-
-model EmailLog {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Email details
-  fromEmail      String   @default("noreply@numericalz.com")
-  fromName       String   @default("Numericalz")
-  recipientEmail String
-  recipientName  String?
-  subject        String
-  content        String   @db.Text
-  emailType      String   // 'WORKFLOW_REVIEW_COMPLETE', 'DEADLINE_REMINDER', etc.
-  
-  // Status tracking
-  status         EmailStatus @default(PENDING)
-  sentAt         DateTime?
-  deliveredAt    DateTime?
-  failedAt       DateTime?
-  failureReason  String?
-  
-  // Context information
-  clientId       String?
-  workflowType   String?   // 'vat', 'accounts'
-  workflowId     String?
-  triggeredBy    String    // User ID who triggered the email
-  
-  // Relations
-  client         Client?   @relation(fields: [clientId], references: [id])
-  triggeredByUser User     @relation(fields: [triggeredBy], references: [id])
-  
-  @@map("email_logs")
+  REVIEWED_BY_MANAGER
+  REVIEWED_BY_PARTNER
 }
 
 enum EmailStatus {

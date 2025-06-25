@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { PageLayout, PageContent } from '@/components/layout/page-layout'
+import { PendingToChaseWidget } from './widgets/pending-to-chase-widget'
+import { VATUnassignedWidget } from './widgets/vat-unassigned-widget'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { 
@@ -453,8 +455,12 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
             </Card>
           </div>
 
-          {/* Right Column - Upcoming Deadlines */}
+          {/* Right Column - Pending to Chase & Upcoming Deadlines */}
           <div className="lg:col-span-4 space-y-6">
+            
+            {/* Pending to Chase Widget */}
+            <PendingToChaseWidget userRole="PARTNER" userId={userId} />
+            
             {data.upcomingDeadlines && data.upcomingDeadlines.length > 0 && (
               <Card>
                 <CardHeader className="pb-3">
@@ -499,11 +505,8 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
               </Card>
             )}
             
-            {/* Placeholder for future widgets */}
-            <div className="text-center text-muted-foreground p-6 border-2 border-dashed border-muted rounded-lg">
-              <div className="text-sm">More widgets coming soon...</div>
-              <div className="text-xs mt-1">Additional insights and tools will be added here</div>
-            </div>
+            {/* VAT Unassigned Widget */}
+            <VATUnassignedWidget />
           </div>
         </div>
       </div>

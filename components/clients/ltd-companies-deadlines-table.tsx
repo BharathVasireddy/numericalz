@@ -1552,13 +1552,43 @@ export function LtdCompaniesDeadlinesTable({
                     const currentStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === selectedClient?.currentLtdAccountsWorkflow?.currentStage)
                     const stageIndex = WORKFLOW_STAGES.findIndex(s => s.key === stage.key)
                     const isCompletedStage = currentStageIndex !== -1 && stageIndex < currentStageIndex
+                    const isCurrentStage = stage.key === selectedClient?.currentLtdAccountsWorkflow?.currentStage
                     
                     return (
-                      <SelectItem key={stage.key} value={stage.key}>
-                        <div className={`flex items-center gap-2 ${isCompletedStage ? 'opacity-50' : ''}`}>
-                          {stage.icon}
-                          <span>{stage.label}</span>
-                          {isCompletedStage && <span className="text-xs text-muted-foreground ml-1">(Completed)</span>}
+                      <SelectItem 
+                        key={stage.key} 
+                        value={stage.key}
+                        className={`
+                          ${isCurrentStage ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-l-blue-500 font-medium' : ''}
+                          ${isCompletedStage ? 'bg-gray-50 opacity-70 text-gray-500' : ''}
+                          ${!isCurrentStage && !isCompletedStage ? 'hover:bg-gray-50' : ''}
+                          transition-all duration-200
+                        `}
+                      >
+                        <div className="flex items-center gap-2 w-full">
+                          <div className={`
+                            ${isCurrentStage ? 'scale-110 text-blue-600' : ''} 
+                            ${isCompletedStage ? 'grayscale opacity-60' : ''}
+                            transition-all duration-200
+                          `}>
+                            {stage.icon}
+                          </div>
+                          <span className={`
+                            ${isCurrentStage ? 'font-bold text-blue-800' : ''} 
+                            ${isCompletedStage ? 'text-gray-500 line-through' : ''}
+                          `}>
+                            {stage.label}
+                          </span>
+                          {isCurrentStage && (
+                            <Badge className="ml-auto text-xs bg-blue-600 text-white font-semibold shadow-md animate-pulse">
+                              ⚡ CURRENT
+                            </Badge>
+                          )}
+                          {isCompletedStage && !isCurrentStage && (
+                            <Badge variant="outline" className="ml-auto text-xs text-gray-400 border-gray-300">
+                              ✅ COMPLETED
+                            </Badge>
+                          )}
                         </div>
                       </SelectItem>
                     )

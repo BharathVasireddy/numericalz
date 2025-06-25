@@ -58,9 +58,35 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // Fetch chase team users separately if they exist
+    let chaseTeamUsers: Array<{
+      id: string
+      name: string | null
+      email: string
+      role: string
+    }> = []
+    if (client.chaseTeamUserIds && client.chaseTeamUserIds.length > 0) {
+      chaseTeamUsers = await db.user.findMany({
+        where: {
+          id: {
+            in: client.chaseTeamUserIds
+          }
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      })
+    }
+
     return NextResponse.json({
       success: true,
-      client,
+      client: {
+        ...client,
+        chaseTeamUsers,
+      },
     })
 
   } catch (error) {
@@ -107,7 +133,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const isQuestionnaireUpdate = Object.keys(body).every(key => 
       ['isVatEnabled', 'vatNumber', 'vatRegistrationDate', 'vatReturnsFrequency', 'nextVatReturnDue', 
        'requiresPayroll', 'requiresBookkeeping', 'requiresManagementAccounts', 
-       'preferredContactMethod', 'specialInstructions', 'vatQuarterGroup'].includes(key)
+       'preferredContactMethod', 'specialInstructions', 'vatQuarterGroup', 'chaseTeamUserIds'].includes(key)
     )
     
     console.log('🔍 PUT /api/clients/[id] - Is questionnaire update:', isQuestionnaireUpdate)
@@ -207,6 +233,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         ...(body.requiresManagementAccounts !== undefined && { requiresManagementAccounts: body.requiresManagementAccounts }),
         ...(body.preferredContactMethod !== undefined && { preferredContactMethod: body.preferredContactMethod }),
         ...(body.specialInstructions !== undefined && { specialInstructions: body.specialInstructions }),
+        ...(body.chaseTeamUserIds !== undefined && { chaseTeamUserIds: body.chaseTeamUserIds }),
       }
     } else {
       // Full update - include all fields
@@ -245,6 +272,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         ...(body.requiresManagementAccounts !== undefined && { requiresManagementAccounts: body.requiresManagementAccounts }),
         ...(body.preferredContactMethod !== undefined && { preferredContactMethod: body.preferredContactMethod }),
         ...(body.specialInstructions !== undefined && { specialInstructions: body.specialInstructions }),
+        ...(body.chaseTeamUserIds !== undefined && { chaseTeamUserIds: body.chaseTeamUserIds }),
       }
     }
 
@@ -265,9 +293,35 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       },
     })
 
+    // Fetch chase team users separately if they exist
+    let chaseTeamUsers: Array<{
+      id: string
+      name: string | null
+      email: string
+      role: string
+    }> = []
+    if (updatedClient.chaseTeamUserIds && updatedClient.chaseTeamUserIds.length > 0) {
+      chaseTeamUsers = await db.user.findMany({
+        where: {
+          id: {
+            in: updatedClient.chaseTeamUserIds
+          }
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      })
+    }
+
     return NextResponse.json({
       success: true,
-      client: updatedClient,
+      client: {
+        ...updatedClient,
+        chaseTeamUsers,
+      },
       message: 'Client updated successfully',
     })
 

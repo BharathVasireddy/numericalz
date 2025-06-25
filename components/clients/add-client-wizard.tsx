@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { ClientCreatedModal } from './client-created-modal'
 import { ClientPostCreationQuestionnaire } from './client-post-creation-questionnaire'
+import { ChaseTeamAssignment } from './chase-team-assignment'
 import { NonLtdCompanyForm } from './non-ltd-company-form'
 import { calculateCTDueFromYearEnd, calculateCTPeriod } from '@/lib/ct-tracking'
 import { calculateCorporationTaxDue } from '@/lib/year-end-utils'
@@ -88,6 +89,7 @@ export function AddClientWizard() {
   const [showSearch, setShowSearch] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [showQuestionnaire, setShowQuestionnaire] = useState(false)
+  const [showChaseTeamAssignment, setShowChaseTeamAssignment] = useState(false)
   const [createdClient, setCreatedClient] = useState<any>(null)
 
   // Debug logging for questionnaire state
@@ -642,8 +644,17 @@ export function AddClientWizard() {
     // Update the created client data with questionnaire results
     setCreatedClient(updatedClient)
     
-    // Hide questionnaire and show success modal
+    // Hide questionnaire and show chase team assignment
     setShowQuestionnaire(false)
+    setShowChaseTeamAssignment(true)
+  }
+
+  const handleChaseTeamComplete = (updatedClient: any) => {
+    // Update the created client data with chase team results
+    setCreatedClient(updatedClient)
+    
+    // Hide chase team assignment and show success modal
+    setShowChaseTeamAssignment(false)
     setShowSuccessModal(true)
   }
 
@@ -980,6 +991,16 @@ export function AddClientWizard() {
               client={createdClient}
               isOpen={showQuestionnaire}
               onComplete={handleQuestionnaireComplete}
+            />
+          )}
+
+          {/* Chase Team Assignment */}
+          {showChaseTeamAssignment && createdClient && (
+            <ChaseTeamAssignment
+              client={createdClient}
+              isOpen={showChaseTeamAssignment}
+              onComplete={handleChaseTeamComplete}
+              compact={true}
             />
           )}
 

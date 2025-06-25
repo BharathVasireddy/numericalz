@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { showToast } from '@/lib/toast'
-import { ArrowLeft, Save, RefreshCw, AlertTriangle, Clock, CheckCircle, Calculator } from 'lucide-react'
+import { ArrowLeft, Save, RefreshCw, AlertTriangle, Clock, CheckCircle, Calculator, Users, Crown, Shield, User } from 'lucide-react'
 import { getYearEndForForm, calculateYearEnd, calculateCorporationTaxDue, formatCorporationTaxDue } from '@/lib/year-end-utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,10 +18,21 @@ interface EditClientFormProps {
   client: any
 }
 
+interface ChaseUser {
+  id: string
+  name: string
+  email: string
+  role: string
+}
+
 export function EditClientForm({ client }: EditClientFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  
+  // Chase team state
+  const [availableUsers, setAvailableUsers] = useState<ChaseUser[]>([])
+  const [selectedChaseTeam, setSelectedChaseTeam] = useState<string[]>(client.chaseTeamUserIds || [])
   const [formData, setFormData] = useState({
     companyName: client.companyName || '',
     companyType: client.companyType || '',
@@ -58,11 +69,74 @@ export function EditClientForm({ client }: EditClientFormProps) {
     specialInstructions: client.specialInstructions || '',
   })
 
+  // Fetch available users for chase team selection
+  useEffect(() => {
+    const fetchAvailableUsers = async () => {
+      try {
+        const response = await fetch('/api/users', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          const users = data.users || []
+          
+          // Filter to partners and managers only
+          const chaseEligibleUsers = users.filter((user: any) => 
+            user.role === 'PARTNER' || user.role === 'MANAGER'
+          )
+          
+          setAvailableUsers(chaseEligibleUsers)
+        }
+      } catch (error: any) {
+        console.error('Error fetching users:', error)
+      }
+    }
+
+    fetchAvailableUsers()
+  }, [])
+
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }))
+  }
+
+  const handleUserToggle = (userId: string, checked: boolean) => {
+    setSelectedChaseTeam(prev => {
+      if (checked) {
+        return [...prev, userId]
+      } else {
+        return prev.filter(id => id !== userId)
+      }
+    })
+  }
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'PARTNER':
+        return <Crown className="h-4 w-4 text-purple-600" />
+      case 'MANAGER':
+        return <Shield className="h-4 w-4 text-blue-600" />
+      default:
+        return <User className="h-4 w-4 text-gray-600" />
+    }
+  }
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'PARTNER':
+        return 'bg-purple-100 text-purple-800 border-purple-200'
+      case 'MANAGER':
+        return 'bg-blue-100 text-blue-800 border-blue-200'
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200'
+    }
   }
 
   const parseAddress = (addressString: string | null) => {
@@ -167,6 +241,8 @@ export function EditClientForm({ client }: EditClientFormProps) {
           nextVatReturnDue: formData.nextVatReturnDue ? new Date(formData.nextVatReturnDue) : null,
           // 🎯 Include CT due date
           nextCorporationTaxDue: formData.nextCorporationTaxDue ? new Date(formData.nextCorporationTaxDue) : null,
+          // Include chase team
+          chaseTeamUserIds: selectedChaseTeam,
         }),
       })
 
@@ -698,6 +774,86 @@ export function EditClientForm({ client }: EditClientFormProps) {
                       />
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Chase Team Assignment */}
+              <Card className="shadow-professional">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                    <Users className="h-5 w-5 text-blue-600" />
+                    Chase Team Assignment
+                  </CardTitle>
+                  <CardDescription>
+                    Assign partners or managers who will chase this client for paperwork
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {availableUsers.length > 0 ? (
+                    <>
+                      <div className="space-y-3">
+                        {availableUsers.map((user) => (
+                          <div key={user.id} className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                            <Checkbox
+                              id={`chase-${user.id}`}
+                              checked={selectedChaseTeam.includes(user.id)}
+                              onCheckedChange={(checked) => handleUserToggle(user.id, checked as boolean)}
+                            />
+                            <div className="flex-1 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {getRoleIcon(user.role)}
+                                <div>
+                                  <Label htmlFor={`chase-${user.id}`} className="font-medium cursor-pointer">
+                                    {user.name}
+                                  </Label>
+                                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                                </div>
+                              </div>
+                              <div className={`px-2 py-1 rounded-md text-xs font-medium border ${getRoleBadgeColor(user.role)}`}>
+                                {user.role}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {selectedChaseTeam.length > 0 && (
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center gap-2 text-blue-800">
+                            <CheckCircle className="h-4 w-4" />
+                            <span className="font-medium">Selected Chase Team</span>
+                          </div>
+                          <p className="text-blue-700 mt-1">
+                            {selectedChaseTeam.length} member{selectedChaseTeam.length !== 1 ? 's' : ''} will be responsible for chasing paperwork from this client.
+                          </p>
+                          <div className="mt-2 space-x-2">
+                            {selectedChaseTeam.map(userId => {
+                              const user = availableUsers.find(u => u.id === userId)
+                              return user ? (
+                                <span key={userId} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs">
+                                  {getRoleIcon(user.role)}
+                                  {user.name}
+                                </span>
+                              ) : null
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedChaseTeam.length === 0 && (
+                        <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                          <p className="text-amber-700 text-sm">
+                            No chase team members selected. This client won't appear on anyone's chase dashboard.
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-6">
+                      <Users className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                      <p className="text-sm text-muted-foreground">No partners or managers available for chase team</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

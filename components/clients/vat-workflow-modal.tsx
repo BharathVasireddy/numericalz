@@ -628,25 +628,35 @@ export function VATWorkflowModal({
                               key={key} 
                               value={key}
                               className={`
-                                ${isCurrentStage ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}
-                                ${isPastStage || isCompletedStage ? 'opacity-60 text-muted-foreground' : ''}
+                                ${isCurrentStage ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-l-blue-500 font-medium' : ''}
+                                ${isPastStage || isCompletedStage ? 'bg-gray-50 opacity-70 text-gray-500' : ''}
+                                ${!isCurrentStage && !isPastStage && !isCompletedStage ? 'hover:bg-gray-50' : ''}
+                                transition-all duration-200
                               `}
                             >
                               <div className="flex items-center gap-2 w-full">
-                                <div className={`${getStageInfo(key).color}`}>
+                                <div className={`
+                                  ${getStageInfo(key).color} 
+                                  ${isCurrentStage ? 'scale-110 shadow-sm' : ''} 
+                                  ${isPastStage || isCompletedStage ? 'grayscale opacity-60' : ''}
+                                  transition-all duration-200
+                                `}>
                                   {getStageInfo(key).icon}
                                 </div>
-                                <span className={`${isCurrentStage ? 'font-semibold text-blue-700' : ''}`}>
+                                <span className={`
+                                  ${isCurrentStage ? 'font-bold text-blue-800' : ''} 
+                                  ${isPastStage || isCompletedStage ? 'text-gray-500 line-through' : ''}
+                                `}>
                                   {label}
                                 </span>
                                 {isCurrentStage && (
-                                  <Badge variant="secondary" className="ml-auto text-xs bg-blue-100 text-blue-700">
-                                    Current
+                                  <Badge className="ml-auto text-xs bg-blue-600 text-white font-semibold shadow-md animate-pulse">
+                                    ⚡ CURRENT
                                   </Badge>
                                 )}
                                 {(isPastStage || isCompletedStage) && !isCurrentStage && (
-                                  <Badge variant="outline" className="ml-auto text-xs text-muted-foreground border-muted-foreground/30">
-                                    Completed
+                                  <Badge variant="outline" className="ml-auto text-xs text-gray-400 border-gray-300">
+                                    ✅ COMPLETED
                                   </Badge>
                                 )}
                               </div>

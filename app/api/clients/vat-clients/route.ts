@@ -177,6 +177,56 @@ export async function GET(request: NextRequest) {
         q.quarterPeriod === currentQuarterInfo.quarterPeriod && !q.isCompleted
       )
 
+      // Check if we need to automatically update quarters to "PAPERWORK_PENDING_CHASE"
+      // This should happen the day after quarter end for quarters that haven't been updated yet
+      const londonNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/London' }))
+      
+      // Find quarters that should be automatically updated to pending chase
+      // Only update quarters that are currently in "WAITING_FOR_QUARTER_END" status
+      const quartersToUpdate = client.vatQuartersWorkflow?.filter(q => {
+        if (q.isCompleted || q.currentStage !== 'WAITING_FOR_QUARTER_END') return false
+        
+        const quarterEndDate = new Date(q.quarterEndDate)
+        quarterEndDate.setHours(23, 59, 59, 999) // End of quarter end day
+        
+        // Check if we're past the quarter end date (next day or later)
+        return londonNow > quarterEndDate
+      })
+
+      // Update quarters to pending chase status
+      if (quartersToUpdate && quartersToUpdate.length > 0) {
+        for (const quarterToUpdate of quartersToUpdate) {
+          try {
+            await db.vATQuarter.update({
+              where: { id: quarterToUpdate.id },
+              data: {
+                currentStage: 'PAPERWORK_PENDING_CHASE',
+                updatedAt: londonNow
+              }
+            })
+
+            // Create workflow history entry for automatic update
+            await db.vATWorkflowHistory.create({
+              data: {
+                vatQuarterId: quarterToUpdate.id,
+                fromStage: quarterToUpdate.currentStage,
+                toStage: 'PAPERWORK_PENDING_CHASE',
+                stageChangedAt: londonNow,
+                userId: null,
+                userName: 'System Auto-Update',
+                userEmail: 'system@numericalz.com',
+                userRole: 'SYSTEM',
+                notes: 'Automatically updated to pending chase - quarter end date passed'
+              }
+            })
+
+            console.log(`🔄 Auto-updated VAT quarter ${quarterToUpdate.quarterPeriod} for client ${client.clientCode} to PAPERWORK_PENDING_CHASE`)
+          } catch (error) {
+            console.error(`Failed to auto-update quarter ${quarterToUpdate.id} for client ${client.id}:`, error)
+          }
+        }
+      }
+
       // If no current incomplete quarter exists, check if we need to create it
       if (!currentQuarter) {
         // Check if current quarter already exists (maybe completed)
@@ -187,6 +237,11 @@ export async function GET(request: NextRequest) {
         if (!existingQuarter) {
           // Create current quarter if it doesn't exist at all
           try {
+            // Determine appropriate default stage based on whether quarter has ended
+            const quarterEndDate = new Date(currentQuarterInfo.quarterEndDate)
+            quarterEndDate.setHours(23, 59, 59, 999)
+            const defaultStage = londonNow > quarterEndDate ? 'PAPERWORK_PENDING_CHASE' : 'WAITING_FOR_QUARTER_END'
+            
             const quarter = await db.vATQuarter.create({
               data: {
                 clientId: client.id,
@@ -196,7 +251,7 @@ export async function GET(request: NextRequest) {
                 filingDueDate: currentQuarterInfo.filingDueDate,
                 quarterGroup: currentQuarterInfo.quarterGroup,
                 assignedUserId: null, // Future quarters should be unassigned by default
-                currentStage: 'PAPERWORK_PENDING_CHASE',
+                currentStage: defaultStage,
                 isCompleted: false
               },
               include: {
@@ -215,13 +270,13 @@ export async function GET(request: NextRequest) {
             await db.vATWorkflowHistory.create({
               data: {
                 vatQuarterId: quarter.id,
-                toStage: 'PAPERWORK_PENDING_CHASE',
+                toStage: defaultStage,
                 stageChangedAt: new Date(),
                 userId: session.user.id,
                 userName: session.user.name || session.user.email || 'System',
                 userEmail: session.user.email || '',
                 userRole: session.user.role || 'SYSTEM',
-                notes: 'VAT quarter automatically created for current period',
+                notes: `VAT quarter automatically created for current period - ${defaultStage === 'WAITING_FOR_QUARTER_END' ? 'waiting for quarter end' : 'quarter ended, ready for chase'}`,
               }
             })
             
@@ -269,6 +324,11 @@ export async function GET(request: NextRequest) {
             if (!currentQuarter) {
               // Create the next quarter
               try {
+                // Determine appropriate default stage based on whether quarter has ended
+                const nextQuarterEndDate = new Date(nextQuarterInfo.quarterEndDate)
+                nextQuarterEndDate.setHours(23, 59, 59, 999)
+                const nextDefaultStage = londonNow > nextQuarterEndDate ? 'PAPERWORK_PENDING_CHASE' : 'WAITING_FOR_QUARTER_END'
+                
                 const quarter = await db.vATQuarter.create({
                   data: {
                     clientId: client.id,
@@ -278,7 +338,7 @@ export async function GET(request: NextRequest) {
                     filingDueDate: nextQuarterInfo.filingDueDate,
                     quarterGroup: nextQuarterInfo.quarterGroup,
                     assignedUserId: null, // Future quarters should be unassigned by default
-                    currentStage: 'PAPERWORK_PENDING_CHASE',
+                    currentStage: nextDefaultStage,
                     isCompleted: false
                   },
                   include: {
@@ -297,13 +357,13 @@ export async function GET(request: NextRequest) {
                 await db.vATWorkflowHistory.create({
                   data: {
                     vatQuarterId: quarter.id,
-                    toStage: 'PAPERWORK_PENDING_CHASE',
+                    toStage: nextDefaultStage,
                     stageChangedAt: new Date(),
                     userId: session.user.id,
                     userName: session.user.name || session.user.email || 'System',
                     userEmail: session.user.email || '',
                     userRole: session.user.role || 'SYSTEM',
-                    notes: 'VAT quarter automatically created - previous quarter completed',
+                    notes: `VAT quarter automatically created - previous quarter completed - ${nextDefaultStage === 'WAITING_FOR_QUARTER_END' ? 'waiting for quarter end' : 'quarter ended, ready for chase'}`,
                   }
                 })
                 
