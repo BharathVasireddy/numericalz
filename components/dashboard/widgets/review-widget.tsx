@@ -92,10 +92,14 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
   const handleReviewDone = async (item: ReviewItem, e: React.MouseEvent) => {
     e.stopPropagation() // Prevent triggering the item click
     
-    if (item.type !== 'ltd' || item.currentStage !== 'REVIEW_BY_PARTNER') {
+    // Check if item can be reviewed
+    const isValidLtdReview = item.type === 'ltd' && item.currentStage === 'REVIEW_BY_PARTNER'
+    const isValidVATReview = item.type === 'vat' && item.currentStage === 'REVIEW_PENDING_PARTNER'
+    
+    if (!isValidLtdReview && !isValidVATReview) {
       toast({
         title: "Cannot complete review",
-        description: "Only Ltd company workflows at 'Review by Partner' stage can be marked as done.",
+        description: "Only workflows at review stages can be marked as done.",
         variant: "destructive"
       })
       return
@@ -132,10 +136,21 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
     try {
       console.log(`🔄 Processing review for ${selectedItem.clientName} (${selectedItem.clientCode}) - Action: ${reviewAction}`)
       
-      const nextStage = reviewAction === 'approve' ? 'REVIEW_DONE_HELLO_SIGN' : 'WORK_IN_PROGRESS'
+      // Determine next stage based on workflow type
+      let nextStage: string
+      let endpoint: string
+      
+      if (selectedItem.type === 'vat') {
+        nextStage = reviewAction === 'approve' ? 'REVIEWED_BY_PARTNER' : 'WORK_IN_PROGRESS'
+        endpoint = `/api/vat-quarters/${selectedItem.workflowId}/workflow`
+      } else {
+        nextStage = reviewAction === 'approve' ? 'REVIEW_DONE_HELLO_SIGN' : 'WORK_IN_PROGRESS'
+        endpoint = `/api/clients/ltd-deadlines/${selectedItem.clientId}/workflow`
+      }
+      
       const actionText = reviewAction === 'approve' ? 'approved' : 'sent back for rework'
       
-      const response = await fetch(`/api/clients/ltd-deadlines/${selectedItem.clientId}/workflow`, {
+      const response = await fetch(endpoint, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -147,9 +162,14 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
       const result = await response.json()
 
       if (result.success) {
+        const workflowType = selectedItem.type === 'vat' ? 'VAT Return' : 'Annual Accounts'
+        const nextStepText = selectedItem.type === 'vat' 
+          ? (reviewAction === 'approve' ? 'ready to continue workflow' : 'sent back for rework')
+          : (reviewAction === 'approve' ? 'approved - Ready for HelloSign' : 'sent back for rework')
+        
         toast({
-          title: `Review ${reviewAction === 'approve' ? 'Approved' : 'Sent for Rework'}`,
-          description: `${selectedItem.clientName} ${reviewAction === 'approve' ? 'approved - Ready for HelloSign' : 'sent back for rework'}`,
+          title: `${workflowType} Review ${reviewAction === 'approve' ? 'Approved' : 'Sent for Rework'}`,
+          description: `${selectedItem.clientName} ${nextStepText}`,
         })
         
         // Close modal and refresh data
@@ -229,7 +249,12 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
   }
 
   const canMarkReviewDone = (item: ReviewItem) => {
-    return userRole === 'PARTNER' && item.type === 'ltd' && item.currentStage === 'REVIEW_BY_PARTNER'
+    if (userRole !== 'PARTNER') return false
+    
+    const isLtdReview = item.type === 'ltd' && item.currentStage === 'REVIEW_BY_PARTNER'
+    const isVATReview = item.type === 'vat' && item.currentStage === 'REVIEW_PENDING_PARTNER'
+    
+    return isLtdReview || isVATReview
   }
 
   const displayItems = compact ? reviewItems.slice(0, 3) : reviewItems.slice(0, 5)
@@ -404,7 +429,7 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
                       <span className="font-medium">Approve</span>
                     </div>
                     <span className="text-xs text-center leading-tight opacity-75">
-                      Ready for HelloSign
+                      {selectedItem?.type === 'vat' ? 'Continue workflow' : 'Ready for HelloSign'}
                     </span>
                   </Button>
                   
