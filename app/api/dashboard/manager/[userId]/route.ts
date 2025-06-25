@@ -322,14 +322,116 @@ export async function GET(
       clientSatisfaction: 92
     }
 
+    // Get all clients for client counts and unassigned calculations
+    const allClients = await db.client.findMany({
+      where: { isActive: true },
+      include: {
+        assignedUser: true,
+        ltdCompanyAssignedUser: true,
+        vatAssignedUser: true,
+        vatQuartersWorkflow: {
+          where: { isCompleted: false },
+          orderBy: { quarterEndDate: 'asc' },
+          take: 1
+        }
+      }
+    })
+
+    // Calculate client counts
+    const clientCounts = {
+      total: allClients.length,
+      ltd: allClients.filter(c => c.companyType === 'LIMITED_COMPANY').length,
+      nonLtd: allClients.filter(c => c.companyType !== 'LIMITED_COMPANY').length,
+      vat: allClients.filter(c => c.isVatEnabled).length
+    }
+
+    // Calculate unassigned clients
+    const unassignedClients = {
+      ltd: allClients.filter(c => 
+        c.companyType === 'LIMITED_COMPANY' && !c.ltdCompanyAssignedUserId && !c.assignedUserId
+      ).length,
+      nonLtd: allClients.filter(c => 
+        c.companyType !== 'LIMITED_COMPANY' && !c.assignedUserId
+      ).length,
+      vat: allClients.filter(c => 
+        c.isVatEnabled && !c.vatAssignedUserId && !c.assignedUserId
+      ).length
+    }
+
+    // Calculate monthly deadlines (current month)
+    const monthlyDeadlines = {
+      accounts: deadlineStats.accounts.overdue + deadlineStats.accounts.dueSoon,
+      vat: deadlineStats.vat.overdue + deadlineStats.vat.dueSoon,
+      cs: deadlineStats.confirmation.overdue + deadlineStats.confirmation.dueSoon,
+      ct: deadlineStats.ct.overdue + deadlineStats.ct.dueSoon
+    }
+
+    // Process team members for workload display
+    const teamMembersForDisplay = processedTeamMembers.map(member => ({
+      id: member.id,
+      name: member.name,
+      role: member.role,
+      clientCount: member.clientCount,
+      vatClients: allClients.filter(c => 
+        c.isVatEnabled && (c.vatAssignedUserId === member.id || c.assignedUserId === member.id)
+      ).length,
+      accountsClients: allClients.filter(c => 
+        c.companyType === 'LIMITED_COMPANY' && (c.ltdCompanyAssignedUserId === member.id || c.assignedUserId === member.id)
+      ).length
+    }))
+
+    // Get upcoming deadlines (next 30 days)
+    const upcomingDeadlines = allClients
+      .map(client => {
+        const deadlines = []
+        
+        // VAT deadlines
+        if (client.isVatEnabled && client.vatQuartersWorkflow.length > 0) {
+          const vatQuarter = client.vatQuartersWorkflow[0]
+          if (vatQuarter?.filingDueDate) {
+            const filingDue = new Date(vatQuarter.filingDueDate)
+            if (filingDue > now && filingDue <= thirtyDaysFromNow) {
+              deadlines.push({
+                id: `vat-${client.id}`,
+                companyName: client.companyName,
+                type: 'VAT Return',
+                date: filingDue.toISOString(),
+                daysUntil: Math.ceil((filingDue.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+              })
+            }
+          }
+        }
+
+        // Accounts deadlines
+        if (client.nextAccountsDue) {
+          const accountsDue = new Date(client.nextAccountsDue)
+          if (accountsDue > now && accountsDue <= thirtyDaysFromNow) {
+            deadlines.push({
+              id: `accounts-${client.id}`,
+              companyName: client.companyName,
+              type: 'Annual Accounts',
+              date: accountsDue.toISOString(),
+              daysUntil: Math.ceil((accountsDue.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+            })
+          }
+        }
+
+        return deadlines
+      })
+      .flat()
+      .sort((a, b) => a.daysUntil - b.daysUntil)
+      .slice(0, 10) // Top 10 upcoming deadlines
+
+    // Get current month name
+    const monthName = now.toLocaleDateString('en-US', { month: 'long' })
+
     const dashboardData = {
-      teamOverview,
-      workReview,
-      teamMembers: processedTeamMembers,
-      workflowStages,
-      deadlines: deadlineStats,
-      notifications,
-      analytics
+      clientCounts,
+      unassignedClients,
+      teamMembers: teamMembersForDisplay,
+      monthlyDeadlines,
+      upcomingDeadlines,
+      monthName
     }
 
     return NextResponse.json({

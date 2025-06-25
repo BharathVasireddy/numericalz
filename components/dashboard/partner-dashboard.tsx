@@ -109,7 +109,7 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
 
   // Initialize widgets when data is loaded
   useEffect(() => {
-    if (data) {
+    if (data && widgets.length === 0) { // Only initialize if widgets array is empty
       const defaultWidgets: DashboardWidget[] = [
         // Row 1
         {
@@ -182,6 +182,38 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
       }
     }
   }, [data, userId])
+
+  // Update widget components when data changes (without resetting layout)
+  useEffect(() => {
+    if (data && widgets.length > 0) {
+      const updatedWidgets = widgets.map(widget => ({
+        ...widget,
+        component: getWidgetComponent(widget.id, data)
+      }))
+      setWidgets(updatedWidgets)
+    }
+  }, [data])
+
+  const getWidgetComponent = (widgetId: string, data: DashboardData) => {
+    switch (widgetId) {
+      case 'client-overview':
+        return <ClientOverviewWidget data={data} />
+      case 'monthly-deadlines':
+        return <MonthlyDeadlinesWidget data={data} />
+      case 'unassigned-clients':
+        return <UnassignedClientsWidget data={data} onNavigate={handleUnassignedNavigation} />
+      case 'vat-unassigned':
+        return <VATUnassignedWidget compact={true} />
+      case 'pending-to-chase':
+        return <PendingToChaseWidget userRole="PARTNER" userId={userId} />
+      case 'upcoming-deadlines':
+        return <UpcomingDeadlinesWidget data={data} />
+      case 'team-workload':
+        return <TeamWorkloadWidget data={data} />
+      default:
+        return null
+    }
+  }
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return
@@ -358,7 +390,7 @@ export function PartnerDashboard({ userId }: PartnerDashboardProps) {
                                 >
                                   <GripVertical className="h-4 w-4 text-muted-foreground" />
                                 </div>
-                                {widget.component}
+                                {getWidgetComponent(widget.id, data)}
                               </Card>
                             </div>
                           )}
