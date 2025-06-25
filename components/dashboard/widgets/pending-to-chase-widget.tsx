@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,9 +15,44 @@ import {
   Users,
   ArrowRight,
   Target,
-  Calendar
+  Calendar,
+  User,
+  Plus,
+  Briefcase,
+  CheckCircle,
+  Send,
+  UserCheck
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription,
+  DialogFooter 
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+// Workflow stage definitions for Ltd companies
+const LTD_WORKFLOW_STAGES = [
+  { key: 'PAPERWORK_PENDING_CHASE', label: 'Pending to chase', icon: <Clock className="h-4 w-4" />, color: 'bg-amber-100 text-amber-800' },
+  { key: 'PAPERWORK_CHASED', label: 'Paperwork chased', icon: <Phone className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
+  { key: 'PAPERWORK_RECEIVED', label: 'Paperwork received', icon: <FileText className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
+  { key: 'WORK_IN_PROGRESS', label: 'Work in progress', icon: <Target className="h-4 w-4" />, color: 'bg-purple-100 text-purple-800' },
+  { key: 'DISCUSS_WITH_MANAGER', label: 'Discuss with manager', icon: <Users className="h-4 w-4" />, color: 'bg-orange-100 text-orange-800' },
+  { key: 'REVIEWED_BY_MANAGER', label: 'Reviewed by manager', icon: <User className="h-4 w-4" />, color: 'bg-cyan-100 text-cyan-800' },
+  { key: 'REVIEW_BY_PARTNER', label: 'Review by partner', icon: <User className="h-4 w-4" />, color: 'bg-indigo-100 text-indigo-800' },
+  { key: 'REVIEWED_BY_PARTNER', label: 'Reviewed by partner', icon: <User className="h-4 w-4" />, color: 'bg-pink-100 text-pink-800' },
+  { key: 'REVIEW_DONE_HELLO_SIGN', label: 'Review done - HelloSign', icon: <FileText className="h-4 w-4" />, color: 'bg-teal-100 text-teal-800' },
+  { key: 'SENT_TO_CLIENT_HELLO_SIGN', label: 'Sent to client (HelloSign)', icon: <ArrowRight className="h-4 w-4" />, color: 'bg-lime-100 text-lime-800' },
+  { key: 'APPROVED_BY_CLIENT', label: 'Approved by client', icon: <User className="h-4 w-4" />, color: 'bg-emerald-100 text-emerald-800' },
+  { key: 'SUBMISSION_APPROVED_PARTNER', label: 'Submission approved by partner', icon: <User className="h-4 w-4" />, color: 'bg-violet-100 text-violet-800' },
+  { key: 'FILED_CH_HMRC', label: 'Filed (Companies House & HMRC)', icon: <Building className="h-4 w-4" />, color: 'bg-green-100 text-green-800' }
+]
 
 interface PendingToChaseClient {
   id: string
@@ -49,8 +84,27 @@ export function PendingToChaseWidget({ userRole, userId }: PendingToChaseWidgetP
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(false)
 
+  // VAT Workflow Modal state
+  const [showVATModal, setShowVATModal] = useState(false)
+  const [selectedVATQuarter, setSelectedVATQuarter] = useState<any>(null)
+
+  // Ltd Workflow Modal state  
+  const [showLtdModal, setShowLtdModal] = useState(false)
+  const [selectedClient, setSelectedClient] = useState<PendingToChaseClient | null>(null)
+  const [updateComments, setUpdateComments] = useState('')
+  const [updating, setUpdating] = useState(false)
+
+  // Users data for assignment dropdowns
+  const [users, setUsers] = useState<Array<{
+    id: string
+    name: string
+    email: string
+    role: string
+  }>>([])
+
   useEffect(() => {
     fetchPendingToChaseClients()
+    fetchUsers()
   }, [userRole, userId])
 
   const fetchPendingToChaseClients = async () => {
@@ -74,6 +128,27 @@ export function PendingToChaseWidget({ userRole, userId }: PendingToChaseWidgetP
       console.error('Error fetching pending to chase clients:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/users', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setUsers(data.users || [])
+      } else {
+        console.error('Failed to fetch users:', data.error)
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
     }
   }
 
@@ -113,33 +188,126 @@ export function PendingToChaseWidget({ userRole, userId }: PendingToChaseWidgetP
   }
 
   const handleStartChasing = async (client: PendingToChaseClient) => {
-    try {
-      const endpoint = client.workflowType === 'VAT' 
-        ? `/api/vat-quarters/${client.id}/workflow`
-        : `/api/clients/ltd-deadlines/${client.clientId}/workflow`
+    if (client.workflowType === 'VAT') {
+      // For VAT workflows, we need to fetch the quarter data and open VAT modal
+      await handleOpenVATModal(client)
+    } else if (client.workflowType === 'ACCOUNTS') {
+      // For Ltd workflows, open the Ltd modal
+      handleOpenLtdModal(client)
+    }
+  }
 
-      const response = await fetch(endpoint, {
+  const handleOpenVATModal = async (client: PendingToChaseClient) => {
+    try {
+      // Fetch the VAT quarter data for the modal
+      const response = await fetch(`/api/clients/${client.clientId}/vat-quarters`)
+      const data = await response.json()
+      
+      if (data.success && data.data && data.data.vatQuarters && data.data.vatQuarters.length > 0) {
+        // Find the quarter that matches the pending workflow
+        const matchingQuarter = data.data.vatQuarters.find((q: any) => 
+          q.id === client.id || q.currentStage === 'PAPERWORK_PENDING_CHASE'
+        )
+        
+        if (matchingQuarter) {
+          setSelectedVATQuarter({
+            ...matchingQuarter,
+            client: {
+              id: client.clientId,
+              companyName: client.companyName,
+              vatQuarterGroup: data.data.client.vatQuarterGroup || '1_4_7_10'
+            }
+          })
+          setShowVATModal(true)
+        } else {
+          showToast.error('VAT quarter not found')
+        }
+      } else {
+        showToast.error('Failed to fetch VAT quarter data')
+      }
+    } catch (error) {
+      console.error('Error fetching VAT quarter:', error)
+      showToast.error('Failed to open VAT workflow modal')
+    }
+  }
+
+  const handleOpenLtdModal = (client: PendingToChaseClient) => {
+    setSelectedClient(client)
+    setUpdateComments('')
+    setShowLtdModal(true)
+  }
+
+  const handleVATWorkflowUpdate = async () => {
+    if (!selectedVATQuarter) {
+      showToast.error('No VAT quarter selected')
+      return
+    }
+
+    setUpdating(true)
+    try {
+      const response = await fetch(`/api/vat-quarters/${selectedVATQuarter.id}/workflow`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stage: 'PAPERWORK_CHASED',
-          comments: 'Started chasing paperwork from dashboard widget'
+          stage: 'PAPERWORK_CHASED', // Automatically advance to "Paperwork Chased"
+          comments: updateComments.trim() || 'Started chasing paperwork from Pending to Chase widget'
         }),
       })
 
       const data = await response.json()
 
       if (data.success) {
-        showToast.success('Chase started successfully')
+        showToast.success('Started chasing - workflow updated successfully')
+        setShowVATModal(false)
+        setSelectedVATQuarter(null)
+        setUpdateComments('')
         await fetchPendingToChaseClients() // Refresh the list
       } else {
-        showToast.error(data.error || 'Failed to start chase')
+        showToast.error(data.error || 'Failed to start chasing')
       }
     } catch (error) {
       console.error('Error starting chase:', error)
-      showToast.error('Failed to start chase')
+      showToast.error('Failed to start chasing')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleLtdWorkflowUpdate = async () => {
+    if (!selectedClient) {
+      showToast.error('No client selected')
+      return
+    }
+
+    setUpdating(true)
+    try {
+      // For Ltd companies, we'll need to create or update the workflow
+      // This is a simplified approach - you may need to adjust the API endpoint
+      const response = await fetch(`/api/clients/ltd-deadlines/${selectedClient.clientId}/workflow`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage: 'PAPERWORK_CHASED', // Automatically advance to "Paperwork Chased"
+          comments: updateComments.trim() || 'Started chasing paperwork from Pending to Chase widget'
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        showToast.success('Started chasing - workflow updated successfully')
+        setShowLtdModal(false)
+        setSelectedClient(null)
+        setUpdateComments('')
+        await fetchPendingToChaseClients() // Refresh the list
+      } else {
+        showToast.error(data.error || 'Failed to start chasing')
+      }
+    } catch (error) {
+      console.error('Error starting chase:', error)
+      showToast.error('Failed to start chasing')
+    } finally {
+      setUpdating(false)
     }
   }
 
@@ -191,6 +359,7 @@ export function PendingToChaseWidget({ userRole, userId }: PendingToChaseWidgetP
   }
 
   return (
+    <>
     <Card className="h-fit border-l-4 border-l-amber-500">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -297,5 +466,168 @@ export function PendingToChaseWidget({ userRole, userId }: PendingToChaseWidgetP
         )}
       </CardContent>
     </Card>
+
+    {/* VAT Start Chasing Modal - Simplified */}
+    <Dialog open={showVATModal} onOpenChange={setShowVATModal}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Start Chasing Paperwork</DialogTitle>
+          <DialogDescription>
+            Begin chasing paperwork for {selectedVATQuarter?.client?.companyName}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          {/* Client Info Display */}
+          {selectedVATQuarter && (
+            <div className="bg-muted/20 p-3 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Client Information</span>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Company:</span>
+                  <span className="text-sm font-medium">{selectedVATQuarter.client.companyName}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Action:</span>
+                  <Badge variant="outline" className="bg-amber-100 text-amber-800">
+                    Start Chasing → Paperwork Chased
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Comments Section */}
+          <div className="space-y-2">
+            <Label htmlFor="chase-comments">Comments (Optional)</Label>
+            <Textarea
+              id="chase-comments"
+              placeholder="Add any notes about starting the chase process..."
+              value={updateComments}
+              onChange={(e) => setUpdateComments(e.target.value)}
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">
+              This will automatically advance the workflow to "Paperwork Chased" stage
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowVATModal(false)}
+            disabled={updating}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleVATWorkflowUpdate}
+            disabled={updating}
+            className="bg-amber-600 hover:bg-amber-700"
+          >
+            {updating ? (
+              <>
+                <Clock className="h-4 w-4 mr-2 animate-spin" />
+                Starting Chase...
+              </>
+            ) : (
+              <>
+                <Phone className="h-4 w-4 mr-2" />
+                Started Chasing
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Ltd Start Chasing Modal - Simplified */}
+    <Dialog open={showLtdModal} onOpenChange={setShowLtdModal}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Start Chasing Paperwork</DialogTitle>
+          <DialogDescription>
+            Begin chasing paperwork for {selectedClient?.companyName}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          {/* Client Info Display */}
+          {selectedClient && (
+            <div className="bg-muted/20 p-3 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Client Information</span>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Company:</span>
+                  <span className="text-sm font-medium">{selectedClient.companyName}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Type:</span>
+                  <Badge variant="outline" className="bg-green-100 text-green-800">
+                    Ltd Company Accounts
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Action:</span>
+                  <Badge variant="outline" className="bg-amber-100 text-amber-800">
+                    Start Chasing → Paperwork Chased
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Comments Section */}
+          <div className="space-y-2">
+            <Label htmlFor="ltd-chase-comments">Comments (Optional)</Label>
+            <Textarea
+              id="ltd-chase-comments"
+              placeholder="Add any notes about starting the chase process..."
+              value={updateComments}
+              onChange={(e) => setUpdateComments(e.target.value)}
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">
+              This will automatically advance the workflow to "Paperwork Chased" stage
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowLtdModal(false)}
+            disabled={updating}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleLtdWorkflowUpdate}
+            disabled={updating}
+            className="bg-amber-600 hover:bg-amber-700"
+          >
+            {updating ? (
+              <>
+                <Clock className="h-4 w-4 mr-2 animate-spin" />
+                Starting Chase...
+              </>
+            ) : (
+              <>
+                <Phone className="h-4 w-4 mr-2" />
+                Started Chasing
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
   )
 } 

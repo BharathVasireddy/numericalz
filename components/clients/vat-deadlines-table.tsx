@@ -391,23 +391,6 @@ export function VATDeadlinesTable({
     })
   }, [vatClients, clientMatchesFilters])
 
-  // SIMPLIFIED: Calculate VAT client counts per user for filter display
-  // Only count quarters that are actually assigned to users, no fallbacks
-  const userVATClientCounts = users.reduce((acc, user) => {
-    const clientCount = vatClients.filter(client => {
-      const quarter = getQuarterForMonth(client, currentMonth)
-      return quarter?.assignedUser?.id === user.id
-    }).length
-    acc[user.id] = clientCount
-    return acc
-  }, {} as Record<string, number>)
-
-  // SIMPLIFIED: Count unassigned VAT clients (only quarters without assignedUser)
-  const unassignedVATCount = vatClients.filter(client => {
-    const quarter = getQuarterForMonth(client, currentMonth)
-    return quarter && !quarter.assignedUser?.id
-  }).length
-
   // Get quarter that files in a specific month for a client
   const getQuarterForMonth = useCallback((client: VATClient, monthNumber: number): VATQuarter | null => {
     if (!client.vatQuarterGroup || !isVATFilingMonth(client.vatQuarterGroup, monthNumber)) {
@@ -462,6 +445,23 @@ export function VATDeadlinesTable({
       assignedUser: undefined // Future quarters are unassigned - each quarter is independent
     }
   }, [vatClients])
+
+  // SIMPLIFIED: Calculate VAT client counts per user for filter display
+  // Only count quarters that are actually assigned to users, no fallbacks
+  const userVATClientCounts = users.reduce((acc, user) => {
+    const clientCount = vatClients.filter(client => {
+      const quarter = getQuarterForMonth(client, currentMonth)
+      return quarter?.assignedUser?.id === user.id
+    }).length
+    acc[user.id] = clientCount
+    return acc
+  }, {} as Record<string, number>)
+
+  // SIMPLIFIED: Count unassigned VAT clients (only quarters without assignedUser)
+  const unassignedVATCount = vatClients.filter(client => {
+    const quarter = getQuarterForMonth(client, currentMonth)
+    return quarter && !quarter.assignedUser?.id
+  }).length
 
   // Get current month clients count for prominent display
   const currentMonthClients = getClientsForMonth(currentMonth)
