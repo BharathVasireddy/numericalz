@@ -242,7 +242,8 @@ export async function PUT(
       updatedVatQuarter.clientId,
       currentHistory?.toStage || 'NOT_STARTED',
       stage,
-      comments
+      comments,
+      updatedVatQuarter.quarterPeriod
     ))
 
     // Log assignment changes if assignee was updated (including unassignment)
@@ -250,23 +251,37 @@ export async function PUT(
       if (finalAssigneeId) {
         // Assignment to a user
         const assignedUser = updatedVatQuarter.assignedUser
+        const previousAssigneeName = vatQuarter.assignedUserId ? 
+          (await prisma.user.findUnique({ 
+            where: { id: vatQuarter.assignedUserId }, 
+            select: { name: true } 
+          }))?.name || 'Unknown User' : 'Unassigned'
+        
         if (assignedUser) {
           await logActivityEnhanced(request, ActivityHelpers.workflowAssigned(
             'VAT',
             updatedVatQuarter.clientId,
             assignedUser.id,
-            assignedUser.name
+            assignedUser.name,
+            updatedVatQuarter.quarterPeriod,
+            previousAssigneeName
           ))
         }
       } else {
-        // Unassignment
+        // Unassignment - get previous assignee name
+        const previousAssigneeName = vatQuarter.assignedUserId ? 
+          (await prisma.user.findUnique({ 
+            where: { id: vatQuarter.assignedUserId }, 
+            select: { name: true } 
+          }))?.name || 'Unknown User' : 'Unknown'
+          
         await logActivityEnhanced(request, {
           action: 'VAT_WORKFLOW_UNASSIGNED',
           clientId: updatedVatQuarter.clientId,
           details: {
             companyName: updatedVatQuarter.client.companyName,
             quarterPeriod: updatedVatQuarter.quarterPeriod,
-            previousAssignee: vatQuarter.assignedUserId
+            previousAssignee: previousAssigneeName
           }
         })
       }

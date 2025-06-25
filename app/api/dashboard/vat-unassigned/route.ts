@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getVATFilingMonthsForQuarterGroup } from '@/lib/vat-workflow'
+import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
 
 export async function GET(request: NextRequest) {
   try {
@@ -221,6 +222,16 @@ export async function POST(request: NextRequest) {
         notes: `Assigned VAT quarter to ${assignedUser.name || assignedUser.email} from Unassigned VAT widget`
       }
     })
+
+    // Log enhanced activity for assignment
+    await logActivityEnhanced(request, ActivityHelpers.workflowAssigned(
+      'VAT',
+      vatQuarter.client.id,
+      assignedUser.id,
+      assignedUser.name || assignedUser.email,
+      vatQuarter.quarterPeriod,
+      'Unassigned'
+    ))
 
     return NextResponse.json({
       success: true,

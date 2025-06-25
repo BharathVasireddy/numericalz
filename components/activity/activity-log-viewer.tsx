@@ -204,97 +204,236 @@ export function ActivityLogViewer({
     return {}
   }
 
-  // Format activity into human-readable description
+  // Format activity into human-readable description with enhanced detail
   const formatActivityDescription = (activity: ActivityLogEntry) => {
     const details = formatActivityDetails(activity)
     const clientName = activity.client?.companyName || details.companyName || 'Unknown Client'
     const userName = activity.user?.name || 'System'
     
+    // Helper function to format stage names
+    const formatStageName = (stage: string) => {
+      if (!stage) return 'Unknown Stage'
+      return stage
+        .replace(/_/g, ' ')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ')
+    }
+
+    // Helper function to get workflow type display name
+    const getWorkflowTypeDisplay = (action: string) => {
+      if (action.includes('VAT')) return 'VAT workflow'
+      if (action.includes('LTD')) return 'Ltd company workflow'
+      if (action.includes('ACCOUNTS')) return 'accounts workflow'
+      return 'workflow'
+    }
+
     switch (activity.action) {
       case 'CLIENT_CREATED':
-        return `Created new client: ${clientName}`
+        return `🆕 Created new client: ${clientName}${details.clientCode ? ` (${details.clientCode})` : ''}${details.companyNumber ? ` - Company #${details.companyNumber}` : ''}`
         
       case 'CLIENT_UPDATED':
         if (details.changedFields && details.changedFields.length > 0) {
-          return `Updated client ${clientName} - Changed: ${details.changedFields.join(', ')}`
+          const changes = details.changedFields.map((field: string) => {
+            const oldValue = details.oldData?.[field]
+            const newValue = details.newData?.[field]
+            return `${field}: "${oldValue || 'Not set'}" → "${newValue || 'Not set'}"`
+          }).join(', ')
+          return `📝 Updated ${clientName} - ${changes}`
         }
-        return `Updated client: ${clientName}`
+        return `📝 Updated client: ${clientName}`
         
       case 'CLIENT_ASSIGNED':
-        return `Assigned ${clientName} to ${details.assigneeName || 'staff member'}`
+        const previousAssignee = details.previousAssignee || 'Unassigned'
+        const newAssignee = details.assigneeName || 'Unknown User'
+        return `👤 Assigned ${clientName} to ${newAssignee} (previously: ${previousAssignee}) by ${userName}`
         
       case 'CLIENT_VAT_ASSIGNED':
-        return `Assigned VAT responsibility for ${clientName} to ${details.assigneeName || 'staff member'}`
+        const prevVATAssignee = details.previousAssignee || 'Unassigned'
+        const newVATAssignee = details.assigneeName || 'Unknown User'
+        return `💰 Assigned VAT work for ${clientName} to ${newVATAssignee} (previously: ${prevVATAssignee}) by ${userName}`
         
       case 'CLIENT_ACCOUNTS_ASSIGNED':
-        return `Assigned accounts responsibility for ${clientName} to ${details.assigneeName || 'staff member'}`
+        const prevAccountsAssignee = details.previousAssignee || 'Unassigned'
+        const newAccountsAssignee = details.assigneeName || 'Unknown User'
+        const assignmentType = details.assignmentType || 'accounts'
+        return `📊 Assigned ${assignmentType} work for ${clientName} to ${newAccountsAssignee} (previously: ${prevAccountsAssignee}) by ${userName}`
         
       case 'CLIENT_UNASSIGNED':
-        return `Removed assignment for ${clientName}`
+        const prevGeneralAssignee = details.previousAssignee || 'Unknown'
+        return `❌ Removed assignment for ${clientName} (was assigned to: ${prevGeneralAssignee}) by ${userName}`
         
       case 'CLIENT_VAT_UNASSIGNED':
-        return `Removed VAT assignment for ${clientName}`
+        const prevVATUser = details.previousAssignee || 'Unknown'
+        return `❌ Removed VAT assignment for ${clientName} (was assigned to: ${prevVATUser}) by ${userName}`
         
       case 'CLIENT_ACCOUNTS_UNASSIGNED':
-        return `Removed accounts assignment for ${clientName}`
+        const prevAccountsUser = details.previousAssignee || 'Unknown'
+        const unassignType = details.assignmentType || 'accounts'
+        return `❌ Removed ${unassignType} assignment for ${clientName} (was assigned to: ${prevAccountsUser}) by ${userName}`
         
+      case 'VAT_QUARTER_STAGE_CHANGED':
+      case 'LTD_WORKFLOW_STAGE_CHANGED':
       case 'WORKFLOW_STAGE_UPDATED':
-        if (details.oldStage && details.newStage) {
-          return `Updated ${clientName} workflow: ${details.oldStage.replace(/_/g, ' ')} → ${details.newStage.replace(/_/g, ' ')}`
+        const workflowType = getWorkflowTypeDisplay(activity.action)
+        const oldStage = formatStageName(details.oldStage || 'Not Started')
+        const newStage = formatStageName(details.newStage || 'Unknown')
+        let stageDescription = `🔄 Updated ${workflowType} for ${clientName}: "${oldStage}" → "${newStage}" by ${userName}`
+        
+        if (details.quarterPeriod) {
+          stageDescription += ` (Quarter: ${details.quarterPeriod})`
         }
-        return `Updated workflow stage for ${clientName}`
         
-      case 'VAT_WORKFLOW_UPDATED':
-        if (details.oldStage && details.newStage) {
-          return `Updated VAT workflow for ${clientName}: ${details.oldStage.replace(/_/g, ' ')} → ${details.newStage.replace(/_/g, ' ')}`
+        if (details.comments) {
+          stageDescription += ` - Note: "${details.comments}"`
         }
-        return `Updated VAT workflow for ${clientName}`
         
-      case 'LTD_WORKFLOW_UPDATED':
-        if (details.oldStage && details.newStage) {
-          return `Updated Ltd company workflow for ${clientName}: ${details.oldStage.replace(/_/g, ' ')} → ${details.newStage.replace(/_/g, ' ')}`
+        return stageDescription
+        
+      case 'VAT_QUARTER_ASSIGNED':
+      case 'LTD_WORKFLOW_ASSIGNED':
+        const assignedWorkflowType = getWorkflowTypeDisplay(activity.action)
+        const assignedTo = details.assigneeName || 'Unknown User'
+        let assignmentDescription = `👥 Assigned ${assignedWorkflowType} for ${clientName} to ${assignedTo} by ${userName}`
+        
+        if (details.quarterPeriod) {
+          assignmentDescription += ` (Quarter: ${details.quarterPeriod})`
         }
-        return `Updated Ltd company workflow for ${clientName}`
         
-      case 'WORKFLOW_COMPLETED':
-        return `Completed workflow for ${clientName}`
+        return assignmentDescription
         
-      case 'VAT_QUARTER_CREATED':
-        return `Created new VAT quarter for ${clientName} (${details.quarterPeriod || 'period unknown'})`
+      case 'VAT_WORKFLOW_UNASSIGNED':
+        let vatUnassignDesc = `❌ Removed VAT workflow assignment for ${clientName} by ${userName}`
+        if (details.quarterPeriod) {
+          vatUnassignDesc += ` (Quarter: ${details.quarterPeriod})`
+        }
+        if (details.previousAssignee) {
+          vatUnassignDesc += ` (was assigned to: ${details.previousAssignee})`
+        }
+        return vatUnassignDesc
         
       case 'VAT_RETURN_FILED':
-        return `Filed VAT return for ${clientName} to HMRC`
+        let vatFiledDesc = `✅ Filed VAT return for ${clientName} to HMRC by ${userName}`
+        if (details.quarterPeriod) {
+          vatFiledDesc += ` (Quarter: ${details.quarterPeriod})`
+        }
+        if (details.filingDueDate) {
+          const dueDate = new Date(details.filingDueDate).toLocaleDateString('en-GB')
+          vatFiledDesc += ` (Due: ${dueDate})`
+        }
+        if (details.daysInWorkflow) {
+          vatFiledDesc += ` - Completed in ${details.daysInWorkflow} days`
+        }
+        return vatFiledDesc
         
-      case 'ACCOUNTS_FILED':
-        return `Filed accounts for ${clientName} to Companies House & HMRC`
+      case 'LTD_ACCOUNTS_FILED':
+        let ltdFiledDesc = `✅ Filed accounts for ${clientName} to Companies House & HMRC by ${userName}`
+        if (details.filingPeriodEnd) {
+          const periodEnd = new Date(details.filingPeriodEnd).getFullYear()
+          ltdFiledDesc += ` (Year ending: ${periodEnd})`
+        }
+        return ltdFiledDesc
         
+      case 'VAT_QUARTER_CREATED':
+        let vatCreatedDesc = `🆕 Created new VAT quarter for ${clientName}`
+        if (details.quarterPeriod) {
+          vatCreatedDesc += ` (${details.quarterPeriod})`
+        }
+        if (details.quarterGroup) {
+          vatCreatedDesc += ` - Group: ${details.quarterGroup}`
+        }
+        return vatCreatedDesc
+        
+      case 'LTD_WORKFLOW_CREATED':
+        let ltdCreatedDesc = `🆕 Created new Ltd company workflow for ${clientName}`
+        if (details.filingPeriodEnd) {
+          const periodEnd = new Date(details.filingPeriodEnd).toLocaleDateString('en-GB')
+          ltdCreatedDesc += ` (Period ending: ${periodEnd})`
+        }
+        if (details.accountsDueDate) {
+          const dueDate = new Date(details.accountsDueDate).toLocaleDateString('en-GB')
+          ltdCreatedDesc += ` - Due: ${dueDate}`
+        }
+        return ltdCreatedDesc
+        
+      case 'CLIENT_BOOKKEEPING':
       case 'CLIENT_SELF_FILING':
-        return `Marked ${clientName} as self-filing (client handling their own returns)`
+        return `🏠 Marked ${clientName} as self-filing (client handles their own returns) by ${userName}`
         
       case 'COMPANIES_HOUSE_REFRESH':
-        return `Refreshed Companies House data for ${clientName}`
+        return `🔄 Refreshed Companies House data for ${clientName} by ${userName}`
         
       case 'CLIENT_RESIGNED':
-        return `Resigned from managing ${clientName} (moved to inactive)`
+        return `👋 Resigned from managing ${clientName} (moved to inactive) by ${userName}`
         
       case 'USER_LOGIN':
-        return `${userName} logged into the system`
+        const loginMethod = details.loginMethod || 'web'
+        return `🔑 ${userName} logged into the system via ${loginMethod}`
         
       case 'USER_LOGOUT':
-        return `${userName} logged out of the system`
+        return `🚪 ${userName} logged out of the system`
         
       case 'USER_CREATED':
-        return `Created new user account: ${details.userName || userName}`
+        const newUserName = details.userName || details.name || 'Unknown User'
+        const userRole = details.role || 'Unknown Role'
+        return `👤 Created new user account: ${newUserName} (Role: ${userRole}) by ${userName}`
         
       case 'USER_UPDATED':
-        return `Updated user account: ${details.userName || userName}`
+        const updatedUserName = details.userName || details.name || 'Unknown User'
+        let userUpdateDesc = `📝 Updated user account: ${updatedUserName} by ${userName}`
+        if (details.changedFields && details.changedFields.length > 0) {
+          userUpdateDesc += ` - Changed: ${details.changedFields.join(', ')}`
+        }
+        return userUpdateDesc
+        
+      case 'USER_ROLE_CHANGED':
+        const userWithRoleChange = details.userName || details.name || 'Unknown User'
+        const oldRole = details.oldRole || 'Unknown'
+        const newRole = details.newRole || 'Unknown'
+        return `🔄 Changed role for ${userWithRoleChange}: "${oldRole}" → "${newRole}" by ${userName}`
         
       case 'EMAIL_SENT':
-        return `Sent email to ${details.recipientEmail || 'client'} regarding ${clientName}`
+        const recipient = details.recipientEmail || details.recipientName || 'client'
+        const emailSubject = details.subject || 'notification'
+        return `📧 Sent email to ${recipient} regarding ${clientName} - Subject: "${emailSubject}" by ${userName}`
+        
+      case 'BULK_ASSIGNMENT':
+      case 'BULK_OPERATION':
+        const operationType = details.operationType || 'bulk operation'
+        const affectedCount = details.affectedClients || details.count || 'multiple'
+        return `📦 Performed ${operationType} on ${affectedCount} clients by ${userName}`
+        
+      case 'DATA_EXPORTED':
+        const exportType = details.exportType || 'data'
+        const recordCount = details.recordCount || 'multiple'
+        return `📤 Exported ${exportType} (${recordCount} records) by ${userName}`
+        
+      case 'WORKFLOW_REVIEW_COMPLETED':
+        const reviewType = details.reviewedBy || 'manager'
+        const nextStage = formatStageName(details.nextStage || 'Unknown')
+        return `✅ ${reviewType} completed review for ${clientName} - Advanced to "${nextStage}" by ${userName}`
         
       default:
-        // Fallback: convert action code to readable format
-        return activity.action.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+        // Enhanced fallback: try to extract meaningful information from action and details
+        let fallbackDesc = activity.action.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+        
+        if (clientName && clientName !== 'Unknown Client') {
+          fallbackDesc += ` for ${clientName}`
+        }
+        
+        if (details.oldStage && details.newStage) {
+          fallbackDesc += `: "${formatStageName(details.oldStage)}" → "${formatStageName(details.newStage)}"`
+        }
+        
+        if (details.assigneeName) {
+          fallbackDesc += ` (assigned to: ${details.assigneeName})`
+        }
+        
+        if (userName && userName !== 'System') {
+          fallbackDesc += ` by ${userName}`
+        }
+        
+        return fallbackDesc
     }
   }
 

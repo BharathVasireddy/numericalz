@@ -179,19 +179,41 @@ export async function PUT(
         clientId,
         currentWorkflow?.currentStage || 'NOT_STARTED',
         stage,
-        comments
+        comments,
+        `${workflow.filingPeriodEnd.getFullYear()} accounts`
       ))
     }
 
     if (assignedUserId !== undefined) {
       const assignedUser = workflow.assignedUser
+      
+      // Get previous assignee name for better logging
+      const previousAssigneeName = currentWorkflow?.assignedUserId ? 
+        (await db.user.findUnique({ 
+          where: { id: currentWorkflow.assignedUserId }, 
+          select: { name: true } 
+        }))?.name || 'Unknown User' : 'Unassigned'
+      
       if (assignedUser) {
         await logActivityEnhanced(request, ActivityHelpers.workflowAssigned(
           'LTD',
           clientId,
           assignedUser.id,
-          assignedUser.name
+          assignedUser.name,
+          `${workflow.filingPeriodEnd.getFullYear()} accounts`,
+          previousAssigneeName
         ))
+      } else {
+        // Log unassignment
+        await logActivityEnhanced(request, {
+          action: 'LTD_WORKFLOW_UNASSIGNED',
+          clientId,
+          details: {
+            companyName: client.companyName,
+            filingPeriod: `${workflow.filingPeriodEnd.getFullYear()} accounts`,
+            previousAssignee: previousAssigneeName
+          }
+        })
       }
     }
 

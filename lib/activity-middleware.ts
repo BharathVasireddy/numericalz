@@ -184,24 +184,27 @@ export const ActivityHelpers = {
   }),
 
   // Workflow activities
-  workflowStageChanged: (workflowType: 'LTD' | 'VAT', clientId: string, oldStage: string, newStage: string, comments?: string) => ({
+  workflowStageChanged: (workflowType: 'LTD' | 'VAT', clientId: string, oldStage: string, newStage: string, comments?: string, quarterPeriod?: string) => ({
     action: workflowType === 'LTD' ? ComprehensiveActivityTypes.LTD_WORKFLOW_STAGE_CHANGED : ComprehensiveActivityTypes.VAT_QUARTER_STAGE_CHANGED,
     clientId,
     details: {
       workflowType,
       oldStage,
       newStage,
-      comments
+      comments,
+      quarterPeriod
     }
   }),
 
-  workflowAssigned: (workflowType: 'LTD' | 'VAT', clientId: string, assigneeId: string, assigneeName: string) => ({
+  workflowAssigned: (workflowType: 'LTD' | 'VAT', clientId: string, assigneeId: string, assigneeName: string, quarterPeriod?: string, previousAssignee?: string) => ({
     action: workflowType === 'LTD' ? ComprehensiveActivityTypes.LTD_WORKFLOW_ASSIGNED : ComprehensiveActivityTypes.VAT_QUARTER_ASSIGNED,
     clientId,
     details: {
       workflowType,
       assigneeId,
-      assigneeName
+      assigneeName,
+      quarterPeriod,
+      previousAssignee
     }
   }),
 
