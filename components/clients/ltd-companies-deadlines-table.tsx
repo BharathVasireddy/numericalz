@@ -119,6 +119,7 @@ interface LtdClient {
   companyType?: string
   incorporationDate?: string
   accountingReferenceDate?: string
+  nextYearEnd?: string  // Companies House official year end date
   nextAccountsDue?: string
   lastAccountsMadeUpTo?: string
   nextCorporationTaxDue?: string
@@ -452,12 +453,29 @@ export function LtdCompaniesDeadlinesTable({
     })
   }
 
-  // Use centralized year end calculation
-  const getYearEndFromAccountingRef = (accountingRefDate?: string, lastAccounts?: string, incorporationDate?: string) => {
+  // Use centralized year end calculation with Companies House priority
+  const getYearEndFromAccountingRef = (client: LtdClient) => {
+    // Priority 1: Use Companies House official year end date if available
+    if (client.nextYearEnd) {
+      try {
+        const yearEndDate = new Date(client.nextYearEnd)
+        if (!isNaN(yearEndDate.getTime())) {
+          return yearEndDate.toLocaleDateString('en-GB', { 
+            day: '2-digit', 
+            month: 'short',
+            year: 'numeric'
+          })
+        }
+      } catch (e) {
+        console.warn('Error parsing Companies House year end date:', e)
+      }
+    }
+    
+    // Priority 2: Fall back to calculation using year-end-utils
     return getYearEndForTable({
-      accountingReferenceDate: accountingRefDate,
-      lastAccountsMadeUpTo: lastAccounts,
-      incorporationDate: incorporationDate
+      accountingReferenceDate: client.accountingReferenceDate,
+      lastAccountsMadeUpTo: client.lastAccountsMadeUpTo,
+      incorporationDate: client.incorporationDate
     })
   }
 
@@ -1314,7 +1332,7 @@ export function LtdCompaniesDeadlinesTable({
                               </div>
                             </TableCell>
                             <TableCell className="text-xs p-1 text-center" title="Current accounting year end">
-                              {getYearEndFromAccountingRef(client.accountingReferenceDate, client.lastAccountsMadeUpTo, client.incorporationDate)}
+                              {getYearEndFromAccountingRef(client)}
                             </TableCell>
                             <TableCell className="p-1 text-center">
                               <div className="text-xs">

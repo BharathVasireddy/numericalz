@@ -6,11 +6,11 @@
  */
 
 export interface ClientYearEndData {
-  accountingReferenceDate?: string | null
+  accountingReferenceDate?: string | null  // JSON: {"day":"30","month":"09"} or ISO string
   lastAccountsMadeUpTo?: string | Date | null
   incorporationDate?: string | Date | null
   nextAccountsDue?: string | Date | null
-  nextMadeUpTo?: string | Date | null  // Year end from Companies House
+  nextYearEnd?: string | Date | null  // Companies House official year end date (next_made_up_to)
 }
 
 /**
@@ -26,103 +26,115 @@ export interface ClientYearEndData {
  * @returns Date object representing the year end, or null if cannot calculate
  */
 export function calculateYearEnd(clientData: ClientYearEndData): Date | null {
-  const { accountingReferenceDate, lastAccountsMadeUpTo, incorporationDate, nextMadeUpTo } = clientData
-  
-  // Priority 1: Use Companies House next_made_up_to if available (official year end)
-  if (nextMadeUpTo) {
+  // Priority 1: Use Companies House official year end date if available
+  if (clientData.nextYearEnd) {
     try {
-      const yearEnd = typeof nextMadeUpTo === 'string' ? new Date(nextMadeUpTo) : nextMadeUpTo
-      if (!isNaN(yearEnd.getTime())) {
-        return yearEnd
+      const yearEndDate = new Date(clientData.nextYearEnd)
+      if (!isNaN(yearEndDate.getTime())) {
+        return yearEndDate
       }
     } catch (e) {
-      console.warn('Error parsing next_made_up_to date:', e)
+      console.warn('Error parsing Companies House year end date:', e)
     }
   }
   
-  // Priority 2: If company has filed accounts before, calculate next year end from that
-  if (lastAccountsMadeUpTo) {
+  // Priority 2: Calculate from accounting reference date
+  if (clientData.accountingReferenceDate) {
     try {
-      const lastAccountsDate = typeof lastAccountsMadeUpTo === 'string' 
-        ? new Date(lastAccountsMadeUpTo) 
-        : lastAccountsMadeUpTo
+      // Handle Companies House format: {"day":"30","month":"09"}
+      const parsedDate = typeof clientData.accountingReferenceDate === 'string' 
+        ? JSON.parse(clientData.accountingReferenceDate) 
+        : clientData.accountingReferenceDate
+      
+      if (typeof parsedDate === 'object' && parsedDate && 'day' in parsedDate && 'month' in parsedDate) {
+        const companiesHouseDate = parsedDate as CompaniesHouseDate
         
-      if (!isNaN(lastAccountsDate.getTime())) {
-        // Next year end is one year after last accounts made up to
-        const nextYearEnd = new Date(lastAccountsDate)
-        nextYearEnd.setFullYear(nextYearEnd.getFullYear() + 1)
-        return nextYearEnd
-      }
-    } catch (e) {
-      console.warn('Error parsing last accounts date:', e)
-    }
-  }
-  
-  // Priority 3: Parse accounting reference date
-  if (!accountingReferenceDate) return null
-  
-  try {
-    // Handle both ISO date format (from API transformation) and JSON format (original)
-    
-    // First, try to parse as ISO date (API transformed format)
-    const isoDate = new Date(accountingReferenceDate)
-    if (!isNaN(isoDate.getTime()) && accountingReferenceDate.includes('T')) {
-      // This is already the calculated year end date from the API
-      return isoDate
-    }
-    
-    // Parse JSON format from Companies House
-    const parsed = JSON.parse(accountingReferenceDate)
-    if (!parsed.day || !parsed.month) return null
-    
-    const today = new Date()
-    const currentYear = today.getFullYear()
-    
-    // Priority 3a: First-time filer logic
-    if (!lastAccountsMadeUpTo && incorporationDate) {
-      const incorpDate = typeof incorporationDate === 'string' 
-        ? new Date(incorporationDate) 
-        : incorporationDate
+        // Calculate the correct year based on company status (first-time filer vs established)
+        let yearToUse = new Date().getFullYear() // Default fallback
         
-      if (!isNaN(incorpDate.getTime())) {
-        const incorpYear = incorpDate.getFullYear()
-        
-        // Calculate first accounting reference date after incorporation
-        let firstYearEnd = new Date(incorpYear, parseInt(parsed.month) - 1, parseInt(parsed.day))
-        
-        // UK Rule: First accounting period must be at least 6 months but can be up to 18 months
-        // If the ARD in incorporation year is too close (less than 6 months), use next year
-        const monthsDifference = (firstYearEnd.getTime() - incorpDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
-        
-        if (firstYearEnd <= incorpDate || monthsDifference < 6) {
-          firstYearEnd.setFullYear(incorpYear + 1)
+        if (clientData.lastAccountsMadeUpTo) {
+          // Established company: Use last accounts made up to date + 1 year
+          const lastAccountsDate = new Date(clientData.lastAccountsMadeUpTo)
+          yearToUse = lastAccountsDate.getFullYear() + 1
+        } else if (clientData.incorporationDate) {
+          // First-time filer: Calculate first year end after incorporation
+          const incorpDate = new Date(clientData.incorporationDate)
+          const incorpYear = incorpDate.getFullYear()
+          
+          // Calculate first accounting reference date after incorporation
+          let firstYearEnd = new Date(incorpYear, parseInt(companiesHouseDate.month) - 1, parseInt(companiesHouseDate.day))
+          
+          // UK Rule: First accounting period must be at least 6 months but can be up to 18 months
+          // If the ARD in incorporation year is too close (less than 6 months), use next year
+          const monthsDifference = (firstYearEnd.getTime() - incorpDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+          
+          if (firstYearEnd <= incorpDate || monthsDifference < 6) {
+            firstYearEnd.setFullYear(incorpYear + 1)
+          }
+          
+          yearToUse = firstYearEnd.getFullYear()
+        } else {
+          // Fallback: use current year or next year based on current date
+          const currentDate = new Date()
+          const currentYearEnd = new Date(currentDate.getFullYear(), parseInt(companiesHouseDate.month) - 1, parseInt(companiesHouseDate.day))
+          
+          // If current year end has passed, use next year
+          if (currentYearEnd < currentDate) {
+            yearToUse = currentDate.getFullYear() + 1
+          } else {
+            yearToUse = currentDate.getFullYear()
+          }
         }
         
-        return firstYearEnd
+        const month = parseInt(companiesHouseDate.month) - 1 // JS months are 0-indexed
+        const day = parseInt(companiesHouseDate.day)
+        const date = new Date(yearToUse, month, day)
+        
+        return isNaN(date.getTime()) ? null : date
       }
-    }
-    
-    // Priority 3b: Established company logic
-    let yearEnd = new Date(currentYear, parseInt(parsed.month) - 1, parseInt(parsed.day))
-    
-    // If this year's year end has passed, use next year
-    if (yearEnd <= today) {
-      yearEnd.setFullYear(currentYear + 1)
-    }
-    
-    return yearEnd
-    
-  } catch (e) {
-    console.warn('Error parsing accounting reference date:', e)
-    
-    // Final fallback: try to parse as regular date string
-    try {
-      const date = new Date(accountingReferenceDate)
-      return isNaN(date.getTime()) ? null : date
-    } catch (e) {
-      return null
+      
+      // Handle string formats
+      if (typeof clientData.accountingReferenceDate === 'string') {
+        if (clientData.accountingReferenceDate.includes('T')) {
+          const date = new Date(clientData.accountingReferenceDate)
+          return isNaN(date.getTime()) ? null : date
+        }
+        const date = new Date(clientData.accountingReferenceDate)
+        return isNaN(date.getTime()) ? null : date
+      }
+    } catch (error) {
+      console.warn('Error parsing accounting reference date:', error)
     }
   }
+  
+  // Priority 3: Use last accounts made up to date
+  if (clientData.lastAccountsMadeUpTo) {
+    try {
+      const lastAccountsDate = new Date(clientData.lastAccountsMadeUpTo)
+      if (!isNaN(lastAccountsDate.getTime())) {
+        // Add one year to last accounts made up to date
+        lastAccountsDate.setFullYear(lastAccountsDate.getFullYear() + 1)
+        return lastAccountsDate
+      }
+    } catch (error) {
+      console.warn('Error parsing last accounts made up to date:', error)
+    }
+  }
+  
+  // Priority 4: Use incorporation date + 12 months
+  if (clientData.incorporationDate) {
+    try {
+      const incorpDate = new Date(clientData.incorporationDate)
+      if (!isNaN(incorpDate.getTime())) {
+        incorpDate.setFullYear(incorpDate.getFullYear() + 1)
+        return incorpDate
+      }
+    } catch (error) {
+      console.warn('Error parsing incorporation date:', error)
+    }
+  }
+  
+  return null
 }
 
 /**

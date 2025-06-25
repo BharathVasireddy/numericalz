@@ -102,7 +102,9 @@ export async function POST(
         sicCodes: companyData.sic_codes ? JSON.stringify(companyData.sic_codes) : client.sicCodes,
         // 🎯 CRITICAL: Use Companies House accounts due date directly (official HMRC deadline)
         nextAccountsDue: companyData.accounts?.next_due ? new Date(companyData.accounts.next_due) : client.nextAccountsDue,
-        // Only calculate CT due date (9 months after year end)
+        // 🎯 NEW: Store Companies House official year end date
+        nextYearEnd: companyData.accounts?.next_made_up_to ? new Date(companyData.accounts.next_made_up_to) : client.nextYearEnd,
+        // Only calculate CT due date (12 months after year end)
         nextCorporationTaxDue: calculatedCTDue,
         // Keep Companies House reference data for calculations
         lastAccountsMadeUpTo: updatedLastAccountsMadeUpTo,

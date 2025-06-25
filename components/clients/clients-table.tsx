@@ -72,7 +72,10 @@ interface Client {
   nextAccountsDue: string | null
   nextConfirmationDue: string | null
   nextCorporationTaxDue: string | null
+  nextYearEnd: string | null  // Companies House official year end date
   accountingReferenceDate: string | null
+  lastAccountsMadeUpTo: string | null
+  incorporationDate: string | null
   assignedUser?: {
     id: string
     name: string
@@ -349,15 +352,32 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
     })
   }
 
-  const getYearEnd = (accountingRefDate: string | null) => {
-    if (!accountingRefDate) return '-'
+  const getYearEnd = (client: Client) => {
+    // Priority 1: Use Companies House official year end date if available
+    if (client.nextYearEnd) {
+      try {
+        const yearEndDate = new Date(client.nextYearEnd)
+        if (!isNaN(yearEndDate.getTime())) {
+          return yearEndDate.toLocaleDateString('en-GB', { 
+            day: '2-digit', 
+            month: '2-digit' 
+          })
+        }
+      } catch (e) {
+        console.warn('Error parsing Companies House year end date:', e)
+      }
+    }
+    
+    // Priority 2: Fall back to calculation from accounting reference date
+    if (!client.accountingReferenceDate) return '-'
+    
     try {
-      const parsed = JSON.parse(accountingRefDate)
+      const parsed = JSON.parse(client.accountingReferenceDate)
       if (parsed.day && parsed.month) {
         return `${parsed.day}/${parsed.month}`
       }
     } catch (e) {
-      const date = new Date(accountingRefDate)
+      const date = new Date(client.accountingReferenceDate)
       if (!isNaN(date.getTime())) {
         return date.toLocaleDateString('en-GB', { 
           day: '2-digit', 

@@ -279,7 +279,9 @@ export function transformCompaniesHouseData(
     sicCodes: chData.sic_codes ? JSON.stringify(chData.sic_codes) : null,
     // 🎯 CRITICAL: Use Companies House accounts due date directly (official HMRC deadline)
     nextAccountsDue: chData.accounts?.next_due ? new Date(chData.accounts.next_due) : null,
-    // Only calculate CT due date (9 months after year end)
+    // 🎯 NEW: Store Companies House official year end date
+    nextYearEnd: chData.accounts?.next_made_up_to ? new Date(chData.accounts.next_made_up_to) : null,
+    // Only calculate CT due date (12 months after year end)
     nextCorporationTaxDue: calculatedCTDue,
     // Keep Companies House reference data for future calculations
     lastAccountsMadeUpTo: chData.accounts?.last_accounts?.made_up_to ? new Date(chData.accounts.last_accounts.made_up_to) : null,

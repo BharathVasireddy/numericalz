@@ -62,6 +62,7 @@ model Client {
   nextAccountsDue                 DateTime?
   lastAccountsMadeUpTo            DateTime?
   accountingReferenceDate         String?
+  nextYearEnd                     DateTime?             // Companies House next_made_up_to (official year end)
   nextConfirmationDue             DateTime?
   lastConfirmationMadeUpTo        DateTime?
   jurisdiction                    String?

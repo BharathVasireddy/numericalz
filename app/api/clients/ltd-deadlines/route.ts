@@ -66,6 +66,7 @@ export async function GET(request: NextRequest) {
       companyName: client.companyName,
       companyType: client.companyType,
       incorporationDate: client.incorporationDate?.toISOString(),
+      nextYearEnd: client.nextYearEnd?.toISOString(),  // Include Companies House official year end date
       accountingReferenceDate: client.accountingReferenceDate ? 
         (() => {
           try {
