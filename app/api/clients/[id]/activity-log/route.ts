@@ -34,6 +34,11 @@ export async function GET(
         name: activity.user.name,
         email: activity.user.email,
         role: activity.user.role
+      } : null,
+      client: activity.client ? {
+        id: activity.client.id,
+        companyName: activity.client.companyName,
+        clientCode: activity.client.clientCode
       } : null
     }))
 

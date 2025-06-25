@@ -265,6 +265,13 @@ export async function getClientActivityLog(clientId: string, limit: number = 100
           email: true,
           role: true
         }
+      },
+      client: {
+        select: {
+          id: true,
+          companyName: true,
+          clientCode: true
+        }
       }
     },
     orderBy: { timestamp: 'desc' },
