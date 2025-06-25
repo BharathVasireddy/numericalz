@@ -465,7 +465,7 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
             </Button>
             <Button
               onClick={handleReviewSubmit}
-              disabled={!reviewAction || !reviewComments.trim() || (selectedItem && processingItems.has(selectedItem.id))}
+              disabled={!reviewAction || !reviewComments.trim() || (selectedItem ? processingItems.has(selectedItem.id) : false)}
             >
               {selectedItem && processingItems.has(selectedItem.id) ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

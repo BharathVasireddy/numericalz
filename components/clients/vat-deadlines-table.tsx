@@ -395,7 +395,7 @@ export function VATDeadlinesTable({
   // Only count quarters that are actually assigned to users, no fallbacks
   const userVATClientCounts = users.reduce((acc, user) => {
     const clientCount = vatClients.filter(client => {
-      const quarter = getQuarterForMonth(client, currentMonthNumber)
+      const quarter = getQuarterForMonth(client, currentMonth)
       return quarter?.assignedUser?.id === user.id
     }).length
     acc[user.id] = clientCount
@@ -404,7 +404,7 @@ export function VATDeadlinesTable({
 
   // SIMPLIFIED: Count unassigned VAT clients (only quarters without assignedUser)
   const unassignedVATCount = vatClients.filter(client => {
-    const quarter = getQuarterForMonth(client, currentMonthNumber)
+    const quarter = getQuarterForMonth(client, currentMonth)
     return quarter && !quarter.assignedUser?.id
   }).length
 

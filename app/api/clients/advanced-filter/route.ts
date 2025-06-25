@@ -335,12 +335,9 @@ export async function POST(request: NextRequest) {
             bValue = b.nonLtdCompanyAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
           }
         } else if (sortBy === 'vatAssigned') {
-          // Get effective VAT assignment
-                  // SIMPLIFIED: For VAT assignment, only show quarter-specific assignments
-        const aVATQuarter = a.vatQuartersWorkflow?.find(q => !q.isCompleted)
-        const bVATQuarter = b.vatQuartersWorkflow?.find(q => !q.isCompleted)
-        aValue = aVATQuarter?.assignedUser?.name || 'Unassigned'
-        bValue = bVATQuarter?.assignedUser?.name || 'Unassigned'
+          // SIMPLIFIED: VAT assignment sorting removed - use quarter-specific assignments in VAT deadlines table
+          aValue = 'VAT Sorting Disabled'
+          bValue = 'VAT Sorting Disabled'
         }
         
         const comparison = aValue.localeCompare(bValue)
