@@ -40,7 +40,11 @@ interface AvailableUser {
   role: string
 }
 
-export function VATUnassignedWidget() {
+interface VATUnassignedWidgetProps {
+  compact?: boolean
+}
+
+export function VATUnassignedWidget({ compact = false }: VATUnassignedWidgetProps) {
   const [unassignedClients, setUnassignedClients] = useState<UnassignedVATClient[]>([])
   const [availableUsers, setAvailableUsers] = useState<AvailableUser[]>([])
   const [currentMonth, setCurrentMonth] = useState<string>('')
@@ -146,7 +150,7 @@ export function VATUnassignedWidget() {
 
   if (isLoading) {
     return (
-      <Card className="h-full">
+      <>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">VAT Unassigned</CardTitle>
         </CardHeader>
@@ -155,12 +159,100 @@ export function VATUnassignedWidget() {
             <div className="text-sm text-muted-foreground">Loading...</div>
           </div>
         </CardContent>
-      </Card>
+      </>
+    )
+  }
+
+  if (compact) {
+    return (
+      <>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <UserPlus className="h-4 w-4" />
+            VAT Unassigned
+            {currentMonth && (
+              <Badge variant="outline" className="text-xs">
+                {currentMonth}
+              </Badge>
+            )}
+            {unassignedClients.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {unassignedClients.length}
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {unassignedClients.length === 0 ? (
+            <div className="text-center py-4 text-muted-foreground">
+              <User className="h-6 w-6 mx-auto mb-1 opacity-50" />
+              <p className="text-sm">All VAT clients assigned</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {unassignedClients.slice(0, 3).map((client) => (
+                <div key={client.id} className="border rounded-lg p-2 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sm truncate flex-1">
+                      {client.companyName}
+                    </span>
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs flex items-center gap-1 ${getPriorityColor(client.priority)}`}
+                    >
+                      {getPriorityIcon(client.priority)}
+                      {client.priority.charAt(0).toUpperCase()}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {client.daysSinceQuarterEnd} days since quarter end
+                  </div>
+                  <Select
+                    onValueChange={(value) => handleAssignClient(client.id, value)}
+                    disabled={assigningClient === client.id}
+                  >
+                    <SelectTrigger className="h-7 text-xs">
+                      <SelectValue placeholder="Assign..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="select-user" disabled>
+                        Select user...
+                      </SelectItem>
+                      {availableUsers.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{user.name || user.email}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {user.role.charAt(0)}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+              {unassignedClients.length > 3 && (
+                <div className="text-center">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-xs h-7"
+                    onClick={() => window.location.href = '/dashboard/clients/vat-dt?filter=unassigned'}
+                  >
+                    View all {unassignedClients.length} unassigned
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </>
     )
   }
 
   return (
-    <Card className="h-full">
+    <>
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <UserPlus className="h-4 w-4" />
@@ -254,6 +346,6 @@ export function VATUnassignedWidget() {
           </div>
         )}
       </CardContent>
-    </Card>
+    </>
   )
 } 
