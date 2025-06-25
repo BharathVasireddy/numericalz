@@ -182,6 +182,22 @@ export async function PUT(
         comments,
         `${workflow.filingPeriodEnd.getFullYear()} accounts`
       ))
+      
+      // Also log with client details for better display
+      await logActivityEnhanced(request, {
+        action: 'LTD_WORKFLOW_STAGE_CHANGED',
+        clientId,
+        details: {
+          companyName: client.companyName,
+          clientCode: client.clientCode,
+          workflowType: 'LTD',
+          oldStage: currentWorkflow?.currentStage || 'NOT_STARTED',
+          newStage: stage,
+          comments,
+          quarterPeriod: `${workflow.filingPeriodEnd.getFullYear()} accounts`,
+          filingPeriodEnd: workflow.filingPeriodEnd.toISOString()
+        }
+      })
     }
 
     if (assignedUserId !== undefined) {
@@ -195,14 +211,20 @@ export async function PUT(
         }))?.name || 'Unknown User' : 'Unassigned'
       
       if (assignedUser) {
-        await logActivityEnhanced(request, ActivityHelpers.workflowAssigned(
-          'LTD',
+        await logActivityEnhanced(request, {
+          action: 'LTD_WORKFLOW_ASSIGNED',
           clientId,
-          assignedUser.id,
-          assignedUser.name,
-          `${workflow.filingPeriodEnd.getFullYear()} accounts`,
-          previousAssigneeName
-        ))
+          details: {
+            companyName: client.companyName,
+            clientCode: client.clientCode,
+            workflowType: 'LTD',
+            assigneeId: assignedUser.id,
+            assigneeName: assignedUser.name,
+            quarterPeriod: `${workflow.filingPeriodEnd.getFullYear()} accounts`,
+            previousAssignee: previousAssigneeName,
+            filingPeriodEnd: workflow.filingPeriodEnd.toISOString()
+          }
+        })
       } else {
         // Log unassignment
         await logActivityEnhanced(request, {
@@ -210,8 +232,11 @@ export async function PUT(
           clientId,
           details: {
             companyName: client.companyName,
+            clientCode: client.clientCode,
+            workflowType: 'LTD',
             filingPeriod: `${workflow.filingPeriodEnd.getFullYear()} accounts`,
-            previousAssignee: previousAssigneeName
+            previousAssignee: previousAssigneeName,
+            filingPeriodEnd: workflow.filingPeriodEnd.toISOString()
           }
         })
       }

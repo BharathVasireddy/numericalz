@@ -237,14 +237,22 @@ export async function PUT(
     })
 
     // Log comprehensive activity for VAT workflow updates
-    await logActivityEnhanced(request, ActivityHelpers.workflowStageChanged(
-      'VAT',
-      updatedVatQuarter.clientId,
-      currentHistory?.toStage || 'NOT_STARTED',
-      stage,
-      comments,
-      updatedVatQuarter.quarterPeriod
-    ))
+    await logActivityEnhanced(request, {
+      action: 'VAT_QUARTER_STAGE_CHANGED',
+      clientId: updatedVatQuarter.clientId,
+      details: {
+        companyName: updatedVatQuarter.client.companyName,
+        clientCode: updatedVatQuarter.client.clientCode,
+        workflowType: 'VAT',
+        oldStage: currentHistory?.toStage || 'NOT_STARTED',
+        newStage: stage,
+        comments,
+        quarterPeriod: updatedVatQuarter.quarterPeriod,
+        quarterStartDate: updatedVatQuarter.quarterStartDate.toISOString(),
+        quarterEndDate: updatedVatQuarter.quarterEndDate.toISOString(),
+        filingDueDate: updatedVatQuarter.filingDueDate.toISOString()
+      }
+    })
 
     // Log assignment changes if assignee was updated (including unassignment)
     if (assignedUserId !== undefined && finalAssigneeId !== vatQuarter.assignedUserId) {
@@ -257,31 +265,42 @@ export async function PUT(
             select: { name: true } 
           }))?.name || 'Unknown User' : 'Unassigned'
         
-        if (assignedUser) {
-          await logActivityEnhanced(request, ActivityHelpers.workflowAssigned(
-            'VAT',
-            updatedVatQuarter.clientId,
-            assignedUser.id,
-            assignedUser.name,
-            updatedVatQuarter.quarterPeriod,
-            previousAssigneeName
-          ))
-        }
+        await logActivityEnhanced(request, {
+          action: 'VAT_QUARTER_ASSIGNED',
+          clientId: updatedVatQuarter.clientId,
+          details: {
+            companyName: updatedVatQuarter.client.companyName,
+            clientCode: updatedVatQuarter.client.clientCode,
+            workflowType: 'VAT',
+            assigneeId: assignedUser?.id,
+            assigneeName: assignedUser?.name || 'Unknown User',
+            quarterPeriod: updatedVatQuarter.quarterPeriod,
+            previousAssignee: previousAssigneeName,
+            quarterStartDate: updatedVatQuarter.quarterStartDate.toISOString(),
+            quarterEndDate: updatedVatQuarter.quarterEndDate.toISOString(),
+            filingDueDate: updatedVatQuarter.filingDueDate.toISOString()
+          }
+        })
       } else {
-        // Unassignment - get previous assignee name
+        // Unassignment
         const previousAssigneeName = vatQuarter.assignedUserId ? 
           (await prisma.user.findUnique({ 
             where: { id: vatQuarter.assignedUserId }, 
             select: { name: true } 
-          }))?.name || 'Unknown User' : 'Unknown'
-          
+          }))?.name || 'Unknown User' : 'Unassigned'
+        
         await logActivityEnhanced(request, {
-          action: 'VAT_WORKFLOW_UNASSIGNED',
+          action: 'VAT_QUARTER_UNASSIGNED',
           clientId: updatedVatQuarter.clientId,
           details: {
             companyName: updatedVatQuarter.client.companyName,
+            clientCode: updatedVatQuarter.client.clientCode,
+            workflowType: 'VAT',
             quarterPeriod: updatedVatQuarter.quarterPeriod,
-            previousAssignee: previousAssigneeName
+            previousAssignee: previousAssigneeName,
+            quarterStartDate: updatedVatQuarter.quarterStartDate.toISOString(),
+            quarterEndDate: updatedVatQuarter.quarterEndDate.toISOString(),
+            filingDueDate: updatedVatQuarter.filingDueDate.toISOString()
           }
         })
       }

@@ -212,7 +212,40 @@ export function ActivityLogViewer({
     
     // Helper function to format stage names
     const formatStageName = (stage: string) => {
-      if (!stage) return 'Unknown Stage'
+      if (!stage || stage === 'null' || stage === 'undefined') return 'Not Started'
+      
+      // Handle common stage mappings
+      const stageMap: Record<string, string> = {
+        'NOT_STARTED': 'Not Started',
+        'PAPERWORK_PENDING_CHASE': 'Paperwork Pending Chase',
+        'PAPERWORK_CHASED': 'Paperwork Chased',
+        'PAPERWORK_RECEIVED': 'Paperwork Received',
+        'WORK_IN_PROGRESS': 'Work In Progress',
+        'DISCUSS_WITH_MANAGER': 'Discuss With Manager',
+        'REVIEW_BY_PARTNER': 'Review By Partner',
+        'REVIEW_DONE_HELLO_SIGN': 'Review Done (HelloSign)',
+        'SENT_TO_CLIENT_HELLO_SIGN': 'Sent To Client (HelloSign)',
+        'APPROVED_BY_CLIENT': 'Approved By Client',
+        'SUBMISSION_APPROVED_PARTNER': 'Submission Approved By Partner',
+        'FILED_CH_HMRC': 'Filed (Companies House & HMRC)',
+        'CLIENT_SELF_FILING': 'Client Self Filing',
+        'AWAITING_RECORDS': 'Awaiting Records',
+        'RECORDS_RECEIVED': 'Records Received',
+        'WORK_STARTED': 'Work Started',
+        'WORK_FINISHED': 'Work Finished',
+        'SENT_TO_CLIENT': 'Sent To Client',
+        'CLIENT_APPROVED': 'Client Approved',
+        'FILED_TO_HMRC': 'Filed To HMRC',
+        'CLIENT_BOOKKEEPING': 'Client To Do Bookkeeping',
+        'WAITING_FOR_QUARTER_END': 'Waiting For Quarter End'
+      }
+      
+      // Check if we have a direct mapping
+      if (stageMap[stage]) {
+        return stageMap[stage]
+      }
+      
+      // Otherwise, format the stage name by replacing underscores and capitalizing
       return stage
         .replace(/_/g, ' ')
         .split(' ')
@@ -272,45 +305,48 @@ export function ActivityLogViewer({
         const unassignType = details.assignmentType || 'accounts'
         return `❌ Removed ${unassignType} assignment for ${clientName} (was assigned to: ${prevAccountsUser}) by ${userName}`
         
-      case 'VAT_QUARTER_STAGE_CHANGED':
       case 'LTD_WORKFLOW_STAGE_CHANGED':
-      case 'WORKFLOW_STAGE_UPDATED':
+      case 'VAT_QUARTER_STAGE_CHANGED':
         const workflowType = getWorkflowTypeDisplay(activity.action)
-        const oldStage = formatStageName(details.oldStage || 'Not Started')
-        const newStage = formatStageName(details.newStage || 'Unknown')
-        let stageDescription = `🔄 Updated ${workflowType} for ${clientName}: "${oldStage}" → "${newStage}" by ${userName}`
+        const oldStageFormatted = formatStageName(details.oldStage)
+        const newStageFormatted = formatStageName(details.newStage)
+        
+        let stageChangeDesc = `🔄 Updated ${workflowType} for ${clientName}: "${oldStageFormatted}" → "${newStageFormatted}" by ${userName}`
         
         if (details.quarterPeriod) {
-          stageDescription += ` (Quarter: ${details.quarterPeriod})`
+          stageChangeDesc += ` (${details.quarterPeriod})`
         }
         
         if (details.comments) {
-          stageDescription += ` - Note: "${details.comments}"`
+          stageChangeDesc += ` - Note: "${details.comments}"`
         }
         
-        return stageDescription
+        return stageChangeDesc
         
       case 'VAT_QUARTER_ASSIGNED':
       case 'LTD_WORKFLOW_ASSIGNED':
         const assignedWorkflowType = getWorkflowTypeDisplay(activity.action)
         const assignedTo = details.assigneeName || 'Unknown User'
-        let assignmentDescription = `👥 Assigned ${assignedWorkflowType} for ${clientName} to ${assignedTo} by ${userName}`
+        const prevAssignee = details.previousAssignee || 'Unassigned'
+        let assignmentDescription = `👥 Assigned ${assignedWorkflowType} for ${clientName} to ${assignedTo} (previously: ${prevAssignee}) by ${userName}`
         
         if (details.quarterPeriod) {
-          assignmentDescription += ` (Quarter: ${details.quarterPeriod})`
+          assignmentDescription += ` (${details.quarterPeriod})`
         }
         
         return assignmentDescription
         
-      case 'VAT_WORKFLOW_UNASSIGNED':
-        let vatUnassignDesc = `❌ Removed VAT workflow assignment for ${clientName} by ${userName}`
-        if (details.quarterPeriod) {
-          vatUnassignDesc += ` (Quarter: ${details.quarterPeriod})`
+      case 'VAT_QUARTER_UNASSIGNED':
+      case 'LTD_WORKFLOW_UNASSIGNED':
+        const unassignedWorkflowType = getWorkflowTypeDisplay(activity.action)
+        let unassignDesc = `❌ Removed ${unassignedWorkflowType} assignment for ${clientName} by ${userName}`
+        if (details.quarterPeriod || details.filingPeriod) {
+          unassignDesc += ` (${details.quarterPeriod || details.filingPeriod})`
         }
         if (details.previousAssignee) {
-          vatUnassignDesc += ` (was assigned to: ${details.previousAssignee})`
+          unassignDesc += ` (was assigned to: ${details.previousAssignee})`
         }
-        return vatUnassignDesc
+        return unassignDesc
         
       case 'VAT_RETURN_FILED':
         let vatFiledDesc = `✅ Filed VAT return for ${clientName} to HMRC by ${userName}`
