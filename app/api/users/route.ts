@@ -31,10 +31,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Only partners and managers can fetch users for assignment
-    if (session.user.role !== 'PARTNER' && session.user.role !== 'MANAGER') {
+    // Partners and managers can fetch all users
+    // Staff can only fetch users for viewing purposes (not assignment)
+    if (session.user.role !== 'PARTNER' && session.user.role !== 'MANAGER' && session.user.role !== 'STAFF') {
       return NextResponse.json(
-        { success: false, error: 'Access denied. Partner or Manager role required.' },
+        { success: false, error: 'Access denied. Valid role required.' },
         { status: 403 }
       )
     }

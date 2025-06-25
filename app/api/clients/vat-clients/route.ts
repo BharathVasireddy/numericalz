@@ -32,12 +32,14 @@ export async function GET(request: NextRequest) {
       isActive: true
     }
 
-    // Staff can only see their assigned clients (check both general and VAT-specific assignment)
+    // Staff can only see clients with VAT quarters assigned to them
+    // Since VAT assignments are now quarter-specific, we need to filter by quarter assignments
     if (session.user.role === 'STAFF') {
-      whereClause.OR = [
-        { assignedUserId: session.user.id },
-        { vatAssignedUserId: session.user.id }
-      ]
+      whereClause.vatQuartersWorkflow = {
+        some: {
+          assignedUserId: session.user.id
+        }
+      }
     }
 
     // Fetch VAT-enabled clients with ALL recent quarter workflow info
