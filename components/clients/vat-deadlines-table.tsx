@@ -335,62 +335,6 @@ export function VATDeadlinesTable({
     setAdvancedFilter(null)
   }
 
-  // Enhanced filter function with advanced filters
-  const clientMatchesFilters = useCallback((client: VATClient, monthNumber?: number) => {
-    // Basic assigned filter
-    let passesBasicFilter = true
-    if (filter === 'assigned_to_me') {
-      passesBasicFilter = client.vatAssignedUser?.id === session?.user?.id
-    }
-    
-    // User filter
-    let passesUserFilter = true
-    if (selectedUserFilter !== 'all') {
-      if (selectedUserFilter === 'unassigned') {
-        passesUserFilter = !client.vatAssignedUser?.id
-      } else {
-        passesUserFilter = client.vatAssignedUser?.id === selectedUserFilter
-      }
-    }
-    
-    // Workflow stage filter
-    let passesWorkflowFilter = true
-    if (selectedWorkflowStageFilter !== 'all') {
-      if (monthNumber) {
-        const quarterForMonth = getQuarterForMonth(client, monthNumber)
-        passesWorkflowFilter = quarterForMonth?.currentStage === selectedWorkflowStageFilter
-      } else {
-        passesWorkflowFilter = client.currentVATQuarter?.currentStage === selectedWorkflowStageFilter
-      }
-    }
-
-    // Advanced filter
-    let passesAdvancedFilter = true
-    if (advancedFilter) {
-      // This would be processed by the API in a real implementation
-      // For now, we'll show all results when advanced filter is active
-      // The actual filtering would happen server-side
-      passesAdvancedFilter = true
-    }
-
-    return passesBasicFilter && passesUserFilter && passesWorkflowFilter && passesAdvancedFilter
-  }, [filter, selectedUserFilter, selectedWorkflowStageFilter, advancedFilter, session?.user?.id])
-
-  // Get clients for specific filing month with user and workflow stage filtering
-  const getClientsForMonth = useCallback((monthNumber: number) => {
-    if (!vatClients || !Array.isArray(vatClients)) return []
-    
-    return vatClients.filter(client => {
-      if (!client.vatQuarterGroup) return false
-      
-      // First check if client files in this month
-      if (!isVATFilingMonth(client.vatQuarterGroup, monthNumber)) return false
-      
-      // Then apply user and workflow stage filters
-      return clientMatchesFilters(client, monthNumber)
-    })
-  }, [vatClients, clientMatchesFilters])
-
   // Get quarter that files in a specific month for a client
   const getQuarterForMonth = useCallback((client: VATClient, monthNumber: number): VATQuarter | null => {
     if (!client.vatQuarterGroup || !isVATFilingMonth(client.vatQuarterGroup, monthNumber)) {
@@ -445,6 +389,71 @@ export function VATDeadlinesTable({
       assignedUser: undefined // Future quarters are unassigned - each quarter is independent
     }
   }, [vatClients])
+
+  // Enhanced filter function with advanced filters
+  const clientMatchesFilters = useCallback((client: VATClient, monthNumber?: number) => {
+    // Basic assigned filter - FIXED: Use quarter-level assignment instead of client-level
+    let passesBasicFilter = true
+    if (filter === 'assigned_to_me') {
+      if (monthNumber) {
+        const quarterForMonth = getQuarterForMonth(client, monthNumber)
+        passesBasicFilter = quarterForMonth?.assignedUser?.id === session?.user?.id
+      } else {
+        // For current month when no specific month provided
+        const quarterForMonth = getQuarterForMonth(client, currentMonth)
+        passesBasicFilter = quarterForMonth?.assignedUser?.id === session?.user?.id
+      }
+    }
+    
+    // User filter - FIXED: Use quarter-level assignment instead of client-level
+    let passesUserFilter = true
+    if (selectedUserFilter !== 'all') {
+      const quarterForFilter = monthNumber ? getQuarterForMonth(client, monthNumber) : getQuarterForMonth(client, currentMonth)
+      if (selectedUserFilter === 'unassigned') {
+        passesUserFilter = !quarterForFilter?.assignedUser?.id
+      } else {
+        passesUserFilter = quarterForFilter?.assignedUser?.id === selectedUserFilter
+      }
+    }
+    
+    // Workflow stage filter
+    let passesWorkflowFilter = true
+    if (selectedWorkflowStageFilter !== 'all') {
+      if (monthNumber) {
+        const quarterForMonth = getQuarterForMonth(client, monthNumber)
+        passesWorkflowFilter = quarterForMonth?.currentStage === selectedWorkflowStageFilter
+      } else {
+        const quarterForMonth = getQuarterForMonth(client, currentMonth)
+        passesWorkflowFilter = quarterForMonth?.currentStage === selectedWorkflowStageFilter
+      }
+    }
+
+    // Advanced filter
+    let passesAdvancedFilter = true
+    if (advancedFilter) {
+      // This would be processed by the API in a real implementation
+      // For now, we'll show all results when advanced filter is active
+      // The actual filtering would happen server-side
+      passesAdvancedFilter = true
+    }
+
+    return passesBasicFilter && passesUserFilter && passesWorkflowFilter && passesAdvancedFilter
+  }, [filter, selectedUserFilter, selectedWorkflowStageFilter, advancedFilter, session?.user?.id, getQuarterForMonth, currentMonth])
+
+  // Get clients for specific filing month with user and workflow stage filtering
+  const getClientsForMonth = useCallback((monthNumber: number) => {
+    if (!vatClients || !Array.isArray(vatClients)) return []
+    
+    return vatClients.filter(client => {
+      if (!client.vatQuarterGroup) return false
+      
+      // First check if client files in this month
+      if (!isVATFilingMonth(client.vatQuarterGroup, monthNumber)) return false
+      
+      // Then apply user and workflow stage filters
+      return clientMatchesFilters(client, monthNumber)
+    })
+  }, [vatClients, clientMatchesFilters])
 
   // SIMPLIFIED: Calculate VAT client counts per user for filter display
   // Only count quarters that are actually assigned to users, no fallbacks

@@ -45,8 +45,6 @@ export default function ClientsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filters, setFilters] = useState({
     companyType: '',
-    accountsAssignedUser: '',
-    vatAssignedUser: '',
     status: ''
   })
   const [advancedFilter, setAdvancedFilter] = useState<AdvancedFilter | null>(null)

@@ -40,8 +40,6 @@ interface User {
 
 interface Filters {
   companyType: string
-  accountsAssignedUser: string
-  vatAssignedUser: string
   status: string
 }
 
@@ -80,33 +78,9 @@ export function ClientsHeader({
 }: ClientsHeaderProps) {
   const router = useRouter()
   const [isExporting, setIsExporting] = useState(false)
-  const [userClientCounts, setUserClientCounts] = useState<Record<string, number>>({})
-  const [accountsClientCounts, setAccountsClientCounts] = useState<Record<string, number>>({})
-  const [vatClientCounts, setVatClientCounts] = useState<Record<string, number>>({})
   const { data: session } = useSession()
 
-  // Fetch user client counts for filtering (only for managers and partners)
-  useEffect(() => {
-    if (session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') {
-      fetchUserClientCounts()
-    }
-  }, [session])
-
   // Users are now passed as props from parent component
-
-  const fetchUserClientCounts = async () => {
-    try {
-      const response = await fetch('/api/clients/user-counts')
-      if (response.ok) {
-        const data = await response.json()
-        setUserClientCounts(data.userClientCounts || {})
-        setAccountsClientCounts(data.accountsClientCounts || {})
-        setVatClientCounts(data.vatClientCounts || {})
-      }
-    } catch (error) {
-      console.error('Error fetching user client counts:', error)
-    }
-  }
 
   const handleFilterChange = (key: string, value: string) => {
     // Convert "all" to empty string for API compatibility
@@ -123,8 +97,6 @@ export function ClientsHeader({
       const params = new URLSearchParams()
       if (searchQuery) params.append('search', searchQuery)
       if (filters.companyType) params.append('companyType', filters.companyType)
-      if (filters.accountsAssignedUser) params.append('accountsAssignedUser', filters.accountsAssignedUser)
-      if (filters.vatAssignedUser) params.append('vatAssignedUser', filters.vatAssignedUser)
 
       const response = await fetch(`/api/clients/export?${params.toString()}`)
       
@@ -150,8 +122,6 @@ export function ClientsHeader({
   const clearFilters = () => {
     onFiltersChange({
       companyType: '',
-      accountsAssignedUser: '',
-      vatAssignedUser: '',
       status: ''
     })
     onSearchChange('')
@@ -160,7 +130,7 @@ export function ClientsHeader({
     }
   }
 
-  const hasActiveFilters = searchQuery || filters.companyType || filters.accountsAssignedUser || filters.vatAssignedUser || advancedFilter
+  const hasActiveFilters = searchQuery || filters.companyType || advancedFilter
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -177,19 +147,6 @@ export function ClientsHeader({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Quick filter for staff users */}
-          {session?.user?.role === 'STAFF' && (
-            <Button
-              variant={filters.accountsAssignedUser === 'me' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => handleFilterChange('accountsAssignedUser', filters.accountsAssignedUser === 'me' ? 'all' : 'me')}
-              className="flex items-center gap-2"
-            >
-              <Users className="h-4 w-4" />
-              {filters.accountsAssignedUser === 'me' ? 'All Clients' : 'My Clients'}
-            </Button>
-          )}
-          
           {session?.user?.role === 'PARTNER' && (
             <Button
               variant="outline"
@@ -252,52 +209,6 @@ export function ClientsHeader({
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                Accounts Assigned
-              </label>
-              <Select
-                value={filters.accountsAssignedUser || 'all'}
-                onValueChange={(value) => handleFilterChange('accountsAssignedUser', value)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Accounts Assignment" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  <SelectItem value="me">My Clients</SelectItem>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name} ({accountsClientCounts[user.id] || 0} clients)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                VAT Assigned
-              </label>
-              <Select
-                value={filters.vatAssignedUser || 'all'}
-                onValueChange={(value) => handleFilterChange('vatAssignedUser', value)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="VAT Assignment" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  <SelectItem value="me">My Clients</SelectItem>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name} ({vatClientCounts[user.id] || 0} clients)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </Card>
       )}
@@ -319,20 +230,6 @@ export function ClientsHeader({
           {!advancedFilter && filters.companyType && (
             <Badge variant="secondary" className="flex items-center gap-1">
               Type: {filters.companyType.replace('_', ' ')}
-            </Badge>
-          )}
-          {!advancedFilter && filters.accountsAssignedUser && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              Accounts: {filters.accountsAssignedUser === 'me' ? 'My Clients' : 
-                         filters.accountsAssignedUser === 'unassigned' ? 'Unassigned' : 
-                         users.find(u => u.id === filters.accountsAssignedUser)?.name || filters.accountsAssignedUser}
-            </Badge>
-          )}
-          {!advancedFilter && filters.vatAssignedUser && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              VAT: {filters.vatAssignedUser === 'me' ? 'My Clients' : 
-                    filters.vatAssignedUser === 'unassigned' ? 'Unassigned' : 
-                    users.find(u => u.id === filters.vatAssignedUser)?.name || filters.vatAssignedUser}
             </Badge>
           )}
         </div>

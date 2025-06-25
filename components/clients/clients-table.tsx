@@ -126,8 +126,6 @@ interface ClientsTableProps {
   searchQuery: string
   filters: {
     companyType: string
-    accountsAssignedUser: string
-    vatAssignedUser: string
     status: string
   }
   advancedFilter?: AdvancedFilter | null
@@ -216,36 +214,6 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
           const data = await response.json()
           let clientsData = data.clients || []
           
-          // Handle client-side sorting for assignment columns
-          if (sortBy === 'accountsAssigned' || sortBy === 'vatAssigned') {
-            clientsData = [...clientsData].sort((a, b) => {
-              let aValue = ''
-              let bValue = ''
-              
-              if (sortBy === 'accountsAssigned') {
-                // Get effective accounts assignment
-                if (a.companyType === 'LIMITED_COMPANY') {
-                  aValue = a.ltdCompanyAssignedUser?.name || a.assignedUser?.name || 'Unassigned'
-                } else {
-                  aValue = a.nonLtdCompanyAssignedUser?.name || a.assignedUser?.name || 'Unassigned'
-                }
-                
-                if (b.companyType === 'LIMITED_COMPANY') {
-                  bValue = b.ltdCompanyAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
-                } else {
-                  bValue = b.nonLtdCompanyAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
-                }
-              } else if (sortBy === 'vatAssigned') {
-                // Get effective VAT assignment with proper handling for non-VAT clients
-                aValue = a.isVatEnabled ? (a.vatAssignedUser?.name || 'Unassigned') : 'Not Opted'
-                bValue = b.isVatEnabled ? (b.vatAssignedUser?.name || 'Unassigned') : 'Not Opted'
-              }
-              
-              const comparison = aValue.localeCompare(bValue)
-              return sortOrder === 'asc' ? comparison : -comparison
-            })
-          }
-          
           setClients(clientsData)
           
           const currentTotal = data.pagination?.totalCount || 0
@@ -278,26 +246,6 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
         params.append('companyType', filters.companyType)
       }
       
-      if (filters.accountsAssignedUser) {
-        if (filters.accountsAssignedUser === 'me') {
-          params.append('accountsAssignedUserId', session.user.id)
-        } else if (filters.accountsAssignedUser === 'unassigned') {
-          params.append('accountsUnassigned', 'true')
-        } else {
-          params.append('accountsAssignedUserId', filters.accountsAssignedUser)
-        }
-      }
-      
-      if (filters.vatAssignedUser) {
-        if (filters.vatAssignedUser === 'me') {
-          params.append('vatAssignedUserId', session.user.id)
-        } else if (filters.vatAssignedUser === 'unassigned') {
-          params.append('vatUnassigned', 'true')
-        } else {
-          params.append('vatAssignedUserId', filters.vatAssignedUser)
-        }
-      }
-      
       if (filters.status) {
         params.append('isActive', filters.status)
       }
@@ -310,40 +258,10 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
         const data = await response.json()
         let clientsData = data.clients || []
         
-        // Handle client-side sorting for assignment columns
-        if (sortBy === 'accountsAssigned' || sortBy === 'vatAssigned') {
-          clientsData = [...clientsData].sort((a, b) => {
-            let aValue = ''
-            let bValue = ''
-            
-            if (sortBy === 'accountsAssigned') {
-              // Get specific accounts assignment only (no fallback)
-              if (a.companyType === 'LIMITED_COMPANY') {
-                aValue = a.ltdCompanyAssignedUser?.name || 'Unassigned'
-              } else {
-                aValue = a.nonLtdCompanyAssignedUser?.name || 'Unassigned'
-              }
-              
-              if (b.companyType === 'LIMITED_COMPANY') {
-                bValue = b.ltdCompanyAssignedUser?.name || 'Unassigned'
-              } else {
-                bValue = b.nonLtdCompanyAssignedUser?.name || 'Unassigned'
-              }
-            } else if (sortBy === 'vatAssigned') {
-              // Get effective VAT assignment with proper handling for non-VAT clients
-              aValue = a.isVatEnabled ? (a.vatAssignedUser?.name || 'Unassigned') : 'Not Opted'
-              bValue = b.isVatEnabled ? (b.vatAssignedUser?.name || 'Unassigned') : 'Not Opted'
-            }
-            
-            const comparison = aValue.localeCompare(bValue)
-            return sortOrder === 'asc' ? comparison : -comparison
-          })
-        }
-        
         setClients(clientsData)
         
         // If no filters applied, this is our total count
-        const hasFilters = searchQuery.trim() || filters.companyType || filters.accountsAssignedUser || filters.vatAssignedUser || filters.status
+        const hasFilters = searchQuery.trim() || filters.companyType || filters.status
         const currentTotal = data.pagination?.totalCount || 0
         
         if (!hasFilters) {
@@ -596,26 +514,20 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
                   <SortableHeader column="contactEmail" onSort={handleSort} className="w-20 col-contact p-2 text-center">
                     Contact
                   </SortableHeader>
-                  <SortableHeader column="accountsAssigned" onSort={handleSort} className="w-24 col-accounts-assigned p-2 text-center">
-                    Accounts
-                  </SortableHeader>
-                  <SortableHeader column="vatAssigned" onSort={handleSort} className="w-24 col-vat-assigned p-2 text-center">
-                    VAT Assigned
-                  </SortableHeader>
                   <TableHead className="w-20 col-actions p-2 text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
                             <TableBody className="table-compact">
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
                       Loading clients...
                     </TableCell>
                   </TableRow>
                 ) : clients.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <div className="space-y-2">
                         <Building2 className="h-12 w-12 mx-auto text-muted-foreground" />
                         <p className="text-muted-foreground">No clients found</p>
@@ -697,54 +609,6 @@ export function ClientsTable({ searchQuery, filters, advancedFilter, onClientCou
                           )}
                           {!client.contactEmail && !client.contactPhone && (
                             <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="p-2 text-center">
-                        <div className="text-xs">
-                          {(() => {
-                            if (client.companyType === 'LIMITED_COMPANY') {
-                              if (client.ltdCompanyAssignedUser) {
-                                return (
-                                  <div className="flex items-center justify-center gap-1 truncate max-w-[100px]" title={client.ltdCompanyAssignedUser.name}>
-                                    <User className="h-3 w-3 text-blue-600 flex-shrink-0" />
-                                    <span className="text-blue-600 font-medium truncate">
-                                      {client.ltdCompanyAssignedUser.name}
-                                    </span>
-                                  </div>
-                                )
-                              }
-                            } else if (client.companyType === 'NON_LIMITED_COMPANY' || client.companyType === 'DIRECTOR' || client.companyType === 'SUB_CONTRACTOR') {
-                              if (client.nonLtdCompanyAssignedUser) {
-                                return (
-                                  <div className="flex items-center justify-center gap-1 truncate max-w-[100px]" title={client.nonLtdCompanyAssignedUser.name}>
-                                    <User className="h-3 w-3 text-blue-600 flex-shrink-0" />
-                                    <span className="text-blue-600 font-medium truncate">
-                                      {client.nonLtdCompanyAssignedUser.name}
-                                    </span>
-                                  </div>
-                                )
-                              }
-                            }
-                            return <span className="text-muted-foreground">Unassigned</span>
-                          })()}
-                        </div>
-                      </TableCell>
-                      <TableCell className="p-2 text-center">
-                        <div className="text-xs">
-                          {client.isVatEnabled ? (
-                            client.vatAssignedUser ? (
-                              <div className="flex items-center justify-center gap-1 truncate max-w-[100px]" title={client.vatAssignedUser.name}>
-                                <User className="h-3 w-3 text-green-600 flex-shrink-0" />
-                                <span className="text-green-600 font-medium truncate">
-                                  {client.vatAssignedUser.name}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">Unassigned</span>
-                            )
-                          ) : (
-                            <span className="text-muted-foreground">Not Opted</span>
                           )}
                         </div>
                       </TableCell>

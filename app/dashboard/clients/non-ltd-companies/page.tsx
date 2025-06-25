@@ -21,8 +21,6 @@ export default function NonLtdCompaniesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filters, setFilters] = useState({
     companyType: 'NON_LIMITED_COMPANY',
-    accountsAssignedUser: '',
-    vatAssignedUser: '',
     status: ''
   })
   

@@ -140,8 +140,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
     const companyType = searchParams.get('companyType') || ''
-    const accountsAssignedUserId = searchParams.get('accountsAssignedUserId') || ''
-    const vatAssignedUserId = searchParams.get('vatAssignedUserId') || ''
     const isActive = searchParams.get('active') === 'true'
     const sortBy = searchParams.get('sortBy') || 'companyName'
     const sortOrder = searchParams.get('sortOrder') || 'asc'
@@ -168,73 +166,6 @@ export async function GET(request: NextRequest) {
     if (companyType) {
       where.companyType = companyType
     }
-
-    // Accounts assignment filters
-    if (accountsAssignedUserId) {
-      const targetUserId = accountsAssignedUserId === 'me' ? session.user.id : accountsAssignedUserId
-      
-      // For Ltd companies, check ltdCompanyAssignedUserId
-      // For Non-Ltd companies, check nonLtdCompanyAssignedUserId
-      where.OR = [
-        {
-          AND: [
-            { companyType: 'LIMITED_COMPANY' },
-            { ltdCompanyAssignedUserId: targetUserId }
-          ]
-        },
-        {
-          AND: [
-            { companyType: { not: 'LIMITED_COMPANY' } },
-            { nonLtdCompanyAssignedUserId: targetUserId }
-          ]
-        }
-      ]
-    } else if (searchParams.get('accountsUnassigned') === 'true') {
-      // Show unassigned accounts work
-      where.OR = [
-        {
-          AND: [
-            { companyType: 'LIMITED_COMPANY' },
-            { ltdCompanyAssignedUserId: null }
-          ]
-        },
-        {
-          AND: [
-            { companyType: { not: 'LIMITED_COMPANY' } },
-            { nonLtdCompanyAssignedUserId: null }
-          ]
-        }
-      ]
-    }
-
-    // VAT assignment filters
-    if (vatAssignedUserId) {
-      const targetUserId = vatAssignedUserId === 'me' ? session.user.id : vatAssignedUserId
-      
-      where.AND = [
-        ...(where.AND || []),
-        {
-          OR: [
-            { vatAssignedUserId: targetUserId }
-          ]
-        }
-      ]
-    } else if (searchParams.get('vatUnassigned') === 'true') {
-      where.AND = [
-        ...(where.AND || []),
-        {
-          OR: [
-            { vatAssignedUserId: null }
-          ]
-        }
-      ]
-    }
-
-    console.log('🔍 Clients API filters:', {
-      search, companyType, accountsAssignedUserId, vatAssignedUserId,
-      hasAccountsFilter: !!accountsAssignedUserId,
-      hasVATFilter: !!vatAssignedUserId
-    })
 
     // Calculate pagination
     const skip = (page - 1) * limit
@@ -266,31 +197,10 @@ export async function GET(request: NextRequest) {
                 name: true,
               },
             },
-            ltdCompanyAssignedUser: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            nonLtdCompanyAssignedUser: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            vatAssignedUser: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
           },
           orderBy: (() => {
             // Handle special sorting cases
-            if (sortBy === 'accountsAssigned' || sortBy === 'vatAssigned') {
-              // For assignment sorting, sort by company name and handle client-side
-              return [{ companyName: 'asc' }]
-            } else if (sortBy === 'assignedUser') {
+            if (sortBy === 'assignedUser') {
               return [
                 { assignedUser: { name: sortOrder as 'asc' | 'desc' } },
                 { companyName: 'asc' }
@@ -332,16 +242,16 @@ export async function GET(request: NextRequest) {
     })
 
     // PERFORMANCE: Smart caching based on search and filters
-    if (search || accountsAssignedUserId || vatAssignedUserId) {
+    if (search) {
       // Dynamic queries - shorter cache
       response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
       response.headers.set('Pragma', 'no-cache')
       response.headers.set('Expires', '0')
     } else {
       // Static/simple queries - longer cache
-              response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-        response.headers.set('Pragma', 'no-cache')
-        response.headers.set('Expires', '0')
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+      response.headers.set('Pragma', 'no-cache')
+      response.headers.set('Expires', '0')
     }
     
     // Add ETag for conditional requests
