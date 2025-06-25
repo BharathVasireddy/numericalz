@@ -384,19 +384,16 @@ export function VATWorkflowModal({
                 
                 {/* Current Client Assignee */}
                 <div className="pt-2 border-t">
-                  <Label className="text-sm font-medium text-muted-foreground">Current Client Assignee</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">Quarter Assignment</Label>
                   <p className="font-medium">
-                    {(() => {
-                      const currentAssignee = vatQuarter.client.vatAssignedUser || vatQuarter.client.assignedUser
-                      return currentAssignee ? currentAssignee.name : 'Unassigned'
-                    })()}
+                    {vatQuarter.assignedUser ? vatQuarter.assignedUser.name : 'Unassigned'}
                   </p>
-                  {(() => {
-                    const currentAssignee = vatQuarter.client.vatAssignedUser || vatQuarter.client.assignedUser
-                    return currentAssignee && (
-                      <p className="text-sm text-muted-foreground">{currentAssignee.email}</p>
-                    )
-                  })()}
+                  {vatQuarter.assignedUser && (
+                    <p className="text-sm text-muted-foreground">{vatQuarter.assignedUser.email}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Each VAT quarter is assigned independently
+                  </p>
                 </div>
               </div>
             </CardContent>

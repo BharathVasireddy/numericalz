@@ -335,12 +335,7 @@ export function VATUnassignedWidget({ compact = false }: VATUnassignedWidgetProp
                   )}
                 </div>
 
-                {/* Show suggested assignees if available */}
-                {(client.vatAssignedUser || client.generalAssignedUser) && (
-                  <div className="text-xs text-muted-foreground">
-                    Suggested: {client.vatAssignedUser?.name || client.generalAssignedUser?.name}
-                  </div>
-                )}
+                {/* SIMPLIFIED: No suggested assignees - each quarter is independent */}
               </div>
             ))}
           </div>

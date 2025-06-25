@@ -336,8 +336,11 @@ export async function POST(request: NextRequest) {
           }
         } else if (sortBy === 'vatAssigned') {
           // Get effective VAT assignment
-          aValue = a.vatAssignedUser?.name || a.assignedUser?.name || 'Unassigned'
-          bValue = b.vatAssignedUser?.name || b.assignedUser?.name || 'Unassigned'
+                  // SIMPLIFIED: For VAT assignment, only show quarter-specific assignments
+        const aVATQuarter = a.vatQuartersWorkflow?.find(q => !q.isCompleted)
+        const bVATQuarter = b.vatQuartersWorkflow?.find(q => !q.isCompleted)
+        aValue = aVATQuarter?.assignedUser?.name || 'Unassigned'
+        bValue = bVATQuarter?.assignedUser?.name || 'Unassigned'
         }
         
         const comparison = aValue.localeCompare(bValue)

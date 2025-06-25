@@ -391,19 +391,22 @@ export function VATDeadlinesTable({
     })
   }, [vatClients, clientMatchesFilters])
 
-  // Calculate VAT client counts per user for filter display
+  // SIMPLIFIED: Calculate VAT client counts per user for filter display
+  // Only count quarters that are actually assigned to users, no fallbacks
   const userVATClientCounts = users.reduce((acc, user) => {
-    const clientCount = vatClients.filter(client => 
-      client.vatAssignedUser?.id === user.id
-    ).length
+    const clientCount = vatClients.filter(client => {
+      const quarter = getQuarterForMonth(client, currentMonthNumber)
+      return quarter?.assignedUser?.id === user.id
+    }).length
     acc[user.id] = clientCount
     return acc
   }, {} as Record<string, number>)
 
-  // Count unassigned VAT clients
-  const unassignedVATCount = vatClients.filter(client => 
-    !client.vatAssignedUser?.id
-  ).length
+  // SIMPLIFIED: Count unassigned VAT clients (only quarters without assignedUser)
+  const unassignedVATCount = vatClients.filter(client => {
+    const quarter = getQuarterForMonth(client, currentMonthNumber)
+    return quarter && !quarter.assignedUser?.id
+  }).length
 
   // Get quarter that files in a specific month for a client
   const getQuarterForMonth = useCallback((client: VATClient, monthNumber: number): VATQuarter | null => {
@@ -712,7 +715,7 @@ export function VATDeadlinesTable({
         body: JSON.stringify({
           stage: 'CLIENT_APPROVED', // Reset to previous stage
           comments: 'Filing undone - workflow reopened for corrections',
-          assignedUserId: client.vatAssignedUser?.id || null
+          assignedUserId: quarter?.assignedUser?.id || null // SIMPLIFIED: Only use quarter assignment
         })
       })
 

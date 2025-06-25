@@ -354,7 +354,7 @@ export async function GET(
         c.companyType !== 'LIMITED_COMPANY' && !c.assignedUserId
       ).length,
       vat: allClients.filter(c => 
-        c.isVatEnabled && !c.vatAssignedUserId && !c.assignedUserId
+        c.isVatEnabled && c.vatQuartersWorkflow?.some(q => !q.assignedUserId && !q.isCompleted)
       ).length
     }
 
@@ -373,7 +373,7 @@ export async function GET(
       role: member.role,
       clientCount: member.clientCount,
       vatClients: allClients.filter(c => 
-        c.isVatEnabled && (c.vatAssignedUserId === member.id || c.assignedUserId === member.id)
+        c.isVatEnabled && c.vatQuartersWorkflow?.some(q => q.assignedUserId === member.id && !q.isCompleted)
       ).length,
       accountsClients: allClients.filter(c => 
         c.companyType === 'LIMITED_COMPANY' && (c.ltdCompanyAssignedUserId === member.id || c.assignedUserId === member.id)

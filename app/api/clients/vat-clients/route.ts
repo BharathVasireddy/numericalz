@@ -56,23 +56,8 @@ export async function GET(request: NextRequest) {
         isVatEnabled: true,
         createdAt: true,
         
-        // ENHANCED ASSIGNMENT - Include VAT-specific assignee
-        assignedUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true
-          },
-        },
-        vatAssignedUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true
-          },
-        },
+        // SIMPLIFIED: No client-level assignment data needed
+        // Each VAT quarter has its own independent assignment
         
         // Include all VAT quarters (both completed and incomplete) for month-specific workflows
         vatQuartersWorkflow: {
@@ -136,8 +121,7 @@ export async function GET(request: NextRequest) {
       nextVatReturnDue: client.nextVatReturnDue,
       isVatEnabled: client.isVatEnabled,
       createdAt: client.createdAt.toISOString(),
-          assignedUser: client.assignedUser,
-          vatAssignedUser: client.vatAssignedUser,
+          // SIMPLIFIED: No client-level assignments
           currentVATQuarter: undefined
         }
       }
@@ -415,8 +399,7 @@ export async function GET(request: NextRequest) {
         nextVatReturnDue: client.nextVatReturnDue,
         isVatEnabled: client.isVatEnabled,
         createdAt: client.createdAt.toISOString(),
-        assignedUser: client.assignedUser,
-        vatAssignedUser: client.vatAssignedUser,
+        // SIMPLIFIED: No client-level assignments
         currentVATQuarter: currentQuarter ? {
           id: currentQuarter.id,
           quarterPeriod: currentQuarter.quarterPeriod,
