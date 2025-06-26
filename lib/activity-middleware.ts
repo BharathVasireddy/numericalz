@@ -29,13 +29,13 @@ export async function logActivityEnhanced(
       action: context.action,
       userId: session.user.id,
       clientId: context.clientId,
-      details: JSON.stringify({
+      details: {
         ...context.details,
         userAgent,
         ip,
         timestamp: new Date().toISOString(),
         ...context.metadata
-      })
+      }
     })
   } catch (error) {
     console.error('Activity logging failed:', error)
