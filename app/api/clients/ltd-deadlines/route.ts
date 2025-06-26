@@ -32,10 +32,11 @@ export async function GET(request: NextRequest) {
           }
         },
         ltdAccountsWorkflows: {
-          orderBy: {
-            filingPeriodEnd: 'desc'
-          },
-          take: 1, // Get the most recent workflow
+          orderBy: [
+            { isCompleted: 'asc' }, // Active workflows first (false comes before true)
+            { filingPeriodEnd: 'desc' } // Then by most recent filing period
+          ],
+          take: 1, // Get the most relevant workflow (active, then most recent)
           include: {
             assignedUser: {
               select: {

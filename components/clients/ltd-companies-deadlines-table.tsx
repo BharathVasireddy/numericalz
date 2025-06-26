@@ -266,6 +266,24 @@ export function LtdCompaniesDeadlinesTable({
     skippedStages: string[]
   } | null>(null)
 
+  // State for rollover information display
+  const [rolloverInfo, setRolloverInfo] = useState<{
+    newWorkflow: {
+      id: string
+      filingPeriodStart: string
+      filingPeriodEnd: string
+      currentStage: string
+      assignedUserId: string | null
+    }
+    updatedDates: {
+      yearEnd: string
+      accountsDue: string
+      ctDue: string
+      confirmationDue: string
+    }
+  } | null>(null)
+  const [showRolloverModal, setShowRolloverModal] = useState(false)
+
   // Get current month for header stats
   const currentMonth = new Date().getMonth() + 1
   const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long' })
@@ -1088,7 +1106,23 @@ export function LtdCompaniesDeadlinesTable({
       const data = await response.json()
 
       if (data.success) {
-        showToast.success('🎉 Filing completed! Workflow marked as completed.')
+        // Check if rollover occurred
+        if (data.rollover) {
+          // Store rollover info and show modal
+          setRolloverInfo(data.rollover)
+          setShowRolloverModal(true)
+          
+          showToast.success('🎉 Filing completed! New workflow created for next year and client dates updated.')
+          
+          // Log rollover details for debugging
+          console.log('🔄 Automatic rollover completed:', {
+            newWorkflow: data.rollover.newWorkflow,
+            updatedDates: data.rollover.updatedDates
+          })
+        } else {
+          showToast.success('🎉 Filing completed! Workflow marked as completed.')
+        }
+        
         setUpdateModalOpen(false)
         setShowFiledHMRCConfirm(false)
         setSelectedStage(undefined)
@@ -2326,9 +2360,15 @@ export function LtdCompaniesDeadlinesTable({
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-green-800">Final Filing Step</p>
                   <p className="text-xs text-green-700">
-                    This will complete the workflow and mark it as fully filed. The accounts 
-                    will be considered complete and the workflow will be eligible for rollover.
+                    This will complete the workflow and mark it as fully filed. The system will automatically:
                   </p>
+                  <ul className="text-xs text-green-700 mt-2 space-y-1 list-disc list-inside">
+                    <li>Mark this workflow as completed (historical data)</li>
+                    <li>Fetch fresh Companies House data for updated deadlines</li>
+                    <li>Create a new workflow for the next accounting year</li>
+                    <li>Assign the new workflow to the default user</li>
+                    <li>Set the new workflow status to "Waiting for Year End"</li>
+                  </ul>
                 </div>
               </div>
             </div>
@@ -2349,10 +2389,10 @@ export function LtdCompaniesDeadlinesTable({
               {updating ? (
                 <>
                   <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                  Completing...
+                  Completing & Rolling Over...
                 </>
               ) : (
-                'Complete Filing'
+                'Complete Filing & Rollover'
               )}
             </Button>
           </DialogFooter>
@@ -2382,6 +2422,101 @@ export function LtdCompaniesDeadlinesTable({
         users={users}
         tableType="ltd"
       />
+
+      {/* Rollover Information Modal */}
+      <Dialog open={showRolloverModal} onOpenChange={setShowRolloverModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Rollover Completed Successfully
+            </DialogTitle>
+            <DialogDescription>
+              New workflow created for next year and client dates updated with latest Companies House data.
+            </DialogDescription>
+          </DialogHeader>
+          {rolloverInfo && (
+            <div className="space-y-4">
+              {/* New Workflow Information */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <Briefcase className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">New Workflow Created</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-blue-700">Filing Period:</span>
+                    <span className="text-xs font-medium text-blue-800">
+                      {formatDate(rolloverInfo.newWorkflow.filingPeriodStart)} - {formatDate(rolloverInfo.newWorkflow.filingPeriodEnd)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-blue-700">Status:</span>
+                    <Badge variant="outline" className="text-xs">
+                      {rolloverInfo.newWorkflow.currentStage.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-blue-700">Assigned To:</span>
+                    <span className="text-xs font-medium text-blue-800">
+                      {rolloverInfo.newWorkflow.assignedUserId ? 
+                        users.find(user => user.id === rolloverInfo.newWorkflow.assignedUserId)?.name || 'Unknown User' : 
+                        'Unassigned'
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Updated Dates Information */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-800">Updated Deadlines</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-green-700">Year End:</span>
+                    <span className="text-xs font-medium text-green-800">
+                      {formatDate(rolloverInfo.updatedDates.yearEnd)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-green-700">Accounts Due:</span>
+                    <span className="text-xs font-medium text-green-800">
+                      {formatDate(rolloverInfo.updatedDates.accountsDue)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-green-700">Corporation Tax Due:</span>
+                    <span className="text-xs font-medium text-green-800">
+                      {formatDate(rolloverInfo.updatedDates.ctDue)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-green-700">Confirmation Due:</span>
+                    <span className="text-xs font-medium text-green-800">
+                      {formatDate(rolloverInfo.updatedDates.confirmationDue)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button 
+              onClick={() => {
+                setShowRolloverModal(false)
+                setRolloverInfo(null)
+              }}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Got it!
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 } 
