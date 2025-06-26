@@ -6,6 +6,7 @@
  */
 
 import { emailService } from './email-service'
+import { EmailTemplates } from './email-templates'
 import { db } from './db'
 
 interface StageChangeNotificationParams {
@@ -203,7 +204,21 @@ export const workflowNotificationService = {
   },
 
   async sendStageChangeEmail(params: StageChangeNotificationParams, recipient: any): Promise<void> {
-    // Use enhanced workflow stage change email template
+    // Generate email content using enhanced template
+    const emailTemplate = EmailTemplates.generateWorkflowStageChangeEmail({
+      assigneeName: recipient.name || recipient.email,
+      companyName: params.clientName,
+      clientCode: params.clientCode,
+      workflowType: params.workflowType,
+      fromStage: params.fromStage || 'Initial',
+      toStage: params.toStage,
+      changedBy: params.changedBy.name,
+      comments: params.comments,
+      quarterPeriod: params.quarterPeriod,
+      filingPeriod: params.filingPeriod
+    })
+
+    // Send email using enhanced template
     const emailResult = await emailService.sendEnhancedWorkflowStageChangeNotification({
       to: {
         email: recipient.email,
@@ -220,18 +235,15 @@ export const workflowNotificationService = {
       filingPeriod: params.filingPeriod
     })
 
-    // Log email
-    const workflowIcon = params.workflowType === 'VAT' ? '💰' : '📊'
-    const subject = `${workflowIcon} Workflow Update: ${params.clientName} - Stage Changed`
-    
+    // Log email with full HTML content
     await db.emailLog.create({
       data: {
         fromEmail: 'notifications@cloud9digital.in',
         fromName: 'Numericalz',
         recipientEmail: recipient.email,
         recipientName: recipient.name,
-        subject,
-        content: `Enhanced workflow stage change notification for ${params.clientName}`,
+        subject: emailTemplate.subject,
+        content: emailTemplate.htmlContent,
         emailType: 'WORKFLOW_STAGE_CHANGE',
         status: emailResult.success ? 'SENT' : 'FAILED',
         sentAt: emailResult.success ? new Date() : null,

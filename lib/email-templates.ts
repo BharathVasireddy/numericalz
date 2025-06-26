@@ -49,137 +49,391 @@ export class EmailTemplates {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Numericalz Assignment Notification</title>
+        <title>Numericalz Notification</title>
         <style>
+          /* Numericalz Email Design System */
+          
+          /* Base Styles */
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
           body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
             line-height: 1.6; 
-            color: #333; 
+            color: #1a1a1a !important; 
             margin: 0; 
             padding: 0; 
             background-color: #f8f9fa;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
           }
+          
+          /* Email Container */
           .email-container { 
-            max-width: 600px; 
+            max-width: 700px; 
             margin: 20px auto; 
-            background: white; 
-            border-radius: 12px; 
+            background: #ffffff !important; 
+            border-radius: 8px; 
             overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e5e7eb;
           }
+          
+          /* Header Styles */
           .header { 
-            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%); 
-            color: white; 
-            padding: 30px 25px; 
-            text-align: center;
+            background: #ffffff;
+            color: #1a1a1a !important; 
+            padding: 32px 30px 24px; 
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
           }
+          
           .header h1 { 
             margin: 0; 
             font-size: 24px; 
             font-weight: 600;
+            letter-spacing: -0.025em;
+            color: #1a1a1a !important;
           }
+          
           .header .subtitle { 
-            margin: 5px 0 0 0; 
-            opacity: 0.9; 
+            margin: 6px 0 0 0; 
+            color: #6b7280 !important; 
             font-size: 14px;
+            font-weight: 400;
           }
+          
+          /* Content Styles */
           .content { 
-            padding: 30px 25px; 
+            padding: 32px 30px; 
+            background: #ffffff !important;
           }
+          
+          /* Card Components */
           .assignment-card {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
             border-radius: 8px;
             padding: 20px;
             margin: 20px 0;
+            border-left: 3px solid #3b82f6;
           }
+          
           .company-info {
-            background: #fff;
-            border: 1px solid #dee2e6;
+            background: #ffffff !important;
+            border: 1px solid #e5e7eb;
             border-radius: 8px;
             padding: 20px;
             margin: 20px 0;
           }
+          
           .company-info h3 {
-            margin: 0 0 15px 0;
-            color: #1976d2;
+            margin: 0 0 16px 0;
+            color: #1a1a1a !important;
             font-size: 18px;
+            font-weight: 600;
           }
+          
+          /* Grid System */
           .info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin: 15px 0;
+            gap: 20px;
+            margin: 20px 0;
           }
+          
           .info-item {
             display: flex;
             flex-direction: column;
+            gap: 4px;
           }
+          
           .info-label {
             font-size: 12px;
-            color: #6c757d;
+            color: #6b7280;
             text-transform: uppercase;
             font-weight: 600;
-            margin-bottom: 4px;
+            letter-spacing: 0.05em;
           }
+          
           .info-value {
-            font-size: 14px;
-            color: #212529;
+            font-size: 15px;
+            color: #111827;
             font-weight: 500;
           }
+          
+          /* Alert Components */
           .deadline-alert {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 20px 0;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 24px 0;
+            border-left: 4px solid;
           }
+          
+          .deadline-alert h4 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 600;
+          }
+          
+          .deadline-alert p {
+            margin: 4px 0;
+            font-size: 14px;
+          }
+          
           .deadline-alert.overdue {
-            background: #f8d7da;
-            border-color: #f1aeb5;
+            background: #fef2f2;
+            border-color: #dc2626;
+            color: #991b1b;
           }
+          
           .deadline-alert.urgent {
-            background: #fff3cd;
-            border-color: #ffeaa7;
+            background: #fffbeb;
+            border-color: #f59e0b;
+            color: #92400e;
           }
+          
           .deadline-alert.normal {
-            background: #d1ecf1;
-            border-color: #bee5eb;
+            background: #f0f9ff;
+            border-color: #0ea5e9;
+            color: #0c4a6e;
           }
+          
+          /* Status Badges */
           .status-badge {
             display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
+            padding: 6px 12px;
+            border-radius: 6px;
             font-size: 12px;
             font-weight: 600;
             text-transform: uppercase;
+            letter-spacing: 0.025em;
           }
-          .status-pending { background: #fff3cd; color: #856404; }
-          .status-progress { background: #d1ecf1; color: #0c5460; }
-          .status-review { background: #e2e3e5; color: #383d41; }
+          
+          .status-pending { 
+            background: #fef3c7; 
+            color: #92400e; 
+            border: 1px solid #f59e0b;
+          }
+          
+          .status-progress { 
+            background: #dbeafe; 
+            color: #1e40af; 
+            border: 1px solid #3b82f6;
+          }
+          
+          .status-review { 
+            background: #f3f4f6; 
+            color: #374151; 
+            border: 1px solid #6b7280;
+          }
+          
+          /* Button Styles */
           .action-button {
             display: inline-block;
-            background: #1976d2;
-            color: white;
+            background: #3b82f6;
+            color: #ffffff !important;
             padding: 12px 24px;
             text-decoration: none;
             border-radius: 6px;
-            font-weight: 600;
+            font-weight: 500;
+            font-size: 14px;
             margin: 20px 0;
             text-align: center;
+            border: 1px solid #3b82f6;
           }
+          
+          .action-button:hover {
+            background: #2563eb;
+            border-color: #2563eb;
+          }
+          
+          .action-button-secondary {
+            display: inline-block;
+            background: #ffffff !important;
+            color: #374151 !important;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 14px;
+            margin: 20px 0;
+            text-align: center;
+            border: 1px solid #d1d5db;
+          }
+          
+          /* Stage Transition */
+          .stage-transition {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border: 1px solid #e2e8f0;
+          }
+          
+          .stage-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+          }
+          
+          .stage-item {
+            text-align: center;
+            flex: 1;
+          }
+          
+          .stage-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+          }
+          
+          .stage-value {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+          }
+          
+          .stage-from {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+          }
+          
+          .stage-to {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #3b82f6;
+          }
+          
+          .stage-arrow {
+            color: #6b7280;
+            font-size: 24px;
+            font-weight: bold;
+          }
+          
+          /* Comments Section */
+          .comments-section {
+            background: #fffbeb;
+            border: 1px solid #f59e0b;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #f59e0b;
+          }
+          
+          .comments-section h4 {
+            margin: 0 0 12px 0;
+            color: #92400e;
+            font-size: 16px;
+            font-weight: 600;
+          }
+          
+          .comments-section p {
+            margin: 0;
+            color: #92400e;
+            font-size: 14px;
+            line-height: 1.6;
+          }
+          
+          /* Next Steps */
+          .next-steps {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+            border-left: 4px solid #0ea5e9;
+          }
+          
+          .next-steps h4 {
+            margin: 0 0 16px 0;
+            color: #0c4a6e;
+            font-size: 18px;
+            font-weight: 600;
+          }
+          
+          .next-steps ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #0c4a6e;
+          }
+          
+          .next-steps li {
+            margin: 8px 0;
+            font-size: 14px;
+            line-height: 1.6;
+          }
+          
+          /* Footer */
           .footer {
             background: #f8f9fa;
-            padding: 20px 25px;
+            padding: 24px 30px;
             text-align: center;
-            border-top: 1px solid #dee2e6;
-            font-size: 12px;
-            color: #6c757d;
+            border-top: 1px solid #e5e7eb;
           }
+          
+          .footer p {
+            margin: 4px 0;
+            font-size: 12px;
+            color: #6b7280 !important;
+            line-height: 1.4;
+          }
+          
+          .footer .brand {
+            font-weight: 500;
+            color: #374151 !important;
+            font-size: 13px;
+          }
+          
+          /* Responsive Design */
           @media (max-width: 600px) {
-            .email-container { margin: 10px; border-radius: 8px; }
-            .header, .content { padding: 20px; }
-            .info-grid { grid-template-columns: 1fr; gap: 10px; }
+            .email-container { 
+              margin: 10px; 
+              border-radius: 12px; 
+            }
+            
+            .header, .content { 
+              padding: 24px 20px; 
+            }
+            
+            .info-grid { 
+              grid-template-columns: 1fr; 
+              gap: 16px; 
+            }
+            
+            .stage-flow {
+              flex-direction: column;
+              gap: 12px;
+            }
+            
+            .stage-arrow {
+              transform: rotate(90deg);
+            }
+            
+            .action-button, .action-button-secondary {
+              padding: 14px 24px;
+              font-size: 14px;
+            }
+          }
+          
+          /* Dark mode support */
+          @media (prefers-color-scheme: dark) {
+            .email-container {
+              background: #ffffff !important;
+            }
+            
+            .content {
+              background: #ffffff !important;
+            }
           }
         </style>
       </head>
@@ -197,27 +451,26 @@ export class EmailTemplates {
    */
   static generateVATAssignmentEmail(data: VATAssignmentEmailData): { subject: string; htmlContent: string } {
     const urgencyClass = data.isOverdue ? 'overdue' : data.daysUntilDue <= 7 ? 'urgent' : 'normal'
-    const urgencyIcon = data.isOverdue ? '🚨' : data.daysUntilDue <= 7 ? '⚠️' : '📋'
     
-    const subject = `${urgencyIcon} VAT Assignment: ${data.companyName} - ${data.quarterPeriod} ${data.isOverdue ? 'OVERDUE' : `Due in ${data.daysUntilDue} days`}`
+    const subject = `VAT Assignment: ${data.companyName} - ${data.quarterPeriod} ${data.isOverdue ? 'OVERDUE' : `Due in ${data.daysUntilDue} days`}`
     
     const content = `
       <div class="header">
-        <h1>🎯 VAT Work Assignment</h1>
+        <h1>VAT Work Assignment</h1>
         <div class="subtitle">You've been assigned to handle VAT work for a client</div>
       </div>
       
       <div class="content">
         <div class="assignment-card">
-          <h2 style="margin: 0 0 10px 0; color: #1976d2;">👋 Hello ${data.assigneeName}!</h2>
-          <p style="margin: 0; font-size: 16px;">
+          <h2 style="margin: 0 0 10px 0; color: #1a1a1a !important;">Hello ${data.assigneeName}</h2>
+          <p style="margin: 0; font-size: 16px; color: #374151 !important;">
             You have been assigned VAT work for <strong>${data.companyName}</strong> by ${data.assignedBy}.
             ${data.previousAssignee ? ` (Previously assigned to: ${data.previousAssignee})` : ''}
           </p>
         </div>
 
         <div class="company-info">
-          <h3>🏢 Company Details</h3>
+          <h3>Company Details</h3>
           <div class="info-grid">
             <div class="info-item">
               <div class="info-label">Company Name</div>
@@ -243,7 +496,7 @@ export class EmailTemplates {
         </div>
 
         <div class="company-info">
-          <h3>📊 VAT Quarter Information</h3>
+          <h3>VAT Quarter Information</h3>
           <div class="info-grid">
             <div class="info-item">
               <div class="info-label">Quarter Period</div>
@@ -279,7 +532,7 @@ export class EmailTemplates {
 
         <div class="deadline-alert ${urgencyClass}">
           <h4 style="margin: 0 0 10px 0;">
-            ${data.isOverdue ? '🚨 OVERDUE ALERT' : data.daysUntilDue <= 7 ? '⚠️ URGENT DEADLINE' : '📅 Upcoming Deadline'}
+            ${data.isOverdue ? 'OVERDUE ALERT' : data.daysUntilDue <= 7 ? 'URGENT DEADLINE' : 'Upcoming Deadline'}
           </h4>
           <p style="margin: 0; font-weight: 600;">
             ${data.isOverdue 
@@ -290,9 +543,9 @@ export class EmailTemplates {
           ${data.isOverdue ? '<p style="margin: 5px 0 0 0; color: #721c24;">Immediate action required to avoid penalties.</p>' : ''}
         </div>
 
-        <div style="background: #e8f4fd; border: 1px solid #b8daff; border-radius: 8px; padding: 20px; margin: 20px 0;">
-          <h4 style="margin: 0 0 15px 0; color: #004085;">📋 Next Steps</h4>
-          <ul style="margin: 0; padding-left: 20px; color: #004085;">
+        <div class="next-steps">
+          <h4>Next Steps</h4>
+          <ul>
             <li>Log into the Numericalz system to review the client's details</li>
             <li>Check the current workflow stage and any pending tasks</li>
             <li>Contact the client if paperwork or information is needed</li>
@@ -303,14 +556,15 @@ export class EmailTemplates {
 
         <div style="text-align: center;">
           <a href="${process.env.NEXTAUTH_URL}/dashboard/clients/vat-dt" class="action-button">
-            🚀 View VAT Deadlines Dashboard
+            View VAT Deadlines Dashboard
           </a>
         </div>
       </div>
 
       <div class="footer">
-        <p>This is an automated notification from Numericalz Internal Management System</p>
-        <p>If you have any questions, please contact your manager or partner</p>
+        <p class="brand">Numericalz</p>
+        <p>This is an automated notification.</p>
+        <p>© ${new Date().getFullYear()} Numericalz</p>
       </div>
     `
 
@@ -326,30 +580,28 @@ export class EmailTemplates {
   static generateLtdAssignmentEmail(data: LtdAssignmentEmailData): { subject: string; htmlContent: string } {
     const accountsUrgency = data.isAccountsOverdue ? 'overdue' : data.daysUntilAccountsDue <= 14 ? 'urgent' : 'normal'
     const ctUrgency = data.isCTOverdue ? 'overdue' : data.daysUntilCTDue <= 30 ? 'urgent' : 'normal'
-    const urgencyIcon = (data.isAccountsOverdue || data.isCTOverdue) ? '🚨' : 
-                       (data.daysUntilAccountsDue <= 14 || data.daysUntilCTDue <= 30) ? '⚠️' : '📊'
     
-    const subject = `${urgencyIcon} Accounts Assignment: ${data.companyName} - ${data.filingPeriod} ${
+    const subject = `Accounts Assignment: ${data.companyName} - ${data.filingPeriod} ${
       data.isAccountsOverdue ? 'OVERDUE' : `Due in ${data.daysUntilAccountsDue} days`
     }`
     
     const content = `
       <div class="header">
-        <h1>📊 Ltd Company Assignment</h1>
+        <h1>Ltd Company Assignment</h1>
         <div class="subtitle">You've been assigned to handle accounts work for a limited company</div>
       </div>
       
       <div class="content">
         <div class="assignment-card">
-          <h2 style="margin: 0 0 10px 0; color: #1976d2;">👋 Hello ${data.assigneeName}!</h2>
-          <p style="margin: 0; font-size: 16px;">
+          <h2 style="margin: 0 0 10px 0; color: #1a1a1a !important;">Hello ${data.assigneeName}</h2>
+          <p style="margin: 0; font-size: 16px; color: #374151 !important;">
             You have been assigned accounts work for <strong>${data.companyName}</strong> by ${data.assignedBy}.
             ${data.previousAssignee ? ` (Previously assigned to: ${data.previousAssignee})` : ''}
           </p>
         </div>
 
         <div class="company-info">
-          <h3>🏢 Company Details</h3>
+          <h3>Company Details</h3>
           <div class="info-grid">
             <div class="info-item">
               <div class="info-label">Company Name</div>
@@ -373,7 +625,7 @@ export class EmailTemplates {
         </div>
 
         <div class="company-info">
-          <h3>📅 Key Dates & Deadlines</h3>
+          <h3>Key Dates & Deadlines</h3>
           <div class="info-grid">
             <div class="info-item">
               <div class="info-label">Year End Date</div>
@@ -397,7 +649,7 @@ export class EmailTemplates {
 
         <div class="deadline-alert ${accountsUrgency}">
           <h4 style="margin: 0 0 10px 0;">
-            📋 Accounts Filing Deadline
+            Accounts Filing Deadline
           </h4>
           <p style="margin: 0; font-weight: 600;">
             Due: ${new Date(data.accountsDueDate).toLocaleDateString('en-GB', { 
@@ -408,7 +660,7 @@ export class EmailTemplates {
           </p>
           <p style="margin: 5px 0 0 0;">
             ${data.isAccountsOverdue 
-              ? `🚨 OVERDUE by ${Math.abs(data.daysUntilAccountsDue)} days!` 
+              ? `OVERDUE by ${Math.abs(data.daysUntilAccountsDue)} days!` 
               : `${data.daysUntilAccountsDue} days remaining`
             }
           </p>
@@ -416,7 +668,7 @@ export class EmailTemplates {
 
         <div class="deadline-alert ${ctUrgency}">
           <h4 style="margin: 0 0 10px 0;">
-            💰 Corporation Tax Deadline
+            Corporation Tax Deadline
           </h4>
           <p style="margin: 0; font-weight: 600;">
             Due: ${new Date(data.corporationTaxDueDate).toLocaleDateString('en-GB', { 
@@ -427,15 +679,15 @@ export class EmailTemplates {
           </p>
           <p style="margin: 5px 0 0 0;">
             ${data.isCTOverdue 
-              ? `🚨 OVERDUE by ${Math.abs(data.daysUntilCTDue)} days!` 
+              ? `OVERDUE by ${Math.abs(data.daysUntilCTDue)} days!` 
               : `${data.daysUntilCTDue} days remaining`
             }
           </p>
         </div>
 
-        <div style="background: #e8f4fd; border: 1px solid #b8daff; border-radius: 8px; padding: 20px; margin: 20px 0;">
-          <h4 style="margin: 0 0 15px 0; color: #004085;">📋 Next Steps</h4>
-          <ul style="margin: 0; padding-left: 20px; color: #004085;">
+        <div class="next-steps">
+          <h4>Next Steps</h4>
+          <ul>
             <li>Log into the Numericalz system to review the client's details</li>
             <li>Check the current workflow stage and any pending tasks</li>
             <li>Request year-end paperwork from the client if needed</li>
@@ -447,14 +699,15 @@ export class EmailTemplates {
 
         <div style="text-align: center;">
           <a href="${process.env.NEXTAUTH_URL}/dashboard/clients/ltd-companies" class="action-button">
-            🚀 View Ltd Companies Dashboard
+            View Ltd Companies Dashboard
           </a>
         </div>
       </div>
 
       <div class="footer">
-        <p>This is an automated notification from Numericalz Internal Management System</p>
-        <p>If you have any questions, please contact your manager or partner</p>
+        <p class="brand">Numericalz</p>
+        <p>This is an automated notification.</p>
+        <p>© ${new Date().getFullYear()} Numericalz</p>
       </div>
     `
 
@@ -479,37 +732,37 @@ export class EmailTemplates {
     quarterPeriod?: string
     filingPeriod?: string
   }): { subject: string; htmlContent: string } {
-    const workflowIcon = data.workflowType === 'VAT' ? '💰' : '📊'
-    const subject = `${workflowIcon} Workflow Update: ${data.companyName} - Stage Changed`
+    const workflowType = data.workflowType === 'VAT' ? 'VAT Return' : 'Accounts'
+    const subject = `Workflow Update: ${data.companyName} - ${workflowType} Stage Changed`
     
     const content = `
       <div class="header">
-        <h1>${workflowIcon} Workflow Stage Update</h1>
-        <div class="subtitle">A workflow stage has been updated for one of your assigned clients</div>
+        <h1>${workflowType} Workflow Update</h1>
+        <div class="subtitle">Stage change notification for ${data.companyName}</div>
       </div>
       
       <div class="content">
         <div class="assignment-card">
-          <h2 style="margin: 0 0 10px 0; color: #1976d2;">📢 Workflow Update</h2>
-          <p style="margin: 0; font-size: 16px;">
+          <h2 style="margin: 0 0 10px 0; color: #1a1a1a !important;">Workflow Update</h2>
+          <p style="margin: 0; font-size: 16px; color: #374151 !important;">
             The ${data.workflowType} workflow for <strong>${data.companyName}</strong> has been updated by ${data.changedBy}.
           </p>
         </div>
 
         <div class="company-info">
-          <h3>🔄 Stage Change Details</h3>
-          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div style="text-align: center; flex: 1;">
-                <div style="font-size: 12px; color: #6c757d; margin-bottom: 5px;">FROM</div>
-                <div style="padding: 8px 12px; background: #e9ecef; border-radius: 6px; font-weight: 600;">
+          <h3>Stage Change Details</h3>
+          <div class="stage-transition">
+            <div class="stage-flow">
+              <div class="stage-item">
+                <div class="stage-label">FROM</div>
+                <div class="stage-value stage-from">
                   ${data.fromStage.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
                 </div>
               </div>
-              <div style="margin: 0 20px; font-size: 24px;">→</div>
-              <div style="text-align: center; flex: 1;">
-                <div style="font-size: 12px; color: #6c757d; margin-bottom: 5px;">TO</div>
-                <div style="padding: 8px 12px; background: #d1ecf1; border-radius: 6px; font-weight: 600; color: #0c5460;">
+              <div class="stage-arrow">→</div>
+              <div class="stage-item">
+                <div class="stage-label">TO</div>
+                <div class="stage-value stage-to">
                   ${data.toStage.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())}
                 </div>
               </div>
@@ -536,23 +789,24 @@ export class EmailTemplates {
           </div>
           
           ${data.comments ? `
-          <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin: 15px 0;">
-            <h4 style="margin: 0 0 10px 0;">💬 Comments</h4>
-            <p style="margin: 0;">${data.comments}</p>
+          <div class="comments-section">
+            <h4>Comments</h4>
+            <p>${data.comments}</p>
           </div>
           ` : ''}
         </div>
 
         <div style="text-align: center;">
           <a href="${process.env.NEXTAUTH_URL}/dashboard/clients/${data.workflowType === 'VAT' ? 'vat-dt' : 'ltd-companies'}" class="action-button">
-            🚀 View ${data.workflowType} Dashboard
+            View ${data.workflowType} Dashboard
           </a>
         </div>
       </div>
 
       <div class="footer">
-        <p>This is an automated notification from Numericalz Internal Management System</p>
-        <p>Stay updated on your assigned workflows and deadlines</p>
+        <p class="brand">Numericalz</p>
+        <p>This is an automated workflow notification.</p>
+        <p>© ${new Date().getFullYear()} Numericalz</p>
       </div>
     `
 
