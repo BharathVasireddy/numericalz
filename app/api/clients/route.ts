@@ -33,6 +33,7 @@ const createClientSchema = z.object({
   registeredOfficeAddress: z.string().optional(),
   sicCodes: z.string().optional(),
   nextAccountsDue: z.string().optional(),
+  nextYearEnd: z.string().optional(),
   lastAccountsMadeUpTo: z.string().optional(),
   accountingReferenceDate: z.string().optional(),
   nextConfirmationDue: z.string().optional(),
@@ -357,6 +358,7 @@ export async function POST(request: NextRequest) {
               ? body.sicCodes 
               : null,
           nextAccountsDue: body.nextAccountsDue ? new Date(body.nextAccountsDue) : null,
+          nextYearEnd: body.nextYearEnd ? new Date(body.nextYearEnd) : null,
           lastAccountsMadeUpTo: body.lastAccountsMadeUpTo ? new Date(body.lastAccountsMadeUpTo) : null,
           accountingReferenceDate: body.accountingReferenceDate || null,
           nextConfirmationDue: body.nextConfirmationDue ? new Date(body.nextConfirmationDue) : null,
