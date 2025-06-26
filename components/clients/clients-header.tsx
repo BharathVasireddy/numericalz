@@ -173,12 +173,12 @@ export function ClientsHeader({
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
                 placeholder="Search clients by name, company number, or email..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="pl-10 input-field"
+                className="pl-10"
               />
             </div>
           </div>

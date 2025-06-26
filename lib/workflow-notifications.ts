@@ -203,30 +203,27 @@ export const workflowNotificationService = {
   },
 
   async sendStageChangeEmail(params: StageChangeNotificationParams, recipient: any): Promise<void> {
-    const subject = `📋 Workflow Update - ${params.clientName} (${params.clientCode})`
-    
-    const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Workflow Stage Change</h2>
-        <p><strong>Client:</strong> ${params.clientName} (${params.clientCode})</p>
-        <p><strong>Workflow:</strong> ${params.workflowType}</p>
-        <p><strong>New Stage:</strong> ${params.toStage}</p>
-        <p><strong>Changed by:</strong> ${params.changedBy.name}</p>
-        ${params.comments ? `<p><strong>Comments:</strong> ${params.comments}</p>` : ''}
-      </div>
-    `
-
-    // Send email
-    const emailResult = await emailService.sendEmail({
-      to: [{
+    // Use enhanced workflow stage change email template
+    const emailResult = await emailService.sendEnhancedWorkflowStageChangeNotification({
+      to: {
         email: recipient.email,
         name: recipient.name || recipient.email
-      }],
-      subject,
-      htmlContent
+      },
+      companyName: params.clientName,
+      clientCode: params.clientCode,
+      workflowType: params.workflowType,
+      fromStage: params.fromStage || 'Initial',
+      toStage: params.toStage,
+      changedBy: params.changedBy.name,
+      comments: params.comments,
+      quarterPeriod: params.quarterPeriod,
+      filingPeriod: params.filingPeriod
     })
 
     // Log email
+    const workflowIcon = params.workflowType === 'VAT' ? '💰' : '📊'
+    const subject = `${workflowIcon} Workflow Update: ${params.clientName} - Stage Changed`
+    
     await db.emailLog.create({
       data: {
         fromEmail: 'notifications@cloud9digital.in',
@@ -234,7 +231,7 @@ export const workflowNotificationService = {
         recipientEmail: recipient.email,
         recipientName: recipient.name,
         subject,
-        content: htmlContent,
+        content: `Enhanced workflow stage change notification for ${params.clientName}`,
         emailType: 'WORKFLOW_STAGE_CHANGE',
         status: emailResult.success ? 'SENT' : 'FAILED',
         sentAt: emailResult.success ? new Date() : null,

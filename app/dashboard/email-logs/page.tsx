@@ -64,12 +64,16 @@ export default function EmailLogsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
+  const [clientFilter, setClientFilter] = useState('')
+  const [userFilter, setUserFilter] = useState('')
   const [pagination, setPagination] = useState({
     offset: 0,
     limit: 50,
     total: 0,
     hasMore: false
   })
+  const [clients, setClients] = useState<{id: string, clientCode: string, companyName: string}[]>([])
+  const [users, setUsers] = useState<{id: string, name: string, role: string}[]>([])
 
   const fetchEmailLogs = async (reset = false) => {
     try {
@@ -81,6 +85,8 @@ export default function EmailLogsPage() {
       
       if (statusFilter) params.append('status', statusFilter)
       if (typeFilter) params.append('emailType', typeFilter)
+      if (clientFilter) params.append('clientId', clientFilter)
+      if (userFilter) params.append('userId', userFilter)
       
       const response = await fetch(`/api/notifications/email-logs?${params}`)
       const result = await response.json()
@@ -101,9 +107,46 @@ export default function EmailLogsPage() {
     }
   }
 
+  const fetchClients = async () => {
+    try {
+      const response = await fetch('/api/clients?limit=1000&select=basic')
+      const result = await response.json()
+      if (result.success) {
+        setClients(result.data.clients.map((client: any) => ({
+          id: client.id,
+          clientCode: client.clientCode,
+          companyName: client.companyName
+        })))
+      }
+    } catch (error) {
+      console.error('Error fetching clients:', error)
+    }
+  }
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/users')
+      const result = await response.json()
+      if (result.success) {
+        setUsers(result.data.map((user: any) => ({
+          id: user.id,
+          name: user.name,
+          role: user.role
+        })))
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+    }
+  }
+
   useEffect(() => {
     fetchEmailLogs(true)
-  }, [statusFilter, typeFilter])
+  }, [statusFilter, typeFilter, clientFilter, userFilter])
+
+  useEffect(() => {
+    fetchClients()
+    fetchUsers()
+  }, [])
 
   const handleRefresh = () => {
     fetchEmailLogs(true)
@@ -221,9 +264,9 @@ export default function EmailLogsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                  <div className="relative xl:col-span-2">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <Input
                       placeholder="Search emails..."
                       value={searchTerm}
@@ -256,13 +299,43 @@ export default function EmailLogsPage() {
                       <SelectItem value="DEADLINE_REMINDER">Deadline Reminder</SelectItem>
                       <SelectItem value="CLIENT_NOTIFICATION">Client Notification</SelectItem>
                       <SelectItem value="WEEKLY_SUMMARY">Weekly Summary</SelectItem>
+                      <SelectItem value="VAT_ASSIGNMENT">VAT Assignment</SelectItem>
+                      <SelectItem value="LTD_ASSIGNMENT">Ltd Assignment</SelectItem>
                     </SelectContent>
                   </Select>
                   
-                  <div className="text-sm text-muted-foreground flex items-center">
-                    <Mail className="h-4 w-4 mr-2" />
-                    {filteredLogs.length} emails
-                  </div>
+                  <Select value={clientFilter || 'all'} onValueChange={(value) => setClientFilter(value === 'all' ? '' : value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Clients" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Clients</SelectItem>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.clientCode} - {client.companyName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <Select value={userFilter || 'all'} onValueChange={(value) => setUserFilter(value === 'all' ? '' : value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Users" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Users</SelectItem>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name} ({user.role})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="mt-4 text-sm text-muted-foreground flex items-center">
+                  <Mail className="h-4 w-4 mr-2" />
+                  {filteredLogs.length} emails found
                 </div>
               </CardContent>
             </Card>
@@ -370,6 +443,7 @@ export default function EmailLogsPage() {
                                 setSelectedEmail(log)
                                 setShowPreview(true)
                               }}
+                              title="View email details"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>

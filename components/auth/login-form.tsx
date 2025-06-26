@@ -209,7 +209,7 @@ export function LoginForm() {
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-2 md:left-3 top-2 md:top-2.5 h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+                <Mail className="absolute left-2 md:left-3 top-2 md:top-2.5 h-3 w-3 md:h-4 md:w-4 text-muted-foreground pointer-events-none" />
                 <Input
                   id="email"
                   type="email"
@@ -228,7 +228,7 @@ export function LoginForm() {
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-2 md:left-3 top-2 md:top-2.5 h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+                <Lock className="absolute left-2 md:left-3 top-2 md:top-2.5 h-3 w-3 md:h-4 md:w-4 text-muted-foreground pointer-events-none" />
                 <Input
                   id="password"
                   type="password"

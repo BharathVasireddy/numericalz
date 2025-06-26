@@ -21,12 +21,14 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const emailType = searchParams.get('emailType')
     const clientId = searchParams.get('clientId')
+    const userId = searchParams.get('userId')
 
     // Build where clause
     const where: any = {}
     if (status) where.status = status
     if (emailType) where.emailType = emailType
     if (clientId) where.clientId = clientId
+    if (userId) where.triggeredBy = userId
 
     // Fetch email logs with related data
     const emailLogs = await db.emailLog.findMany({
