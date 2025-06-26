@@ -138,6 +138,25 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
     return diffDays <= daysThreshold && diffDays > 0
   }
 
+  const getDaysUntilDue = (dateString: string | null) => {
+    if (!dateString) return null
+    const date = new Date(dateString)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    date.setHours(0, 0, 0, 0)
+    const diffTime = date.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays
+  }
+
+  const formatDaysUntilDue = (dateString: string | null) => {
+    const days = getDaysUntilDue(dateString)
+    if (days === null) return ''
+    if (days < 0) return `Overdue by ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'}`
+    if (days === 0) return 'Due today'
+    return `Due in ${days} day${days === 1 ? '' : 's'}`
+  }
+
 
 
   const handleRefreshCompaniesHouse = async () => {
@@ -642,9 +661,16 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                           </div>
                         </div>
                         {client.nextCorporationTaxDue && (
-                          <span className="text-xs text-muted-foreground">
-                            Due: {formatDate(client.nextCorporationTaxDue)}
-                          </span>
+                          <div className="text-xs text-muted-foreground">
+                            <div>Due: {formatDate(client.nextCorporationTaxDue)}</div>
+                            <div className={`mt-1 ${
+                              isDateOverdue(client.nextCorporationTaxDue) ? 'text-red-600' :
+                              isDateSoon(client.nextCorporationTaxDue, 30) ? 'text-amber-600' :
+                              'text-muted-foreground'
+                            }`}>
+                              {formatDaysUntilDue(client.nextCorporationTaxDue)}
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}

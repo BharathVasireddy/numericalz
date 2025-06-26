@@ -150,20 +150,23 @@ export function shouldUpdateCTDue(
 export function markCTAsFiled(
   currentData: Partial<CTTrackingData>,
   filedByUserId: string,
-  nextYearEnd?: Date | null
+  nextYearEnd?: Date | null,
+  clientYearEnd?: Date | null
 ): Partial<CTTrackingData> {
   const now = new Date()
   
-  // Calculate next period if year end provided
+  // Calculate next period - use provided nextYearEnd or client's current year end
   let nextCTDue: Date | null = null
   let nextPeriodStart: Date | null = null
-  let nextPeriodEnd: Date | null = nextYearEnd || null
+  let nextPeriodEnd: Date | null = null
   
-  if (nextYearEnd) {
-    nextCTDue = calculateCTDueFromYearEnd(nextYearEnd)
+  const yearEndToUse = nextYearEnd || clientYearEnd
+  
+  if (yearEndToUse) {
+    nextCTDue = calculateCTDueFromYearEnd(yearEndToUse)
     nextPeriodStart = currentData.corporationTaxPeriodEnd ? 
       new Date((typeof currentData.corporationTaxPeriodEnd === 'string' ? new Date(currentData.corporationTaxPeriodEnd) : currentData.corporationTaxPeriodEnd).getTime() + (24 * 60 * 60 * 1000)) : null
-    nextPeriodEnd = nextYearEnd
+    nextPeriodEnd = yearEndToUse
   }
   
   return {

@@ -78,13 +78,9 @@ export async function POST(
       ? new Date(companyData.date_of_creation) 
       : client.incorporationDate
 
-    // Calculate CT due date only - use Companies House data for accounts due date
-    const clientDataForCalculation = {
-      lastAccountsMadeUpTo: updatedLastAccountsMadeUpTo,
-      incorporationDate: updatedIncorporationDate
-    }
-
-    const calculatedCTDue = calculateCorporationTaxDue(clientDataForCalculation)
+    // 🎯 CRITICAL: Do NOT calculate CT due date during manual refresh
+    // CT due date should only be updated when CT is marked as filed
+    // This preserves existing CT deadlines until they are completed
 
     // Update client with Companies House data and use their official accounts due date
     const updatedClient = await db.client.update({
@@ -101,8 +97,8 @@ export async function POST(
         nextAccountsDue: companyData.accounts?.next_due ? new Date(companyData.accounts.next_due) : client.nextAccountsDue,
         // 🎯 NEW: Store Companies House official year end date
         nextYearEnd: companyData.accounts?.next_made_up_to ? new Date(companyData.accounts.next_made_up_to) : client.nextYearEnd,
-        // Only calculate CT due date (12 months after year end)
-        nextCorporationTaxDue: calculatedCTDue,
+        // 🎯 CRITICAL: nextCorporationTaxDue NOT updated here
+        // Only updated when CT is marked as filed
         // Keep Companies House reference data for calculations
         lastAccountsMadeUpTo: updatedLastAccountsMadeUpTo,
         // Confirmation statements come from Companies House (we don't calculate these)

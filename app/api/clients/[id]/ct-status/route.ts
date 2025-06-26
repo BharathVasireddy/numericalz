@@ -52,7 +52,8 @@ export async function PUT(
         ctDueSource: true,
         lastCTStatusUpdate: true,
         ctStatusUpdatedBy: true,
-        lastAccountsMadeUpTo: true
+        lastAccountsMadeUpTo: true,
+        nextYearEnd: true // Add year end for CT calculation
       }
     })
 
@@ -69,7 +70,8 @@ export async function PUT(
       case 'mark_filed':
         // Mark CT as filed and advance to next period
         const nextYearEndDate = nextYearEnd ? new Date(nextYearEnd) : null
-        updateData = markCTAsFiled(client, session.user.id, nextYearEndDate)
+        const clientYearEndDate = client.nextYearEnd ? new Date(client.nextYearEnd) : null
+        updateData = markCTAsFiled(client, session.user.id, nextYearEndDate, clientYearEndDate)
         break
 
       case 'set_manual':

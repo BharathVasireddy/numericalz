@@ -103,28 +103,25 @@ export async function POST(
             const newConfirmationDue = companyData.confirmation_statement?.next_due ? 
               new Date(companyData.confirmation_statement.next_due) : null
             
-            // Calculate CT due date (12 months after year end)
-            let newCTDue = null
-            if (newYearEnd) {
-              newCTDue = new Date(newYearEnd)
-              newCTDue.setFullYear(newCTDue.getFullYear() + 1)
-            }
+            // 🎯 CRITICAL: Do NOT update CT due date during rollover
+            // CT due date should only be updated when CT is marked as filed
+            // This preserves existing CT deadlines until they are completed
 
             console.log('📅 New dates from Companies House:', {
               yearEnd: newYearEnd?.toISOString().split('T')[0],
               accountsDue: newAccountsDue?.toISOString().split('T')[0],
-              ctDue: newCTDue?.toISOString().split('T')[0],
               confirmationDue: newConfirmationDue?.toISOString().split('T')[0]
             })
 
-            // Update client with new dates
+            // Update client with new dates (excluding CT due date)
             await db.client.update({
               where: { id: workflow.client.id },
               data: {
                 nextYearEnd: newYearEnd,
                 nextAccountsDue: newAccountsDue,
-                nextCorporationTaxDue: newCTDue,
                 nextConfirmationDue: newConfirmationDue,
+                // 🎯 CRITICAL: nextCorporationTaxDue NOT updated here
+                // Only updated when CT is marked as filed
                 updatedAt: new Date()
               }
             })
@@ -132,7 +129,7 @@ export async function POST(
             console.log('✅ Updated client with new Companies House dates')
 
             // Create new workflow for next year if we have the required dates
-            if (newYearEnd && newAccountsDue && newCTDue) {
+            if (newYearEnd && newAccountsDue) {
               // Calculate filing period start (day after previous year end)
               const newFilingPeriodStart = new Date(workflow.filingPeriodEnd)
               newFilingPeriodStart.setDate(newFilingPeriodStart.getDate() + 1)
@@ -140,13 +137,17 @@ export async function POST(
               // Set default assignee to null (unassigned)
               const defaultAssignedUserId = null
 
+              // Calculate CT due date for new workflow (year end + 12 months)
+              const workflowCTDue = new Date(newYearEnd)
+              workflowCTDue.setFullYear(workflowCTDue.getFullYear() + 1)
+
               const newWorkflow = await db.ltdAccountsWorkflow.create({
                 data: {
                   clientId: workflow.client.id,
                   filingPeriodStart: newFilingPeriodStart,
                   filingPeriodEnd: newYearEnd,
                   accountsDueDate: newAccountsDue,
-                  ctDueDate: newCTDue,
+                  ctDueDate: workflowCTDue, // Use calculated date for workflow
                   csDueDate: newConfirmationDue || newAccountsDue,
                   currentStage: 'WAITING_FOR_YEAR_END', // Default status
                   assignedUserId: defaultAssignedUserId, // Unassigned
@@ -197,8 +198,8 @@ export async function POST(
                   updatedDates: {
                     yearEnd: newYearEnd,
                     accountsDue: newAccountsDue,
-                    ctDue: newCTDue,
                     confirmationDue: newConfirmationDue
+                    // 🎯 CT due date NOT updated - preserved until marked as filed
                   }
                 }
               })
