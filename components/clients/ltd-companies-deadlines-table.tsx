@@ -870,7 +870,9 @@ export function LtdCompaniesDeadlinesTable({
     }
 
     // Allow update if either stage is changed OR assignee is changed
-    const currentAssigneeId = selectedClient?.ltdCompanyAssignedUser?.id || 'unassigned'
+    const currentAssigneeId = selectedClient?.currentLtdAccountsWorkflow?.assignedUser?.id || 
+                              selectedClient?.ltdCompanyAssignedUser?.id || 
+                              'unassigned'
     const hasStageChange = selectedStage && selectedStage !== selectedClient?.currentLtdAccountsWorkflow?.currentStage
     const hasAssigneeChange = selectedAssignee !== currentAssigneeId
 
@@ -1561,11 +1563,16 @@ export function LtdCompaniesDeadlinesTable({
                             </TableCell>
                             <TableCell className="p-1 text-center">
                               <div className="text-xs">
-                                {client.ltdCompanyAssignedUser ? (
+                                {/* 🎯 CRITICAL FIX: Prioritize workflow-level assignment over client-level assignment */}
+                                {client.currentLtdAccountsWorkflow?.assignedUser || client.ltdCompanyAssignedUser ? (
                                   <div className="flex items-center justify-center gap-1">
                                     <User className="h-3 w-3 text-blue-600" />
-                                    <span className="text-blue-600 font-medium max-w-[60px] truncate" title={client.ltdCompanyAssignedUser.name}>
-                                      {client.ltdCompanyAssignedUser.name}
+                                    <span className="text-blue-600 font-medium max-w-[60px] truncate" title={
+                                      client.currentLtdAccountsWorkflow?.assignedUser?.name || 
+                                      client.ltdCompanyAssignedUser?.name
+                                    }>
+                                      {client.currentLtdAccountsWorkflow?.assignedUser?.name || 
+                                       client.ltdCompanyAssignedUser?.name}
                                     </span>
                                   </div>
                                 ) : (
@@ -1610,7 +1617,11 @@ export function LtdCompaniesDeadlinesTable({
                                   onClick={() => {
                                     setSelectedClient(client)
                                     setSelectedStage(undefined)
-                                    setSelectedAssignee(client.ltdCompanyAssignedUser?.id || 'unassigned')
+                                    setSelectedAssignee(
+                                      client.currentLtdAccountsWorkflow?.assignedUser?.id || 
+                                      client.ltdCompanyAssignedUser?.id || 
+                                      'unassigned'
+                                    )
                                     setUpdateComments('')
                                     setUpdateModalOpen(true)
                                   }}
