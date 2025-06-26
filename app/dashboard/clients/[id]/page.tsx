@@ -59,6 +59,20 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
           email: true,
         },
       },
+      ltdCompanyAssignedUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      nonLtdCompanyAssignedUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
       vatQuartersWorkflow: {
         orderBy: { quarterEndDate: 'desc' },
         take: 1, // Get the most recent quarter
@@ -104,8 +118,16 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
   }
 
   // Check permissions - staff can only view their assigned clients
-  if (session.user.role === 'STAFF' && client.assignedUserId !== session.user.id) {
-    redirect('/dashboard/clients')
+  if (session.user.role === 'STAFF') {
+    const isAssigned = client.assignedUserId === session.user.id ||
+                      client.vatAssignedUserId === session.user.id ||
+                      client.ltdCompanyAssignedUserId === session.user.id ||
+                      client.nonLtdCompanyAssignedUserId === session.user.id ||
+                      client.vatQuartersWorkflow.some(quarter => quarter.assignedUserId === session.user.id)
+    
+    if (!isAssigned) {
+      redirect('/dashboard/clients')
+    }
   }
 
   return <ClientDetailView client={client} currentUser={session.user} />

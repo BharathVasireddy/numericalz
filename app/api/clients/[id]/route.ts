@@ -40,6 +40,33 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             email: true,
           },
         },
+        vatAssignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        ltdCompanyAssignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        nonLtdCompanyAssignedUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        vatQuartersWorkflow: {
+          where: { isCompleted: false },
+          select: {
+            assignedUserId: true,
+          },
+        },
       },
     })
 
@@ -51,11 +78,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check permissions - staff can only view their assigned clients
-    if (session.user.role === 'STAFF' && client.assignedUserId !== session.user.id) {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden' },
-        { status: 403 }
-      )
+    if (session.user.role === 'STAFF') {
+      const isAssigned = client.assignedUserId === session.user.id ||
+                        client.vatAssignedUserId === session.user.id ||
+                        client.ltdCompanyAssignedUserId === session.user.id ||
+                        client.nonLtdCompanyAssignedUserId === session.user.id ||
+                        client.vatQuartersWorkflow.some(quarter => quarter.assignedUserId === session.user.id)
+      
+      if (!isAssigned) {
+        return NextResponse.json(
+          { success: false, error: 'Forbidden' },
+          { status: 403 }
+        )
+      }
     }
 
     // Fetch chase team users separately if they exist
