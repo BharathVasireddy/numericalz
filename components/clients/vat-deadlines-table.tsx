@@ -70,6 +70,8 @@ import {
 import { VATQuartersHistoryModal } from './vat-quarters-history-modal'
 import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 import { AdvancedFilterModal } from './advanced-filter-modal'
+import { WorkflowSkipWarningDialog } from '@/components/ui/workflow-skip-warning-dialog'
+import { validateStageTransition, getSelectableStages } from '@/lib/workflow-validation'
 
 interface VATQuarter {
   id: string
@@ -134,7 +136,8 @@ interface WorkflowStage {
 
 
 
-const WORKFLOW_STAGES: WorkflowStage[] = [
+// All VAT workflow stages for display purposes
+const ALL_VAT_WORKFLOW_STAGES: WorkflowStage[] = [
   { key: 'WAITING_FOR_QUARTER_END', label: 'Waiting for quarter end', icon: <Calendar className="h-4 w-4" />, color: 'bg-gray-100 text-gray-800' },
   { key: 'PAPERWORK_PENDING_CHASE', label: 'Pending to chase', icon: <Clock className="h-4 w-4" />, color: 'bg-amber-100 text-amber-800' },
   { key: 'PAPERWORK_CHASED', label: 'Paperwork chased', icon: <Phone className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-800' },
@@ -150,6 +153,11 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
   { key: 'CLIENT_APPROVED', label: 'Client approved', icon: <CheckCircle className="h-4 w-4" />, color: 'bg-emerald-100 text-emerald-800' },
   { key: 'FILED_TO_HMRC', label: 'Filed to HMRC', icon: <Building className="h-4 w-4" />, color: 'bg-green-100 text-green-800' }
 ]
+
+// User-selectable VAT workflow stages (excluding auto-set stages)
+const WORKFLOW_STAGES = ALL_VAT_WORKFLOW_STAGES.filter(stage => 
+  !['REVIEWED_BY_MANAGER', 'REVIEWED_BY_PARTNER'].includes(stage.key)
+)
 
 // Month configuration for tabs
 const MONTHS = [
@@ -254,6 +262,15 @@ export function VATDeadlinesTable({
   // Advanced filter state
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false)
   const [advancedFilter, setAdvancedFilter] = useState<AdvancedFilter | null>(null)
+  
+  // Workflow skip validation states
+  const [showSkipWarning, setShowSkipWarning] = useState(false)
+  const [pendingStageChange, setPendingStageChange] = useState<{
+    client: VATClient
+    quarter: VATQuarter
+    targetStage: string
+    skippedStages: string[]
+  } | null>(null)
 
   // Get current month for default tab
   const currentMonth = new Date().getMonth() + 1
@@ -785,6 +802,29 @@ export function VATDeadlinesTable({
       return
     }
 
+    // Validate stage transition if there's a stage change
+    if (hasStageChange && selectedStage) {
+      const currentStage = selectedQuarter.currentStage
+      const validation = validateStageTransition(currentStage, selectedStage, 'VAT')
+      
+      if (!validation.isValid) {
+        if (validation.isSkipping) {
+          // Show skip warning dialog
+          setPendingStageChange({
+            client: selectedClient,
+            quarter: selectedQuarter,
+            targetStage: selectedStage,
+            skippedStages: validation.skippedStages
+          })
+          setShowSkipWarning(true)
+          return
+        } else {
+          showToast.error(validation.message)
+          return
+        }
+      }
+    }
+
     // If FILED_TO_HMRC is selected, show confirmation dialog
     if (selectedStage === 'FILED_TO_HMRC') {
       setShowFiledToHMRCConfirm(true)
@@ -824,6 +864,91 @@ export function VATDeadlinesTable({
           stage: selectedStage || selectedQuarter.currentStage,
           assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
           comments: updateComments || (hasAssigneeChange && !hasStageChange ? 'Assignment updated' : '')
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        showToast.success('Update completed successfully')
+        setUpdateModalOpen(false)
+        setSelectedStage(undefined)
+        setSelectedQuarter(null)
+        setUpdateComments('')
+        await fetchVATClients(true)
+      } else {
+        showToast.error(data.error || 'Failed to update workflow')
+      }
+    } catch (error) {
+      console.error('Error updating:', error)
+      showToast.error('Failed to update. Please try again.')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  // Handle skip warning dialog actions
+  const handleSkipWarningClose = () => {
+    setShowSkipWarning(false)
+    setPendingStageChange(null)
+  }
+
+  const handleSkipWarningConfirm = async () => {
+    if (!pendingStageChange) return
+    
+    // Close the skip warning dialog
+    setShowSkipWarning(false)
+    
+    // Proceed with the stage change (bypassing validation)
+    await proceedWithVATStageUpdate()
+    
+    // Clear pending change
+    setPendingStageChange(null)
+  }
+
+  // Extracted function to perform the actual VAT stage update
+  const proceedWithVATStageUpdate = async () => {
+    if (!selectedClient || !selectedQuarter) return
+
+    // If FILED_TO_HMRC is selected, show confirmation dialog
+    if (selectedStage === 'FILED_TO_HMRC') {
+      setShowFiledToHMRCConfirm(true)
+      return
+    }
+
+    setUpdating(true)
+    try {
+      // For calculated quarters (future quarters), we need to create the quarter first
+      let quarterId = selectedQuarter.id
+      
+      if (selectedQuarter.id.startsWith('calculated-')) {
+        // This is a future quarter that doesn't exist yet - create it first
+        const createResponse = await fetch(`/api/clients/${selectedClient.id}/vat-quarters`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quarterPeriod: selectedQuarter.quarterPeriod,
+            quarterStartDate: selectedQuarter.quarterStartDate,
+            quarterEndDate: selectedQuarter.quarterEndDate,
+            filingDueDate: selectedQuarter.filingDueDate
+          })
+        })
+
+        const createData = await createResponse.json()
+        if (!createData.success) {
+          throw new Error(createData.error || 'Failed to create VAT quarter')
+        }
+        
+        quarterId = createData.data.id
+      }
+
+      const response = await fetch(`/api/vat-quarters/${quarterId}/workflow`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage: selectedStage || selectedQuarter.currentStage,
+          assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
+          comments: updateComments || 'Stage updated with skip warning bypass'
         })
       })
 
@@ -2046,6 +2171,20 @@ export function VATDeadlinesTable({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Workflow Skip Warning Dialog */}
+      {pendingStageChange && (
+        <WorkflowSkipWarningDialog
+          isOpen={showSkipWarning}
+          onClose={handleSkipWarningClose}
+          onConfirm={handleSkipWarningConfirm}
+          workflowType="VAT"
+          currentStage={pendingStageChange.quarter.currentStage}
+          targetStage={pendingStageChange.targetStage}
+          skippedStages={pendingStageChange.skippedStages}
+          clientName={pendingStageChange.client.companyName}
+        />
+      )}
 
       {/* Advanced Filter Modal */}
       <AdvancedFilterModal

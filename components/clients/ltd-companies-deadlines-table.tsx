@@ -74,6 +74,8 @@ import {
 import { showToast } from '@/lib/toast'
 import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 import { AdvancedFilterModal } from './advanced-filter-modal'
+import { WorkflowSkipWarningDialog } from '@/components/ui/workflow-skip-warning-dialog'
+import { validateStageTransition, getSelectableStages } from '@/lib/workflow-validation'
 
 
 interface LtdAccountsWorkflow {
@@ -153,21 +155,29 @@ interface WorkflowStage {
 
 
 
-const WORKFLOW_STAGES: WorkflowStage[] = [
+// All workflow stages for display purposes
+const ALL_WORKFLOW_STAGES: WorkflowStage[] = [
   { key: 'WAITING_FOR_YEAR_END', label: 'Waiting for Year End', icon: <Calendar className="h-4 w-4" />, color: 'bg-gray-100 text-gray-800' },
   { key: 'PAPERWORK_PENDING_CHASE', label: 'Pending to Chase Paperwork', icon: <Clock className="h-4 w-4" />, color: 'bg-amber-100 text-amber-800' },
   { key: 'PAPERWORK_CHASED', label: 'Paperwork Chased', icon: <Phone className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-800' },
   { key: 'PAPERWORK_RECEIVED', label: 'Paperwork Received', icon: <FileText className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
   { key: 'WORK_IN_PROGRESS', label: 'Work in Progress', icon: <Briefcase className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
   { key: 'DISCUSS_WITH_MANAGER', label: 'To Discuss with Manager', icon: <MessageSquare className="h-4 w-4" />, color: 'bg-purple-100 text-purple-800' },
+  { key: 'REVIEWED_BY_MANAGER', label: 'Reviewed by Manager', icon: <CheckCircle className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
   { key: 'REVIEW_BY_PARTNER', label: 'To Review by Partner', icon: <Eye className="h-4 w-4" />, color: 'bg-indigo-100 text-indigo-800' },
+  { key: 'REVIEWED_BY_PARTNER', label: 'Reviewed by Partner', icon: <CheckCircle className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
   { key: 'REVIEW_DONE_HELLO_SIGN', label: 'Review Done - Hello Sign to Client', icon: <CheckCircle className="h-4 w-4" />, color: 'bg-emerald-100 text-emerald-800' },
   { key: 'SENT_TO_CLIENT_HELLO_SIGN', label: 'Sent to client on Hello Sign', icon: <Send className="h-4 w-4" />, color: 'bg-cyan-100 text-cyan-800' },
   { key: 'APPROVED_BY_CLIENT', label: 'Approved by Client', icon: <UserCheck className="h-4 w-4" />, color: 'bg-teal-100 text-teal-800' },
   { key: 'SUBMISSION_APPROVED_PARTNER', label: 'Submission Approved by Partner', icon: <CheckCircle className="h-4 w-4" />, color: 'bg-green-100 text-green-800' },
-          { key: 'FILED_TO_COMPANIES_HOUSE', label: 'Filed to Companies House', icon: <Building className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
-        { key: 'FILED_TO_HMRC', label: 'Filed to HMRC', icon: <Building className="h-4 w-4" />, color: 'bg-green-100 text-green-800' }
+  { key: 'FILED_TO_COMPANIES_HOUSE', label: 'Filed to Companies House', icon: <Building className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
+  { key: 'FILED_TO_HMRC', label: 'Filed to HMRC', icon: <Building className="h-4 w-4" />, color: 'bg-green-100 text-green-800' }
 ]
+
+// User-selectable workflow stages (excluding auto-set stages)
+const WORKFLOW_STAGES = ALL_WORKFLOW_STAGES.filter(stage => 
+  !['REVIEWED_BY_MANAGER', 'REVIEWED_BY_PARTNER'].includes(stage.key)
+)
 
 // Filter interfaces to match the main clients page
 interface FilterCondition {
@@ -247,6 +257,14 @@ export function LtdCompaniesDeadlinesTable({
   // Advanced filter state
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false)
   const [advancedFilter, setAdvancedFilter] = useState<AdvancedFilter | null>(null)
+  
+  // Workflow skip validation states
+  const [showSkipWarning, setShowSkipWarning] = useState(false)
+  const [pendingStageChange, setPendingStageChange] = useState<{
+    client: LtdClient
+    targetStage: string
+    skippedStages: string[]
+  } | null>(null)
 
   // Get current month for header stats
   const currentMonth = new Date().getMonth() + 1
@@ -842,6 +860,94 @@ export function LtdCompaniesDeadlinesTable({
       showToast.error('Please select a stage to update or change the assignment')
       return
     }
+
+    // Validate stage transition if there's a stage change
+    if (hasStageChange && selectedStage) {
+      const currentStage = selectedClient?.currentLtdAccountsWorkflow?.currentStage || null
+      const validation = validateStageTransition(currentStage, selectedStage, 'LTD')
+      
+      if (!validation.isValid) {
+        if (validation.isSkipping) {
+          // Show skip warning dialog
+          setPendingStageChange({
+            client: selectedClient,
+            targetStage: selectedStage,
+            skippedStages: validation.skippedStages
+          })
+          setShowSkipWarning(true)
+          return
+        } else {
+          showToast.error(validation.message)
+          return
+        }
+      }
+    }
+
+    // If FILED_TO_COMPANIES_HOUSE is selected, handle Companies House filing
+    if (selectedStage === 'FILED_TO_COMPANIES_HOUSE') {
+      setShowFiledCompaniesHouseConfirm(true)
+      return
+    }
+
+    // If FILED_TO_HMRC is selected, show confirmation dialog
+    if (selectedStage === 'FILED_TO_HMRC') {
+      setShowFiledHMRCConfirm(true)
+      return
+    }
+
+    setUpdating(true)
+    try {
+      const response = await fetch(`/api/clients/ltd-deadlines/${selectedClient.id}/workflow`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage: selectedStage,
+          assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
+          comments: updateComments
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        showToast.success('Workflow updated successfully')
+        setUpdateModalOpen(false)
+        setSelectedStage(undefined)
+        setUpdateComments('')
+        await fetchLtdClients(true)
+      } else {
+        showToast.error(data.error || 'Failed to update workflow')
+      }
+    } catch (error) {
+      console.error('Error updating workflow:', error)
+      showToast.error('Failed to update workflow')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  // Handle skip warning dialog actions
+  const handleSkipWarningClose = () => {
+    setShowSkipWarning(false)
+    setPendingStageChange(null)
+  }
+
+  const handleSkipWarningConfirm = async () => {
+    if (!pendingStageChange) return
+    
+    // Close the skip warning dialog
+    setShowSkipWarning(false)
+    
+    // Proceed with the stage change (bypassing validation)
+    await proceedWithStageUpdate()
+    
+    // Clear pending change
+    setPendingStageChange(null)
+  }
+
+  // Extracted function to perform the actual stage update
+  const proceedWithStageUpdate = async () => {
+    if (!selectedClient) return
 
     // If FILED_TO_COMPANIES_HOUSE is selected, handle Companies House filing
     if (selectedStage === 'FILED_TO_COMPANIES_HOUSE') {
@@ -2252,6 +2358,20 @@ export function LtdCompaniesDeadlinesTable({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Workflow Skip Warning Dialog */}
+      {pendingStageChange && (
+        <WorkflowSkipWarningDialog
+          isOpen={showSkipWarning}
+          onClose={handleSkipWarningClose}
+          onConfirm={handleSkipWarningConfirm}
+          workflowType="LTD"
+          currentStage={pendingStageChange.client.currentLtdAccountsWorkflow?.currentStage || ''}
+          targetStage={pendingStageChange.targetStage}
+          skippedStages={pendingStageChange.skippedStages}
+          clientName={pendingStageChange.client.companyName}
+        />
+      )}
 
       {/* Advanced Filter Modal */}
       <AdvancedFilterModal
