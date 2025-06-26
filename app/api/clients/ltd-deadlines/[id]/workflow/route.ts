@@ -127,7 +127,7 @@ export async function PUT(
       
       if (stage) {
         updateData.currentStage = stage as LtdAccountsWorkflowStage
-        updateData.isCompleted = stage === 'FILED_CH_HMRC'
+        updateData.isCompleted = stage === 'FILED_TO_HMRC'
         
         // Set milestone dates based on stage
         const milestoneField = getMilestoneFieldForStage(stage)
@@ -366,6 +366,16 @@ function getMilestoneFieldForStage(stage: string) {
       dateField: 'partnerApprovedDate',
       userField: 'partnerApprovedByUserId',
       nameField: 'partnerApprovedByUserName'
+    },
+    'FILED_TO_COMPANIES_HOUSE': {
+      dateField: 'filedToCompaniesHouseDate',
+      userField: 'filedToCompaniesHouseByUserId',
+      nameField: 'filedToCompaniesHouseByUserName'
+    },
+    'FILED_TO_HMRC': {
+      dateField: 'filedToHMRCDate',
+      userField: 'filedToHMRCByUserId',
+      nameField: 'filedToHMRCByUserName'
     },
     'FILED_CH_HMRC': {
       dateField: 'filedDate',

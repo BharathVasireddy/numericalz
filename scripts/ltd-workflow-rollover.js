@@ -7,7 +7,7 @@
  * It runs as a scheduled job to check for workflows that need to be rolled over.
  * 
  * Rollover Criteria:
- * 1. Workflow is completed (FILED_CH_HMRC)
+ * 1. Workflow is completed (FILED_TO_HMRC)
  * 2. At least 1 month has passed since filing date
  * 3. Companies House data has been refreshed with new year end dates
  * 4. No existing workflow for the next period
@@ -38,8 +38,8 @@ async function rolloverLtdWorkflows() {
     const eligibleWorkflows = await prisma.ltdAccountsWorkflow.findMany({
       where: {
         isCompleted: true,
-        currentStage: 'FILED_CH_HMRC',
-        filedDate: {
+        currentStage: 'FILED_TO_HMRC',
+        filedToHMRCDate: {
           lte: oneMonthAgo // Filed at least 1 month ago
         }
       },
@@ -166,7 +166,7 @@ async function rolloverLtdWorkflows() {
               userName: 'System Rollover',
               userEmail: 'system@numericalz.com',
               userRole: 'SYSTEM',
-              notes: `Automatic rollover from completed ${currentPeriodEnd.getFullYear()} accounts workflow. Filed on ${workflow.filedDate?.toLocaleDateString('en-GB')}. Waiting for ${nextPeriodEnd.getFullYear()} year end.`
+              notes: `Automatic rollover from completed ${currentPeriodEnd.getFullYear()} accounts workflow. Filed on ${workflow.filedToHMRCDate?.toLocaleDateString('en-GB')}. Waiting for ${nextPeriodEnd.getFullYear()} year end.`
             }
           })
         }

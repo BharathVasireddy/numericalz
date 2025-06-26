@@ -284,7 +284,8 @@ export const workflowNotificationService = {
       'SENT_TO_CLIENT_HELLO_SIGN': 'Sent to client (HelloSign)',
       'APPROVED_BY_CLIENT': 'Approved by client',
       'SUBMISSION_APPROVED_PARTNER': 'Submission approved by partner',
-      'FILED_CH_HMRC': 'Filed to Companies House & HMRC',
+      'FILED_TO_COMPANIES_HOUSE': 'Filed to Companies House',
+  'FILED_CH_HMRC': 'Filed to Companies House & HMRC',
       'CLIENT_SELF_FILING': 'Client self-filing'
     }
     
@@ -315,7 +316,8 @@ export const workflowNotificationService = {
       'SENT_TO_CLIENT_HELLO_SIGN': '📧',
       'APPROVED_BY_CLIENT': '✅',
       'SUBMISSION_APPROVED_PARTNER': '✅',
-      'FILED_CH_HMRC': '🏛️',
+      'FILED_TO_COMPANIES_HOUSE': '🏢',
+  'FILED_CH_HMRC': '🏛️',
       'CLIENT_SELF_FILING': '👤'
     }
     
@@ -341,7 +343,7 @@ export const workflowNotificationService = {
       'WORK_IN_PROGRESS', 'DISCUSS_WITH_MANAGER', 'REVIEWED_BY_MANAGER',
       'REVIEW_BY_PARTNER', 'REVIEWED_BY_PARTNER', 'REVIEW_DONE_HELLO_SIGN',
       'SENT_TO_CLIENT_HELLO_SIGN', 'APPROVED_BY_CLIENT', 'SUBMISSION_APPROVED_PARTNER',
-      'FILED_CH_HMRC'
+      'FILED_TO_COMPANIES_HOUSE', 'FILED_TO_HMRC'
     ]
     
     const stageOrder = [...new Set([...vatStageOrder, ...ltdStageOrder])]

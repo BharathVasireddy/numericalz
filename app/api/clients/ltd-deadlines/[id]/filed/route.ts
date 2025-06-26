@@ -59,7 +59,7 @@ export async function PUT(
     const workflow = await db.ltdAccountsWorkflow.update({
       where: { id: currentWorkflow.id },
       data: {
-        currentStage: 'FILED_CH_HMRC',
+        currentStage: 'FILED_TO_HMRC',
         isCompleted: true,
         // Set filing milestone data
         filedDate: new Date(),
@@ -76,7 +76,7 @@ export async function PUT(
       data: {
         ltdAccountsWorkflowId: workflow.id,
         fromStage: currentWorkflow.currentStage,
-        toStage: 'FILED_CH_HMRC',
+        toStage: 'FILED_TO_HMRC',
         stageChangedAt: new Date(),
         userId: session.user.id,
         userName: session.user.name || session.user.email || 'Unknown',

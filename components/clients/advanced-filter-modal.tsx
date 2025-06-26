@@ -97,7 +97,8 @@ const LTD_FILTER_FIELDS = [
     { value: 'SENT_TO_CLIENT', label: 'Sent to client' },
     { value: 'CLIENT_APPROVED', label: 'Client approved' },
     { value: 'PARTNER_APPROVED', label: 'Partner approved' },
-    { value: 'FILED_CH_HMRC', label: 'Filed to CH & HMRC' }
+            { value: 'FILED_TO_COMPANIES_HOUSE', label: 'Filed to Companies House' },
+        { value: 'FILED_TO_HMRC', label: 'Filed to HMRC' }
   ]},
   { value: 'isCompleted', label: 'Workflow Completed', type: 'boolean' },
   { value: 'createdAt', label: 'Client Created Date', type: 'date' }

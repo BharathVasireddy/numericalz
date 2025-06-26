@@ -411,12 +411,18 @@ model LtdAccountsWorkflow {
   partnerApprovedDate         DateTime?
   partnerApprovedByUserId     String?
   partnerApprovedByUserName   String?
-  filedDate                   DateTime?
-  filedByUserId               String?
-  filedByUserName             String?
-  clientSelfFilingDate        DateTime?
-  clientSelfFilingByUserId    String?
-  clientSelfFilingByUserName  String?
+  filedDate                       DateTime?
+  filedByUserId                   String?
+  filedByUserName                 String?
+  filedToCompaniesHouseDate       DateTime?
+  filedToCompaniesHouseByUserId   String?
+  filedToCompaniesHouseByUserName String?
+  filedToHMRCDate                 DateTime?
+  filedToHMRCByUserId             String?
+  filedToHMRCByUserName           String?
+  clientSelfFilingDate            DateTime?
+  clientSelfFilingByUserId        String?
+  clientSelfFilingByUserName      String?
   workflowHistory             LtdAccountsWorkflowHistory[]
   assignedUser                User?                        @relation(fields: [assignedUserId], references: [id])
   client                      Client                       @relation(fields: [clientId], references: [id])
@@ -510,7 +516,8 @@ enum LtdAccountsWorkflowStage {
   SENT_TO_CLIENT_HELLO_SIGN
   APPROVED_BY_CLIENT
   SUBMISSION_APPROVED_PARTNER
-  FILED_CH_HMRC
+  FILED_TO_COMPANIES_HOUSE
+  FILED_TO_HMRC
   CLIENT_SELF_FILING
   REVIEWED_BY_MANAGER
   REVIEWED_BY_PARTNER

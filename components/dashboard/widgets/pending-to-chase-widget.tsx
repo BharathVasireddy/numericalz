@@ -51,7 +51,8 @@ const LTD_WORKFLOW_STAGES = [
   { key: 'SENT_TO_CLIENT_HELLO_SIGN', label: 'Sent to client (HelloSign)', icon: <ArrowRight className="h-4 w-4" />, color: 'bg-lime-100 text-lime-800' },
   { key: 'APPROVED_BY_CLIENT', label: 'Approved by client', icon: <User className="h-4 w-4" />, color: 'bg-emerald-100 text-emerald-800' },
   { key: 'SUBMISSION_APPROVED_PARTNER', label: 'Submission approved by partner', icon: <User className="h-4 w-4" />, color: 'bg-violet-100 text-violet-800' },
-  { key: 'FILED_CH_HMRC', label: 'Filed (Companies House & HMRC)', icon: <Building className="h-4 w-4" />, color: 'bg-green-100 text-green-800' }
+        { key: 'FILED_TO_COMPANIES_HOUSE', label: 'Filed to Companies House', icon: <Building className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },
+      { key: 'FILED_TO_HMRC', label: 'Filed to HMRC', icon: <Building className="h-4 w-4" />, color: 'bg-green-100 text-green-800' }
 ]
 
 interface PendingToChaseClient {

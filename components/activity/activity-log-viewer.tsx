@@ -228,7 +228,9 @@ export function ActivityLogViewer({
         'SENT_TO_CLIENT_HELLO_SIGN': 'Sent To Client (HelloSign)',
         'APPROVED_BY_CLIENT': 'Approved By Client',
         'SUBMISSION_APPROVED_PARTNER': 'Submission Approved By Partner',
-        'FILED_CH_HMRC': 'Filed (Companies House & HMRC)',
+        'FILED_TO_COMPANIES_HOUSE': 'Filed to Companies House',
+    'FILED_TO_HMRC': 'Filed to HMRC',
+    'FILED_CH_HMRC': 'Filed (Companies House & HMRC)',
         'CLIENT_SELF_FILING': 'Client Self Filing',
         'AWAITING_RECORDS': 'Awaiting Records',
         'RECORDS_RECEIVED': 'Records Received',
@@ -236,7 +238,6 @@ export function ActivityLogViewer({
         'WORK_FINISHED': 'Work Finished',
         'SENT_TO_CLIENT': 'Sent To Client',
         'CLIENT_APPROVED': 'Client Approved',
-        'FILED_TO_HMRC': 'Filed To HMRC',
         'CLIENT_BOOKKEEPING': 'Client To Do Bookkeeping',
         'WAITING_FOR_QUARTER_END': 'Waiting For Quarter End'
       }
