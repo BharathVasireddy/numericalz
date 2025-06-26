@@ -13,6 +13,11 @@ export interface ClientYearEndData {
   nextYearEnd?: string | Date | null  // Companies House official year end date (next_made_up_to)
 }
 
+interface CompaniesHouseDate {
+  day: string
+  month: string
+}
+
 /**
  * Calculate the correct year end date based on UK accounting rules
  * 
