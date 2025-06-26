@@ -20,7 +20,7 @@ import {
   TrendingUp
 } from 'lucide-react'
 import { VAT_WORKFLOW_STAGE_NAMES, formatQuarterPeriodForDisplay } from '@/lib/vat-workflow'
-import { getYearEndForForm } from '@/lib/year-end-utils'
+
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -109,14 +109,16 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
     }
   }
 
-  // Use centralized year end formatting
-  const formatYearEndDate = (accountingRefDate: string | null) => {
-    return getYearEndForForm({
-      accountingReferenceDate: accountingRefDate,
-      lastAccountsMadeUpTo: client.lastAccountsMadeUpTo,
-      incorporationDate: client.incorporationDate,
-      nextAccountsDue: client.nextAccountsDue
-    })
+  // Use direct Companies House year end date (no calculation needed)
+  const formatYearEndDate = () => {
+    if (client.nextYearEnd) {
+      return new Date(client.nextYearEnd).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    }
+    return 'Not set'
   }
 
   const isDateOverdue = (dateString: string | null) => {
@@ -273,7 +275,7 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                   <div>
                     <p className="text-xs text-muted-foreground">Year End</p>
                     <p className="text-sm font-medium">
-                      {formatYearEndDate(client.accountingReferenceDate)}
+                      {formatYearEndDate()}
                     </p>
                   </div>
                   <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -408,7 +410,7 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Year End:</span>
                       <span className="text-sm font-medium">
-                        {formatYearEndDate(client.accountingReferenceDate)}
+                        {formatYearEndDate()}
                       </span>
                     </div>
 

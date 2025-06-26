@@ -66,6 +66,7 @@ interface Client {
   nextCorporationTaxDue: string | null
   accountingReferenceDate: string | null
   lastAccountsMadeUpTo: string | null
+  nextYearEnd: string | null  // Companies House official year end date
   assignedUser?: {
     id: string
     name: string
@@ -282,65 +283,15 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
     })
   }
 
-  const getYearEnd = (accountingRefDate: string | null, lastAccountsMadeUpTo: string | null) => {
-    // If we have last accounts made up to date, calculate next year end from that
-    if (lastAccountsMadeUpTo) {
-      try {
-        const lastAccountsDate = new Date(lastAccountsMadeUpTo)
-        if (!isNaN(lastAccountsDate.getTime())) {
-          // Next year end is one year after last accounts made up to
-          const nextYearEnd = new Date(lastAccountsDate)
-          nextYearEnd.setFullYear(nextYearEnd.getFullYear() + 1)
-          
-          return nextYearEnd.toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-          })
-        }
-      } catch (e) {
-        // Fall through to accounting reference date calculation
-      }
+  const getYearEnd = (client: any) => {
+    if (client.nextYearEnd) {
+      return new Date(client.nextYearEnd).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
     }
-    
-    // Fallback to accounting reference date calculation if no last accounts
-    if (!accountingRefDate) return '-'
-    try {
-      const parsed = JSON.parse(accountingRefDate)
-      if (parsed.day && parsed.month) {
-        // Companies House provides day/month only for accounting reference date
-        // We need to calculate the next year end based on current date
-        const today = new Date()
-        const currentYear = today.getFullYear()
-        
-        // Create this year's year end date
-        const thisYearEnd = new Date(currentYear, parsed.month - 1, parsed.day)
-        
-        // If this year's year end has passed, next year end is next year
-        // If this year's year end hasn't passed, next year end is this year
-        const nextYearEnd = thisYearEnd <= today 
-          ? new Date(currentYear + 1, parsed.month - 1, parsed.day)
-          : thisYearEnd
-        
-        // Return the next year end date in full format
-        return nextYearEnd.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric'
-        })
-      }
-    } catch (e) {
-      // Fallback for invalid JSON - treat as date string
-      const date = new Date(accountingRefDate)
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-GB', { 
-          day: '2-digit', 
-          month: '2-digit',
-          year: 'numeric'
-        })
-      }
-    }
-    return '-'
+    return '—'
   }
 
 
@@ -505,7 +456,7 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
                   </td>
                   <td className="table-body-cell">
                     <span className="text-xs font-mono">
-                      {getYearEnd(client.accountingReferenceDate, client.lastAccountsMadeUpTo)}
+                      {getYearEnd(client)}
                     </span>
                   </td>
                   <td className="table-body-cell">
@@ -673,7 +624,7 @@ export function LegacyClientsTable({ searchQuery, filters }: LegacyClientsTableP
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Year End:</span>
-                    <span>{getYearEnd(client.accountingReferenceDate, client.lastAccountsMadeUpTo)}</span>
+                    <span>{getYearEnd(client)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Accounts Due:</span>

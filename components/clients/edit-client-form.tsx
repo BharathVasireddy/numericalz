@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { showToast } from '@/lib/toast'
 import { ArrowLeft, Save, RefreshCw, AlertTriangle, Clock, CheckCircle, Calculator, Users, Crown, Shield, User } from 'lucide-react'
-import { getYearEndForForm, calculateYearEnd, calculateCorporationTaxDue, formatCorporationTaxDue } from '@/lib/year-end-utils'
+import { calculateCorporationTaxDue, formatCorporationTaxDue } from '@/lib/year-end-utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -158,12 +158,15 @@ export function EditClientForm({ client }: EditClientFormProps) {
   }
 
   // Use centralized year end calculation
-  const getYearEnd = (accountingRefDate: string | null, lastAccountsMadeUpTo: string | null) => {
-    return getYearEndForForm({
-      accountingReferenceDate: accountingRefDate,
-      lastAccountsMadeUpTo: lastAccountsMadeUpTo,
-      incorporationDate: client.incorporationDate
-    })
+  const getYearEnd = () => {
+    if (client.nextYearEnd) {
+      return new Date(client.nextYearEnd).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    }
+    return 'Not set'
   }
 
   // Use centralized CT calculation
@@ -267,6 +270,23 @@ export function EditClientForm({ client }: EditClientFormProps) {
 
   // 🎯 Calculate CT due date using centralized utility
   const handleCalculateCTDue = () => {
+    // Use Companies House year end directly if available
+    if (client.nextYearEnd) {
+      const yearEndDate = new Date(client.nextYearEnd)
+      const ctDueDate = new Date(yearEndDate)
+      ctDueDate.setFullYear(ctDueDate.getFullYear() + 1) // CT due 12 months after year end
+      
+      const isoString = ctDueDate.toISOString()
+      const formattedDate = isoString.substring(0, 10)
+      handleInputChange('nextCorporationTaxDue', formattedDate)
+      
+      showToast.success(
+        `CT due date calculated: ${ctDueDate.toLocaleDateString('en-GB')} (12 months after year end ${yearEndDate.toLocaleDateString('en-GB')})`
+      )
+      return
+    }
+    
+    // Fallback to calculation if Companies House data not available
     const clientData = {
       accountingReferenceDate: client.accountingReferenceDate,
       lastAccountsMadeUpTo: client.lastAccountsMadeUpTo,
@@ -284,15 +304,7 @@ export function EditClientForm({ client }: EditClientFormProps) {
     const formattedDate = isoString.substring(0, 10)
     handleInputChange('nextCorporationTaxDue', formattedDate)
     
-    // Show success message with calculated dates
-    const yearEnd = calculateYearEnd(clientData)
-    if (yearEnd) {
-      showToast.success(
-        `CT due date calculated: ${ctDue.toLocaleDateString('en-GB')} (12 months after year end ${yearEnd.toLocaleDateString('en-GB')})`
-      )
-    } else {
-      showToast.success(`CT due date calculated: ${ctDue.toLocaleDateString('en-GB')}`)
-    }
+    showToast.success(`CT due date calculated: ${ctDue.toLocaleDateString('en-GB')}`)
   }
 
   return (
@@ -429,7 +441,7 @@ export function EditClientForm({ client }: EditClientFormProps) {
                       <Label>Year End</Label>
                       <div className="flex items-center gap-2">
                         <Input
-                          value={getYearEnd(client.accountingReferenceDate, client.lastAccountsMadeUpTo)}
+                          value={getYearEnd()}
                           readOnly
                           className="input-field bg-muted"
                         />

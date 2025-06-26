@@ -71,7 +71,7 @@ import {
 import { showToast } from '@/lib/toast'
 import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 import { AdvancedFilterModal } from './advanced-filter-modal'
-import { getYearEndForTable } from '@/lib/year-end-utils'
+
 
 interface LtdAccountsWorkflow {
   id: string
@@ -453,30 +453,17 @@ export function LtdCompaniesDeadlinesTable({
     })
   }
 
-  // Use centralized year end calculation with Companies House priority
+  // Use direct Companies House year end date (next_made_up_to)
   const getYearEndFromAccountingRef = (client: LtdClient) => {
-    // Priority 1: Use Companies House official year end date if available
     if (client.nextYearEnd) {
-      try {
-        const yearEndDate = new Date(client.nextYearEnd)
-        if (!isNaN(yearEndDate.getTime())) {
-          return yearEndDate.toLocaleDateString('en-GB', { 
-            day: '2-digit', 
-            month: 'short',
-            year: 'numeric'
-          })
-        }
-      } catch (e) {
-        console.warn('Error parsing Companies House year end date:', e)
-      }
+      return new Date(client.nextYearEnd).toLocaleDateString('en-GB', { 
+        day: '2-digit', 
+        month: 'short',
+        year: 'numeric'
+      })
     }
-    
-    // Priority 2: Fall back to calculation using year-end-utils
-    return getYearEndForTable({
-      accountingReferenceDate: client.accountingReferenceDate,
-      lastAccountsMadeUpTo: client.lastAccountsMadeUpTo,
-      incorporationDate: client.incorporationDate
-    })
+    // This should never happen as Companies House always provides next_made_up_to
+    return 'Not available'
   }
 
   const getDaysUntilDue = (dueDateString?: string) => {
