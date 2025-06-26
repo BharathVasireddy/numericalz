@@ -74,9 +74,10 @@ export async function POST(
       try {
         console.log(`Fetching fresh Companies House data for ${workflow.client.companyNumber}`)
         
-        // Define these outside the if block so they're available in all scenarios
-        const currentYearEnd = new Date(workflow.filingPeriodEnd)
-        const currentAccountsDue = new Date(workflow.accountsDueDate)
+        // 🎯 CRITICAL FIX: Use client's current Companies House dates, not workflow dates
+        // The table shows client.nextYearEnd/nextAccountsDue, so comparison should match
+        const currentYearEnd = workflow.client.nextYearEnd ? new Date(workflow.client.nextYearEnd) : new Date(workflow.filingPeriodEnd)
+        const currentAccountsDue = workflow.client.nextAccountsDue ? new Date(workflow.client.nextAccountsDue) : new Date(workflow.accountsDueDate)
         
         freshCompaniesHouseData = await getCompanyDetails(workflow.client.companyNumber)
         
@@ -259,8 +260,8 @@ export async function POST(
           message: 'Failed to fetch Companies House data. Please verify the filing status manually.',
           canProceed: true, // Allow progression but with warning
           currentData: {
-            yearEnd: new Date(workflow.filingPeriodEnd).toLocaleDateString('en-GB'),
-            accountsDue: new Date(workflow.accountsDueDate).toLocaleDateString('en-GB')
+            yearEnd: (workflow.client.nextYearEnd ? new Date(workflow.client.nextYearEnd) : new Date(workflow.filingPeriodEnd)).toLocaleDateString('en-GB'),
+            accountsDue: (workflow.client.nextAccountsDue ? new Date(workflow.client.nextAccountsDue) : new Date(workflow.accountsDueDate)).toLocaleDateString('en-GB')
           },
           companiesHouseData: {
             yearEnd: 'Error fetching data',

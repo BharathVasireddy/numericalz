@@ -2163,8 +2163,8 @@ export function LtdCompaniesDeadlinesTable({
                       </div>
                       <div className="grid grid-cols-4 text-xs font-medium border-b bg-gray-50">
                         <div className="p-2 border-r">Field</div>
-                        <div className="p-2 border-r">Current Workflow</div>
-                        <div className="p-2 border-r">Companies House</div>
+                        <div className="p-2 border-r">Current Client Data</div>
+                        <div className="p-2 border-r">Fresh Companies House</div>
                         <div className="p-2">Direction</div>
                       </div>
                       <div className="grid grid-cols-4 text-xs border-b">
