@@ -321,28 +321,27 @@ export async function PUT(
     }
 
     // 📧 Send workflow stage change notifications
-    try {
-      await workflowNotificationService.sendStageChangeNotifications({
-        clientId: updatedVatQuarter.clientId,
-        clientName: updatedVatQuarter.client.companyName,
-        clientCode: vatQuarter.client.clientCode || `Client-${updatedVatQuarter.clientId.slice(0, 8)}`,
-        workflowType: 'VAT',
-        fromStage: currentHistory?.toStage || null,
-        toStage: stage,
-        changedBy: {
-          id: session.user.id,
-          name: session.user.name || session.user.email || 'Unknown',
-          email: session.user.email || '',
-          role: session.user.role || 'USER'
-        },
-        assignedUserId: finalAssigneeId,
-        comments,
-        quarterPeriod: updatedVatQuarter.quarterPeriod
-      })
-    } catch (notificationError) {
+    // Run notifications asynchronously to not block the response
+    workflowNotificationService.sendStageChangeNotifications({
+      clientId: updatedVatQuarter.clientId,
+      clientName: updatedVatQuarter.client.companyName,
+      clientCode: vatQuarter.client.clientCode || `Client-${updatedVatQuarter.clientId.slice(0, 8)}`,
+      workflowType: 'VAT',
+      fromStage: currentHistory?.toStage || null,
+      toStage: stage,
+      changedBy: {
+        id: session.user.id,
+        name: session.user.name || session.user.email || 'Unknown',
+        email: session.user.email || '',
+        role: session.user.role || 'USER'
+      },
+      assignedUserId: finalAssigneeId,
+      comments,
+      quarterPeriod: updatedVatQuarter.quarterPeriod
+    }).catch(notificationError => {
       console.error('❌ Failed to send workflow notifications:', notificationError)
       // Don't fail the main request if notifications fail
-    }
+    })
 
     return NextResponse.json({
       success: true,

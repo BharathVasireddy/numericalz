@@ -180,18 +180,8 @@ export async function PUT(
       })
     }
 
-    // Log comprehensive activity
+    // Log comprehensive activity (single consolidated log)
     if (stage) {
-      await logActivityEnhanced(request, ActivityHelpers.workflowStageChanged(
-        'LTD',
-        clientId,
-        currentWorkflow?.currentStage || 'NOT_STARTED',
-        stage,
-        comments,
-        `${workflow.filingPeriodEnd.getFullYear()} accounts`
-      ))
-      
-      // Also log with client details for better display
       await logActivityEnhanced(request, {
         action: 'LTD_WORKFLOW_STAGE_CHANGED',
         clientId,
@@ -208,7 +198,8 @@ export async function PUT(
       })
     }
 
-    if (assignedUserId !== undefined) {
+    // Only log assignment changes if there was an actual change
+    if (assignedUserId !== undefined && assignedUserId !== client.ltdCompanyAssignedUserId) {
       // Get the updated client data with the new assignment
       const updatedClient = await db.client.findUnique({
         where: { id: clientId },
@@ -275,30 +266,30 @@ export async function PUT(
     }
 
     // 📧 Send workflow stage change notifications (only if stage was updated)
+    // Run notifications asynchronously to not block the response
     if (stage) {
-      try {
-        const filingPeriodEnd = workflow.filingPeriodEnd.getFullYear()
-        await workflowNotificationService.sendStageChangeNotifications({
-          clientId,
-          clientName: client.companyName,
-          clientCode: client.clientCode,
-          workflowType: 'ACCOUNTS',
-          fromStage: currentWorkflow?.currentStage || null,
-          toStage: stage,
-          changedBy: {
-            id: session.user.id,
-            name: session.user.name || session.user.email || 'Unknown',
-            email: session.user.email || '',
-            role: session.user.role || 'USER'
-          },
-          assignedUserId: workflow.assignedUserId,
-          comments,
-          filingPeriod: `${filingPeriodEnd}`
-        })
-      } catch (notificationError) {
+      const filingPeriodEnd = workflow.filingPeriodEnd.getFullYear()
+      // Fire and forget - don't await to improve performance
+      workflowNotificationService.sendStageChangeNotifications({
+        clientId,
+        clientName: client.companyName,
+        clientCode: client.clientCode,
+        workflowType: 'ACCOUNTS',
+        fromStage: currentWorkflow?.currentStage || null,
+        toStage: stage,
+        changedBy: {
+          id: session.user.id,
+          name: session.user.name || session.user.email || 'Unknown',
+          email: session.user.email || '',
+          role: session.user.role || 'USER'
+        },
+        assignedUserId: workflow.assignedUserId,
+        comments,
+        filingPeriod: `${filingPeriodEnd}`
+      }).catch(notificationError => {
         console.error('❌ Failed to send workflow notifications:', notificationError)
         // Don't fail the main request if notifications fail
-      }
+      })
     }
 
     return NextResponse.json({ 
