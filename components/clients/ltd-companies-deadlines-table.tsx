@@ -59,6 +59,7 @@ import {
   Phone,
   ArrowUpDown,
   AlertCircle,
+  XCircle,
   Briefcase,
   Eye,
   MessageSquare,
@@ -1949,40 +1950,141 @@ export function LtdCompaniesDeadlinesTable({
             </div>
             
             {companiesHouseWarning && (
-              <div className={`border rounded-lg p-3 ${
-                companiesHouseWarning.type === 'NEW_DATA_AVAILABLE' 
+              <div className={`border rounded-lg p-4 ${
+                companiesHouseWarning.type === 'FORWARD_DATES' 
                   ? 'bg-green-50 border-green-200' 
+                  : companiesHouseWarning.type === 'SAME_DATES'
+                  ? 'bg-red-50 border-red-200'
+                  : companiesHouseWarning.type === 'BACKWARD_DATES'
+                  ? 'bg-orange-50 border-orange-200'
                   : 'bg-amber-50 border-amber-200'
               }`}>
                 <div className="flex items-start gap-2">
-                  {companiesHouseWarning.type === 'NEW_DATA_AVAILABLE' ? (
+                  {companiesHouseWarning.type === 'FORWARD_DATES' ? (
                     <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  ) : companiesHouseWarning.type === 'SAME_DATES' ? (
+                    <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                  ) : companiesHouseWarning.type === 'BACKWARD_DATES' ? (
+                    <XCircle className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
                   ) : (
                     <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
                   )}
-                  <div className="space-y-2">
-                    <p className={`text-sm font-medium ${
-                      companiesHouseWarning.type === 'NEW_DATA_AVAILABLE' 
-                        ? 'text-green-800' 
-                        : 'text-amber-800'
-                    }`}>
-                      {companiesHouseWarning.type === 'NEW_DATA_AVAILABLE' 
-                        ? 'New Data Available!' 
-                        : 'Warning'}
-                    </p>
-                    <p className={`text-xs ${
-                      companiesHouseWarning.type === 'NEW_DATA_AVAILABLE' 
-                        ? 'text-green-700' 
-                        : 'text-amber-700'
-                    }`}>
-                      {companiesHouseWarning.message}
-                    </p>
-                    {companiesHouseWarning.type === 'NEW_DATA_AVAILABLE' && (
-                      <div className="text-xs text-green-700 space-y-1">
-                        <div>Current Year End: {companiesHouseWarning.currentYearEnd}</div>
-                        <div>New Year End: <strong>{companiesHouseWarning.newYearEnd}</strong></div>
-                        <div>Current Accounts Due: {companiesHouseWarning.currentAccountsDue}</div>
-                        <div>New Accounts Due: <strong>{companiesHouseWarning.newAccountsDue}</strong></div>
+                  <div className="space-y-3 flex-1">
+                    <div>
+                      <p className={`text-sm font-medium ${
+                        companiesHouseWarning.type === 'FORWARD_DATES' 
+                          ? 'text-green-800' 
+                          : companiesHouseWarning.type === 'SAME_DATES'
+                          ? 'text-red-800'
+                          : companiesHouseWarning.type === 'BACKWARD_DATES'
+                          ? 'text-orange-800'
+                          : 'text-amber-800'
+                      }`}>
+                        {companiesHouseWarning.type === 'FORWARD_DATES' 
+                          ? '🎉 Filing Successful - New Future Dates Confirmed!' 
+                          : companiesHouseWarning.type === 'SAME_DATES'
+                          ? '❌ Filing Not Reflected - Same Dates'
+                          : companiesHouseWarning.type === 'BACKWARD_DATES'
+                          ? '⚠️ Dates Moving Backward - Check Period'
+                          : '⚠️ Warning'}
+                      </p>
+                      <p className={`text-xs mt-1 ${
+                        companiesHouseWarning.type === 'FORWARD_DATES' 
+                          ? 'text-green-700' 
+                          : companiesHouseWarning.type === 'SAME_DATES'
+                          ? 'text-red-700'
+                          : companiesHouseWarning.type === 'BACKWARD_DATES'
+                          ? 'text-orange-700'
+                          : 'text-amber-700'
+                      }`}>
+                        {companiesHouseWarning.message}
+                      </p>
+                    </div>
+                    
+                    {/* Enhanced Date Comparison Table */}
+                    <div className="bg-white rounded border">
+                      <div className="text-xs font-medium text-center py-2 bg-gray-100 border-b">
+                        📊 Date Comparison Analysis
+                      </div>
+                      <div className="grid grid-cols-4 text-xs font-medium border-b bg-gray-50">
+                        <div className="p-2 border-r">Field</div>
+                        <div className="p-2 border-r">Current Workflow</div>
+                        <div className="p-2 border-r">Companies House</div>
+                        <div className="p-2">Direction</div>
+                      </div>
+                      <div className="grid grid-cols-4 text-xs border-b">
+                        <div className="p-2 border-r font-medium">Year End</div>
+                        <div className="p-2 border-r font-mono">{companiesHouseWarning.currentData.yearEnd}</div>
+                        <div className={`p-2 border-r font-mono ${
+                          companiesHouseWarning.currentData.yearEnd !== companiesHouseWarning.companiesHouseData.yearEnd
+                            ? companiesHouseWarning.type === 'FORWARD_DATES'
+                              ? 'font-bold text-green-700 bg-green-50'
+                              : companiesHouseWarning.type === 'BACKWARD_DATES'
+                              ? 'font-bold text-orange-700 bg-orange-50'
+                              : 'font-bold text-blue-700 bg-blue-50'
+                            : ''
+                        }`}>
+                          {companiesHouseWarning.companiesHouseData.yearEnd}
+                        </div>
+                        <div className="p-2 text-center">
+                          {companiesHouseWarning.currentData.yearEnd !== companiesHouseWarning.companiesHouseData.yearEnd ? (
+                            companiesHouseWarning.type === 'FORWARD_DATES' ? (
+                              <span className="text-green-600 font-bold">📈 Forward</span>
+                            ) : companiesHouseWarning.type === 'BACKWARD_DATES' ? (
+                              <span className="text-orange-600 font-bold">📉 Backward</span>
+                            ) : (
+                              <span className="text-blue-600 font-bold">🔄 Changed</span>
+                            )
+                          ) : (
+                            <span className="text-gray-500">➖ Same</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-4 text-xs">
+                        <div className="p-2 border-r font-medium">Accounts Due</div>
+                        <div className="p-2 border-r font-mono">{companiesHouseWarning.currentData.accountsDue}</div>
+                        <div className={`p-2 border-r font-mono ${
+                          companiesHouseWarning.currentData.accountsDue !== companiesHouseWarning.companiesHouseData.accountsDue
+                            ? companiesHouseWarning.type === 'FORWARD_DATES'
+                              ? 'font-bold text-green-700 bg-green-50'
+                              : companiesHouseWarning.type === 'BACKWARD_DATES'
+                              ? 'font-bold text-orange-700 bg-orange-50'
+                              : 'font-bold text-blue-700 bg-blue-50'
+                            : ''
+                        }`}>
+                          {companiesHouseWarning.companiesHouseData.accountsDue}
+                        </div>
+                        <div className="p-2 text-center">
+                          {companiesHouseWarning.currentData.accountsDue !== companiesHouseWarning.companiesHouseData.accountsDue ? (
+                            companiesHouseWarning.type === 'FORWARD_DATES' ? (
+                              <span className="text-green-600 font-bold">📈 Forward</span>
+                            ) : companiesHouseWarning.type === 'BACKWARD_DATES' ? (
+                              <span className="text-orange-600 font-bold">📉 Backward</span>
+                            ) : (
+                              <span className="text-blue-600 font-bold">🔄 Changed</span>
+                            )
+                          ) : (
+                            <span className="text-gray-500">➖ Same</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Additional context for forward dates */}
+                    {companiesHouseWarning.type === 'FORWARD_DATES' && (
+                      <div className="bg-green-50 border border-green-200 rounded p-2">
+                        <p className="text-xs text-green-700">
+                          <strong>✅ Confirmed:</strong> The dates have moved forward, indicating that Companies House has processed your filing and assigned new deadlines for the next accounting period.
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Additional context for backward dates */}
+                    {companiesHouseWarning.type === 'BACKWARD_DATES' && (
+                      <div className="bg-orange-50 border border-orange-200 rounded p-2">
+                        <p className="text-xs text-orange-700">
+                          <strong>⚠️ Attention:</strong> Companies House shows older dates than your current workflow. This could mean you're looking at data from a previous period, or there may be an issue with the filing.
+                        </p>
                       </div>
                     )}
                   </div>
@@ -2001,11 +2103,18 @@ export function LtdCompaniesDeadlinesTable({
             >
               Cancel
             </Button>
-            {companiesHouseWarning?.type === 'FILING_NOT_REFLECTED' && (
+            {/* Only show proceed button for warnings that allow it */}
+            {companiesHouseWarning && companiesHouseWarning.canProceed && (
               <Button 
                 onClick={() => handleFiledToCompaniesHouse(true)}
                 disabled={updating}
-                className="bg-amber-600 hover:bg-amber-700"
+                className={`${
+                  companiesHouseWarning.type === 'FORWARD_DATES' 
+                    ? 'bg-green-600 hover:bg-green-700' 
+                    : companiesHouseWarning.type === 'DIFFERENT_DATES'
+                    ? 'bg-blue-600 hover:bg-blue-700'
+                    : 'bg-amber-600 hover:bg-amber-700'
+                }`}
               >
                 {updating ? (
                   <>
@@ -2013,24 +2122,50 @@ export function LtdCompaniesDeadlinesTable({
                     Filing...
                   </>
                 ) : (
-                  'Proceed Anyway'
+                  companiesHouseWarning.type === 'FORWARD_DATES' ? (
+                    '🎉 Confirm & Update with New Dates'
+                  ) : companiesHouseWarning.type === 'DIFFERENT_DATES' ? (
+                    'Update & File'
+                  ) : (
+                    'Proceed Anyway'
+                  )
                 )}
               </Button>
             )}
-            <Button 
-              onClick={() => handleFiledToCompaniesHouse()}
-              disabled={updating}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {updating ? (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                  Filing...
-                </>
-              ) : (
-                companiesHouseWarning?.type === 'NEW_DATA_AVAILABLE' ? 'Update & File' : 'Confirm Filing'
-              )}
-            </Button>
+            
+            {/* Show disabled button for scenarios that don't allow proceeding */}
+            {companiesHouseWarning && companiesHouseWarning.canProceed === false && (
+              <Button 
+                disabled={true}
+                className="bg-gray-400 cursor-not-allowed"
+              >
+                {companiesHouseWarning.type === 'SAME_DATES' ? (
+                  'Cannot Proceed - Same Dates'
+                ) : companiesHouseWarning.type === 'BACKWARD_DATES' ? (
+                  'Cannot Proceed - Dates Moving Backward'
+                ) : (
+                  'Cannot Proceed'
+                )}
+              </Button>
+            )}
+            
+            {/* Default confirm button when no warning or for allowed warnings */}
+            {(!companiesHouseWarning || companiesHouseWarning.canProceed !== false) && (
+              <Button 
+                onClick={() => handleFiledToCompaniesHouse()}
+                disabled={updating || (companiesHouseWarning?.type === 'SAME_DATES')}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {updating ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Filing...
+                  </>
+                ) : (
+                  'Confirm Filing'
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

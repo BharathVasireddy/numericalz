@@ -49,10 +49,19 @@ export async function POST(
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404 })
     }
 
-    // Validate current stage
-    if (workflow.currentStage !== 'SUBMISSION_APPROVED_PARTNER') {
+    // Validate current stage - allow filing from SUBMISSION_APPROVED_PARTNER or earlier stages
+    const validStagesForCompaniesHouseFiling = [
+      'SUBMISSION_APPROVED_PARTNER',
+      'APPROVED_BY_CLIENT',
+      'SENT_TO_CLIENT_HELLO_SIGN',
+      'REVIEW_DONE_HELLO_SIGN',
+      'REVIEWED_BY_PARTNER',
+      'REVIEW_BY_PARTNER'
+    ]
+    
+    if (!validStagesForCompaniesHouseFiling.includes(workflow.currentStage)) {
       return NextResponse.json({ 
-        error: 'Invalid workflow stage for Companies House filing' 
+        error: `Cannot file to Companies House from stage: ${workflow.currentStage}. Must be at SUBMISSION_APPROVED_PARTNER or later stage.` 
       }, { status: 400 })
     }
 
@@ -60,20 +69,36 @@ export async function POST(
     let freshCompaniesHouseData = null
 
     // Fetch fresh Companies House data if company number exists
-    if (workflow.client.companyNumber && !ignoreCompaniesHouseWarning) {
+    if (workflow.client.companyNumber) {
       try {
         console.log(`Fetching fresh Companies House data for ${workflow.client.companyNumber}`)
+        
+        // Define these outside the if block so they're available in all scenarios
+        const currentYearEnd = new Date(workflow.filingPeriodEnd)
+        const currentAccountsDue = new Date(workflow.accountsDueDate)
+        
         freshCompaniesHouseData = await getCompanyDetails(workflow.client.companyNumber)
         
         if (freshCompaniesHouseData) {
-          const currentYearEnd = workflow.filingPeriodEnd
-          const currentAccountsDue = workflow.accountsDueDate
           const freshYearEnd = freshCompaniesHouseData.accounts?.next_made_up_to 
             ? new Date(freshCompaniesHouseData.accounts.next_made_up_to)
             : null
           const freshAccountsDue = freshCompaniesHouseData.accounts?.next_due
             ? new Date(freshCompaniesHouseData.accounts.next_due)
             : null
+
+          // Format dates for comparison display
+          const currentYearEndStr = currentYearEnd.toLocaleDateString('en-GB')
+          const currentAccountsDueStr = currentAccountsDue.toLocaleDateString('en-GB')
+          const freshYearEndStr = freshYearEnd?.toLocaleDateString('en-GB') || 'Not available'
+          const freshAccountsDueStr = freshAccountsDue?.toLocaleDateString('en-GB') || 'Not available'
+
+          console.log('Date comparison:', {
+            currentYearEnd: currentYearEndStr,
+            currentAccountsDue: currentAccountsDueStr,
+            freshYearEnd: freshYearEndStr,
+            freshAccountsDue: freshAccountsDueStr
+          })
 
           // Compare dates to check if filing has been processed by Companies House
           const yearEndMatches = freshYearEnd && 
@@ -82,36 +107,140 @@ export async function POST(
           const accountsDueMatches = freshAccountsDue && 
             Math.abs(currentAccountsDue.getTime() - freshAccountsDue.getTime()) < 24 * 60 * 60 * 1000 // Within 1 day
 
+          // Check if dates are moving forward (indicating successful filing)
+          const yearEndMovingForward = freshYearEnd && freshYearEnd.getTime() > currentYearEnd.getTime()
+          const accountsDueMovingForward = freshAccountsDue && freshAccountsDue.getTime() > currentAccountsDue.getTime()
+          const datesMovingForward = yearEndMovingForward && accountsDueMovingForward
+
+          // Check if dates are moving backward (indicating old data or wrong period)
+          const yearEndMovingBackward = freshYearEnd && freshYearEnd.getTime() < currentYearEnd.getTime()
+          const accountsDueMovingBackward = freshAccountsDue && freshAccountsDue.getTime() < currentAccountsDue.getTime()
+          const datesMovingBackward = yearEndMovingBackward || accountsDueMovingBackward
+
+          console.log('Date movement analysis:', {
+            yearEndMovingForward,
+            accountsDueMovingForward,
+            datesMovingForward,
+            yearEndMovingBackward,
+            accountsDueMovingBackward,
+            datesMovingBackward
+          })
+
+          // Always show comparison, but determine the action based on date differences
           if (yearEndMatches && accountsDueMatches) {
             // Companies House still shows the same dates - filing might not be processed yet
             companiesHouseWarning = {
-              type: 'FILING_NOT_REFLECTED',
-              message: 'Companies House data still shows the filing is not done. Do you still want to proceed?',
-              currentYearEnd: currentYearEnd.toLocaleDateString('en-GB'),
-              currentAccountsDue: currentAccountsDue.toLocaleDateString('en-GB'),
-              companiesHouseYearEnd: freshYearEnd?.toLocaleDateString('en-GB'),
-              companiesHouseAccountsDue: freshAccountsDue?.toLocaleDateString('en-GB')
+              type: 'SAME_DATES',
+              message: 'Companies House shows the same dates as your current workflow. This suggests the filing may not have been processed yet, or the accounts are for the same period.',
+              canProceed: false, // Don't allow progression with same dates
+              currentData: {
+                yearEnd: currentYearEndStr,
+                accountsDue: currentAccountsDueStr
+              },
+              companiesHouseData: {
+                yearEnd: freshYearEndStr,
+                accountsDue: freshAccountsDueStr
+              }
             }
-          } else if (freshYearEnd && freshAccountsDue && (!yearEndMatches || !accountsDueMatches)) {
-            // Companies House shows different dates - new data available
+          } else if (datesMovingForward) {
+            // Companies House shows forward-moving dates - successful filing confirmed!
             companiesHouseWarning = {
-              type: 'NEW_DATA_AVAILABLE',
-              message: 'New year end and accounts due date available from Companies House. Would you like to update?',
-              currentYearEnd: currentYearEnd.toLocaleDateString('en-GB'),
-              currentAccountsDue: currentAccountsDue.toLocaleDateString('en-GB'),
-              newYearEnd: freshYearEnd.toLocaleDateString('en-GB'),
-              newAccountsDue: freshAccountsDue.toLocaleDateString('en-GB'),
+              type: 'FORWARD_DATES',
+              message: 'Excellent! Companies House shows new forward dates, confirming successful filing and updated deadlines.',
+              canProceed: true, // Allow progression with forward dates
+              currentData: {
+                yearEnd: currentYearEndStr,
+                accountsDue: currentAccountsDueStr
+              },
+              companiesHouseData: {
+                yearEnd: freshYearEndStr,
+                accountsDue: freshAccountsDueStr
+              },
               updateAction: 'UPDATE_COMPANIES_HOUSE_DATA'
+            }
+          } else if (datesMovingBackward) {
+            // Companies House shows backward-moving dates - likely old data or wrong period
+            companiesHouseWarning = {
+              type: 'BACKWARD_DATES',
+              message: 'Warning: Companies House shows older dates than your current workflow. This may indicate old data or a different accounting period.',
+              canProceed: false, // Don't allow progression with backward dates
+              currentData: {
+                yearEnd: currentYearEndStr,
+                accountsDue: currentAccountsDueStr
+              },
+              companiesHouseData: {
+                yearEnd: freshYearEndStr,
+                accountsDue: freshAccountsDueStr
+              }
+            }
+          } else if (freshYearEnd && freshAccountsDue) {
+            // Companies House shows different dates but unclear direction
+            companiesHouseWarning = {
+              type: 'DIFFERENT_DATES',
+              message: 'Companies House shows different dates. Please verify if this represents successful filing.',
+              canProceed: true, // Allow progression but with caution
+              currentData: {
+                yearEnd: currentYearEndStr,
+                accountsDue: currentAccountsDueStr
+              },
+              companiesHouseData: {
+                yearEnd: freshYearEndStr,
+                accountsDue: freshAccountsDueStr
+              },
+              updateAction: 'UPDATE_COMPANIES_HOUSE_DATA'
+            }
+          } else {
+            // Missing Companies House data
+            companiesHouseWarning = {
+              type: 'MISSING_DATA',
+              message: 'Some Companies House data is missing. Please verify the filing status manually.',
+              canProceed: true, // Allow progression but with warning
+              currentData: {
+                yearEnd: currentYearEndStr,
+                accountsDue: currentAccountsDueStr
+              },
+              companiesHouseData: {
+                yearEnd: freshYearEndStr,
+                accountsDue: freshAccountsDueStr
+              }
+            }
+          }
+        } else {
+          // No Companies House data available
+          companiesHouseWarning = {
+            type: 'NO_DATA',
+            message: 'Unable to fetch Companies House data. Please verify the filing status manually.',
+            canProceed: true, // Allow progression but with warning
+            currentData: {
+              yearEnd: currentYearEnd.toLocaleDateString('en-GB'),
+              accountsDue: currentAccountsDue.toLocaleDateString('en-GB')
+            },
+            companiesHouseData: {
+              yearEnd: 'Not available',
+              accountsDue: 'Not available'
             }
           }
         }
       } catch (error) {
         console.error('Error fetching Companies House data:', error)
-        // Continue without warning if CH API fails
+        // Create warning about API failure
+        companiesHouseWarning = {
+          type: 'API_ERROR',
+          message: 'Failed to fetch Companies House data. Please verify the filing status manually.',
+          canProceed: true, // Allow progression but with warning
+          currentData: {
+            yearEnd: new Date(workflow.filingPeriodEnd).toLocaleDateString('en-GB'),
+            accountsDue: new Date(workflow.accountsDueDate).toLocaleDateString('en-GB')
+          },
+          companiesHouseData: {
+            yearEnd: 'Error fetching data',
+            accountsDue: 'Error fetching data'
+          }
+        }
       }
     }
 
-    // If there's a warning and user hasn't confirmed to ignore it, return the warning
+    // If there's a warning, always return it for user review
     if (companiesHouseWarning && !ignoreCompaniesHouseWarning) {
       return NextResponse.json({
         success: false,
@@ -119,6 +248,15 @@ export async function POST(
         warning: companiesHouseWarning,
         freshData: freshCompaniesHouseData
       })
+    }
+
+    // Check if user is trying to proceed when they shouldn't be able to
+    if (companiesHouseWarning && companiesHouseWarning.canProceed === false && !ignoreCompaniesHouseWarning) {
+      return NextResponse.json({
+        success: false,
+        error: 'Cannot proceed: Companies House shows the same dates. Please ensure the filing has been processed before marking as complete.',
+        warning: companiesHouseWarning
+      }, { status: 400 })
     }
 
     // If user confirmed filing, proceed with the update
