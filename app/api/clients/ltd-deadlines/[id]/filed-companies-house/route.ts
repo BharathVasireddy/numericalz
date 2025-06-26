@@ -39,7 +39,8 @@ export async function POST(
             companyName: true,
             companyNumber: true,
             nextYearEnd: true,
-            nextAccountsDue: true
+            nextAccountsDue: true,
+            nextConfirmationDue: true
           }
         }
       }
@@ -107,32 +108,40 @@ export async function POST(
           const accountsDueMatches = freshAccountsDue && 
             Math.abs(currentAccountsDue.getTime() - freshAccountsDue.getTime()) < 24 * 60 * 60 * 1000 // Within 1 day
 
+          // FIXED LOGIC: Check if Companies House dates match client's official dates
+          // This handles cases where workflow dates are wrong but CH dates are correct
+          const clientYearEnd = workflow.client.nextYearEnd ? new Date(workflow.client.nextYearEnd) : null
+          const clientAccountsDue = workflow.client.nextAccountsDue ? new Date(workflow.client.nextAccountsDue) : null
+          
+          const chMatchesClientYearEnd = freshYearEnd && clientYearEnd && 
+            Math.abs(freshYearEnd.getTime() - clientYearEnd.getTime()) < 24 * 60 * 60 * 1000
+          const chMatchesClientAccountsDue = freshAccountsDue && clientAccountsDue && 
+            Math.abs(freshAccountsDue.getTime() - clientAccountsDue.getTime()) < 24 * 60 * 60 * 1000
+
           // Check if dates are moving forward (indicating successful filing)
           const yearEndMovingForward = freshYearEnd && freshYearEnd.getTime() > currentYearEnd.getTime()
           const accountsDueMovingForward = freshAccountsDue && freshAccountsDue.getTime() > currentAccountsDue.getTime()
           const datesMovingForward = yearEndMovingForward && accountsDueMovingForward
 
-          // Check if dates are moving backward (indicating old data or wrong period)
-          const yearEndMovingBackward = freshYearEnd && freshYearEnd.getTime() < currentYearEnd.getTime()
-          const accountsDueMovingBackward = freshAccountsDue && freshAccountsDue.getTime() < currentAccountsDue.getTime()
-          const datesMovingBackward = yearEndMovingBackward || accountsDueMovingBackward
-
+          // IMPROVED: Check if workflow dates are wrong (future dates when they should be current)
+          const workflowDatesLookWrong = currentYearEnd.getTime() > Date.now() + (365 * 24 * 60 * 60 * 1000) // More than 1 year in future
+          
           console.log('Date movement analysis:', {
             yearEndMovingForward,
             accountsDueMovingForward,
             datesMovingForward,
-            yearEndMovingBackward,
-            accountsDueMovingBackward,
-            datesMovingBackward
+            chMatchesClientYearEnd,
+            chMatchesClientAccountsDue,
+            workflowDatesLookWrong
           })
 
-          // Always show comparison, but determine the action based on date differences
+          // UPDATED LOGIC: Handle different scenarios correctly
           if (yearEndMatches && accountsDueMatches) {
-            // Companies House still shows the same dates - filing might not be processed yet
+            // Companies House shows same dates as workflow - filing NOT completed yet
             companiesHouseWarning = {
               type: 'SAME_DATES',
-              message: 'Companies House shows the same dates as your current workflow. This suggests the filing may not have been processed yet, or the accounts are for the same period.',
-              canProceed: false, // Don't allow progression with same dates
+              message: 'Companies House shows the same dates as your current workflow. This indicates the filing has not been processed yet. Please ensure the filing is completed before marking as filed.',
+              canProceed: false, // Don't allow progression - filing not done
               currentData: {
                 yearEnd: currentYearEndStr,
                 accountsDue: currentAccountsDueStr
@@ -146,8 +155,8 @@ export async function POST(
             // Companies House shows forward-moving dates - successful filing confirmed!
             companiesHouseWarning = {
               type: 'FORWARD_DATES',
-              message: 'Excellent! Companies House shows new forward dates, confirming successful filing and updated deadlines.',
-              canProceed: true, // Allow progression with forward dates
+              message: 'Excellent! Companies House shows new forward dates, confirming successful filing and updated deadlines for the next period.',
+              canProceed: true, // Allow progression - filing completed successfully
               currentData: {
                 yearEnd: currentYearEndStr,
                 accountsDue: currentAccountsDueStr
@@ -158,12 +167,12 @@ export async function POST(
               },
               updateAction: 'UPDATE_COMPANIES_HOUSE_DATA'
             }
-          } else if (datesMovingBackward) {
-            // Companies House shows backward-moving dates - likely old data or wrong period
+          } else if (chMatchesClientYearEnd && chMatchesClientAccountsDue && workflowDatesLookWrong) {
+            // Companies House matches client's official dates, but workflow has wrong future dates
             companiesHouseWarning = {
-              type: 'BACKWARD_DATES',
-              message: 'Warning: Companies House shows older dates than your current workflow. This may indicate old data or a different accounting period.',
-              canProceed: false, // Don't allow progression with backward dates
+              type: 'WORKFLOW_DATES_WRONG',
+              message: 'Companies House shows the current period dates, but your workflow has incorrect future dates. The filing appears not to be completed yet.',
+              canProceed: false, // Don't allow progression - need to fix workflow dates first
               currentData: {
                 yearEnd: currentYearEndStr,
                 accountsDue: currentAccountsDueStr
@@ -171,23 +180,44 @@ export async function POST(
               companiesHouseData: {
                 yearEnd: freshYearEndStr,
                 accountsDue: freshAccountsDueStr
-              }
+              },
+              updateAction: 'FIX_WORKFLOW_DATES'
             }
           } else if (freshYearEnd && freshAccountsDue) {
-            // Companies House shows different dates but unclear direction
-            companiesHouseWarning = {
-              type: 'DIFFERENT_DATES',
-              message: 'Companies House shows different dates. Please verify if this represents successful filing.',
-              canProceed: true, // Allow progression but with caution
-              currentData: {
-                yearEnd: currentYearEndStr,
-                accountsDue: currentAccountsDueStr
-              },
-              companiesHouseData: {
-                yearEnd: freshYearEndStr,
-                accountsDue: freshAccountsDueStr
-              },
-              updateAction: 'UPDATE_COMPANIES_HOUSE_DATA'
+            // Companies House shows different dates - need to verify direction
+            const yearEndMovingBackward = freshYearEnd && freshYearEnd.getTime() < currentYearEnd.getTime()
+            const accountsDueMovingBackward = freshAccountsDue && freshAccountsDue.getTime() < currentAccountsDue.getTime()
+            const datesMovingBackward = yearEndMovingBackward || accountsDueMovingBackward
+
+            if (datesMovingBackward) {
+              companiesHouseWarning = {
+                type: 'BACKWARD_DATES',
+                message: 'Warning: Companies House shows older dates than your current workflow. This may indicate old data or a different accounting period.',
+                canProceed: false, // Don't allow progression with backward dates
+                currentData: {
+                  yearEnd: currentYearEndStr,
+                  accountsDue: currentAccountsDueStr
+                },
+                companiesHouseData: {
+                  yearEnd: freshYearEndStr,
+                  accountsDue: freshAccountsDueStr
+                }
+              }
+            } else {
+              companiesHouseWarning = {
+                type: 'DIFFERENT_DATES',
+                message: 'Companies House shows different dates. Please verify if this represents successful filing.',
+                canProceed: true, // Allow progression but with caution
+                currentData: {
+                  yearEnd: currentYearEndStr,
+                  accountsDue: currentAccountsDueStr
+                },
+                companiesHouseData: {
+                  yearEnd: freshYearEndStr,
+                  accountsDue: freshAccountsDueStr
+                },
+                updateAction: 'UPDATE_COMPANIES_HOUSE_DATA'
+              }
             }
           } else {
             // Missing Companies House data
@@ -261,16 +291,62 @@ export async function POST(
 
     // If user confirmed filing, proceed with the update
     if (confirmFiling) {
+      // If we detected wrong workflow dates, update them to match Companies House
+      let updateData: any = {
+        currentStage: 'FILED_TO_COMPANIES_HOUSE',
+        filedToCompaniesHouseDate: new Date(),
+        filedToCompaniesHouseByUserId: session.user.id,
+        filedToCompaniesHouseByUserName: session.user.name || 'Unknown User',
+        updatedAt: new Date()
+      }
+
+      // Fix workflow dates if they were wrong and we have fresh Companies House data
+      if (companiesHouseWarning?.updateAction === 'FIX_WORKFLOW_DATES' && freshCompaniesHouseData) {
+        const freshYearEnd = freshCompaniesHouseData.accounts?.next_made_up_to 
+          ? new Date(freshCompaniesHouseData.accounts.next_made_up_to)
+          : null
+        const freshAccountsDue = freshCompaniesHouseData.accounts?.next_due
+          ? new Date(freshCompaniesHouseData.accounts.next_due)
+          : null
+
+        if (freshYearEnd && freshAccountsDue) {
+          // Calculate correct period start (year end - 1 year + 1 day)
+          const correctPeriodStart = new Date(freshYearEnd)
+          correctPeriodStart.setFullYear(correctPeriodStart.getFullYear() - 1)
+          correctPeriodStart.setDate(correctPeriodStart.getDate() + 1)
+
+          // Calculate CT due (12 months after year end)
+          const correctCTDue = new Date(freshYearEnd)
+          correctCTDue.setFullYear(correctCTDue.getFullYear() + 1)
+
+          // Calculate CS due (use client's confirmation due date or CT due as fallback)
+          const correctCSDue = workflow.client.nextConfirmationDue 
+            ? new Date(workflow.client.nextConfirmationDue)
+            : new Date(correctCTDue)
+
+          // Update workflow with correct dates
+          updateData = {
+            ...updateData,
+            filingPeriodStart: correctPeriodStart,
+            filingPeriodEnd: freshYearEnd,
+            accountsDueDate: freshAccountsDue,
+            ctDueDate: correctCTDue,
+            csDueDate: correctCSDue
+          }
+
+          console.log('Correcting workflow dates:', {
+            oldPeriodEnd: workflow.filingPeriodEnd,
+            newPeriodEnd: freshYearEnd,
+            oldAccountsDue: workflow.accountsDueDate,
+            newAccountsDue: freshAccountsDue
+          })
+        }
+      }
+
       // Update workflow to FILED_TO_COMPANIES_HOUSE stage
       const updatedWorkflow = await db.ltdAccountsWorkflow.update({
         where: { id: workflowId },
-        data: {
-          currentStage: 'FILED_TO_COMPANIES_HOUSE',
-          filedToCompaniesHouseDate: new Date(),
-          filedToCompaniesHouseByUserId: session.user.id,
-          filedToCompaniesHouseByUserName: session.user.name || 'Unknown User',
-          updatedAt: new Date()
-        }
+        data: updateData
       })
 
       // Create workflow history entry
@@ -285,7 +361,7 @@ export async function POST(
           userEmail: session.user.email || '',
           userRole: session.user.role || 'USER',
           notes: companiesHouseWarning 
-            ? `Filed to Companies House. ${companiesHouseWarning.type === 'FILING_NOT_REFLECTED' ? 'Proceeded despite CH data not reflecting filing.' : 'Proceeded with filing.'}`
+            ? `Filed to Companies House. ${companiesHouseWarning.type === 'WORKFLOW_DATES_WRONG' ? 'Corrected workflow dates to match Companies House data.' : 'Proceeded with filing.'}`
             : 'Filed to Companies House successfully.'
         }
       })
@@ -293,7 +369,9 @@ export async function POST(
       return NextResponse.json({
         success: true,
         workflow: updatedWorkflow,
-        message: 'Workflow updated to Filed to Companies House successfully'
+        message: companiesHouseWarning?.updateAction === 'FIX_WORKFLOW_DATES' 
+          ? 'Workflow updated to Filed to Companies House and dates corrected successfully'
+          : 'Workflow updated to Filed to Companies House successfully'
       })
     }
 

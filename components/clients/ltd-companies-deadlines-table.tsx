@@ -67,7 +67,9 @@ import {
   Edit,
   UserPlus,
   Filter,
-  Undo2
+  Undo2,
+  X,
+  AlertTriangle
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
 import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
@@ -1976,6 +1978,8 @@ export function LtdCompaniesDeadlinesTable({
                           ? 'text-green-800' 
                           : companiesHouseWarning.type === 'SAME_DATES'
                           ? 'text-red-800'
+                          : companiesHouseWarning.type === 'WORKFLOW_DATES_WRONG'
+                          ? 'text-red-800'
                           : companiesHouseWarning.type === 'BACKWARD_DATES'
                           ? 'text-orange-800'
                           : 'text-amber-800'
@@ -1983,7 +1987,9 @@ export function LtdCompaniesDeadlinesTable({
                         {companiesHouseWarning.type === 'FORWARD_DATES' 
                           ? '🎉 Filing Successful - New Future Dates Confirmed!' 
                           : companiesHouseWarning.type === 'SAME_DATES'
-                          ? '❌ Filing Not Reflected - Same Dates'
+                          ? '❌ Filing Not Completed - Same Dates'
+                          : companiesHouseWarning.type === 'WORKFLOW_DATES_WRONG'
+                          ? '❌ Filing Not Completed - Fix Workflow Dates'
                           : companiesHouseWarning.type === 'BACKWARD_DATES'
                           ? '⚠️ Dates Moving Backward - Check Period'
                           : '⚠️ Warning'}
@@ -1992,6 +1998,8 @@ export function LtdCompaniesDeadlinesTable({
                         companiesHouseWarning.type === 'FORWARD_DATES' 
                           ? 'text-green-700' 
                           : companiesHouseWarning.type === 'SAME_DATES'
+                          ? 'text-red-700'
+                          : companiesHouseWarning.type === 'WORKFLOW_DATES_WRONG'
                           ? 'text-red-700'
                           : companiesHouseWarning.type === 'BACKWARD_DATES'
                           ? 'text-orange-700'
@@ -2103,7 +2111,7 @@ export function LtdCompaniesDeadlinesTable({
             >
               Cancel
             </Button>
-            {/* Only show proceed button for warnings that allow it */}
+            {/* Show proceed button only for warnings that allow it */}
             {companiesHouseWarning && companiesHouseWarning.canProceed && (
               <Button 
                 onClick={() => handleFiledToCompaniesHouse(true)}
@@ -2111,8 +2119,6 @@ export function LtdCompaniesDeadlinesTable({
                 className={`${
                   companiesHouseWarning.type === 'FORWARD_DATES' 
                     ? 'bg-green-600 hover:bg-green-700' 
-                    : companiesHouseWarning.type === 'DIFFERENT_DATES'
-                    ? 'bg-blue-600 hover:bg-blue-700'
                     : 'bg-amber-600 hover:bg-amber-700'
                 }`}
               >
@@ -2123,37 +2129,55 @@ export function LtdCompaniesDeadlinesTable({
                   </>
                 ) : (
                   companiesHouseWarning.type === 'FORWARD_DATES' ? (
-                    '🎉 Confirm & Update with New Dates'
-                  ) : companiesHouseWarning.type === 'DIFFERENT_DATES' ? (
-                    'Update & File'
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Confirm Filing Success
+                    </>
                   ) : (
-                    'Proceed Anyway'
+                    <>
+                      <AlertTriangle className="mr-2 h-4 w-4" />
+                      Proceed Despite Warning
+                    </>
                   )
                 )}
               </Button>
             )}
             
-            {/* Show disabled button for scenarios that don't allow proceeding */}
-            {companiesHouseWarning && companiesHouseWarning.canProceed === false && (
+            {/* Show disabled button for cases that don't allow proceeding */}
+            {companiesHouseWarning && !companiesHouseWarning.canProceed && (
               <Button 
                 disabled={true}
                 className="bg-gray-400 cursor-not-allowed"
               >
                 {companiesHouseWarning.type === 'SAME_DATES' ? (
-                  'Cannot Proceed - Same Dates'
+                  <>
+                    <X className="mr-2 h-4 w-4" />
+                    Cannot Proceed - Filing Not Done
+                  </>
+                ) : companiesHouseWarning.type === 'WORKFLOW_DATES_WRONG' ? (
+                  <>
+                    <X className="mr-2 h-4 w-4" />
+                    Cannot Proceed - Fix Workflow First
+                  </>
                 ) : companiesHouseWarning.type === 'BACKWARD_DATES' ? (
-                  'Cannot Proceed - Dates Moving Backward'
+                  <>
+                    <X className="mr-2 h-4 w-4" />
+                    Cannot Proceed - Check Dates
+                  </>
                 ) : (
-                  'Cannot Proceed'
+                  <>
+                    <X className="mr-2 h-4 w-4" />
+                    Cannot Proceed
+                  </>
                 )}
               </Button>
             )}
             
-            {/* Default confirm button when no warning or for allowed warnings */}
-            {(!companiesHouseWarning || companiesHouseWarning.canProceed !== false) && (
+            {/* Default confirm button when no warning */}
+            {!companiesHouseWarning && (
               <Button 
                 onClick={() => handleFiledToCompaniesHouse()}
-                disabled={updating || (companiesHouseWarning?.type === 'SAME_DATES')}
+                disabled={updating}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 {updating ? (
