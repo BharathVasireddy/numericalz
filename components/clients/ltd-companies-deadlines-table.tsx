@@ -577,11 +577,18 @@ export function LtdCompaniesDeadlinesTable({
         icon: <CheckCircle className="h-4 w-4" />
       },
       { 
-        id: 'FILED', 
-        date: workflow.filedDate, 
-        user: workflow.filedByUserName,
-        label: 'Filed to CH & HMRC',
+        id: 'FILED_TO_COMPANIES_HOUSE', 
+        date: workflow.filedToCompaniesHouseDate, 
+        user: workflow.filedToCompaniesHouseByUserName,
+        label: 'Filed to Companies House',
         icon: <Building className="h-4 w-4" />
+      },
+      { 
+        id: 'FILED_TO_HMRC', 
+        date: workflow.filedToHMRCDate, 
+        user: workflow.filedToHMRCByUserName,
+        label: 'Filed to HMRC',
+        icon: <FileText className="h-4 w-4" />
       }
     ]
 
