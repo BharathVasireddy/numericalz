@@ -86,6 +86,7 @@ const LTD_FILTER_FIELDS = [
   { value: 'nextConfirmationDue', label: 'Next Confirmation Due', type: 'date' },
   { value: 'ltdCompanyAssignedUser', label: 'Assigned User', type: 'user' },
   { value: 'workflowStage', label: 'Workflow Stage', type: 'select', options: [
+    { value: 'WAITING_FOR_YEAR_END', label: 'Waiting for year end' },
     { value: 'PAPERWORK_PENDING_CHASE', label: 'Pending to chase' },
     { value: 'PAPERWORK_CHASED', label: 'Paperwork chased' },
     { value: 'PAPERWORK_RECEIVED', label: 'Paperwork received' },

@@ -217,6 +217,7 @@ export function ActivityLogViewer({
       // Handle common stage mappings
       const stageMap: Record<string, string> = {
         'NOT_STARTED': 'Not Started',
+        'WAITING_FOR_YEAR_END': 'Waiting for Year End',
         'PAPERWORK_PENDING_CHASE': 'Paperwork Pending Chase',
         'PAPERWORK_CHASED': 'Paperwork Chased',
         'PAPERWORK_RECEIVED': 'Paperwork Received',

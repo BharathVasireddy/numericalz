@@ -147,6 +147,7 @@ interface WorkflowStage {
 
 
 const WORKFLOW_STAGES: WorkflowStage[] = [
+  { key: 'WAITING_FOR_YEAR_END', label: 'Waiting for Year End', icon: <Calendar className="h-4 w-4" />, color: 'bg-gray-100 text-gray-800' },
   { key: 'PAPERWORK_PENDING_CHASE', label: 'Pending to Chase Paperwork', icon: <Clock className="h-4 w-4" />, color: 'bg-amber-100 text-amber-800' },
   { key: 'PAPERWORK_CHASED', label: 'Paperwork Chased', icon: <Phone className="h-4 w-4" />, color: 'bg-yellow-100 text-yellow-800' },
   { key: 'PAPERWORK_RECEIVED', label: 'Paperwork Received', icon: <FileText className="h-4 w-4" />, color: 'bg-blue-100 text-blue-800' },

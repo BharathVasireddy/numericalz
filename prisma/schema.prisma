@@ -62,7 +62,6 @@ model Client {
   nextAccountsDue                 DateTime?
   lastAccountsMadeUpTo            DateTime?
   accountingReferenceDate         String?
-  nextYearEnd                     DateTime?             // Companies House next_made_up_to (official year end)
   nextConfirmationDue             DateTime?
   lastConfirmationMadeUpTo        DateTime?
   jurisdiction                    String?
@@ -150,6 +149,7 @@ model Client {
   vatScheme                       String?
   workStatus                      String?
   chaseTeamUserIds                String[]              @default([])
+  nextYearEnd                     DateTime?
   activityLogs                    ActivityLog[]
   assignedUser                    User?                 @relation("ClientAssignedUser", fields: [assignedUserId], references: [id])
   ltdCompanyAssignedUser          User?                 @relation("ClientLtdAssignedUser", fields: [ltdCompanyAssignedUserId], references: [id])
@@ -296,15 +296,16 @@ model VerificationToken {
 }
 
 model UserSettings {
-  id                 String   @id @default(cuid())
-  userId             String   @unique
-  defaultAssigneeId  String?
-  emailNotifications Boolean  @default(true)
-  smsNotifications   Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  defaultAssignee    User?    @relation("DefaultAssignee", fields: [defaultAssigneeId], references: [id])
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                           String   @id @default(cuid())
+  userId                       String   @unique
+  defaultAssigneeId            String?
+  emailNotifications           Boolean  @default(true)
+  smsNotifications             Boolean  @default(false)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+  ltdWorkflowAutomationEnabled Boolean  @default(false)
+  defaultAssignee              User?    @relation("DefaultAssignee", fields: [defaultAssigneeId], references: [id])
+  user                         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
 }
@@ -481,7 +482,6 @@ model EmailLog {
 }
 
 enum VATWorkflowStage {
-  WAITING_FOR_QUARTER_END
   PAPERWORK_PENDING_CHASE
   PAPERWORK_CHASED
   PAPERWORK_RECEIVED
@@ -495,9 +495,11 @@ enum VATWorkflowStage {
   FILED_TO_HMRC
   REVIEWED_BY_MANAGER
   REVIEWED_BY_PARTNER
+  WAITING_FOR_QUARTER_END
 }
 
 enum LtdAccountsWorkflowStage {
+  WAITING_FOR_YEAR_END
   PAPERWORK_PENDING_CHASE
   PAPERWORK_CHASED
   PAPERWORK_RECEIVED

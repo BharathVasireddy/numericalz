@@ -70,7 +70,8 @@
     "debug-ct": "node scripts/debug-ct-calculation.js",
     "test-companies": "node scripts/test-companies-calculations.js",
     "test-email": "node scripts/test-email-service.js",
-    "test-brevo": "node scripts/test-brevo-direct.js"
+    "test-brevo": "node scripts/test-brevo-direct.js",
+    "ltd:rollover": "node scripts/ltd-workflow-rollover.js"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",
@@ -110,7 +111,7 @@
     "next": "^14.0.4",
     "next-auth": "^4.24.5",
     "next-themes": "^0.2.1",
-    "node-cron": "^4.1.0",
+    "node-cron": "^4.1.1",
     "nodemailer": "^6.9.7",
     "openai": "^5.6.0",
     "pg": "^8.16.0",
