@@ -421,7 +421,7 @@ export function AddClientWizard() {
           cessationDate: companyData.date_of_cessation ? new Date(companyData.date_of_cessation) : undefined,
           registeredOfficeAddress: companyData.registered_office_address ? JSON.stringify(companyData.registered_office_address) : undefined,
           sicCodes: companyData.sic_codes ? companyData.sic_codes : undefined,
-          // 🎯 CRITICAL: Calculate statutory dates using our centralized logic (NOT Companies House dates)
+          // 🎯 CRITICAL: Use Companies House official dates directly (next_made_up_to for year end, next_due for accounts due)
           ...(() => {
             const clientDataForCalculation = {
               accountingReferenceDate: companyData.accounts?.accounting_reference_date ? JSON.stringify(companyData.accounts.accounting_reference_date) : undefined,
@@ -432,7 +432,9 @@ export function AddClientWizard() {
             return {
               // Use Companies House accounts due date directly (official HMRC deadline)
               nextAccountsDue: companyData.accounts?.next_due ? new Date(companyData.accounts.next_due) : undefined,
-              // Only calculate CT due date (9 months after year end)
+              // 🎯 CRITICAL: Use Companies House year end directly (next_made_up_to)
+              nextYearEnd: companyData.accounts?.next_made_up_to ? new Date(companyData.accounts.next_made_up_to) : undefined,
+              // Only calculate CT due date (12 months after year end)
               nextCorporationTaxDue: calculateCorporationTaxDue(clientDataForCalculation),
             }
           })(),
