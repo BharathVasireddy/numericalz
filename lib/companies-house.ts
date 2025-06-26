@@ -259,7 +259,6 @@ export function transformCompaniesHouseData(
 ) {
   // Only calculate year end and CT due dates - use Companies House data for accounts due
   const clientDataForCalculation = {
-    accountingReferenceDate: chData.accounts?.accounting_reference_date ? JSON.stringify(chData.accounts.accounting_reference_date) : null,
     lastAccountsMadeUpTo: chData.accounts?.last_accounts?.made_up_to ? new Date(chData.accounts.last_accounts.made_up_to) : null,
     incorporationDate: chData.date_of_creation ? new Date(chData.date_of_creation) : null,
     nextMadeUpTo: chData.accounts?.next_made_up_to ? new Date(chData.accounts.next_made_up_to) : null
@@ -285,7 +284,6 @@ export function transformCompaniesHouseData(
     nextCorporationTaxDue: calculatedCTDue,
     // Keep Companies House reference data for future calculations
     lastAccountsMadeUpTo: chData.accounts?.last_accounts?.made_up_to ? new Date(chData.accounts.last_accounts.made_up_to) : null,
-    accountingReferenceDate: chData.accounts?.accounting_reference_date ? JSON.stringify(chData.accounts.accounting_reference_date) : null,
     // Confirmation statements come from Companies House (we don't calculate these)
     nextConfirmationDue: chData.confirmation_statement?.next_due ? new Date(chData.confirmation_statement.next_due) : null,
     lastConfirmationMadeUpTo: chData.confirmation_statement?.last_made_up_to ? new Date(chData.confirmation_statement.last_made_up_to) : null,

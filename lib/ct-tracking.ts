@@ -45,16 +45,15 @@ export function calculateCTDueFromYearEnd(yearEndDate: Date): Date {
 }
 
 /**
- * Calculate CT period dates from last accounts and accounting reference date
+ * Calculate CT period dates from last accounts
  */
 export function calculateCTPeriod(
-  lastAccountsMadeUpTo: Date | null,
-  accountingReferenceDate: string | null
+  lastAccountsMadeUpTo: Date | null
 ): { periodStart: Date | null; periodEnd: Date | null } {
   let periodEnd: Date | null = null
   let periodStart: Date | null = null
 
-  // Try to calculate from last accounts first (most accurate)
+  // Calculate from last accounts (most accurate)
   if (lastAccountsMadeUpTo) {
     periodStart = new Date(lastAccountsMadeUpTo)
     periodStart.setDate(periodStart.getDate() + 1) // Day after last accounts
@@ -63,32 +62,6 @@ export function calculateCTPeriod(
     periodEnd.setFullYear(periodEnd.getFullYear() + 1) // One year later
     
     return { periodStart, periodEnd }
-  }
-
-  // Fallback to accounting reference date
-  if (accountingReferenceDate) {
-    try {
-      const parsed = JSON.parse(accountingReferenceDate)
-      if (parsed.day && parsed.month) {
-        const today = new Date()
-        const currentYear = today.getFullYear()
-        
-        // Calculate current period end
-        periodEnd = new Date(currentYear, parsed.month - 1, parsed.day)
-        if (periodEnd < today) {
-          periodEnd.setFullYear(currentYear + 1)
-        }
-        
-        // Period start is one year before period end
-        periodStart = new Date(periodEnd)
-        periodStart.setFullYear(periodStart.getFullYear() - 1)
-        periodStart.setDate(periodStart.getDate() + 1)
-        
-        return { periodStart, periodEnd }
-      }
-    } catch (e) {
-      console.warn('Error parsing accounting reference date:', e)
-    }
   }
 
   return { periodStart: null, periodEnd: null }
@@ -158,7 +131,7 @@ export function shouldUpdateCTDue(
   }
 
   // Safe to update - calculate new period
-  const { periodStart, periodEnd } = calculateCTPeriod(null, null)
+  const { periodStart, periodEnd } = calculateCTPeriod(null)
   const newCTDue = calculateCTDueFromYearEnd(newYearEnd)
   
   return {

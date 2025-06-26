@@ -248,7 +248,6 @@ export async function POST(request: NextRequest) {
           nextAccountsDue: true,
           nextConfirmationDue: true,
           nextCorporationTaxDue: true,
-          accountingReferenceDate: true,
           lastAccountsMadeUpTo: true,
           isActive: true,
           isVatEnabled: true,

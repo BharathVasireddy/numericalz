@@ -6,26 +6,21 @@
  */
 
 export interface ClientYearEndData {
-  accountingReferenceDate?: string | null  // JSON: {"day":"30","month":"09"} or ISO string
   lastAccountsMadeUpTo?: string | Date | null
   incorporationDate?: string | Date | null
   nextAccountsDue?: string | Date | null
   nextYearEnd?: string | Date | null  // Companies House official year end date (next_made_up_to)
 }
 
-interface CompaniesHouseDate {
-  day: string
-  month: string
-}
+
 
 /**
  * Calculate the correct year end date based on UK accounting rules
  * 
  * Priority order:
- * 1. Use Companies House next_made_up_to if available (official year end)
- * 2. If company has filed accounts before → last accounts + 1 year
- * 3. If first-time filer → calculate first year end after incorporation (6-18 month rule)
- * 4. Fallback → current/next year based on accounting reference date
+ * 1. Use Companies House next_made_up_to if available (official year end) 
+ * 2. Use last accounts made up to date + 1 year (established companies)
+ * 3. Use incorporation date + 12 months (fallback for new companies)
  * 
  * @param clientData - Client data containing relevant dates
  * @returns Date object representing the year end, or null if cannot calculate
@@ -43,76 +38,7 @@ export function calculateYearEnd(clientData: ClientYearEndData): Date | null {
     }
   }
   
-  // Priority 2: Calculate from accounting reference date
-  if (clientData.accountingReferenceDate) {
-    try {
-      // Handle Companies House format: {"day":"30","month":"09"}
-      const parsedDate = typeof clientData.accountingReferenceDate === 'string' 
-        ? JSON.parse(clientData.accountingReferenceDate) 
-        : clientData.accountingReferenceDate
-      
-      if (typeof parsedDate === 'object' && parsedDate && 'day' in parsedDate && 'month' in parsedDate) {
-        const companiesHouseDate = parsedDate as CompaniesHouseDate
-        
-        // Calculate the correct year based on company status (first-time filer vs established)
-        let yearToUse = new Date().getFullYear() // Default fallback
-        
-        if (clientData.lastAccountsMadeUpTo) {
-          // Established company: Use last accounts made up to date + 1 year
-          const lastAccountsDate = new Date(clientData.lastAccountsMadeUpTo)
-          yearToUse = lastAccountsDate.getFullYear() + 1
-        } else if (clientData.incorporationDate) {
-          // First-time filer: Calculate first year end after incorporation
-          const incorpDate = new Date(clientData.incorporationDate)
-          const incorpYear = incorpDate.getFullYear()
-          
-          // Calculate first accounting reference date after incorporation
-          let firstYearEnd = new Date(incorpYear, parseInt(companiesHouseDate.month) - 1, parseInt(companiesHouseDate.day))
-          
-          // UK Rule: First accounting period must be at least 6 months but can be up to 18 months
-          // If the ARD in incorporation year is too close (less than 6 months), use next year
-          const monthsDifference = (firstYearEnd.getTime() - incorpDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
-          
-          if (firstYearEnd <= incorpDate || monthsDifference < 6) {
-            firstYearEnd.setFullYear(incorpYear + 1)
-          }
-          
-          yearToUse = firstYearEnd.getFullYear()
-        } else {
-          // Fallback: use current year or next year based on current date
-          const currentDate = new Date()
-          const currentYearEnd = new Date(currentDate.getFullYear(), parseInt(companiesHouseDate.month) - 1, parseInt(companiesHouseDate.day))
-          
-          // If current year end has passed, use next year
-          if (currentYearEnd < currentDate) {
-            yearToUse = currentDate.getFullYear() + 1
-          } else {
-            yearToUse = currentDate.getFullYear()
-          }
-        }
-        
-        const month = parseInt(companiesHouseDate.month) - 1 // JS months are 0-indexed
-        const day = parseInt(companiesHouseDate.day)
-        const date = new Date(yearToUse, month, day)
-        
-        return isNaN(date.getTime()) ? null : date
-      }
-      
-      // Handle string formats
-      if (typeof clientData.accountingReferenceDate === 'string') {
-        if (clientData.accountingReferenceDate.includes('T')) {
-          const date = new Date(clientData.accountingReferenceDate)
-          return isNaN(date.getTime()) ? null : date
-        }
-        const date = new Date(clientData.accountingReferenceDate)
-        return isNaN(date.getTime()) ? null : date
-      }
-    } catch (error) {
-      console.warn('Error parsing accounting reference date:', error)
-    }
-  }
-  
-  // Priority 3: Use last accounts made up to date
+  // Priority 2: Use last accounts made up to date + 1 year
   if (clientData.lastAccountsMadeUpTo) {
     try {
       const lastAccountsDate = new Date(clientData.lastAccountsMadeUpTo)
@@ -126,7 +52,7 @@ export function calculateYearEnd(clientData: ClientYearEndData): Date | null {
     }
   }
   
-  // Priority 4: Use incorporation date + 12 months
+  // Priority 3: Use incorporation date + 12 months (fallback)
   if (clientData.incorporationDate) {
     try {
       const incorpDate = new Date(clientData.incorporationDate)

@@ -61,7 +61,7 @@ model Client {
   sicCodes                        String?
   nextAccountsDue                 DateTime?
   lastAccountsMadeUpTo            DateTime?
-  accountingReferenceDate         String?
+
   nextConfirmationDue             DateTime?
   lastConfirmationMadeUpTo        DateTime?
   jurisdiction                    String?

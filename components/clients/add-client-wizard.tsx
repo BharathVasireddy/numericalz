@@ -54,6 +54,7 @@ interface CompaniesHouseCompany {
   sic_codes?: string[]
   accounts?: {
     next_due?: string
+    next_made_up_to?: string  // Companies House official year end date
     last_accounts?: {
       made_up_to?: string
     }
@@ -424,7 +425,6 @@ export function AddClientWizard() {
           // 🎯 CRITICAL: Use Companies House official dates directly (next_made_up_to for year end, next_due for accounts due)
           ...(() => {
             const clientDataForCalculation = {
-              accountingReferenceDate: companyData.accounts?.accounting_reference_date ? JSON.stringify(companyData.accounts.accounting_reference_date) : undefined,
               lastAccountsMadeUpTo: companyData.accounts?.last_accounts?.made_up_to ? new Date(companyData.accounts.last_accounts.made_up_to) : undefined,
               incorporationDate: companyData.date_of_creation ? new Date(companyData.date_of_creation) : undefined
             }
@@ -440,7 +440,6 @@ export function AddClientWizard() {
           })(),
           // Keep Companies House reference data for future calculations
           lastAccountsMadeUpTo: companyData.accounts?.last_accounts?.made_up_to ? new Date(companyData.accounts.last_accounts.made_up_to) : undefined,
-          accountingReferenceDate: companyData.accounts?.accounting_reference_date ? JSON.stringify(companyData.accounts.accounting_reference_date) : undefined,
           nextConfirmationDue: companyData.confirmation_statement?.next_due ? new Date(companyData.confirmation_statement.next_due) : undefined,
           lastConfirmationMadeUpTo: companyData.confirmation_statement?.last_made_up_to ? new Date(companyData.confirmation_statement.last_made_up_to) : undefined,
           jurisdiction: companyData.jurisdiction,
@@ -454,15 +453,13 @@ export function AddClientWizard() {
           corporationTaxStatus: 'PENDING',
           corporationTaxPeriodStart: (() => {
             const { periodStart } = calculateCTPeriod(
-              companyData.accounts?.last_accounts?.made_up_to ? new Date(companyData.accounts.last_accounts.made_up_to) : null,
-              companyData.accounts?.accounting_reference_date ? JSON.stringify(companyData.accounts.accounting_reference_date) : null
+              companyData.accounts?.last_accounts?.made_up_to ? new Date(companyData.accounts.last_accounts.made_up_to) : null
             )
             return periodStart
           })(),
           corporationTaxPeriodEnd: (() => {
             const { periodEnd } = calculateCTPeriod(
-              companyData.accounts?.last_accounts?.made_up_to ? new Date(companyData.accounts.last_accounts.made_up_to) : null,
-              companyData.accounts?.accounting_reference_date ? JSON.stringify(companyData.accounts.accounting_reference_date) : null
+              companyData.accounts?.last_accounts?.made_up_to ? new Date(companyData.accounts.last_accounts.made_up_to) : null
             )
             return periodEnd
           })(),

@@ -32,7 +32,6 @@ export async function GET(request: NextRequest) {
             clientCode: true,
             companyName: true,
             chaseTeamUserIds: true,
-            accountingReferenceDate: true,
             lastAccountsMadeUpTo: true,
             incorporationDate: true
           }
@@ -56,7 +55,6 @@ export async function GET(request: NextRequest) {
             clientCode: true,
             companyName: true,
             chaseTeamUserIds: true,
-            accountingReferenceDate: true,
             lastAccountsMadeUpTo: true,
             incorporationDate: true
           }

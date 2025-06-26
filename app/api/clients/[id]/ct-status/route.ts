@@ -52,7 +52,6 @@ export async function PUT(
         ctDueSource: true,
         lastCTStatusUpdate: true,
         ctStatusUpdatedBy: true,
-        accountingReferenceDate: true,
         lastAccountsMadeUpTo: true
       }
     })

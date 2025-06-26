@@ -72,9 +72,7 @@ export async function POST(
       ? new Date(companyData.accounts.last_accounts.made_up_to) 
       : client.lastAccountsMadeUpTo
 
-    const updatedAccountingReferenceDate = companyData.accounts?.accounting_reference_date 
-      ? JSON.stringify(companyData.accounts.accounting_reference_date) 
-      : client.accountingReferenceDate
+
 
     const updatedIncorporationDate = companyData.date_of_creation 
       ? new Date(companyData.date_of_creation) 
@@ -82,7 +80,6 @@ export async function POST(
 
     // Calculate CT due date only - use Companies House data for accounts due date
     const clientDataForCalculation = {
-      accountingReferenceDate: updatedAccountingReferenceDate,
       lastAccountsMadeUpTo: updatedLastAccountsMadeUpTo,
       incorporationDate: updatedIncorporationDate
     }
@@ -108,7 +105,6 @@ export async function POST(
         nextCorporationTaxDue: calculatedCTDue,
         // Keep Companies House reference data for calculations
         lastAccountsMadeUpTo: updatedLastAccountsMadeUpTo,
-        accountingReferenceDate: updatedAccountingReferenceDate,
         // Confirmation statements come from Companies House (we don't calculate these)
         nextConfirmationDue: companyData.confirmation_statement?.next_due ? new Date(companyData.confirmation_statement.next_due) : client.nextConfirmationDue,
         lastConfirmationMadeUpTo: companyData.confirmation_statement?.last_made_up_to ? new Date(companyData.confirmation_statement.last_made_up_to) : client.lastConfirmationMadeUpTo,

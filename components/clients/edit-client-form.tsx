@@ -170,9 +170,8 @@ export function EditClientForm({ client }: EditClientFormProps) {
   }
 
   // Use centralized CT calculation
-  const calculateCTDue = (accountingReferenceDate: string | null, lastAccountsMadeUpTo: string | null) => {
+  const calculateCTDue = (lastAccountsMadeUpTo: string | null) => {
     return formatCorporationTaxDue({
-      accountingReferenceDate: accountingReferenceDate,
       lastAccountsMadeUpTo: lastAccountsMadeUpTo,
       incorporationDate: client.incorporationDate
     })
@@ -288,7 +287,6 @@ export function EditClientForm({ client }: EditClientFormProps) {
     
     // Fallback to calculation if Companies House data not available
     const clientData = {
-      accountingReferenceDate: client.accountingReferenceDate,
       lastAccountsMadeUpTo: client.lastAccountsMadeUpTo,
       incorporationDate: client.incorporationDate
     }
