@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { logActivity } from '@/lib/activity-logger'
+import { AssignmentNotificationService } from '@/lib/assignment-notifications'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -153,6 +154,30 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           message: `${assignmentType} work assigned to ${newAssignee}`
         }
       })
+
+      // 📧 Send enhanced accounts assignment notification email
+      if (isLtdCompany) {
+        // Send Ltd company assignment notification
+        AssignmentNotificationService.sendLtdAssignmentNotification(
+          params.id,
+          userId,
+          {
+            assignedBy: {
+              id: session.user.id,
+              name: session.user.name || session.user.email || 'Unknown',
+              email: session.user.email || '',
+              role: session.user.role || 'USER'
+            },
+            request
+          },
+          previousAssignee !== 'Unassigned' ? previousAssignee : undefined
+        ).catch(emailError => {
+          console.error('❌ Failed to send Ltd assignment notification email:', emailError)
+          // Don't fail the main request if email fails
+        })
+      }
+      // Note: Non-Ltd companies don't have detailed workflow notifications yet
+      // Could be extended in the future if needed
     } else {
       await logActivity({
         userId: session.user.id,

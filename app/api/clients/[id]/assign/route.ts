@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
+import { AssignmentNotificationService } from '@/lib/assignment-notifications'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -95,6 +96,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           assigneeName: updatedClient.assignedUser?.name,
           previousAssignee: currentClient?.assignedUser?.name || 'Unassigned'
         }
+      })
+
+      // 📧 Send enhanced general client assignment notification email
+      AssignmentNotificationService.sendGeneralClientAssignmentNotification(
+        params.id,
+        userId,
+        {
+          assignedBy: {
+            id: session.user.id,
+            name: session.user.name || session.user.email || 'Unknown',
+            email: session.user.email || '',
+            role: session.user.role || 'USER'
+          },
+          request
+        },
+        currentClient?.assignedUser?.name || undefined
+      ).catch(emailError => {
+        console.error('❌ Failed to send general client assignment notification email:', emailError)
+        // Don't fail the main request if email fails
       })
     } else {
       await logActivityEnhanced(request, {

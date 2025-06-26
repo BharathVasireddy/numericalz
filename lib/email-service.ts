@@ -2,8 +2,10 @@
  * Comprehensive Email Service
  * 
  * Handles all email notifications using Brevo (SendinBlue) API
- * Extends the OTP functionality to support workflow notifications, reminders, etc.
+ * Extends the OTP functionality to support workflow notifications, reminders, assignments, etc.
  */
+
+import { EmailTemplates } from './email-templates'
 
 interface EmailConfig {
   apiKey: string
@@ -47,6 +49,51 @@ interface DeadlineReminderParams {
   dueDate: Date
   daysUntilDue: number
   isOverdue: boolean
+}
+
+interface VATAssignmentParams {
+  to: EmailRecipient
+  clientData: {
+    id: string
+    companyName: string
+    companyNumber?: string
+    vatNumber?: string
+    clientCode: string
+  }
+  vatQuarter: {
+    quarterPeriod: string
+    quarterStartDate: string
+    quarterEndDate: string
+    filingDueDate: string
+    currentStage: string
+  }
+  assignedBy: {
+    name: string
+    email: string
+  }
+  previousAssignee?: string
+}
+
+interface LtdAssignmentParams {
+  to: EmailRecipient
+  clientData: {
+    id: string
+    companyName: string
+    companyNumber?: string
+    clientCode: string
+    nextYearEnd?: string
+    nextAccountsDue?: string
+    nextCorporationTaxDue?: string
+  }
+  workflow: {
+    currentStage: string
+    filingPeriod: string
+  }
+  assignedBy: {
+    name: string
+    email: string
+  }
+  previousAssignee?: string
 }
 
 class EmailService {
@@ -297,6 +344,143 @@ class EmailService {
   }
 
   /**
+   * Send VAT assignment notification email
+   */
+  async sendVATAssignmentNotification(params: VATAssignmentParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      // Calculate days until due
+      const filingDueDate = new Date(params.vatQuarter.filingDueDate)
+      const today = new Date()
+      const daysUntilDue = Math.ceil((filingDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+      const isOverdue = daysUntilDue < 0
+
+      // Generate email using enhanced template
+      const emailData = EmailTemplates.generateVATAssignmentEmail({
+        assigneeName: params.to.name,
+        companyName: params.clientData.companyName,
+        companyNumber: params.clientData.companyNumber,
+        vatNumber: params.clientData.vatNumber,
+        clientCode: params.clientData.clientCode,
+        quarterPeriod: params.vatQuarter.quarterPeriod,
+        quarterStartDate: params.vatQuarter.quarterStartDate,
+        quarterEndDate: params.vatQuarter.quarterEndDate,
+        filingDueDate: params.vatQuarter.filingDueDate,
+        daysUntilDue,
+        currentStage: params.vatQuarter.currentStage,
+        assignedBy: params.assignedBy.name,
+        isOverdue,
+        previousAssignee: params.previousAssignee
+      })
+
+      return this.sendEmail({
+        to: [params.to],
+        subject: emailData.subject,
+        htmlContent: emailData.htmlContent
+      })
+    } catch (error) {
+      console.error('Error sending VAT assignment notification:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  }
+
+  /**
+   * Send Ltd Company assignment notification email
+   */
+  async sendLtdAssignmentNotification(params: LtdAssignmentParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      // Calculate days until deadlines
+      const accountsDueDate = params.clientData.nextAccountsDue ? new Date(params.clientData.nextAccountsDue) : new Date()
+      const ctDueDate = params.clientData.nextCorporationTaxDue ? new Date(params.clientData.nextCorporationTaxDue) : new Date()
+      const yearEndDate = params.clientData.nextYearEnd ? new Date(params.clientData.nextYearEnd) : new Date()
+      
+      const today = new Date()
+      const daysUntilAccountsDue = Math.ceil((accountsDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+      const daysUntilCTDue = Math.ceil((ctDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+      
+      const isAccountsOverdue = daysUntilAccountsDue < 0
+      const isCTOverdue = daysUntilCTDue < 0
+
+      // Generate email using enhanced template
+      const emailData = EmailTemplates.generateLtdAssignmentEmail({
+        assigneeName: params.to.name,
+        companyName: params.clientData.companyName,
+        companyNumber: params.clientData.companyNumber,
+        clientCode: params.clientData.clientCode,
+        yearEndDate: yearEndDate.toISOString(),
+        accountsDueDate: accountsDueDate.toISOString(),
+        corporationTaxDueDate: ctDueDate.toISOString(),
+        daysUntilAccountsDue,
+        daysUntilCTDue,
+        currentStage: params.workflow.currentStage,
+        assignedBy: params.assignedBy.name,
+        isAccountsOverdue,
+        isCTOverdue,
+        previousAssignee: params.previousAssignee,
+        filingPeriod: params.workflow.filingPeriod
+      })
+
+      return this.sendEmail({
+        to: [params.to],
+        subject: emailData.subject,
+        htmlContent: emailData.htmlContent
+      })
+    } catch (error) {
+      console.error('Error sending Ltd assignment notification:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  }
+
+  /**
+   * Send enhanced workflow stage change notification
+   */
+  async sendEnhancedWorkflowStageChangeNotification(params: {
+    to: EmailRecipient
+    companyName: string
+    clientCode: string
+    workflowType: 'VAT' | 'ACCOUNTS'
+    fromStage: string
+    toStage: string
+    changedBy: string
+    comments?: string
+    quarterPeriod?: string
+    filingPeriod?: string
+  }): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      // Generate email using enhanced template
+      const emailData = EmailTemplates.generateWorkflowStageChangeEmail({
+        assigneeName: params.to.name,
+        companyName: params.companyName,
+        clientCode: params.clientCode,
+        workflowType: params.workflowType,
+        fromStage: params.fromStage,
+        toStage: params.toStage,
+        changedBy: params.changedBy,
+        comments: params.comments,
+        quarterPeriod: params.quarterPeriod,
+        filingPeriod: params.filingPeriod
+      })
+
+      return this.sendEmail({
+        to: [params.to],
+        subject: emailData.subject,
+        htmlContent: emailData.htmlContent
+      })
+    } catch (error) {
+      console.error('Error sending enhanced workflow stage change notification:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  }
+
+  /**
    * Convert HTML to plain text (basic implementation)
    */
   private htmlToText(html: string): string {
@@ -326,4 +510,10 @@ export const emailService = new EmailService({
 })
 
 // Export types for use in other modules
-export type { WorkflowEmailParams, DeadlineReminderParams, EmailRecipient } 
+export type { 
+  WorkflowEmailParams, 
+  DeadlineReminderParams, 
+  VATAssignmentParams,
+  LtdAssignmentParams,
+  EmailRecipient 
+} 

@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { LtdAccountsWorkflowStage } from '@prisma/client'
 import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
 import { workflowNotificationService } from '@/lib/workflow-notifications'
+import { AssignmentNotificationService } from '@/lib/assignment-notifications'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -233,6 +234,25 @@ export async function PUT(
             previousAssignee: previousAssigneeName,
             filingPeriodEnd: workflow.filingPeriodEnd.toISOString()
           }
+        })
+
+        // 📧 Send enhanced Ltd assignment notification email
+        AssignmentNotificationService.sendLtdAssignmentNotification(
+          clientId,
+          updatedClient.ltdCompanyAssignedUser.id,
+          {
+            assignedBy: {
+              id: session.user.id,
+              name: session.user.name || session.user.email || 'Unknown',
+              email: session.user.email || '',
+              role: session.user.role || 'USER'
+            },
+            request
+          },
+          previousAssigneeName || undefined
+        ).catch(emailError => {
+          console.error('❌ Failed to send Ltd assignment notification email:', emailError)
+          // Don't fail the main request if email fails
         })
       } else {
         // Log unassignment

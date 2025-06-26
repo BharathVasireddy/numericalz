@@ -648,11 +648,10 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3">
                       <div className="flex items-center gap-2 text-red-800 mb-2">
                         <Crown className="h-4 w-4" />
-                        <span className="font-medium">Cannot Delete Partner</span>
+                        <span className="font-medium">Deleting Partner Account</span>
                       </div>
                       <p className="text-sm text-red-700">
-                        Partner accounts cannot be deleted as they have the highest system privileges. 
-                        Please contact system administrator if you need to remove this account.
+                        You are about to delete a partner account. This will remove all their permissions and access to the system.
                       </p>
                     </div>
                   ) : userToDelete?.role === 'MANAGER' && userToDelete._count.assignedClients > 0 ? (
@@ -699,7 +698,6 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                   onClick={handleDeleteUser}
                   disabled={
                     isLoading || 
-                    (userToDelete?.role === 'PARTNER') ||
                     (userToDelete?.role === 'MANAGER' && userToDelete._count.assignedClients > 0)
                   }
                 >

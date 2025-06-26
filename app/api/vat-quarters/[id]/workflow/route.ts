@@ -5,6 +5,7 @@ import { db as prisma } from '@/lib/db'
 import { getNextVATWorkflowStage, VAT_WORKFLOW_STAGE_NAMES, calculateDaysBetween } from '@/lib/vat-workflow'
 import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
 import { workflowNotificationService } from '@/lib/workflow-notifications'
+import { AssignmentNotificationService } from '@/lib/assignment-notifications'
 
 /**
  * Map workflow stages to their corresponding milestone date fields
@@ -280,6 +281,26 @@ export async function PUT(
             quarterEndDate: updatedVatQuarter.quarterEndDate.toISOString(),
             filingDueDate: updatedVatQuarter.filingDueDate.toISOString()
           }
+        })
+
+        // 📧 Send enhanced VAT assignment notification email
+        AssignmentNotificationService.sendVATAssignmentNotification(
+          updatedVatQuarter.clientId,
+          vatQuarterId,
+          finalAssigneeId,
+          {
+            assignedBy: {
+              id: session.user.id,
+              name: session.user.name || session.user.email || 'Unknown',
+              email: session.user.email || '',
+              role: session.user.role || 'USER'
+            },
+            request
+          },
+          previousAssigneeName || undefined
+        ).catch(emailError => {
+          console.error('❌ Failed to send VAT assignment notification email:', emailError)
+          // Don't fail the main request if email fails
         })
       } else {
         // Unassignment
