@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { showToast } from '@/lib/toast'
+import { CTFilingSummary } from './ct-filing-summary'
 import { 
   ArrowLeft, 
   Building2, 
@@ -688,6 +689,27 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Corporation Tax Filing Summary - Only show for Limited Companies */}
+              {client.companyType === 'LIMITED_COMPANY' && (
+                <CTFilingSummary 
+                  client={{
+                    id: client.id,
+                    companyName: client.companyName,
+                    companyNumber: client.companyNumber,
+                    nextYearEnd: client.nextYearEnd,
+                    nextCorporationTaxDue: client.nextCorporationTaxDue,
+                    corporationTaxStatus: client.corporationTaxStatus,
+                    corporationTaxPeriodEnd: client.corporationTaxPeriodEnd,
+                    corporationTaxPeriodStart: client.corporationTaxPeriodStart,
+                    ctDueSource: client.ctDueSource,
+                    lastCTStatusUpdate: client.lastCTStatusUpdate,
+                    ctStatusUpdatedBy: client.ctStatusUpdatedBy,
+                    manualCTDueOverride: client.manualCTDueOverride
+                  }}
+                  onViewFullHistory={() => router.push(`/dashboard/clients/${client.id}/filing-history`)}
+                />
+              )}
 
               {/* Companies House Data - Only show if company number exists */}
               {client.companyNumber && (
