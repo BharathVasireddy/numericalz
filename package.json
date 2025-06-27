@@ -71,7 +71,8 @@
     "test-companies": "node scripts/test-companies-calculations.js",
     "test-email": "node scripts/test-email-service.js",
     "test-brevo": "node scripts/test-brevo-direct.js",
-    "ltd:rollover": "node scripts/ltd-workflow-rollover.js"
+    "ltd:rollover": "node scripts/ltd-workflow-rollover.js",
+    "revert:rjg-dates": "node scripts/revert-rjg-coachworks-dates.js"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",

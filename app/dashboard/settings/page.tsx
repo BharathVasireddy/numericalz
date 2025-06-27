@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
+import { Input } from '@/components/ui/input'
 import { toast } from '@/hooks/use-toast'
-import { Loader2, Save, Settings as SettingsIcon } from 'lucide-react'
+import { Loader2, Save, Settings as SettingsIcon, RotateCcw, TestTube } from 'lucide-react'
 
 interface User {
   id: string
@@ -39,6 +40,10 @@ export default function SettingsPage() {
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  
+  // Testing tools state
+  const [testCompanyNumber, setTestCompanyNumber] = useState('')
+  const [reverting, setReverting] = useState(false)
 
   // Load data when session is available
   useEffect(() => {
@@ -120,6 +125,104 @@ export default function SettingsPage() {
       })
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Revert RJG COACHWORKS LTD to original dates
+  const revertRJGCoachworks = async () => {
+    try {
+      setReverting(true)
+      const response = await fetch('/api/clients/revert-dates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          companyNumber: '14199298',
+          oldDates: {
+            nextYearEnd: '2024-06-30T00:00:00.000Z',
+            nextAccountsDue: '2025-03-31T00:00:00.000Z',
+            nextCorporationTaxDue: '2025-06-30T00:00:00.000Z',
+            accountingReferenceDate: '{"day":"30","month":"06"}'
+          }
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: 'Success',
+          description: `${data.message}`,
+        })
+      } else {
+        throw new Error(data.error || 'Failed to revert dates')
+      }
+    } catch (error) {
+      console.error('Error reverting RJG COACHWORKS dates:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to revert RJG COACHWORKS dates',
+        variant: 'destructive'
+      })
+    } finally {
+      setReverting(false)
+    }
+  }
+
+  // Revert any company dates by company number
+  const revertCompanyDates = async () => {
+    if (!testCompanyNumber.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a company number',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    try {
+      setReverting(true)
+      
+      // You'll need to define the old dates for each company
+      // For now, I'll use generic old dates - you should customize this per company
+      const response = await fetch('/api/clients/revert-dates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          companyNumber: testCompanyNumber,
+          oldDates: {
+            // These are placeholder dates - customize per company as needed
+            nextYearEnd: '2024-06-30T00:00:00.000Z',
+            nextAccountsDue: '2025-03-31T00:00:00.000Z',
+            nextCorporationTaxDue: '2025-06-30T00:00:00.000Z',
+            accountingReferenceDate: '{"day":"30","month":"06"}'
+          }
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: 'Success',
+          description: `${data.message}`,
+        })
+        setTestCompanyNumber('') // Clear the input
+      } else {
+        throw new Error(data.error || 'Failed to revert dates')
+      }
+    } catch (error) {
+      console.error('Error reverting company dates:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to revert company dates',
+        variant: 'destructive'
+      })
+    } finally {
+      setReverting(false)
     }
   }
 
@@ -262,6 +365,75 @@ export default function SettingsPage() {
                     }
                     disabled
                   />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Testing Tools */}
+            <Card className="border-orange-200 bg-orange-50/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TestTube className="h-5 w-5 text-orange-600" />
+                  Testing Tools
+                </CardTitle>
+                <CardDescription>
+                  Development and testing utilities for date management
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* RJG COACHWORKS Quick Revert */}
+                <div className="space-y-2">
+                  <Label>RJG COACHWORKS LTD (14199298)</Label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={revertRJGCoachworks}
+                      disabled={reverting}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      {reverting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-4 w-4" />
+                      )}
+                      Revert to Old Dates
+                    </Button>
+                    <div className="text-sm text-muted-foreground">
+                      Year End: 30 Jun 2024 → Accounts Due: 31 Mar 2025
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* General Company Date Revert */}
+                <div className="space-y-2">
+                  <Label htmlFor="companyNumber">Revert Any Company Dates</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="companyNumber"
+                      placeholder="Enter company number (e.g., 14199298)"
+                      value={testCompanyNumber}
+                      onChange={(e) => setTestCompanyNumber(e.target.value)}
+                      disabled={reverting}
+                    />
+                    <Button
+                      onClick={revertCompanyDates}
+                      disabled={reverting || !testCompanyNumber.trim()}
+                      variant="outline"
+                      className="flex items-center gap-2 shrink-0"
+                    >
+                      {reverting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-4 w-4" />
+                      )}
+                      Revert Dates
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Note:</strong> This uses generic old dates. Customize the API for specific company requirements.
+                  </p>
                 </div>
               </CardContent>
             </Card>
