@@ -142,8 +142,7 @@ export default function SettingsPage() {
           oldDates: {
             nextYearEnd: '2024-06-30T00:00:00.000Z',
             nextAccountsDue: '2025-03-31T00:00:00.000Z',
-            nextCorporationTaxDue: '2025-06-30T00:00:00.000Z',
-            accountingReferenceDate: '{"day":"30","month":"06"}'
+            nextCorporationTaxDue: '2025-06-30T00:00:00.000Z'
           }
         })
       })
@@ -197,8 +196,7 @@ export default function SettingsPage() {
             // These are placeholder dates - customize per company as needed
             nextYearEnd: '2024-06-30T00:00:00.000Z',
             nextAccountsDue: '2025-03-31T00:00:00.000Z',
-            nextCorporationTaxDue: '2025-06-30T00:00:00.000Z',
-            accountingReferenceDate: '{"day":"30","month":"06"}'
+            nextCorporationTaxDue: '2025-06-30T00:00:00.000Z'
           }
         })
       })

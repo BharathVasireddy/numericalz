@@ -60,10 +60,6 @@ export async function POST(request: NextRequest) {
     if (oldDates.lastAccountsMadeUpTo) {
       updateData.lastAccountsMadeUpTo = new Date(oldDates.lastAccountsMadeUpTo)
     }
-    
-    if (oldDates.accountingReferenceDate) {
-      updateData.accountingReferenceDate = oldDates.accountingReferenceDate
-    }
 
     // Update the client
     const updatedClient = await db.client.update({
