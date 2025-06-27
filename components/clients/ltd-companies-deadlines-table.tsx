@@ -1114,15 +1114,25 @@ export function LtdCompaniesDeadlinesTable({
           setRolloverInfo(data.rollover)
           setShowRolloverModal(true)
           
-          showToast.success('🎉 Filing completed! New workflow created for next year and client dates updated.')
+          // 🎯 NEW: Show congratulatory message with CT due date
+          if (data.congratulatory && data.rollover.newCTDueDate) {
+            showToast.success(
+              `🎉 Congratulations! HMRC filing completed!\n\n` +
+              `📅 New Corporation Tax due: ${data.rollover.newCTDueDate.formatted}\n` +
+              `(12 months after year end: ${data.rollover.newCTDueDate.yearEnd})`
+            )
+          } else {
+            showToast.success('🎉 Filing completed! New workflow created for next year and client dates updated.')
+          }
           
           // Log rollover details for debugging
           console.log('🔄 Automatic rollover completed:', {
             newWorkflow: data.rollover.newWorkflow,
-            updatedDates: data.rollover.updatedDates
+            updatedDates: data.rollover.updatedDates,
+            newCTDueDate: data.rollover.newCTDueDate
           })
         } else {
-          showToast.success('🎉 Filing completed! Workflow marked as completed.')
+          showToast.success(data.congratulatory ? '🎉 Congratulations! HMRC filing completed!' : '🎉 Filing completed! Workflow marked as completed.')
         }
         
         setUpdateModalOpen(false)

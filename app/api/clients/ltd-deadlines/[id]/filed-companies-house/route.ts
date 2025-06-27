@@ -38,6 +38,7 @@ export async function POST(
             id: true,
             companyName: true,
             companyNumber: true,
+            clientCode: true, // 🎯 ADDED: Missing clientCode field for email notifications
             nextYearEnd: true,
             nextAccountsDue: true,
             nextConfirmationDue: true
@@ -350,6 +351,47 @@ export async function POST(
         data: updateData
       })
 
+      // 🎯 NEW REQUIREMENT: Roll forward accounts dates immediately after Companies House filing
+      // Use fresh Companies House data to update client's accounts dates
+      console.log('🔄 Rolling forward accounts dates after Companies House filing...')
+      
+      try {
+        if (freshCompaniesHouseData) {
+          const newYearEnd = freshCompaniesHouseData.accounts?.next_made_up_to ? 
+            new Date(freshCompaniesHouseData.accounts.next_made_up_to) : null
+          const newAccountsDue = freshCompaniesHouseData.accounts?.next_due ? 
+            new Date(freshCompaniesHouseData.accounts.next_due) : null
+          const newConfirmationDue = freshCompaniesHouseData.confirmation_statement?.next_due ? 
+            new Date(freshCompaniesHouseData.confirmation_statement.next_due) : null
+
+          console.log('📅 Rolling forward to new Companies House dates:', {
+            yearEnd: newYearEnd?.toISOString().split('T')[0],
+            accountsDue: newAccountsDue?.toISOString().split('T')[0],
+            confirmationDue: newConfirmationDue?.toISOString().split('T')[0]
+          })
+
+          // Update client with new dates (EXCLUDING CT due date - that stays until HMRC filing)
+          await db.client.update({
+            where: { id: workflow.client.id },
+            data: {
+              nextYearEnd: newYearEnd,
+              nextAccountsDue: newAccountsDue,
+              nextConfirmationDue: newConfirmationDue,
+              // 🎯 CRITICAL: nextCorporationTaxDue NOT updated here
+              // CT due date only updated when HMRC filing is completed
+              updatedAt: new Date()
+            }
+          })
+
+          console.log('✅ Client accounts dates rolled forward after Companies House filing')
+        } else {
+          console.log('⚠️ No fresh Companies House data available for rollover')
+        }
+      } catch (rolloverError) {
+        console.error('❌ Error rolling forward dates after Companies House filing:', rolloverError)
+        // Don't fail the main operation, just log the error
+      }
+
       // Create workflow history entry
       await db.ltdAccountsWorkflowHistory.create({
         data: {
@@ -362,10 +404,36 @@ export async function POST(
           userEmail: session.user.email || '',
           userRole: session.user.role || 'USER',
           notes: companiesHouseWarning 
-            ? `Filed to Companies House. ${companiesHouseWarning.type === 'WORKFLOW_DATES_WRONG' ? 'Corrected workflow dates to match Companies House data.' : 'Proceeded with filing.'}`
-            : 'Filed to Companies House successfully.'
+            ? `Filed to Companies House. ${companiesHouseWarning.type === 'WORKFLOW_DATES_WRONG' ? 'Corrected workflow dates to match Companies House data.' : 'Proceeded with filing.'} Accounts dates rolled forward.`
+            : 'Filed to Companies House successfully. Accounts dates rolled forward.'
         }
       })
+
+      // 📧 Send email notifications for Companies House filing
+      try {
+        const workflowNotificationService = await import('@/lib/workflow-notifications')
+        await workflowNotificationService.workflowNotificationService.sendStageChangeNotifications({
+          clientId: workflow.client.id,
+          clientName: workflow.client.companyName,
+          clientCode: workflow.client.clientCode || '',
+          workflowType: 'ACCOUNTS',
+          fromStage: 'SUBMISSION_APPROVED_PARTNER',
+          toStage: 'FILED_TO_COMPANIES_HOUSE',
+          changedBy: {
+            id: session.user.id,
+            name: session.user.name || 'Unknown User',
+            email: session.user.email || '',
+            role: session.user.role || 'USER'
+          },
+          assignedUserId: updatedWorkflow.assignedUserId,
+          comments: 'Filed to Companies House successfully. Accounts dates rolled forward.',
+          filingPeriod: `${updatedWorkflow.filingPeriodEnd.getFullYear()}`
+        })
+        console.log('✅ Email notifications sent for Companies House filing')
+      } catch (emailError) {
+        console.error('❌ Failed to send email notifications for Companies House filing:', emailError)
+        // Don't fail the main operation if email fails
+      }
 
       return NextResponse.json({
         success: true,

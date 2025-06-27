@@ -85,13 +85,39 @@ export async function POST(
         }
       })
 
-      // AUTOMATIC ROLLOVER FUNCTIONALITY
-      console.log('🔄 Starting automatic rollover for client:', workflow.client.companyName)
+      // 📧 Send email notifications for HMRC filing completion
+      try {
+        const workflowNotificationService = await import('@/lib/workflow-notifications')
+        await workflowNotificationService.workflowNotificationService.sendStageChangeNotifications({
+          clientId: workflow.client.id,
+          clientName: workflow.client.companyName,
+          clientCode: workflow.client.clientCode || '',
+          workflowType: 'ACCOUNTS',
+          fromStage: 'FILED_TO_COMPANIES_HOUSE',
+          toStage: 'FILED_TO_HMRC',
+          changedBy: {
+            id: session.user.id,
+            name: session.user.name || 'Unknown User',
+            email: session.user.email || '',
+            role: session.user.role || 'USER'
+          },
+          assignedUserId: updatedWorkflow.assignedUserId,
+          comments: 'Filed to HMRC successfully. Workflow completed. New CT due date calculated.',
+          filingPeriod: `${updatedWorkflow.filingPeriodEnd.getFullYear()}`
+        })
+        console.log('✅ Email notifications sent for HMRC filing completion')
+      } catch (emailError) {
+        console.error('❌ Failed to send email notifications for HMRC filing:', emailError)
+        // Don't fail the main operation if email fails
+      }
+
+      // 🎯 NEW REQUIREMENT: Update CT due date after HMRC filing
+      console.log('🔄 Starting CT due date update and rollover for client:', workflow.client.companyName)
       
       try {
-        // Fetch fresh Companies House data
+        // Fetch fresh Companies House data for CT calculation
         if (workflow.client.companyNumber) {
-          console.log('📡 Fetching fresh Companies House data...')
+          console.log('📡 Fetching fresh Companies House data for CT calculation...')
           const companyData = await getCompanyDetails(workflow.client.companyNumber)
           
           if (companyData) {
@@ -103,25 +129,32 @@ export async function POST(
             const newConfirmationDue = companyData.confirmation_statement?.next_due ? 
               new Date(companyData.confirmation_statement.next_due) : null
             
-            // 🎯 CRITICAL: Do NOT update CT due date during rollover
-            // CT due date should only be updated when CT is marked as filed
-            // This preserves existing CT deadlines until they are completed
+            // 🎯 NEW: Calculate NEW CT due date (Year end + 12 months)
+            const newCTDue = newYearEnd ? (() => {
+              const ctDue = new Date(newYearEnd)
+              ctDue.setFullYear(ctDue.getFullYear() + 1)
+              return ctDue
+            })() : null
 
             console.log('📅 New dates from Companies House:', {
               yearEnd: newYearEnd?.toISOString().split('T')[0],
               accountsDue: newAccountsDue?.toISOString().split('T')[0],
-              confirmationDue: newConfirmationDue?.toISOString().split('T')[0]
+              confirmationDue: newConfirmationDue?.toISOString().split('T')[0],
+              ctDue: newCTDue?.toISOString().split('T')[0] // 🎯 NEW: CT due date
             })
 
-            // Update client with new dates (excluding CT due date)
+            // Update client with new dates INCLUDING CT due date
             await db.client.update({
               where: { id: workflow.client.id },
               data: {
                 nextYearEnd: newYearEnd,
                 nextAccountsDue: newAccountsDue,
                 nextConfirmationDue: newConfirmationDue,
-                // 🎯 CRITICAL: nextCorporationTaxDue NOT updated here
-                // Only updated when CT is marked as filed
+                // 🎯 NEW: Update CT due date after HMRC filing
+                nextCorporationTaxDue: newCTDue,
+                corporationTaxStatus: 'FILED', // Mark previous CT as filed
+                lastCTStatusUpdate: new Date(),
+                ctStatusUpdatedBy: session.user.id,
                 updatedAt: new Date()
               }
             })
@@ -185,8 +218,9 @@ export async function POST(
               return NextResponse.json({
                 success: true,
                 workflow: updatedWorkflow,
-                message: 'Workflow completed successfully - Filed to HMRC. New workflow created for next year.',
+                message: '🎉 Congratulations! HMRC filing completed successfully.',
                 completed: true,
+                congratulatory: true, // 🎯 NEW: Flag for congratulatory display
                 rollover: {
                   newWorkflow: {
                     id: newWorkflow.id,
@@ -198,9 +232,24 @@ export async function POST(
                   updatedDates: {
                     yearEnd: newYearEnd,
                     accountsDue: newAccountsDue,
-                    confirmationDue: newConfirmationDue
-                    // 🎯 CT due date NOT updated - preserved until marked as filed
-                  }
+                    confirmationDue: newConfirmationDue,
+                    // 🎯 NEW: Include new CT due date in response
+                    ctDue: newCTDue
+                  },
+                  // 🎯 NEW: Show new CT due date prominently
+                  newCTDueDate: newCTDue ? {
+                    date: newCTDue.toISOString(),
+                    formatted: newCTDue.toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric'
+                    }),
+                    yearEnd: newYearEnd?.toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'long', 
+                      year: 'numeric'
+                    })
+                  } : null
                 }
               })
             } else {
@@ -220,8 +269,9 @@ export async function POST(
       return NextResponse.json({
         success: true,
         workflow: updatedWorkflow,
-        message: 'Workflow completed successfully - Filed to HMRC',
-        completed: true
+        message: '🎉 Congratulations! HMRC filing completed successfully.',
+        completed: true,
+        congratulatory: true // 🎯 NEW: Flag for congratulatory display
       })
     }
 
