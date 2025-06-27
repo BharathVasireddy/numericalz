@@ -182,6 +182,7 @@ export default function SettingsPage() {
 
     try {
       setReverting(true)
+      console.log('Reverting dates for company:', testCompanyNumber) // Debug log
       
       // You'll need to define the old dates for each company
       // For now, I'll use generic old dates - you should customize this per company
@@ -201,7 +202,16 @@ export default function SettingsPage() {
         })
       })
 
+      console.log('API Response status:', response.status) // Debug log
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('API Error response:', errorText) // Debug log
+        throw new Error(`API returned ${response.status}: ${errorText}`)
+      }
+
       const data = await response.json()
+      console.log('API Response data:', data) // Debug log
 
       if (data.success) {
         toast({
@@ -216,7 +226,7 @@ export default function SettingsPage() {
       console.error('Error reverting company dates:', error)
       toast({
         title: 'Error',
-        description: 'Failed to revert company dates',
+        description: error instanceof Error ? error.message : 'Failed to revert company dates',
         variant: 'destructive'
       })
     } finally {
