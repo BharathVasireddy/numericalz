@@ -790,8 +790,8 @@ export function LtdCompaniesDeadlinesTable({
           bVal = b.companyName
           break
         case 'yearEnd':
-          aVal = a.accountingReferenceDate || ''
-          bVal = b.accountingReferenceDate || ''
+          aVal = new Date(a.nextYearEnd || 0)
+          bVal = new Date(b.nextYearEnd || 0)
           break
         case 'accountsDue':
           aVal = new Date(a.nextAccountsDue || 0)
