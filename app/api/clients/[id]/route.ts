@@ -173,11 +173,25 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Reconstruct JSON address fields for the edit form
+    const tradingAddress = reconstructAddressFields(client, 'trading')
+    const residentialAddress = reconstructAddressFields(client, 'residential')
+    
+    console.log('🔍 GET /api/clients/[id] - Reconstructed addresses:', {
+      tradingAddress,
+      residentialAddress,
+      originalFields: {
+        tradingAddressLine1: client.tradingAddressLine1,
+        tradingAddressLine2: client.tradingAddressLine2,
+        tradingAddressCountry: client.tradingAddressCountry,
+        tradingAddressPostCode: client.tradingAddressPostCode,
+      }
+    })
+    
     const clientWithAddresses = {
       ...client,
       chaseTeamUsers,
-      tradingAddress: reconstructAddressFields(client, 'trading'),
-      residentialAddress: reconstructAddressFields(client, 'residential'),
+      tradingAddress,
+      residentialAddress,
     }
 
     return NextResponse.json({
@@ -350,6 +364,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         paperworkFrequency: body.paperworkFrequency || null,
         isActive: body.isActive !== undefined ? body.isActive : true,
         notes: body.notes || null,
+        // Corporation Tax due date (editable field)
+        nextCorporationTaxDue: body.nextCorporationTaxDue ? new Date(body.nextCorporationTaxDue) : null,
         // Handle address fields - parse JSON address data to individual fields
         ...parseAddressFields(body.tradingAddress, 'trading'),
         ...parseAddressFields(body.residentialAddress, 'residential'),
