@@ -14,6 +14,29 @@ interface RouteParams {
   }
 }
 
+// Helper function to parse address JSON and map to database fields
+function parseAddressFields(addressString: string, type: 'trading' | 'residential') {
+  if (!addressString || addressString.trim() === '') {
+    return {}
+  }
+
+  try {
+    const address = JSON.parse(addressString)
+    const prefix = type === 'trading' ? 'tradingAddress' : 'residentialAddress'
+    
+    return {
+      [`${prefix}Line1`]: address.address_line_1 || null,
+      [`${prefix}Line2`]: address.address_line_2 || null,
+      [`${prefix}Country`]: address.country || null,
+      [`${prefix}PostCode`]: address.postal_code || null,
+      // Note: locality/region are not in schema, skipping them
+    }
+  } catch (error) {
+    console.warn(`Failed to parse ${type} address:`, error)
+    return {}
+  }
+}
+
 /**
  * GET /api/clients/[id]
  * 
@@ -289,6 +312,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         paperworkFrequency: body.paperworkFrequency || null,
         isActive: body.isActive !== undefined ? body.isActive : true,
         notes: body.notes || null,
+        // Handle address fields - parse JSON address data to individual fields
+        ...parseAddressFields(body.tradingAddress, 'trading'),
+        ...parseAddressFields(body.residentialAddress, 'residential'),
         // Post-creation questionnaire fields
         ...(body.isVatEnabled !== undefined && { isVatEnabled: body.isVatEnabled }),
         ...(body.vatRegistrationDate !== undefined && { 
