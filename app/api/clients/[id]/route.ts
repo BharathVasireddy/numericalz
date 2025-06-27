@@ -289,9 +289,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         paperworkFrequency: body.paperworkFrequency || null,
         isActive: body.isActive !== undefined ? body.isActive : true,
         notes: body.notes || null,
-        // Address fields
-        tradingAddress: body.tradingAddress || null,
-        residentialAddress: body.residentialAddress || null,
         // Post-creation questionnaire fields
         ...(body.isVatEnabled !== undefined && { isVatEnabled: body.isVatEnabled }),
         ...(body.vatRegistrationDate !== undefined && { 
