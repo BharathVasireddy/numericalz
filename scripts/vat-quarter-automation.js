@@ -40,7 +40,7 @@ async function checkVATQuarterTransitions() {
             clientCode: true,
             companyName: true,
             vatQuarterGroup: true,
-            email: true
+            contactEmail: true
           }
         }
       }
@@ -286,7 +286,7 @@ async function autoAssignTransitionedQuarters() {
             clientCode: true,
             companyName: true,
             vatQuarterGroup: true,
-            email: true
+            contactEmail: true
           }
         }
       }
