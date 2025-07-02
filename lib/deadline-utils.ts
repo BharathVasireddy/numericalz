@@ -21,7 +21,7 @@ function checkCompletionStatus(
         return calculatedDueDate.getTime() === dueDate.getTime()
       })
       return {
-        isCompleted: accountsWorkflow?.isCompleted || !!accountsWorkflow?.filedDate || false,
+        isCompleted: accountsWorkflow?.isCompleted || !!accountsWorkflow?.filedDate || accountsWorkflow?.currentStage === 'CLIENT_SELF_FILING' || false,
         completedDate: accountsWorkflow?.filedDate ? new Date(accountsWorkflow.filedDate) : undefined
       }
       
@@ -43,7 +43,7 @@ function checkCompletionStatus(
         return calculatedDueDate.getTime() === dueDate.getTime()
       })
       return {
-        isCompleted: vatWorkflow?.isCompleted || vatWorkflow?.filedToHMRCDate || vatWorkflow?.currentStage === 'FILED_TO_HMRC' || false,
+        isCompleted: vatWorkflow?.isCompleted || vatWorkflow?.filedToHMRCDate || vatWorkflow?.currentStage === 'FILED_TO_HMRC' || vatWorkflow?.currentStage === 'CLIENT_BOOKKEEPING' || false,
         completedDate: vatWorkflow?.filedToHMRCDate ? new Date(vatWorkflow.filedToHMRCDate) : undefined
       }
       
