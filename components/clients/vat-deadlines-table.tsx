@@ -541,6 +541,14 @@ export function VATDeadlinesTable({
   const getDueStatus = (quarter: VATQuarter | null, client?: VATClient) => {
     if (!quarter) return { label: 'No Quarter', color: 'text-gray-500' }
     
+    // Check if quarter is completed - completed quarters should never show as overdue
+    if (quarter.isCompleted || quarter.currentStage === 'FILED_TO_HMRC' || quarter.filedToHMRCDate) {
+      return { 
+        label: 'Completed', 
+        color: 'text-green-600' 
+      }
+    }
+    
     const quarterEndDate = new Date(quarter.quarterEndDate)
     const filingDueDate = new Date(quarter.filingDueDate)
     const today = new Date()
@@ -636,6 +644,7 @@ export function VATDeadlinesTable({
           if (status.label.includes('Due today')) return 1
           if (status.label.match(/^\d+d$/)) return 2  // "7d" format - due soon
           if (status.label.includes('Q:')) return 3  // Quarter not ended yet
+          if (status.label === 'Completed') return 5  // Completed quarters - lowest priority
           return 4  // Not applicable or other
         }
         

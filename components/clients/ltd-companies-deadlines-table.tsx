@@ -514,8 +514,17 @@ export function LtdCompaniesDeadlinesTable({
     return 'Not available'
   }
 
-  const getDaysUntilDue = (dueDateString?: string) => {
+  const getDaysUntilDue = (dueDateString?: string, workflow?: LtdAccountsWorkflow | null) => {
     if (!dueDateString) return null
+    
+    // Check if workflow is completed - completed workflows should never show as overdue
+    if (workflow?.isCompleted || workflow?.currentStage === 'FILED_TO_HMRC' || workflow?.currentStage === 'CLIENT_SELF_FILING' || workflow?.filedDate) {
+      return { 
+        label: 'Completed', 
+        color: 'text-green-600' 
+      }
+    }
+    
     const dueDate = new Date(dueDateString)
     const today = new Date()
     const daysDiff = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
@@ -1505,9 +1514,9 @@ export function LtdCompaniesDeadlinesTable({
                     ) : (
                       sortClients(sortedFilteredClients).map((client) => {
                       const workflowStatus = getWorkflowStatus(client.currentLtdAccountsWorkflow || null)
-                      const accountsDue = getDaysUntilDue(client.nextAccountsDue)
-                      const ctDue = getDaysUntilDue(client.nextCorporationTaxDue)
-                      const csDue = getDaysUntilDue(client.nextConfirmationDue)
+                      const accountsDue = getDaysUntilDue(client.nextAccountsDue, client.currentLtdAccountsWorkflow)
+                      const ctDue = getDaysUntilDue(client.nextCorporationTaxDue, client.currentLtdAccountsWorkflow)
+                      const csDue = getDaysUntilDue(client.nextConfirmationDue, client.currentLtdAccountsWorkflow)
                       const rowKey = client.id
                       
                       return (
