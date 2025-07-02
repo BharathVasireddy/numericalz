@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { getLondonDateStart } from '@/lib/london-time'
 
 // Helper function to check if a deadline is completed
 function checkCompletionStatus(
@@ -154,11 +155,8 @@ export function parseCompaniesHouseYearEnd(
 export function calculateDaysUntilDue(dueDateString: string | null): number {
   if (!dueDateString) return 0
   
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  
-  const dueDate = new Date(dueDateString)
-  dueDate.setHours(0, 0, 0, 0)
+  const today = getLondonDateStart()
+  const dueDate = getLondonDateStart(new Date(dueDateString))
   
   const diffTime = dueDate.getTime() - today.getTime()
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24))

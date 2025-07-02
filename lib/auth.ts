@@ -3,6 +3,7 @@ import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
+import { getLondonTime, getActivityTimestamp } from '@/lib/london-time'
 
 // Define user roles as constants since SQLite doesn't support enums
 export const USER_ROLES = {
@@ -77,7 +78,7 @@ export const authOptions: NextAuthOptions = {
           // Update last login (async, don't wait)
           db.user.update({
             where: { id: user.id },
-            data: { lastLoginAt: new Date() },
+            data: { lastLoginAt: getLondonTime() },
           }).catch(error => {
             console.error('Failed to update last login:', error)
           })
@@ -163,7 +164,7 @@ export const authOptions: NextAuthOptions = {
             userId: token.id as string,
             action: 'LOGOUT',
             details: JSON.stringify({
-              timestamp: new Date().toISOString(),
+              timestamp: getActivityTimestamp(),
             }),
           },
         }).catch(error => {
@@ -201,7 +202,7 @@ const validateUserSession = async (user: any) => {
     
     // Check for session timeout (optional - can be configured)
     const sessionTimeout = 8 * 60 * 60 * 1000; // 8 hours
-    const now = new Date();
+    const now = getLondonTime();
     const lastActivity = dbUser.lastLoginAt || dbUser.updatedAt;
     
     if (now.getTime() - lastActivity.getTime() > sessionTimeout) {

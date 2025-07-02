@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { logActivity } from '@/lib/activity-logger'
 import { db } from '@/lib/db'
+import { getActivityTimestamp } from '@/lib/london-time'
 
 interface ActivityContext {
   action: string
@@ -33,7 +34,7 @@ export async function logActivityEnhanced(
         ...context.details,
         userAgent,
         ip,
-        timestamp: new Date().toISOString(),
+        timestamp: getActivityTimestamp(),
         ...context.metadata
       }
     })
@@ -170,7 +171,7 @@ export const ActivityHelpers = {
       changes: Object.keys(newData).filter(key => 
         oldData[key] !== newData[key]
       ),
-      timestamp: new Date().toISOString(),
+      timestamp: getActivityTimestamp(),
     }
   }),
 

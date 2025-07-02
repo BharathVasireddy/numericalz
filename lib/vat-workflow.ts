@@ -5,6 +5,8 @@
  * All dates are calculated in London timezone (Europe/London) for UK compliance
  */
 
+import { toLondonTime, getLondonDateStart } from '@/lib/london-time'
+
 // Valid VAT quarter groups
 export const VAT_QUARTER_GROUPS = {
   '1_4_7_10': 'Jan/Apr/Jul/Oct',
@@ -31,7 +33,7 @@ export function calculateVATQuarter(
   referenceDate: Date = new Date()
 ): VATQuarterInfo {
   // Convert reference date to London timezone
-  const londonDate = new Date(referenceDate.toLocaleString('en-US', { timeZone: 'Europe/London' }))
+  const londonDate = toLondonTime(referenceDate)
   const year = londonDate.getFullYear()
   const month = londonDate.getMonth() + 1 // JavaScript months are 0-indexed
 
@@ -133,11 +135,8 @@ export function getNextVATQuarter(quarterGroup: string, currentQuarterEndDate: D
  * Uses London timezone for comparison
  */
 export function isVATQuarterOverdue(filingDueDate: Date): boolean {
-  const londonNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/London' }))
-  londonNow.setHours(0, 0, 0, 0)
-  
-  const dueDate = new Date(filingDueDate)
-  dueDate.setHours(0, 0, 0, 0)
+  const londonNow = getLondonDateStart()
+  const dueDate = getLondonDateStart(filingDueDate)
   
   return londonNow > dueDate
 }
@@ -147,11 +146,8 @@ export function isVATQuarterOverdue(filingDueDate: Date): boolean {
  * Uses London timezone for calculation
  */
 export function getDaysUntilVATDeadline(filingDueDate: Date): number {
-  const londonNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/London' }))
-  londonNow.setHours(0, 0, 0, 0)
-  
-  const dueDate = new Date(filingDueDate)
-  dueDate.setHours(0, 0, 0, 0)
+  const londonNow = getLondonDateStart()
+  const dueDate = getLondonDateStart(filingDueDate)
   
   const diffTime = dueDate.getTime() - londonNow.getTime()
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
@@ -212,11 +208,8 @@ export function formatQuarterPeriodForDisplay(quarterPeriod: string): string {
  */
 export function calculateDaysBetween(startDate: Date, endDate: Date): number {
   // Convert both dates to London timezone for accurate calculation
-  const londonStart = new Date(startDate.toLocaleString('en-US', { timeZone: 'Europe/London' }))
-  londonStart.setHours(0, 0, 0, 0)
-  
-  const londonEnd = new Date(endDate.toLocaleString('en-US', { timeZone: 'Europe/London' }))
-  londonEnd.setHours(0, 0, 0, 0)
+  const londonStart = getLondonDateStart(startDate)
+  const londonEnd = getLondonDateStart(endDate)
   
   const diffTime = londonEnd.getTime() - londonStart.getTime()
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
