@@ -43,7 +43,7 @@ function checkCompletionStatus(
         return calculatedDueDate.getTime() === dueDate.getTime()
       })
       return {
-        isCompleted: vatWorkflow?.isCompleted || vatWorkflow?.filedToHMRCDate || vatWorkflow?.currentStage === 'FILED_TO_HMRC' || vatWorkflow?.currentStage === 'CLIENT_BOOKKEEPING' || false,
+        isCompleted: vatWorkflow?.isCompleted || vatWorkflow?.filedToHMRCDate || vatWorkflow?.currentStage === 'FILED_TO_HMRC' || false,
         completedDate: vatWorkflow?.filedToHMRCDate ? new Date(vatWorkflow.filedToHMRCDate) : undefined
       }
       
@@ -295,13 +295,22 @@ export async function getAllDeadlines(): Promise<DeadlineItem[]> {
         deadlines.push(createDeadlineItem(client, dueDate, 'vat', today))
       }
 
-      // Process ADDITIONAL deadlines from workflows (including completed ones)
-      // This ensures completed deadlines show up in calendar
+      // Process ADDITIONAL deadlines from workflows (EXCLUDE completed ones)
+      // Completed workflows shouldn't generate deadlines as work is already done
       
-      // Process accounts from workflows (even if completed)
+      // Process accounts from workflows (EXCLUDE completed ones)
       if (client.ltdAccountsWorkflows && client.ltdAccountsWorkflows.length > 0) {
         client.ltdAccountsWorkflows.forEach(workflow => {
           if (workflow.filingPeriodEnd) {
+            // Skip completed workflows - they shouldn't generate deadline items
+            const isCompleted = workflow.isCompleted || 
+                               workflow.filedDate || 
+                               workflow.currentStage === 'CLIENT_SELF_FILING'
+            
+            if (isCompleted) {
+              return // Skip this workflow - no deadline needed for completed accounts
+            }
+            
             const workflowDueDate = new Date(workflow.filingPeriodEnd)
             workflowDueDate.setHours(0, 0, 0, 0)
             
@@ -324,10 +333,19 @@ export async function getAllDeadlines(): Promise<DeadlineItem[]> {
         })
       }
 
-      // Process VAT from workflows (even if completed)
+      // Process VAT from workflows (EXCLUDE completed ones)
       if (client.vatQuartersWorkflow && client.vatQuartersWorkflow.length > 0) {
         client.vatQuartersWorkflow.forEach(workflow => {
           if (workflow.quarterEndDate) {
+            // Skip completed workflows - they shouldn't generate deadline items
+            const isCompleted = workflow.isCompleted || 
+                               workflow.filedToHMRCDate || 
+                               workflow.currentStage === 'FILED_TO_HMRC'
+            
+            if (isCompleted) {
+              return // Skip this workflow - no deadline needed for completed quarters
+            }
+            
             const quarterEndDate = new Date(workflow.quarterEndDate)
             quarterEndDate.setHours(0, 0, 0, 0)
             
@@ -442,13 +460,22 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
         deadlines.push(createDeadlineItem(client, dueDate, 'vat', today))
       }
 
-      // Process ADDITIONAL deadlines from workflows (including completed ones)
-      // This ensures completed deadlines show up in calendar
+      // Process ADDITIONAL deadlines from workflows (EXCLUDE completed ones)
+      // Completed workflows shouldn't generate deadlines as work is already done
       
-      // Process accounts from workflows (even if completed)
+      // Process accounts from workflows (EXCLUDE completed ones)
       if (client.ltdAccountsWorkflows && client.ltdAccountsWorkflows.length > 0) {
         client.ltdAccountsWorkflows.forEach(workflow => {
           if (workflow.filingPeriodEnd) {
+            // Skip completed workflows - they shouldn't generate deadline items
+            const isCompleted = workflow.isCompleted || 
+                               workflow.filedDate || 
+                               workflow.currentStage === 'CLIENT_SELF_FILING'
+            
+            if (isCompleted) {
+              return // Skip this workflow - no deadline needed for completed accounts
+            }
+            
             const workflowDueDate = new Date(workflow.filingPeriodEnd)
             workflowDueDate.setHours(0, 0, 0, 0)
             
@@ -471,10 +498,19 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
         })
       }
 
-      // Process VAT from workflows (even if completed)
+      // Process VAT from workflows (EXCLUDE completed ones)
       if (client.vatQuartersWorkflow && client.vatQuartersWorkflow.length > 0) {
         client.vatQuartersWorkflow.forEach(workflow => {
           if (workflow.quarterEndDate) {
+            // Skip completed workflows - they shouldn't generate deadline items
+            const isCompleted = workflow.isCompleted || 
+                               workflow.filedToHMRCDate || 
+                               workflow.currentStage === 'FILED_TO_HMRC'
+            
+            if (isCompleted) {
+              return // Skip this workflow - no deadline needed for completed quarters
+            }
+            
             const quarterEndDate = new Date(workflow.quarterEndDate)
             quarterEndDate.setHours(0, 0, 0, 0)
             
@@ -597,13 +633,22 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
         }
       }
 
-      // Process ADDITIONAL deadlines from workflows (including completed ones)
-      // This ensures completed deadlines show up in calendar
+      // Process ADDITIONAL deadlines from workflows (EXCLUDE completed ones)
+      // Completed workflows shouldn't generate deadlines as work is already done
       
-      // Process accounts from workflows (even if completed)
+      // Process accounts from workflows (EXCLUDE completed ones)
       if (client.ltdAccountsWorkflows && client.ltdAccountsWorkflows.length > 0) {
         client.ltdAccountsWorkflows.forEach(workflow => {
           if (workflow.filingPeriodEnd) {
+            // Skip completed workflows - they shouldn't generate deadline items
+            const isCompleted = workflow.isCompleted || 
+                               workflow.filedDate || 
+                               workflow.currentStage === 'CLIENT_SELF_FILING'
+            
+            if (isCompleted) {
+              return // Skip this workflow - no deadline needed for completed accounts
+            }
+            
             const workflowDueDate = new Date(workflow.filingPeriodEnd)
             workflowDueDate.setHours(0, 0, 0, 0)
             
@@ -611,28 +656,34 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
             const accountsDueDate = new Date(workflowDueDate)
             accountsDueDate.setMonth(accountsDueDate.getMonth() + 9)
             
-            // Check if this deadline falls within the date range
-            if (accountsDueDate >= startDate && accountsDueDate <= endDate) {
-              // Check if this deadline is already added from nextAccountsDue
-              const existingAccountsDeadline = deadlines.find(d => 
-                d.clientId === client.id && 
-                d.type === 'accounts' && 
-                d.dueDate.getTime() === accountsDueDate.getTime()
-              )
-              
-              // Only add if not already present
-              if (!existingAccountsDeadline) {
-                deadlines.push(createDeadlineItem(client, accountsDueDate, 'accounts', today))
-              }
+            // Check if this deadline is already added from nextAccountsDue
+            const existingAccountsDeadline = deadlines.find(d => 
+              d.clientId === client.id && 
+              d.type === 'accounts' && 
+              d.dueDate.getTime() === accountsDueDate.getTime()
+            )
+            
+            // Only add if not already present
+            if (!existingAccountsDeadline) {
+              deadlines.push(createDeadlineItem(client, accountsDueDate, 'accounts', today))
             }
           }
         })
       }
 
-      // Process VAT from workflows (even if completed)
+      // Process VAT from workflows (EXCLUDE completed ones)
       if (client.vatQuartersWorkflow && client.vatQuartersWorkflow.length > 0) {
         client.vatQuartersWorkflow.forEach(workflow => {
           if (workflow.quarterEndDate) {
+            // Skip completed workflows - they shouldn't generate deadline items
+            const isCompleted = workflow.isCompleted || 
+                               workflow.filedToHMRCDate || 
+                               workflow.currentStage === 'FILED_TO_HMRC'
+            
+            if (isCompleted) {
+              return // Skip this workflow - no deadline needed for completed quarters
+            }
+            
             const quarterEndDate = new Date(workflow.quarterEndDate)
             quarterEndDate.setHours(0, 0, 0, 0)
             
@@ -646,19 +697,16 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
             // Month after quarter end, day 0 = last day of that month
             vatDueDate.setFullYear(quarterEndYear, quarterEndMonth + 1, 0)
             
-            // Check if this deadline falls within the date range
-            if (vatDueDate >= startDate && vatDueDate <= endDate) {
-              // Check if this deadline is already added from nextVatReturnDue
-              const existingVatDeadline = deadlines.find(d => 
-                d.clientId === client.id && 
-                d.type === 'vat' && 
-                d.dueDate.getTime() === vatDueDate.getTime()
-              )
-              
-              // Only add if not already present
-              if (!existingVatDeadline) {
-                deadlines.push(createDeadlineItem(client, vatDueDate, 'vat', today))
-              }
+            // Check if this deadline is already added from nextVatReturnDue
+            const existingVatDeadline = deadlines.find(d => 
+              d.clientId === client.id && 
+              d.type === 'vat' && 
+              d.dueDate.getTime() === vatDueDate.getTime()
+            )
+            
+            // Only add if not already present
+            if (!existingVatDeadline) {
+              deadlines.push(createDeadlineItem(client, vatDueDate, 'vat', today))
             }
           }
         })
