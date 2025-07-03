@@ -195,7 +195,11 @@ function createDeadlineItem(
   client: any,
   dueDate: Date,
   type: 'accounts' | 'confirmation' | 'corporation-tax' | 'vat',
-  today: Date
+  today: Date,
+  assignedUser?: {
+    id: string
+    name: string
+  } | null
 ): DeadlineItem {
   const timeDiff = dueDate.getTime() - today.getTime()
   const daysUntilDue = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
@@ -208,7 +212,7 @@ function createDeadlineItem(
     companyNumber: client.companyNumber || undefined,
     dueDate: dueDate,
     type: type,
-    assignedUser: client.assignedUser || undefined,
+    assignedUser: assignedUser || undefined,
     isOverdue: daysUntilDue < 0 && !completionStatus.isCompleted,
     daysUntilDue: Math.abs(daysUntilDue),
     isCompleted: completionStatus.isCompleted,
@@ -237,12 +241,32 @@ export async function getAllDeadlines(): Promise<DeadlineItem[]> {
             name: true
           }
         },
+        // Add VAT-specific assignment
+        vatAssignedUser: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        // Add accounts-specific assignment
+        ltdCompanyAssignedUser: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         ltdAccountsWorkflows: {
           select: {
             filingPeriodEnd: true,
             isCompleted: true,
             filedDate: true,
-            currentStage: true
+            currentStage: true,
+            assignedUser: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         },
         vatQuartersWorkflow: {
@@ -250,7 +274,13 @@ export async function getAllDeadlines(): Promise<DeadlineItem[]> {
             quarterEndDate: true,
             isCompleted: true,
             filedToHMRCDate: true,
-            currentStage: true
+            currentStage: true,
+            assignedUser: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         }
       }
@@ -266,7 +296,10 @@ export async function getAllDeadlines(): Promise<DeadlineItem[]> {
         const dueDate = new Date(client.nextAccountsDue)
         dueDate.setHours(0, 0, 0, 0)
         
-        deadlines.push(createDeadlineItem(client, dueDate, 'accounts', today))
+        // For accounts: use ltdCompanyAssignedUser first, then general assignedUser
+        const accountsAssignedUser = client.ltdCompanyAssignedUser || client.assignedUser
+        
+        deadlines.push(createDeadlineItem(client, dueDate, 'accounts', today, accountsAssignedUser))
       }
 
       // Process confirmation statement due dates
@@ -274,7 +307,8 @@ export async function getAllDeadlines(): Promise<DeadlineItem[]> {
         const dueDate = new Date(client.nextConfirmationDue)
         dueDate.setHours(0, 0, 0, 0)
         
-        deadlines.push(createDeadlineItem(client, dueDate, 'confirmation', today))
+        // For confirmation statements: use general assignedUser
+        deadlines.push(createDeadlineItem(client, dueDate, 'confirmation', today, client.assignedUser))
       }
 
       // Process corporation tax due dates
@@ -282,7 +316,10 @@ export async function getAllDeadlines(): Promise<DeadlineItem[]> {
         const dueDate = new Date(client.nextCorporationTaxDue)
         dueDate.setHours(0, 0, 0, 0)
         
-        deadlines.push(createDeadlineItem(client, dueDate, 'corporation-tax', today))
+        // For corporation tax: use ltdCompanyAssignedUser first, then general assignedUser
+        const ctAssignedUser = client.ltdCompanyAssignedUser || client.assignedUser
+        
+        deadlines.push(createDeadlineItem(client, dueDate, 'corporation-tax', today, ctAssignedUser))
       }
 
       // Process VAT return due dates
@@ -290,14 +327,17 @@ export async function getAllDeadlines(): Promise<DeadlineItem[]> {
         const dueDate = new Date(client.nextVatReturnDue)
         dueDate.setHours(0, 0, 0, 0)
         
-        deadlines.push(createDeadlineItem(client, dueDate, 'vat', today))
+        // For VAT: use vatAssignedUser first, then general assignedUser
+        const vatAssignedUser = client.vatAssignedUser || client.assignedUser
+        
+        deadlines.push(createDeadlineItem(client, dueDate, 'vat', today, vatAssignedUser))
       }
 
       // Process ADDITIONAL deadlines from workflows (EXCLUDE completed ones)
-      // Completed workflows shouldn't generate deadlines as work is already done
+      // CRITICAL FIX: Only create workflow-based deadlines if official deadline doesn't exist
       
-      // Process accounts from workflows (EXCLUDE completed ones)
-      if (client.ltdAccountsWorkflows && client.ltdAccountsWorkflows.length > 0) {
+      // Process accounts from workflows (ONLY if no official nextAccountsDue exists)
+      if (!client.nextAccountsDue && client.ltdAccountsWorkflows && client.ltdAccountsWorkflows.length > 0) {
         client.ltdAccountsWorkflows.forEach(workflow => {
           if (workflow.filingPeriodEnd) {
             // Skip completed workflows - they shouldn't generate deadline items
@@ -316,23 +356,16 @@ export async function getAllDeadlines(): Promise<DeadlineItem[]> {
             const accountsDueDate = new Date(workflowDueDate)
             accountsDueDate.setMonth(accountsDueDate.getMonth() + 9)
             
-            // Check if this deadline is already added from nextAccountsDue
-            const existingAccountsDeadline = deadlines.find(d => 
-              d.clientId === client.id && 
-              d.type === 'accounts' && 
-              d.dueDate.getTime() === accountsDueDate.getTime()
-            )
+            // For workflow accounts: use workflow assignedUser first, then ltdCompanyAssignedUser, then general assignedUser
+            const workflowAssignedUser = workflow.assignedUser || client.ltdCompanyAssignedUser || client.assignedUser
             
-            // Only add if not already present
-            if (!existingAccountsDeadline) {
-              deadlines.push(createDeadlineItem(client, accountsDueDate, 'accounts', today))
-            }
+            deadlines.push(createDeadlineItem(client, accountsDueDate, 'accounts', today, workflowAssignedUser))
           }
         })
       }
 
-      // Process VAT from workflows (EXCLUDE completed ones)
-      if (client.vatQuartersWorkflow && client.vatQuartersWorkflow.length > 0) {
+      // Process VAT from workflows (ONLY if no official nextVatReturnDue exists)
+      if (!client.nextVatReturnDue && client.vatQuartersWorkflow && client.vatQuartersWorkflow.length > 0) {
         client.vatQuartersWorkflow.forEach(workflow => {
           if (workflow.quarterEndDate) {
             // Skip completed workflows - they shouldn't generate deadline items
@@ -357,27 +390,19 @@ export async function getAllDeadlines(): Promise<DeadlineItem[]> {
             // Month after quarter end, day 0 = last day of that month
             vatDueDate.setFullYear(quarterEndYear, quarterEndMonth + 1, 0)
             
-            // Check if this deadline is already added from nextVatReturnDue
-            const existingVatDeadline = deadlines.find(d => 
-              d.clientId === client.id && 
-              d.type === 'vat' && 
-              d.dueDate.getTime() === vatDueDate.getTime()
-            )
+            // For workflow VAT: use workflow assignedUser first, then vatAssignedUser, then general assignedUser
+            const workflowVatAssignedUser = workflow.assignedUser || client.vatAssignedUser || client.assignedUser
             
-            // Only add if not already present
-            if (!existingVatDeadline) {
-              deadlines.push(createDeadlineItem(client, vatDueDate, 'vat', today))
-            }
+            deadlines.push(createDeadlineItem(client, vatDueDate, 'vat', today, workflowVatAssignedUser))
           }
         })
       }
     }
 
-    // Sort by due date (earliest first)
-    return deadlines.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+    return deadlines
   } catch (error) {
     console.error('Error fetching deadlines:', error)
-    return []
+    throw error
   }
 }
 
@@ -386,7 +411,25 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
     const clients = await db.client.findMany({
       where: {
         isActive: true,
-        assignedUserId: userId
+        OR: [
+          { assignedUserId: userId },
+          { vatAssignedUserId: userId },
+          { ltdCompanyAssignedUserId: userId },
+          { 
+            ltdAccountsWorkflows: {
+              some: {
+                assignedUserId: userId
+              }
+            }
+          },
+          {
+            vatQuartersWorkflow: {
+              some: {
+                assignedUserId: userId
+              }
+            }
+          }
+        ]
       },
       select: {
         id: true,
@@ -402,12 +445,32 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
             name: true
           }
         },
+        // Add VAT-specific assignment
+        vatAssignedUser: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        // Add accounts-specific assignment
+        ltdCompanyAssignedUser: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         ltdAccountsWorkflows: {
           select: {
             filingPeriodEnd: true,
             isCompleted: true,
             filedDate: true,
-            currentStage: true
+            currentStage: true,
+            assignedUser: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         },
         vatQuartersWorkflow: {
@@ -415,7 +478,13 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
             quarterEndDate: true,
             isCompleted: true,
             filedToHMRCDate: true,
-            currentStage: true
+            currentStage: true,
+            assignedUser: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         }
       }
@@ -431,7 +500,13 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
         const dueDate = new Date(client.nextAccountsDue)
         dueDate.setHours(0, 0, 0, 0)
         
-        deadlines.push(createDeadlineItem(client, dueDate, 'accounts', today))
+        // For accounts: use ltdCompanyAssignedUser first, then general assignedUser
+        const accountsAssignedUser = client.ltdCompanyAssignedUser || client.assignedUser
+        
+        // Only include if this user is assigned to this deadline type
+        if (accountsAssignedUser?.id === userId) {
+          deadlines.push(createDeadlineItem(client, dueDate, 'accounts', today, accountsAssignedUser))
+        }
       }
 
       // Process confirmation statement due dates
@@ -439,7 +514,10 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
         const dueDate = new Date(client.nextConfirmationDue)
         dueDate.setHours(0, 0, 0, 0)
         
-        deadlines.push(createDeadlineItem(client, dueDate, 'confirmation', today))
+        // For confirmation statements: use general assignedUser
+        if (client.assignedUser?.id === userId) {
+          deadlines.push(createDeadlineItem(client, dueDate, 'confirmation', today, client.assignedUser))
+        }
       }
 
       // Process corporation tax due dates
@@ -447,7 +525,13 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
         const dueDate = new Date(client.nextCorporationTaxDue)
         dueDate.setHours(0, 0, 0, 0)
         
-        deadlines.push(createDeadlineItem(client, dueDate, 'corporation-tax', today))
+        // For corporation tax: use ltdCompanyAssignedUser first, then general assignedUser
+        const ctAssignedUser = client.ltdCompanyAssignedUser || client.assignedUser
+        
+        // Only include if this user is assigned to this deadline type
+        if (ctAssignedUser?.id === userId) {
+          deadlines.push(createDeadlineItem(client, dueDate, 'corporation-tax', today, ctAssignedUser))
+        }
       }
 
       // Process VAT return due dates
@@ -455,14 +539,20 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
         const dueDate = new Date(client.nextVatReturnDue)
         dueDate.setHours(0, 0, 0, 0)
         
-        deadlines.push(createDeadlineItem(client, dueDate, 'vat', today))
+        // For VAT: use vatAssignedUser first, then general assignedUser
+        const vatAssignedUser = client.vatAssignedUser || client.assignedUser
+        
+        // Only include if this user is assigned to this deadline type
+        if (vatAssignedUser?.id === userId) {
+          deadlines.push(createDeadlineItem(client, dueDate, 'vat', today, vatAssignedUser))
+        }
       }
 
       // Process ADDITIONAL deadlines from workflows (EXCLUDE completed ones)
-      // Completed workflows shouldn't generate deadlines as work is already done
+      // CRITICAL FIX: Only create workflow-based deadlines if official deadline doesn't exist
       
-      // Process accounts from workflows (EXCLUDE completed ones)
-      if (client.ltdAccountsWorkflows && client.ltdAccountsWorkflows.length > 0) {
+      // Process accounts from workflows (ONLY if no official nextAccountsDue exists)
+      if (!client.nextAccountsDue && client.ltdAccountsWorkflows && client.ltdAccountsWorkflows.length > 0) {
         client.ltdAccountsWorkflows.forEach(workflow => {
           if (workflow.filingPeriodEnd) {
             // Skip completed workflows - they shouldn't generate deadline items
@@ -481,23 +571,19 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
             const accountsDueDate = new Date(workflowDueDate)
             accountsDueDate.setMonth(accountsDueDate.getMonth() + 9)
             
-            // Check if this deadline is already added from nextAccountsDue
-            const existingAccountsDeadline = deadlines.find(d => 
-              d.clientId === client.id && 
-              d.type === 'accounts' && 
-              d.dueDate.getTime() === accountsDueDate.getTime()
-            )
+            // For workflow accounts: use workflow assignedUser first, then ltdCompanyAssignedUser, then general assignedUser
+            const workflowAssignedUser = workflow.assignedUser || client.ltdCompanyAssignedUser || client.assignedUser
             
-            // Only add if not already present
-            if (!existingAccountsDeadline) {
-              deadlines.push(createDeadlineItem(client, accountsDueDate, 'accounts', today))
+            // Only include if this user is assigned to this deadline type
+            if (workflowAssignedUser?.id === userId) {
+              deadlines.push(createDeadlineItem(client, accountsDueDate, 'accounts', today, workflowAssignedUser))
             }
           }
         })
       }
 
-      // Process VAT from workflows (EXCLUDE completed ones)
-      if (client.vatQuartersWorkflow && client.vatQuartersWorkflow.length > 0) {
+      // Process VAT from workflows (ONLY if no official nextVatReturnDue exists)
+      if (!client.nextVatReturnDue && client.vatQuartersWorkflow && client.vatQuartersWorkflow.length > 0) {
         client.vatQuartersWorkflow.forEach(workflow => {
           if (workflow.quarterEndDate) {
             // Skip completed workflows - they shouldn't generate deadline items
@@ -522,16 +608,12 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
             // Month after quarter end, day 0 = last day of that month
             vatDueDate.setFullYear(quarterEndYear, quarterEndMonth + 1, 0)
             
-            // Check if this deadline is already added from nextVatReturnDue
-            const existingVatDeadline = deadlines.find(d => 
-              d.clientId === client.id && 
-              d.type === 'vat' && 
-              d.dueDate.getTime() === vatDueDate.getTime()
-            )
+            // For workflow VAT: use workflow assignedUser first, then vatAssignedUser, then general assignedUser
+            const workflowVatAssignedUser = workflow.assignedUser || client.vatAssignedUser || client.assignedUser
             
-            // Only add if not already present
-            if (!existingVatDeadline) {
-              deadlines.push(createDeadlineItem(client, vatDueDate, 'vat', today))
+            // Only include if this user is assigned to this deadline type
+            if (workflowVatAssignedUser?.id === userId) {
+              deadlines.push(createDeadlineItem(client, vatDueDate, 'vat', today, workflowVatAssignedUser))
             }
           }
         })
@@ -541,7 +623,7 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
     return deadlines
   } catch (error) {
     console.error('Error fetching user deadlines:', error)
-    return []
+    throw error
   }
 }
 
@@ -567,12 +649,32 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
             name: true
           }
         },
+        // Add VAT-specific assignment
+        vatAssignedUser: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        // Add accounts-specific assignment
+        ltdCompanyAssignedUser: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         ltdAccountsWorkflows: {
           select: {
             filingPeriodEnd: true,
             isCompleted: true,
             filedDate: true,
-            currentStage: true
+            currentStage: true,
+            assignedUser: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         },
         vatQuartersWorkflow: {
@@ -580,7 +682,13 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
             quarterEndDate: true,
             isCompleted: true,
             filedToHMRCDate: true,
-            currentStage: true
+            currentStage: true,
+            assignedUser: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         }
       }
@@ -597,7 +705,10 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
         dueDate.setHours(0, 0, 0, 0)
         
         if (dueDate >= startDate && dueDate <= endDate) {
-          deadlines.push(createDeadlineItem(client, dueDate, 'accounts', today))
+          // For accounts: use ltdCompanyAssignedUser first, then general assignedUser
+          const accountsAssignedUser = client.ltdCompanyAssignedUser || client.assignedUser
+          
+          deadlines.push(createDeadlineItem(client, dueDate, 'accounts', today, accountsAssignedUser))
         }
       }
 
@@ -607,7 +718,8 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
         dueDate.setHours(0, 0, 0, 0)
         
         if (dueDate >= startDate && dueDate <= endDate) {
-          deadlines.push(createDeadlineItem(client, dueDate, 'confirmation', today))
+          // For confirmation statements: use general assignedUser
+          deadlines.push(createDeadlineItem(client, dueDate, 'confirmation', today, client.assignedUser))
         }
       }
 
@@ -617,7 +729,10 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
         dueDate.setHours(0, 0, 0, 0)
         
         if (dueDate >= startDate && dueDate <= endDate) {
-          deadlines.push(createDeadlineItem(client, dueDate, 'corporation-tax', today))
+          // For corporation tax: use ltdCompanyAssignedUser first, then general assignedUser
+          const ctAssignedUser = client.ltdCompanyAssignedUser || client.assignedUser
+          
+          deadlines.push(createDeadlineItem(client, dueDate, 'corporation-tax', today, ctAssignedUser))
         }
       }
 
@@ -627,15 +742,18 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
         dueDate.setHours(0, 0, 0, 0)
         
         if (dueDate >= startDate && dueDate <= endDate) {
-          deadlines.push(createDeadlineItem(client, dueDate, 'vat', today))
+          // For VAT: use vatAssignedUser first, then general assignedUser
+          const vatAssignedUser = client.vatAssignedUser || client.assignedUser
+          
+          deadlines.push(createDeadlineItem(client, dueDate, 'vat', today, vatAssignedUser))
         }
       }
 
       // Process ADDITIONAL deadlines from workflows (EXCLUDE completed ones)
-      // Completed workflows shouldn't generate deadlines as work is already done
+      // CRITICAL FIX: Only create workflow-based deadlines if official deadline doesn't exist
       
-      // Process accounts from workflows (EXCLUDE completed ones)
-      if (client.ltdAccountsWorkflows && client.ltdAccountsWorkflows.length > 0) {
+      // Process accounts from workflows (ONLY if no official nextAccountsDue exists)
+      if (!client.nextAccountsDue && client.ltdAccountsWorkflows && client.ltdAccountsWorkflows.length > 0) {
         client.ltdAccountsWorkflows.forEach(workflow => {
           if (workflow.filingPeriodEnd) {
             // Skip completed workflows - they shouldn't generate deadline items
@@ -654,23 +772,18 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
             const accountsDueDate = new Date(workflowDueDate)
             accountsDueDate.setMonth(accountsDueDate.getMonth() + 9)
             
-            // Check if this deadline is already added from nextAccountsDue
-            const existingAccountsDeadline = deadlines.find(d => 
-              d.clientId === client.id && 
-              d.type === 'accounts' && 
-              d.dueDate.getTime() === accountsDueDate.getTime()
-            )
-            
-            // Only add if not already present
-            if (!existingAccountsDeadline) {
-              deadlines.push(createDeadlineItem(client, accountsDueDate, 'accounts', today))
+            if (accountsDueDate >= startDate && accountsDueDate <= endDate) {
+              // For workflow accounts: use workflow assignedUser first, then ltdCompanyAssignedUser, then general assignedUser
+              const workflowAssignedUser = workflow.assignedUser || client.ltdCompanyAssignedUser || client.assignedUser
+              
+              deadlines.push(createDeadlineItem(client, accountsDueDate, 'accounts', today, workflowAssignedUser))
             }
           }
         })
       }
 
-      // Process VAT from workflows (EXCLUDE completed ones)
-      if (client.vatQuartersWorkflow && client.vatQuartersWorkflow.length > 0) {
+      // Process VAT from workflows (ONLY if no official nextVatReturnDue exists)
+      if (!client.nextVatReturnDue && client.vatQuartersWorkflow && client.vatQuartersWorkflow.length > 0) {
         client.vatQuartersWorkflow.forEach(workflow => {
           if (workflow.quarterEndDate) {
             // Skip completed workflows - they shouldn't generate deadline items
@@ -695,16 +808,11 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
             // Month after quarter end, day 0 = last day of that month
             vatDueDate.setFullYear(quarterEndYear, quarterEndMonth + 1, 0)
             
-            // Check if this deadline is already added from nextVatReturnDue
-            const existingVatDeadline = deadlines.find(d => 
-              d.clientId === client.id && 
-              d.type === 'vat' && 
-              d.dueDate.getTime() === vatDueDate.getTime()
-            )
-            
-            // Only add if not already present
-            if (!existingVatDeadline) {
-              deadlines.push(createDeadlineItem(client, vatDueDate, 'vat', today))
+            if (vatDueDate >= startDate && vatDueDate <= endDate) {
+              // For workflow VAT: use workflow assignedUser first, then vatAssignedUser, then general assignedUser
+              const workflowVatAssignedUser = workflow.assignedUser || client.vatAssignedUser || client.assignedUser
+              
+              deadlines.push(createDeadlineItem(client, vatDueDate, 'vat', today, workflowVatAssignedUser))
             }
           }
         })
@@ -714,7 +822,7 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
     return deadlines
   } catch (error) {
     console.error('Error fetching deadlines in date range:', error)
-    return []
+    throw error
   }
 }
 
