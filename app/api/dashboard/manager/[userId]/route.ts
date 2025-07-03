@@ -36,7 +36,10 @@ export async function GET(
     // Get current date for calculations
     const now = new Date()
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const fifteenDaysFromNow = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000)
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+    const sixtyDaysFromNow = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
+    const ninetyDaysFromNow = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000)
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
     // Get all team members (staff under this manager or all if partner)
@@ -380,47 +383,55 @@ export async function GET(
       ).length
     }))
 
-    // Get upcoming deadlines (next 30 days)
-    const upcomingDeadlines = allClients
-      .map(client => {
-        const deadlines = []
-        
-        // VAT deadlines
-        if (client.isVatEnabled && client.vatQuartersWorkflow.length > 0) {
-          const vatQuarter = client.vatQuartersWorkflow[0]
-          if (vatQuarter?.filingDueDate) {
-            const filingDue = new Date(vatQuarter.filingDueDate)
-            if (filingDue > now && filingDue <= thirtyDaysFromNow) {
-              deadlines.push({
-                id: `vat-${client.id}`,
-                companyName: client.companyName,
-                type: 'VAT Return',
-                date: filingDue.toISOString(),
-                daysUntil: Math.ceil((filingDue.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-              })
-            }
+    // Calculate deadline counts by time ranges and type
+    const deadlineBreakdown = {
+      vat: {
+        days7: 0,
+        days15: 0,
+        days30: 0,
+        days60: 0,
+        days90: 0
+      },
+      accounts: {
+        days7: 0,
+        days15: 0,
+        days30: 0,
+        days60: 0,
+        days90: 0
+      }
+    }
+
+    // Count deadlines by time ranges
+    for (const client of allClients) {
+      // VAT deadlines
+      if (client.isVatEnabled && client.vatQuartersWorkflow.length > 0) {
+        const vatQuarter = client.vatQuartersWorkflow[0]
+        if (vatQuarter?.filingDueDate) {
+          const filingDue = new Date(vatQuarter.filingDueDate)
+          if (filingDue > now) {
+            if (filingDue <= sevenDaysFromNow) deadlineBreakdown.vat.days7++
+            else if (filingDue <= fifteenDaysFromNow) deadlineBreakdown.vat.days15++
+            else if (filingDue <= thirtyDaysFromNow) deadlineBreakdown.vat.days30++
+            else if (filingDue <= sixtyDaysFromNow) deadlineBreakdown.vat.days60++
+            else if (filingDue <= ninetyDaysFromNow) deadlineBreakdown.vat.days90++
           }
         }
+      }
 
-        // Accounts deadlines
-        if (client.nextAccountsDue) {
-          const accountsDue = new Date(client.nextAccountsDue)
-          if (accountsDue > now && accountsDue <= thirtyDaysFromNow) {
-            deadlines.push({
-              id: `accounts-${client.id}`,
-              companyName: client.companyName,
-              type: 'Annual Accounts',
-              date: accountsDue.toISOString(),
-              daysUntil: Math.ceil((accountsDue.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-            })
-          }
+      // Accounts deadlines
+      if (client.nextAccountsDue) {
+        const accountsDue = new Date(client.nextAccountsDue)
+        if (accountsDue > now) {
+          if (accountsDue <= sevenDaysFromNow) deadlineBreakdown.accounts.days7++
+          else if (accountsDue <= fifteenDaysFromNow) deadlineBreakdown.accounts.days15++
+          else if (accountsDue <= thirtyDaysFromNow) deadlineBreakdown.accounts.days30++
+          else if (accountsDue <= sixtyDaysFromNow) deadlineBreakdown.accounts.days60++
+          else if (accountsDue <= ninetyDaysFromNow) deadlineBreakdown.accounts.days90++
         }
+      }
 
-        return deadlines
-      })
-      .flat()
-      .sort((a, b) => a.daysUntil - b.daysUntil)
-      .slice(0, 10) // Top 10 upcoming deadlines
+
+    }
 
     // Get current month name
     const monthName = now.toLocaleDateString('en-US', { month: 'long' })
@@ -430,7 +441,7 @@ export async function GET(
       unassignedClients,
       teamMembers: teamMembersForDisplay,
       monthlyDeadlines,
-      upcomingDeadlines,
+      deadlineBreakdown,
       monthName
     }
 

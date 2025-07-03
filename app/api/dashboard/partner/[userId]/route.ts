@@ -33,6 +33,10 @@ export async function GET(
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
     const next7Days = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000))
+    const next15Days = new Date(now.getTime() + (15 * 24 * 60 * 60 * 1000))
+    const next30Days = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000))
+    const next60Days = new Date(now.getTime() + (60 * 24 * 60 * 60 * 1000))
+    const next90Days = new Date(now.getTime() + (90 * 24 * 60 * 60 * 1000))
 
     // Get all active clients with necessary data
     const allClients = await db.client.findMany({
@@ -102,21 +106,16 @@ export async function GET(
     
     console.log('📊 Client counts:', clientCounts)
 
-    // 1.5. UNASSIGNED CLIENTS COUNTS
+    // 1.5. UNASSIGNED CLIENTS COUNTS - Use consistent logic with manager dashboard
     const unassignedClients = {
       ltd: allClients.filter(c => 
-        c.companyType === 'LIMITED_COMPANY' && 
-        c.handlesAnnualAccounts && 
-        !c.ltdCompanyAssignedUserId
+        c.companyType === 'LIMITED_COMPANY' && !c.ltdCompanyAssignedUserId && !c.assignedUserId
       ).length,
       nonLtd: allClients.filter(c => 
-        c.companyType !== 'LIMITED_COMPANY' && 
-        c.handlesAnnualAccounts && 
-        !c.nonLtdCompanyAssignedUserId
+        c.companyType !== 'LIMITED_COMPANY' && !c.assignedUserId
       ).length,
       vat: allClients.filter(c => 
-        c.isVatEnabled && 
-        !c.vatAssignedUserId
+        c.isVatEnabled && c.vatQuartersWorkflow?.some(q => !q.assignedUserId && !q.isCompleted)
       ).length
     }
     
@@ -156,10 +155,25 @@ export async function GET(
       ct: 0  // Corporation Tax
     }
 
-    // 4. UPCOMING DEADLINES for compact calendar
-    const upcomingDeadlines = []
+    // 4. UPCOMING DEADLINES - Count by time ranges and type
+    const deadlineBreakdown = {
+      vat: {
+        days7: 0,
+        days15: 0,
+        days30: 0,
+        days60: 0,
+        days90: 0
+      },
+      accounts: {
+        days7: 0,
+        days15: 0,
+        days30: 0,
+        days60: 0,
+        days90: 0
+      }
+    }
 
-    // Count deadlines due this month and collect upcoming ones
+    // Count deadlines due this month and collect upcoming ones by time ranges
     for (const client of allClients) {
       const currentDate = new Date()
       
@@ -170,16 +184,13 @@ export async function GET(
           monthlyDeadlines.accounts++
         }
         
-        // Add to upcoming deadlines if within next 7 days
-        if (accountsDue >= currentDate && accountsDue <= next7Days) {
-          const daysUntil = Math.ceil((accountsDue.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))
-          upcomingDeadlines.push({
-            id: `accounts-${client.id}`,
-            companyName: client.companyName,
-            type: 'Accounts',
-            date: accountsDue.toISOString(),
-            daysUntil: daysUntil
-          })
+        // Count by time ranges
+        if (accountsDue >= currentDate) {
+          if (accountsDue <= next7Days) deadlineBreakdown.accounts.days7++
+          else if (accountsDue <= next15Days) deadlineBreakdown.accounts.days15++
+          else if (accountsDue <= next30Days) deadlineBreakdown.accounts.days30++
+          else if (accountsDue <= next60Days) deadlineBreakdown.accounts.days60++
+          else if (accountsDue <= next90Days) deadlineBreakdown.accounts.days90++
         }
       }
 
@@ -187,19 +198,16 @@ export async function GET(
       if (client.isVatEnabled && client.vatQuartersWorkflow.length > 0) {
         monthlyDeadlines.vat += client.vatQuartersWorkflow.length
         
-        // Add VAT deadlines to upcoming
+        // Count VAT deadlines by time ranges
         client.vatQuartersWorkflow.forEach(vat => {
           if (vat.filingDueDate) {
             const vatDue = new Date(vat.filingDueDate)
-            if (vatDue >= currentDate && vatDue <= next7Days) {
-              const daysUntil = Math.ceil((vatDue.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))
-              upcomingDeadlines.push({
-                id: `vat-${vat.id}`,
-                companyName: client.companyName,
-                type: 'VAT',
-                date: vatDue.toISOString(),
-                daysUntil: daysUntil
-              })
+            if (vatDue >= currentDate) {
+              if (vatDue <= next7Days) deadlineBreakdown.vat.days7++
+              else if (vatDue <= next15Days) deadlineBreakdown.vat.days15++
+              else if (vatDue <= next30Days) deadlineBreakdown.vat.days30++
+              else if (vatDue <= next60Days) deadlineBreakdown.vat.days60++
+              else if (vatDue <= next90Days) deadlineBreakdown.vat.days90++
             }
           }
         })
@@ -211,18 +219,6 @@ export async function GET(
         if (confirmationDue >= startOfMonth && confirmationDue <= endOfMonth) {
           monthlyDeadlines.cs++
         }
-        
-        // Add to upcoming deadlines if within next 7 days
-        if (confirmationDue >= currentDate && confirmationDue <= next7Days) {
-          const daysUntil = Math.ceil((confirmationDue.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))
-          upcomingDeadlines.push({
-            id: `cs-${client.id}`,
-            companyName: client.companyName,
-            type: 'Confirmation Statement',
-            date: confirmationDue.toISOString(),
-            daysUntil: daysUntil
-          })
-        }
       }
 
       // Corporation Tax
@@ -231,30 +227,15 @@ export async function GET(
         if (ctDue >= startOfMonth && ctDue <= endOfMonth) {
           monthlyDeadlines.ct++
         }
-        
-        // Add to upcoming deadlines if within next 7 days
-        if (ctDue >= currentDate && ctDue <= next7Days) {
-          const daysUntil = Math.ceil((ctDue.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24))
-          upcomingDeadlines.push({
-            id: `ct-${client.id}`,
-            companyName: client.companyName,
-            type: 'Corporation Tax',
-            date: ctDue.toISOString(),
-            daysUntil: daysUntil
-          })
-        }
       }
     }
-
-    // Sort upcoming deadlines by date
-    upcomingDeadlines.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
     const dashboardData = {
       clientCounts,
       unassignedClients,
       staffWorkload,
       monthlyDeadlines,
-      upcomingDeadlines: upcomingDeadlines.slice(0, 10), // Limit to 10 most urgent
+      deadlineBreakdown,
       monthName: now.toLocaleDateString('en-GB', { month: 'long' })
     }
 

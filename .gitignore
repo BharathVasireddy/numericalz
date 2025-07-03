@@ -60,4 +60,7 @@ ehthumbs.db
 test-*.js
 check-*.js
 refresh-*.js
-setup-*.js 
+setup-*.js
+
+# Docker
+.docker/ 
