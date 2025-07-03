@@ -76,7 +76,7 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
 
   const isManager = userRole === 'MANAGER'
   const isPartner = userRole === 'PARTNER'
-  const canFilterByUser = isManager || isPartner
+  const canFilterByUser = true
 
   // Filter deadlines based on selected filters
   const filteredDeadlines = useMemo(() => {
@@ -90,7 +90,7 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
       }
       // For 'company' scope, show all deadlines (no additional filtering needed)
       
-      // Apply user filter (for managers and partners in company scope)
+      // Apply user filter (now available to all users in company scope)
       if (scope === 'company' && canFilterByUser && selectedUser !== 'all') {
         if (deadline.assignedUser?.id !== selectedUser) {
           return false
