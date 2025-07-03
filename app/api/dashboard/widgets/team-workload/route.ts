@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
           id: true,
           name: true,
           role: true,
+          // Client-level assignments
           assignedClients: {
             where: { isActive: true },
             select: { id: true }
@@ -45,6 +46,27 @@ export async function GET(request: NextRequest) {
           nonLtdCompanyAssignedClients: {
             where: { isActive: true },
             select: { id: true }
+          },
+          // Workflow-level assignments
+          assignedVATQuarters: {
+            where: { 
+              client: { isActive: true },
+              isCompleted: false
+            },
+            select: { 
+              id: true,
+              clientId: true
+            }
+          },
+          assignedLtdAccountsWorkflows: {
+            where: { 
+              client: { isActive: true },
+              isCompleted: false
+            },
+            select: { 
+              id: true,
+              clientId: true
+            }
           }
         },
         orderBy: [
@@ -63,6 +85,7 @@ export async function GET(request: NextRequest) {
           id: true,
           name: true,
           role: true,
+          // Client-level assignments
           assignedClients: {
             where: { isActive: true },
             select: { id: true }
@@ -78,6 +101,27 @@ export async function GET(request: NextRequest) {
           nonLtdCompanyAssignedClients: {
             where: { isActive: true },
             select: { id: true }
+          },
+          // Workflow-level assignments
+          assignedVATQuarters: {
+            where: { 
+              client: { isActive: true },
+              isCompleted: false
+            },
+            select: { 
+              id: true,
+              clientId: true
+            }
+          },
+          assignedLtdAccountsWorkflows: {
+            where: { 
+              client: { isActive: true },
+              isCompleted: false
+            },
+            select: { 
+              id: true,
+              clientId: true
+            }
           }
         },
         orderBy: { name: 'asc' }
@@ -85,14 +129,29 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform the data to match the expected format
-    const formattedTeamWorkload = teamWorkload.map(member => ({
-      id: member.id,
-      name: member.name,
-      role: member.role,
-      clientCount: member.assignedClients.length,
-      vatClients: member.vatAssignedClients.length,
-      accountsClients: member.ltdCompanyAssignedClients.length + member.nonLtdCompanyAssignedClients.length
-    }))
+    const formattedTeamWorkload = teamWorkload.map(member => {
+      // Get unique client IDs for VAT work (client-level + workflow-level)
+      const vatClientIds = new Set([
+        ...member.vatAssignedClients.map(c => c.id),
+        ...member.assignedVATQuarters.map(q => q.clientId)
+      ])
+
+      // Get unique client IDs for accounts work (client-level + workflow-level)
+      const accountsClientIds = new Set([
+        ...member.ltdCompanyAssignedClients.map(c => c.id),
+        ...member.nonLtdCompanyAssignedClients.map(c => c.id),
+        ...member.assignedLtdAccountsWorkflows.map(w => w.clientId)
+      ])
+
+      return {
+        id: member.id,
+        name: member.name,
+        role: member.role,
+        clientCount: member.assignedClients.length,
+        vatClients: vatClientIds.size,
+        accountsClients: accountsClientIds.size
+      }
+    })
 
     return NextResponse.json({
       success: true,
