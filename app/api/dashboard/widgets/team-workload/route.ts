@@ -16,117 +16,60 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Get team workload data
-    let teamWorkload
-
-    if (session.user.role === 'PARTNER') {
-      // Partner sees all staff workload
-      teamWorkload = await db.user.findMany({
-        where: { 
-          isActive: true,
-          role: { in: ['STAFF', 'MANAGER'] }
+    // Get ALL users in the system (not filtered by role)
+    const teamWorkload = await db.user.findMany({
+      where: { 
+        isActive: true
+        // Removed role filter - show ALL users
+      },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        // Client-level assignments
+        assignedClients: {
+          where: { isActive: true },
+          select: { id: true }
         },
-        select: {
-          id: true,
-          name: true,
-          role: true,
-          // Client-level assignments
-          assignedClients: {
-            where: { isActive: true },
-            select: { id: true }
+        vatAssignedClients: {
+          where: { isActive: true },
+          select: { id: true }
+        },
+        ltdCompanyAssignedClients: {
+          where: { isActive: true },
+          select: { id: true }
+        },
+        nonLtdCompanyAssignedClients: {
+          where: { isActive: true },
+          select: { id: true }
+        },
+        // Workflow-level assignments
+        assignedVATQuarters: {
+          where: { 
+            client: { isActive: true },
+            isCompleted: false
           },
-          vatAssignedClients: {
-            where: { isActive: true },
-            select: { id: true }
-          },
-          ltdCompanyAssignedClients: {
-            where: { isActive: true },
-            select: { id: true }
-          },
-          nonLtdCompanyAssignedClients: {
-            where: { isActive: true },
-            select: { id: true }
-          },
-          // Workflow-level assignments
-          assignedVATQuarters: {
-            where: { 
-              client: { isActive: true },
-              isCompleted: false
-            },
-            select: { 
-              id: true,
-              clientId: true
-            }
-          },
-          assignedLtdAccountsWorkflows: {
-            where: { 
-              client: { isActive: true },
-              isCompleted: false
-            },
-            select: { 
-              id: true,
-              clientId: true
-            }
+          select: { 
+            id: true,
+            clientId: true
           }
         },
-        orderBy: [
-          { role: 'desc' }, // Managers first, then staff
-          { name: 'asc' }
-        ]
-      })
-    } else {
-      // Manager sees only their team (staff members)
-      teamWorkload = await db.user.findMany({
-        where: { 
-          isActive: true,
-          role: 'STAFF'
-        },
-        select: {
-          id: true,
-          name: true,
-          role: true,
-          // Client-level assignments
-          assignedClients: {
-            where: { isActive: true },
-            select: { id: true }
+        assignedLtdAccountsWorkflows: {
+          where: { 
+            client: { isActive: true },
+            isCompleted: false
           },
-          vatAssignedClients: {
-            where: { isActive: true },
-            select: { id: true }
-          },
-          ltdCompanyAssignedClients: {
-            where: { isActive: true },
-            select: { id: true }
-          },
-          nonLtdCompanyAssignedClients: {
-            where: { isActive: true },
-            select: { id: true }
-          },
-          // Workflow-level assignments
-          assignedVATQuarters: {
-            where: { 
-              client: { isActive: true },
-              isCompleted: false
-            },
-            select: { 
-              id: true,
-              clientId: true
-            }
-          },
-          assignedLtdAccountsWorkflows: {
-            where: { 
-              client: { isActive: true },
-              isCompleted: false
-            },
-            select: { 
-              id: true,
-              clientId: true
-            }
+          select: { 
+            id: true,
+            clientId: true
           }
-        },
-        orderBy: { name: 'asc' }
-      })
-    }
+        }
+      },
+      orderBy: [
+        { role: 'desc' }, // Partners first, then managers, then staff
+        { name: 'asc' }
+      ]
+    })
 
     // Transform the data to match the expected format
     const formattedTeamWorkload = teamWorkload.map(member => {

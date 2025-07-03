@@ -1,0 +1,12 @@
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      - POSTGRES_USER=numericalz_user
+      - POSTGRES_PASSWORD=numericalz_password
+      - POSTGRES_DB=numericalz_dev_db
+    volumes:
+      - ./.docker/db_data:/var/lib/postgresql/data
+    ports:
+      - '5433:5432' 
