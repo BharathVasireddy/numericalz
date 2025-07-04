@@ -866,14 +866,21 @@ export function VATDeadlinesTable({
         quarterId = createData.data.id
       }
 
+      // Build request body - only include stage if it's changing
+      const requestBody: any = {
+        assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
+        comments: updateComments || (hasAssigneeChange && !hasStageChange ? 'Assignment updated' : '')
+      }
+
+      // Only include stage if it's actually changing
+      if (hasStageChange && selectedStage) {
+        requestBody.stage = selectedStage
+      }
+
       const response = await fetch(`/api/vat-quarters/${quarterId}/workflow`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stage: selectedStage || selectedQuarter.currentStage,
-          assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
-          comments: updateComments || (hasAssigneeChange && !hasStageChange ? 'Assignment updated' : '')
-        })
+        body: JSON.stringify(requestBody)
       })
 
       const data = await response.json()
@@ -951,14 +958,21 @@ export function VATDeadlinesTable({
         quarterId = createData.data.id
       }
 
+      // Build request body - only include stage if it's changing
+      const requestBody: any = {
+        assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
+        comments: updateComments || 'Stage updated with skip warning bypass'
+      }
+
+      // Only include stage if it's actually changing
+      if (selectedStage) {
+        requestBody.stage = selectedStage
+      }
+
       const response = await fetch(`/api/vat-quarters/${quarterId}/workflow`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stage: selectedStage || selectedQuarter.currentStage,
-          assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
-          comments: updateComments || 'Stage updated with skip warning bypass'
-        })
+        body: JSON.stringify(requestBody)
       })
 
       const data = await response.json()

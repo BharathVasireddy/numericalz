@@ -109,10 +109,20 @@ export async function PUT(
     const body = await request.json()
     const { stage, comments, assignedUserId } = body
 
-    // Validate stage
-    if (!stage || !Object.keys(VAT_WORKFLOW_STAGE_NAMES).includes(stage)) {
+    // Validate stage only if it's provided
+    if (stage && !Object.keys(VAT_WORKFLOW_STAGE_NAMES).includes(stage)) {
       return NextResponse.json({ 
         error: 'Invalid workflow stage' 
+      }, { status: 400 })
+    }
+
+    // Check if we have either a stage change OR an assignment change
+    const isStageChange = stage !== undefined
+    const isAssignmentChange = assignedUserId !== undefined
+    
+    if (!isStageChange && !isAssignmentChange) {
+      return NextResponse.json({ 
+        error: 'Please provide either a stage change or assignment change' 
       }, { status: 400 })
     }
 
@@ -141,8 +151,12 @@ export async function PUT(
       return NextResponse.json({ error: 'VAT quarter not found' }, { status: 404 })
     }
 
+    // Determine effective stage - use provided stage or current stage
+    const effectiveStage = stage || vatQuarter.currentStage
+    const isActualStageChange = stage && stage !== vatQuarter.currentStage
+
     // Check if quarter is already completed (allow undo operations)
-    const isUndoOperation = vatQuarter.isCompleted && stage !== 'FILED_TO_HMRC'
+    const isUndoOperation = vatQuarter.isCompleted && effectiveStage !== 'FILED_TO_HMRC'
     if (vatQuarter.isCompleted && !isUndoOperation) {
       return NextResponse.json({ 
         error: 'Cannot update workflow for completed VAT quarter' 
@@ -155,12 +169,12 @@ export async function PUT(
       ? calculateDaysBetween(currentHistory.createdAt, new Date())
       : 0
 
-    // Prepare milestone update data
-    const milestoneUpdateData = getMilestoneUpdateData(
-      stage, 
+    // Prepare milestone update data (only if there's an actual stage change)
+    const milestoneUpdateData = isActualStageChange ? getMilestoneUpdateData(
+      effectiveStage, 
       session.user.id, 
       session.user.name || session.user.email || 'Unknown User'
-    )
+    ) : {}
 
 
     // Determine assignee - use provided assignedUserId or auto-assign based on stage
@@ -168,16 +182,16 @@ export async function PUT(
     // Only auto-assign if assignedUserId is not explicitly provided (undefined)
     // If assignedUserId is null, respect that as "unassigned"
     if (assignedUserId === undefined) {
-      finalAssigneeId = await getAutoAssigneeForStage(stage, vatQuarter.assignedUserId, prisma)
+      finalAssigneeId = await getAutoAssigneeForStage(effectiveStage, vatQuarter.assignedUserId, prisma)
     }
 
     // Update VAT quarter with milestone dates
     const updatedVatQuarter = await prisma.vATQuarter.update({
       where: { id: vatQuarterId },
       data: {
-        currentStage: stage,
+        currentStage: effectiveStage,
         assignedUserId: finalAssigneeId,
-        isCompleted: stage === 'FILED_TO_HMRC',
+        isCompleted: effectiveStage === 'FILED_TO_HMRC',
         ...milestoneUpdateData
       },
       include: {
@@ -221,39 +235,44 @@ export async function PUT(
       })
     }
 
-    // Create workflow history entry
-    const workflowHistory = await prisma.vATWorkflowHistory.create({
-      data: {
-        vatQuarterId,
-        fromStage: currentHistory?.toStage,
-        toStage: stage,
-        stageChangedAt: new Date(),
-        daysInPreviousStage: daysSinceLastUpdate,
-        userId: session.user.id,
-        userName: session.user.name || session.user.email || 'Unknown User',
-        userEmail: session.user.email || '',
-        userRole: session.user.role || 'USER',
-        notes: comments || `Stage updated to: ${VAT_WORKFLOW_STAGE_NAMES[stage as keyof typeof VAT_WORKFLOW_STAGE_NAMES]}`,
-      }
-    })
+    // Create workflow history entry only if there's an actual stage change
+    let workflowHistory = null
+    if (isActualStageChange) {
+      workflowHistory = await prisma.vATWorkflowHistory.create({
+        data: {
+          vatQuarterId,
+          fromStage: currentHistory?.toStage,
+          toStage: effectiveStage,
+          stageChangedAt: new Date(),
+          daysInPreviousStage: daysSinceLastUpdate,
+          userId: session.user.id,
+          userName: session.user.name || session.user.email || 'Unknown User',
+          userEmail: session.user.email || '',
+          userRole: session.user.role || 'USER',
+          notes: comments || `Stage updated to: ${VAT_WORKFLOW_STAGE_NAMES[effectiveStage as keyof typeof VAT_WORKFLOW_STAGE_NAMES]}`,
+        }
+      })
+    }
 
-    // Log comprehensive activity for VAT workflow updates
-    await logActivityEnhanced(request, {
-      action: 'VAT_QUARTER_STAGE_CHANGED',
-      clientId: updatedVatQuarter.clientId,
-      details: {
-        companyName: updatedVatQuarter.client.companyName,
-        clientCode: updatedVatQuarter.client.clientCode,
-        workflowType: 'VAT',
-        oldStage: currentHistory?.toStage || 'NOT_STARTED',
-        newStage: stage,
-        comments,
-        quarterPeriod: updatedVatQuarter.quarterPeriod,
-        quarterStartDate: updatedVatQuarter.quarterStartDate.toISOString(),
-        quarterEndDate: updatedVatQuarter.quarterEndDate.toISOString(),
-        filingDueDate: updatedVatQuarter.filingDueDate.toISOString()
-      }
-    })
+    // Log comprehensive activity for VAT workflow updates (only if stage actually changed)
+    if (isActualStageChange) {
+      await logActivityEnhanced(request, {
+        action: 'VAT_QUARTER_STAGE_CHANGED',
+        clientId: updatedVatQuarter.clientId,
+        details: {
+          companyName: updatedVatQuarter.client.companyName,
+          clientCode: updatedVatQuarter.client.clientCode,
+          workflowType: 'VAT',
+          oldStage: currentHistory?.toStage || 'NOT_STARTED',
+          newStage: effectiveStage,
+          comments,
+          quarterPeriod: updatedVatQuarter.quarterPeriod,
+          quarterStartDate: updatedVatQuarter.quarterStartDate.toISOString(),
+          quarterEndDate: updatedVatQuarter.quarterEndDate.toISOString(),
+          filingDueDate: updatedVatQuarter.filingDueDate.toISOString()
+        }
+      })
+    }
 
     // Log assignment changes if assignee was updated (including unassignment)
     if (assignedUserId !== undefined && finalAssigneeId !== vatQuarter.assignedUserId) {
