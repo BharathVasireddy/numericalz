@@ -226,12 +226,31 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const body = await request.json()
     
-    // 🛡️ CRITICAL PROTECTION: Client codes can NEVER be modified
+    // 🛡️ Client code validation: Allow changes but ensure uniqueness
     if (body.clientCode !== undefined) {
-      return NextResponse.json(
-        { success: false, error: 'Client codes cannot be modified once assigned' },
-        { status: 400 }
-      )
+      // Check if client code is being changed
+      const existingClient = await db.client.findUnique({
+        where: { id: params.id },
+        select: { clientCode: true }
+      })
+      
+      if (existingClient && body.clientCode !== existingClient.clientCode) {
+        // Check if the new client code is already in use
+        const duplicateClient = await db.client.findFirst({
+          where: { 
+            clientCode: body.clientCode,
+            id: { not: params.id } // Exclude current client
+          },
+          select: { id: true }
+        })
+        
+        if (duplicateClient) {
+          return NextResponse.json(
+            { success: false, error: 'Client code already exists. Please choose a different code.' },
+            { status: 400 }
+          )
+        }
+      }
     }
 
     // Debug logging
@@ -352,6 +371,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         companyName: body.companyName,
         companyType: body.companyType,
         companyNumber: body.companyNumber || null,
+        clientCode: body.clientCode || null,
         contactName: body.contactName,
         contactEmail: body.contactEmail,
         contactPhone: body.contactPhone || null,

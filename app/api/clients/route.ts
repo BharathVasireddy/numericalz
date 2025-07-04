@@ -139,6 +139,21 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
+    
+    // Check if this is a client code validation request
+    const clientCode = searchParams.get('clientCode')
+    if (clientCode) {
+      const existingClient = await db.client.findFirst({
+        where: { clientCode: clientCode },
+        select: { id: true }
+      })
+      
+      return NextResponse.json({
+        exists: !!existingClient,
+        message: existingClient ? 'Client code already exists' : 'Client code is available'
+      })
+    }
+    
     const search = searchParams.get('search') || ''
     const companyType = searchParams.get('companyType') || ''
     const isActive = searchParams.get('active') === 'true'

@@ -314,7 +314,7 @@ export function DashboardNavigation() {
       <div className={`
         fixed inset-y-0 left-0 z-50 w-80 bg-background border-r border-border
         transform transition-transform duration-300 ease-in-out
-        lg:translate-x-0 lg:static lg:inset-0 lg:h-screen lg:w-72 lg:z-auto
+        lg:translate-x-0 lg:h-screen lg:w-72
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex flex-col h-full">

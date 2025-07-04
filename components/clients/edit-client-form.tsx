@@ -37,6 +37,7 @@ export function EditClientForm({ client }: EditClientFormProps) {
     companyName: client.companyName || '',
     companyType: client.companyType || '',
     companyNumber: client.companyNumber || '',
+    clientCode: client.clientCode || '',
     contactName: client.contactName || '',
     contactEmail: client.contactEmail || '',
     contactPhone: client.contactPhone || '',
@@ -228,6 +229,20 @@ export function EditClientForm({ client }: EditClientFormProps) {
     setIsLoading(true)
 
     try {
+      // Validate client code uniqueness if it has changed
+      if (formData.clientCode !== client.clientCode) {
+        const checkResponse = await fetch(`/api/clients?clientCode=${encodeURIComponent(formData.clientCode)}`, {
+          method: 'GET',
+        })
+        
+        if (checkResponse.ok) {
+          const checkData = await checkResponse.json()
+          if (checkData.exists) {
+            throw new Error('Client code already exists. Please choose a different code.')
+          }
+        }
+      }
+
       const response = await fetch(`/api/clients/${client.id}`, {
         method: 'PUT',
         headers: {
@@ -258,7 +273,7 @@ export function EditClientForm({ client }: EditClientFormProps) {
         showToast.error(data.error || 'Failed to update client')
       }
     } catch (error: any) {
-      showToast.error('Error updating client')
+      showToast.error(error.message || 'Error updating client')
     } finally {
       setIsLoading(false)
     }
@@ -344,8 +359,8 @@ export function EditClientForm({ client }: EditClientFormProps) {
           </div>
 
           {/* Form Content */}
-          <div className="pb-6">
-            <form id="edit-client-form" onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <form id="edit-client-form" onSubmit={handleSubmit} className="space-y-6 pb-20">
               {/* Basic Information */}
               <Card className="shadow-professional">
                 <CardHeader>
@@ -382,6 +397,21 @@ export function EditClientForm({ client }: EditClientFormProps) {
                           <SelectItem value="SOLE_TRADER">Sole Trader</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="clientCode">Client Code *</Label>
+                      <Input
+                        id="clientCode"
+                        value={formData.clientCode}
+                        onChange={(e) => handleInputChange('clientCode', e.target.value)}
+                        placeholder="e.g., NZ-1"
+                        className="input-field"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Each client must have a unique code for identification
+                      </p>
                     </div>
 
                     <div className="space-y-2">
@@ -956,7 +986,7 @@ export function EditClientForm({ client }: EditClientFormProps) {
           </div>
 
           {/* Sticky Form Actions */}
-          <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white border-t border-border shadow-lg p-4 z-50">
+          <div className="fixed bottom-0 left-0 right-0 lg:left-72 bg-white/95 backdrop-blur-sm border-t border-border shadow-lg p-4 z-50">
             <div className="content-wrapper">
               <div className="flex justify-end gap-4">
                 <Button
