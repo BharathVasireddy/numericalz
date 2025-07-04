@@ -159,7 +159,7 @@ const WORKFLOW_STAGES = ALL_VAT_WORKFLOW_STAGES.filter(stage =>
   !['REVIEWED_BY_MANAGER', 'REVIEWED_BY_PARTNER'].includes(stage.key)
 )
 
-// Month configuration for tabs
+// Month configuration for tabs with dynamic year calculation
 const MONTHS = [
   { key: 'jan', name: 'January', short: 'Jan', number: 1 },
   { key: 'feb', name: 'February', short: 'Feb', number: 2 },
@@ -174,6 +174,68 @@ const MONTHS = [
   { key: 'nov', name: 'November', short: 'Nov', number: 11 },
   { key: 'dec', name: 'December', short: 'Dec', number: 12 }
 ]
+
+// Helper function to get display year for a month tab
+const getMonthDisplayYear = (monthNumber: number, client?: VATClient): number => {
+  const currentYear = new Date().getFullYear()
+  const currentMonth = new Date().getMonth() + 1
+  
+  // For cross-year filing months (like January), check if we should show next year
+  if (monthNumber === 1) {
+    // Basic rule: If we're past October, January tab should show next year deadlines
+    if (currentMonth >= 10) {
+      return currentYear + 1
+    }
+    
+    // ENHANCED: Progressive quarter logic for January
+    // Show next year if current year January quarter is completed
+    if (client?.vatQuartersWorkflow) {
+      const currentYearJanQuarter = client.vatQuartersWorkflow.find(q => {
+        const filingDate = new Date(q.filingDueDate)
+        return filingDate.getMonth() === 0 && filingDate.getFullYear() === currentYear // January of current year
+      })
+      
+      // If current year January quarter is completed, show next year quarters
+      if (currentYearJanQuarter?.isCompleted || currentYearJanQuarter?.currentStage === 'FILED_TO_HMRC') {
+        return currentYear + 1
+      }
+    }
+  }
+  
+  // ENHANCED: Progressive quarter logic for all months
+  // Show next year quarters if current year quarter is completed AND we're close to year end
+  if (client?.vatQuartersWorkflow) {
+    const currentMonthQuarter = client.vatQuartersWorkflow.find(q => {
+      const filingDate = new Date(q.filingDueDate)
+      return filingDate.getMonth() === monthNumber - 1 && filingDate.getFullYear() === currentYear
+    })
+    
+    // Progressive logic: Show next year if current quarter is completed and we're in the right time period
+    if (currentMonthQuarter?.isCompleted || currentMonthQuarter?.currentStage === 'FILED_TO_HMRC') {
+      // Example: Show Jan 2026 after Oct 2025 filing is completed
+      // Show next year deadlines if we're in Q4 (Oct-Dec) and current quarter is done
+      if (currentMonth >= 10 && monthNumber === 1) {
+        return currentYear + 1
+      }
+      
+      // For other months, show next year if completed and we're past the filing month
+      if (currentMonth > monthNumber) {
+        return currentYear + 1
+      }
+    }
+  }
+  
+  return currentYear
+}
+
+// Helper function to get month display with year
+const getMonthDisplay = (monthNumber: number): string => {
+  const month = MONTHS.find(m => m.number === monthNumber)
+  const year = getMonthDisplayYear(monthNumber)
+  const yearSuffix = String(year).slice(2) // "2025" -> "25"
+  
+  return `${month?.short || 'Unknown'} ${yearSuffix}`
+}
 
 // Filter interfaces to match the main clients page
 interface FilterCondition {
@@ -358,11 +420,14 @@ export function VATDeadlinesTable({
       return null
     }
 
+    // ENHANCED: Progressive quarter display logic
+    // Use the display year helper to determine which year's quarter to show
+    const displayYear = getMonthDisplayYear(monthNumber, client)
+    
     // Calculate the quarter that files in this month
     // Filing month is the month AFTER quarter end, so quarter ends in previous month
     const quarterEndMonth = monthNumber === 1 ? 12 : monthNumber - 1
-    const currentYear = new Date().getFullYear()
-    const quarterEndYear = monthNumber === 1 ? currentYear - 1 : currentYear
+    const quarterEndYear = monthNumber === 1 ? displayYear - 1 : displayYear
     
     // Calculate quarter info for the quarter that ends in that month
     const quarterEndDate = new Date(quarterEndYear, quarterEndMonth - 1, 15) // Mid-month to avoid edge cases
@@ -1766,6 +1831,7 @@ export function VATDeadlinesTable({
                       {MONTHS.map((month) => {
                         const monthClients = getClientsForMonth(month.number)
                         const isCurrentMonth = month.number === currentMonth
+                        const monthDisplayWithYear = getMonthDisplay(month.number)
                         return (
                           <TabsTrigger
                             key={month.key}
@@ -1774,7 +1840,7 @@ export function VATDeadlinesTable({
                               isCurrentMonth ? 'ring-2 ring-blue-200 ring-offset-1' : ''
                             }`}
                           >
-                            <span className="font-medium">{month.short}</span>
+                            <span className="font-medium">{monthDisplayWithYear}</span>
                             <Badge 
                               variant="secondary" 
                               className={`text-xs px-1.5 py-0.5 h-auto min-w-[1.5rem] justify-center ${
