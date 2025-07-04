@@ -123,17 +123,16 @@ export async function PUT(
         updateData.currentStage = stage as LtdAccountsWorkflowStage
         updateData.isCompleted = stage === 'FILED_TO_HMRC'
         
-        // Set milestone dates based on stage
-        const milestoneField = getMilestoneFieldForStage(stage)
-        if (milestoneField.dateField) {
-          updateData[milestoneField.dateField] = new Date()
-        }
-        if (milestoneField.userField) {
-          updateData[milestoneField.userField] = session.user.id
-        }
-        if (milestoneField.nameField) {
-          updateData[milestoneField.nameField] = session.user.name || session.user.email || 'Unknown'
-        }
+        // ENHANCED: Set milestone dates with backward movement support
+        const milestoneUpdateData = getLtdMilestoneUpdateData(
+          stage,
+          session.user.id,
+          session.user.name || session.user.email || 'Unknown',
+          currentWorkflow.currentStage // Pass current stage for undo operations
+        )
+        
+        // Merge milestone updates into the main update data
+        Object.assign(updateData, milestoneUpdateData)
       }
       
       if (assignedUserId !== undefined) {
@@ -176,20 +175,45 @@ export async function PUT(
 
     // Log comprehensive activity (single consolidated log)
     if (stage) {
-      await logActivityEnhanced(request, {
-        action: 'LTD_WORKFLOW_STAGE_CHANGED',
-        clientId,
-        details: {
-          companyName: client.companyName,
-          clientCode: client.clientCode,
-          workflowType: 'LTD',
-          oldStage: currentWorkflow?.currentStage || 'NOT_STARTED',
-          newStage: stage,
-          comments,
-          quarterPeriod: `${workflow.filingPeriodEnd.getFullYear()} accounts`,
-          filingPeriodEnd: workflow.filingPeriodEnd.toISOString()
-        }
-      })
+      // ENHANCED: Detect undo operations for specific logging
+      const isUndoFromFiledToHMRC = currentWorkflow?.currentStage === 'FILED_TO_HMRC' && stage !== 'FILED_TO_HMRC'
+      const isUndoFromFiledCHHMRC = currentWorkflow?.currentStage === 'FILED_CH_HMRC' && stage !== 'FILED_CH_HMRC'
+      const isUndoOperation = isUndoFromFiledToHMRC || isUndoFromFiledCHHMRC
+      
+      if (isUndoOperation) {
+        // Log specific undo operation
+        await logActivityEnhanced(request, {
+          action: 'LTD_ACCOUNTS_FILING_UNDONE',
+          clientId,
+          details: {
+            companyName: client.companyName,
+            clientCode: client.clientCode,
+            workflowType: 'LTD',
+            undoFromStage: currentWorkflow?.currentStage,
+            revertedToStage: stage,
+            filingPeriod: `${workflow.filingPeriodEnd.getFullYear()} accounts`,
+            comments: comments || 'Accounts filing undone - workflow reopened for corrections',
+            undoneBy: session.user.name || session.user.email || 'Unknown User',
+            filingPeriodEnd: workflow.filingPeriodEnd.toISOString()
+          }
+        })
+      } else {
+        // Log regular stage change
+        await logActivityEnhanced(request, {
+          action: 'LTD_WORKFLOW_STAGE_CHANGED',
+          clientId,
+          details: {
+            companyName: client.companyName,
+            clientCode: client.clientCode,
+            workflowType: 'LTD',
+            oldStage: currentWorkflow?.currentStage || 'NOT_STARTED',
+            newStage: stage,
+            comments,
+            quarterPeriod: `${workflow.filingPeriodEnd.getFullYear()} accounts`,
+            filingPeriodEnd: workflow.filingPeriodEnd.toISOString()
+          }
+        })
+      }
     }
 
     // Only log assignment changes if there was an actual change
@@ -324,6 +348,9 @@ export async function PUT(
   }
 }
 
+/**
+ * Get milestone field mapping for a given stage
+ */
 function getMilestoneFieldForStage(stage: string) {
   const milestoneMap: Record<string, { dateField?: string, userField?: string, nameField?: string }> = {
     'PAPERWORK_CHASED': {
@@ -394,4 +421,69 @@ function getMilestoneFieldForStage(stage: string) {
   }
 
   return milestoneMap[stage] || {}
+}
+
+/**
+ * Enhanced milestone update function for Ltd workflow
+ * Handles both forward progression and backward movement (undo operations)
+ */
+function getLtdMilestoneUpdateData(stage: string, userId: string, userName: string, currentStage?: string) {
+  const milestoneField = getMilestoneFieldForStage(stage)
+  const updateData: any = {}
+  const now = new Date()
+  
+  // Set the milestone date for the new stage
+  if (milestoneField.dateField) {
+    updateData[milestoneField.dateField] = now
+  }
+  if (milestoneField.userField) {
+    updateData[milestoneField.userField] = userId
+  }
+  if (milestoneField.nameField) {
+    updateData[milestoneField.nameField] = userName
+  }
+  
+  // ENHANCED: Clear future milestone dates when moving backwards (undo operations)
+  if (currentStage) {
+    const stageOrder = [
+      'PAPERWORK_PENDING_CHASE',
+      'PAPERWORK_CHASED', 
+      'PAPERWORK_RECEIVED',
+      'WORK_IN_PROGRESS',
+      'DISCUSS_WITH_MANAGER',
+      'REVIEW_BY_PARTNER',
+      'REVIEW_DONE_HELLO_SIGN',
+      'SENT_TO_CLIENT_HELLO_SIGN',
+      'APPROVED_BY_CLIENT',
+      'SUBMISSION_APPROVED_PARTNER',
+      'FILED_TO_COMPANIES_HOUSE',
+      'FILED_TO_HMRC',
+      'FILED_CH_HMRC',
+      'CLIENT_SELF_FILING'
+    ]
+    
+    const currentIndex = stageOrder.indexOf(currentStage)
+    const newIndex = stageOrder.indexOf(stage)
+    
+    // If moving backwards, clear milestone dates for future stages
+    if (currentIndex > newIndex) {
+      const futureStagesToClear = stageOrder.slice(newIndex + 1, currentIndex + 1)
+      
+      futureStagesToClear.forEach(futureStage => {
+        const futureMilestoneField = getMilestoneFieldForStage(futureStage)
+        if (futureMilestoneField.dateField) {
+          // Clear the milestone date and user attribution
+          updateData[futureMilestoneField.dateField] = null
+          if (futureMilestoneField.userField) {
+            updateData[futureMilestoneField.userField] = null
+          }
+          if (futureMilestoneField.nameField) {
+            updateData[futureMilestoneField.nameField] = null
+          }
+        }
+      })
+    }
+  }
+  
+  return updateData
 } 
