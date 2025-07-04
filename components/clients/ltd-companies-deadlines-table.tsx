@@ -1362,7 +1362,7 @@ export function LtdCompaniesDeadlinesTable({
                   placeholder="Search by client code, company name, or number..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-12"
                 />
                 {searchTerm && (
                   <Button

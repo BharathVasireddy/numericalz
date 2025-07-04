@@ -192,7 +192,7 @@ export default function EmailTemplatesPage() {
                 placeholder="Search templates..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-12"
               />
             </div>
           </div>

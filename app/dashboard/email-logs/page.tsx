@@ -271,7 +271,7 @@ export default function EmailLogsPage() {
                       placeholder="Search emails..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+                      className="pl-12"
                     />
                   </div>
                   

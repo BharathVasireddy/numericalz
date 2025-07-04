@@ -168,7 +168,7 @@ export function VariablePicker({
             placeholder="Search variables..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="pl-12"
           />
         </div>
         <div className="flex gap-2">
