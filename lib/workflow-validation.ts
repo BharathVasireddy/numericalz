@@ -11,6 +11,7 @@ export interface WorkflowValidationResult {
 
 // VAT Workflow Stage Order (sequential progression)
 export const VAT_WORKFLOW_STAGE_ORDER = [
+  'WAITING_FOR_QUARTER_END',
   'PAPERWORK_PENDING_CHASE',
   'PAPERWORK_CHASED', 
   'PAPERWORK_RECEIVED',
@@ -53,6 +54,7 @@ export const AUTO_SET_STAGES = [
 
 // Stages that can be sent back to (regression is allowed)
 export const REGRESSION_ALLOWED_STAGES = [
+  'WAITING_FOR_QUARTER_END',
   'PAPERWORK_PENDING_CHASE',
   'PAPERWORK_CHASED',
   'PAPERWORK_RECEIVED',
@@ -226,6 +228,7 @@ export function validateStageTransition(
 export function getStageDisplayName(stage: string, workflowType: 'VAT' | 'LTD'): string {
   const stageDisplayNames = {
     VAT: {
+      'WAITING_FOR_QUARTER_END': 'Waiting for quarter end',
       'PAPERWORK_PENDING_CHASE': 'Pending to chase',
       'PAPERWORK_CHASED': 'Paperwork chased',
       'PAPERWORK_RECEIVED': 'Paperwork received',
