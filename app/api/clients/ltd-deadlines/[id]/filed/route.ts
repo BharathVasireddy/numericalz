@@ -44,10 +44,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
-    // Check user permissions (only managers and partners can complete filing)
-    if (session.user.role === 'STAFF') {
-      return NextResponse.json({ error: 'Access denied - staff cannot complete filing' }, { status: 403 })
-    }
+    // Permission check removed - all users can complete filing
+    // This allows staff, managers, and partners to complete workflow filings
 
     const currentWorkflow = client.ltdAccountsWorkflows[0]
 

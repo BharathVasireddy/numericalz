@@ -1835,45 +1835,43 @@ export function VATDeadlinesTable({
               </div>
             )}
 
-            {/* Assignment Section - Only for Managers/Partners */}
-            {(session?.user?.role === 'MANAGER' || session?.user?.role === 'PARTNER') && (
-              <div>
-                <Label htmlFor="assignee">Assign To</Label>
-                <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select assignee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">
+            {/* Assignment Section - Available for All Users */}
+            <div>
+              <Label htmlFor="assignee">Assign To</Label>
+              <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-gray-400" />
+                      <span>Unassigned</span>
+                    </div>
+                  </SelectItem>
+                  {session?.user?.id && (
+                    <SelectItem value={session.user.id}>
                       <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-gray-400" />
-                        <span>Unassigned</span>
+                        <Users className="h-4 w-4 text-blue-600" />
+                        <span className="font-medium text-blue-600">Assign to Me</span>
+                        <span className="text-xs text-blue-500">({session.user.role})</span>
                       </div>
                     </SelectItem>
-                    {session?.user?.id && (
-                      <SelectItem value={session.user.id}>
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-blue-600" />
-                          <span className="font-medium text-blue-600">Assign to Me</span>
-                          <span className="text-xs text-blue-500">({session.user.role})</span>
-                        </div>
-                      </SelectItem>
-                    )}
-                    {users
-                      .filter(user => user.id !== session?.user?.id)
-                      .map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-gray-600" />
-                          <span>{user.name}</span>
-                          <span className="text-xs text-muted-foreground">({user.role})</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                  )}
+                  {users
+                    .filter(user => user.id !== session?.user?.id)
+                    .map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-gray-600" />
+                        <span>{user.name}</span>
+                        <span className="text-xs text-muted-foreground">({user.role})</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div>
               <Label htmlFor="stage">Workflow Stage (Optional)</Label>

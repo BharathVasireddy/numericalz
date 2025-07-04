@@ -44,10 +44,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
-    // Check user permissions (managers and partners can set self-filing)
-    if (session.user.role === 'STAFF') {
-      return NextResponse.json({ error: 'Access denied - staff cannot set self-filing' }, { status: 403 })
-    }
+    // Permission check removed - all users can set self-filing
+    // This allows staff, managers, and partners to set client self-filing
 
     const currentWorkflow = client.ltdAccountsWorkflows[0]
     let workflow

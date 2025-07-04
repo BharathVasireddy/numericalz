@@ -58,15 +58,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
-    // Check user permissions (staff can only update their own assignments)
-    if (session.user.role === 'STAFF') {
-      const isAssigned = client.ltdCompanyAssignedUserId === session.user.id ||
-                        client.ltdAccountsWorkflows[0]?.assignedUserId === session.user.id
-      
-      if (!isAssigned) {
-        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-      }
-    }
+    // Permission check removed - all users can update workflow assignments
+    // This allows staff, managers, and partners to freely assign workflows to any user
 
     const currentWorkflow = client.ltdAccountsWorkflows[0]
     let workflow
