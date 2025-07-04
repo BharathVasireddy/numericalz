@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { getVATFilingMonthsForQuarterGroup } from '@/lib/vat-workflow'
 import { logActivityEnhanced, ActivityHelpers } from '@/lib/activity-middleware'
+import { AssignmentNotificationService } from '@/lib/assignment-notifications'
 
 export async function GET(request: NextRequest) {
   try {
@@ -232,6 +233,26 @@ export async function POST(request: NextRequest) {
       vatQuarter.quarterPeriod,
       'Unassigned'
     ))
+
+    // 📧 Send VAT assignment notification email to the assigned user
+    AssignmentNotificationService.sendVATAssignmentNotification(
+      vatQuarter.client.id,
+      vatQuarterId,
+      assignedUserId,
+      {
+        assignedBy: {
+          id: session.user.id,
+          name: session.user.name || session.user.email || 'Unknown',
+          email: session.user.email || '',
+          role: session.user.role || 'USER'
+        },
+        request
+      },
+      undefined // No previous assignee since this was unassigned
+    ).catch(emailError => {
+      console.error('❌ Failed to send VAT assignment notification email:', emailError)
+      // Don't fail the main request if email fails
+    })
 
     return NextResponse.json({
       success: true,
