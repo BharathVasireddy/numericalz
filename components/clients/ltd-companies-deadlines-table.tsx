@@ -69,6 +69,7 @@ import {
   Filter,
   Undo2,
   X,
+  Search,
   AlertTriangle
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
@@ -220,7 +221,11 @@ export function LtdCompaniesDeadlinesTable({
     if (filterParam === 'unassigned') {
       return { filter: 'all' as const, userFilter: 'unassigned' }
     }
-    return { filter: 'all' as const, userFilter: 'all' }
+    if (filterParam === 'all') {
+      return { filter: 'all' as const, userFilter: 'all' }
+    }
+    // Default to "assigned_to_me" instead of "all"
+    return { filter: 'assigned_to_me' as const, userFilter: 'all' }
   }
   
   const initialFilterState = getInitialFilter()
@@ -237,7 +242,7 @@ export function LtdCompaniesDeadlinesTable({
   const [selectedAssignee, setSelectedAssignee] = useState<string>('unassigned')
   const [updateComments, setUpdateComments] = useState<string>('')
   const [updating, setUpdating] = useState(false)
-  const [sortField, setSortField] = useState<string>('companyName')
+  const [sortField, setSortField] = useState<string>('accountsDue')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [showClientSelfFilingConfirm, setShowClientSelfFilingConfirm] = useState(false)
   const [showFiledConfirm, setShowFiledConfirm] = useState(false)
@@ -248,6 +253,7 @@ export function LtdCompaniesDeadlinesTable({
   const [filter, setFilter] = useState<'all' | 'assigned_to_me'>(initialFilterState.filter)
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>(initialFilterState.userFilter)
   const [selectedWorkflowStageFilter, setSelectedWorkflowStageFilter] = useState<string>('all')
+  const [searchTerm, setSearchTerm] = useState<string>('')
   const [refreshingCompaniesHouse, setRefreshingCompaniesHouse] = useState(false)
   const [refreshingClientId, setRefreshingClientId] = useState<string | null>(null)
   const [undoingClientId, setUndoingClientId] = useState<string | null>(null)
@@ -404,6 +410,17 @@ export function LtdCompaniesDeadlinesTable({
         passesBasicFilter = client.ltdCompanyAssignedUser?.id === session?.user?.id
       }
       
+      // Search filter
+      let passesSearchFilter = true
+      if (searchTerm.trim()) {
+        const searchLower = searchTerm.toLowerCase()
+        passesSearchFilter = (
+          client.clientCode.toLowerCase().includes(searchLower) ||
+          client.companyName.toLowerCase().includes(searchLower) ||
+          (client.companyNumber?.toLowerCase().includes(searchLower) ?? false)
+        )
+      }
+      
       // User filter
       let passesUserFilter = true
       if (selectedUserFilter !== 'all') {
@@ -429,9 +446,9 @@ export function LtdCompaniesDeadlinesTable({
         passesAdvancedFilter = true
       }
 
-      return passesBasicFilter && passesUserFilter && passesWorkflowFilter && passesAdvancedFilter
+      return passesBasicFilter && passesSearchFilter && passesUserFilter && passesWorkflowFilter && passesAdvancedFilter
     })
-  }, [ltdClients, filter, selectedUserFilter, selectedWorkflowStageFilter, advancedFilter, session?.user?.id])
+  }, [ltdClients, filter, searchTerm, selectedUserFilter, selectedWorkflowStageFilter, advancedFilter, session?.user?.id])
 
   // Calculate client counts per user for filter display
   const userClientCounts = users.reduce((acc, user) => {
@@ -1336,6 +1353,30 @@ export function LtdCompaniesDeadlinesTable({
                 </div>
               </div>
             </Card>
+
+            {/* Search Input */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder="Search by client code, company name, or number..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-muted"
+                    title="Clear search"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
 
             {/* Filter Buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
