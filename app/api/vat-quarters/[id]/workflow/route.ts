@@ -27,20 +27,59 @@ const STAGE_TO_MILESTONE_MAP: { [key: string]: string } = {
 
 /**
  * Get milestone update data for a given stage and user
+ * Handles both forward progression and backward movement (undo operations)
  */
-function getMilestoneUpdateData(stage: string, userId: string, userName: string) {
+function getMilestoneUpdateData(stage: string, userId: string, userName: string, currentStage?: string) {
   const milestoneField = STAGE_TO_MILESTONE_MAP[stage]
   if (!milestoneField) return {}
 
   const now = new Date()
   const updateData: any = {}
   
-  // Set the milestone date
+  // Set the milestone date for the new stage
   updateData[milestoneField] = now
   
   // Set the corresponding user ID and name fields
   updateData[`${milestoneField.replace('Date', 'ByUserId')}`] = userId
   updateData[`${milestoneField.replace('Date', 'ByUserName')}`] = userName
+  
+  // ENHANCED: Clear future milestone dates when moving backwards (undo operations)
+  if (currentStage) {
+    const stageOrder = [
+      'WAITING_FOR_QUARTER_END',
+      'PAPERWORK_PENDING_CHASE', 
+      'PAPERWORK_CHASED',
+      'PAPERWORK_RECEIVED',
+      'WORK_IN_PROGRESS',
+      'QUERIES_PENDING',
+      'REVIEW_PENDING_MANAGER',
+      'REVIEWED_BY_MANAGER',
+      'REVIEW_PENDING_PARTNER',
+      'REVIEWED_BY_PARTNER',
+      'EMAILED_TO_PARTNER',
+      'EMAILED_TO_CLIENT',
+      'CLIENT_APPROVED',
+      'FILED_TO_HMRC'
+    ]
+    
+    const currentIndex = stageOrder.indexOf(currentStage)
+    const newIndex = stageOrder.indexOf(stage)
+    
+    // If moving backwards, clear milestone dates for future stages
+    if (currentIndex > newIndex) {
+      const futureStagesToClear = stageOrder.slice(newIndex + 1, currentIndex + 1)
+      
+      futureStagesToClear.forEach(futureStage => {
+        const futureMilestoneField = STAGE_TO_MILESTONE_MAP[futureStage]
+        if (futureMilestoneField) {
+          // Clear the milestone date and user attribution
+          updateData[futureMilestoneField] = null
+          updateData[`${futureMilestoneField.replace('Date', 'ByUserId')}`] = null
+          updateData[`${futureMilestoneField.replace('Date', 'ByUserName')}`] = null
+        }
+      })
+    }
+  }
   
   return updateData
 }
@@ -173,7 +212,8 @@ export async function PUT(
     const milestoneUpdateData = isActualStageChange ? getMilestoneUpdateData(
       effectiveStage, 
       session.user.id, 
-      session.user.name || session.user.email || 'Unknown User'
+      session.user.name || session.user.email || 'Unknown User',
+      vatQuarter.currentStage // Pass current stage for undo operations
     ) : {}
 
 
@@ -256,22 +296,47 @@ export async function PUT(
 
     // Log comprehensive activity for VAT workflow updates (only if stage actually changed)
     if (isActualStageChange) {
-      await logActivityEnhanced(request, {
-        action: 'VAT_QUARTER_STAGE_CHANGED',
-        clientId: updatedVatQuarter.clientId,
-        details: {
-          companyName: updatedVatQuarter.client.companyName,
-          clientCode: updatedVatQuarter.client.clientCode,
-          workflowType: 'VAT',
-          oldStage: currentHistory?.toStage || 'NOT_STARTED',
-          newStage: effectiveStage,
-          comments,
-          quarterPeriod: updatedVatQuarter.quarterPeriod,
-          quarterStartDate: updatedVatQuarter.quarterStartDate.toISOString(),
-          quarterEndDate: updatedVatQuarter.quarterEndDate.toISOString(),
-          filingDueDate: updatedVatQuarter.filingDueDate.toISOString()
-        }
-      })
+      // ENHANCED: Detect undo operations for specific logging
+      const isUndoFromFiledToHMRC = vatQuarter.currentStage === 'FILED_TO_HMRC' && effectiveStage !== 'FILED_TO_HMRC'
+      
+      if (isUndoFromFiledToHMRC) {
+        // Log specific undo operation
+        await logActivityEnhanced(request, {
+          action: 'VAT_RETURN_FILING_UNDONE',
+          clientId: updatedVatQuarter.clientId,
+          details: {
+            companyName: updatedVatQuarter.client.companyName,
+            clientCode: updatedVatQuarter.client.clientCode,
+            workflowType: 'VAT',
+            undoFromStage: vatQuarter.currentStage,
+            revertedToStage: effectiveStage,
+            quarterPeriod: updatedVatQuarter.quarterPeriod,
+            comments: comments || 'Filing undone - workflow reopened for corrections',
+            undoneBy: session.user.name || session.user.email || 'Unknown User',
+            quarterStartDate: updatedVatQuarter.quarterStartDate.toISOString(),
+            quarterEndDate: updatedVatQuarter.quarterEndDate.toISOString(),
+            filingDueDate: updatedVatQuarter.filingDueDate.toISOString()
+          }
+        })
+      } else {
+        // Log regular stage change
+        await logActivityEnhanced(request, {
+          action: 'VAT_QUARTER_STAGE_CHANGED',
+          clientId: updatedVatQuarter.clientId,
+          details: {
+            companyName: updatedVatQuarter.client.companyName,
+            clientCode: updatedVatQuarter.client.clientCode,
+            workflowType: 'VAT',
+            oldStage: currentHistory?.toStage || 'NOT_STARTED',
+            newStage: effectiveStage,
+            comments,
+            quarterPeriod: updatedVatQuarter.quarterPeriod,
+            quarterStartDate: updatedVatQuarter.quarterStartDate.toISOString(),
+            quarterEndDate: updatedVatQuarter.quarterEndDate.toISOString(),
+            filingDueDate: updatedVatQuarter.filingDueDate.toISOString()
+          }
+        })
+      }
     }
 
     // Log assignment changes if assignee was updated (including unassignment)
