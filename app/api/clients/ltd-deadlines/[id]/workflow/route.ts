@@ -177,8 +177,8 @@ export async function PUT(
     if (stage) {
       // ENHANCED: Detect undo operations for specific logging
       const isUndoFromFiledToHMRC = currentWorkflow?.currentStage === 'FILED_TO_HMRC' && stage !== 'FILED_TO_HMRC'
-      const isUndoFromFiledCHHMRC = currentWorkflow?.currentStage === 'FILED_CH_HMRC' && stage !== 'FILED_CH_HMRC'
-      const isUndoOperation = isUndoFromFiledToHMRC || isUndoFromFiledCHHMRC
+      const isUndoFromFiledToCompaniesHouse = currentWorkflow?.currentStage === 'FILED_TO_COMPANIES_HOUSE' && stage !== 'FILED_TO_COMPANIES_HOUSE'
+      const isUndoOperation = isUndoFromFiledToHMRC || isUndoFromFiledToCompaniesHouse
       
       if (isUndoOperation) {
         // Log specific undo operation

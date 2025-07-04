@@ -30,6 +30,7 @@ model User {
   vatAssignedClients           Client[]                     @relation("ClientVATAssignedUser")
   sentCommunications           Communication[]
   triggeredEmailLogs           EmailLog[]
+  createdTemplates             EmailTemplate[]
   ltdAccountsWorkflowHistory   LtdAccountsWorkflowHistory[]
   assignedLtdAccountsWorkflows LtdAccountsWorkflow[]
   notifications                Notification[]
@@ -200,16 +201,29 @@ model Communication {
 }
 
 model EmailTemplate {
-  id          String   @id @default(cuid())
-  name        String   @unique
+  id          String             @id @default(cuid())
+  name        String             @unique
   subject     String
   htmlContent String
   textContent String?
-  variables   String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  variables   String?            // JSON string of available variables
+  category    TemplateCategory   @default(GENERAL)
+  isActive    Boolean            @default(true)
+  isSystem    Boolean            @default(false) // System templates vs user-created
+  createdBy   String?
+  description String?            // Template description
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  
+  // Relationships
+  creator     User?              @relation(fields: [createdBy], references: [id])
+  emailLogs   EmailLog[]         @relation("TemplateEmailLogs")
+  attachments EmailAttachment[]
 
+  @@index([category])
+  @@index([isActive])
+  @@index([isSystem])
+  @@index([createdBy])
   @@map("email_templates")
 }
 
@@ -474,8 +488,16 @@ model EmailLog {
   triggeredBy     String
   fromEmail       String?     @default("noreply@numericalz.com")
   fromName        String?     @default("Numericalz")
+  
+  // Template support
+  templateId      String?     // Reference to EmailTemplate if used
+  templateData    String?     // JSON data used to populate template variables
+  
+  // Relationships
   client          Client?     @relation(fields: [clientId], references: [id])
   triggeredByUser User        @relation(fields: [triggeredBy], references: [id])
+  template        EmailTemplate? @relation("TemplateEmailLogs", fields: [templateId], references: [id])
+  attachments     EmailAttachment[]
 
   @@index([clientId])
   @@index([createdAt])
@@ -484,7 +506,60 @@ model EmailLog {
   @@index([sentAt])
   @@index([status])
   @@index([triggeredBy])
+  @@index([templateId])
   @@map("email_logs")
+}
+
+model EmailAttachment {
+  id           String        @id @default(cuid())
+  fileName     String
+  filePath     String        // Path to file on Railway filesystem
+  fileSize     Int           // File size in bytes
+  mimeType     String
+  createdAt    DateTime      @default(now())
+  
+  // Relationships - can be attached to templates or email logs
+  templateId   String?
+  emailLogId   String?
+  
+  template     EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  emailLog     EmailLog?      @relation(fields: [emailLogId], references: [id], onDelete: Cascade)
+  
+  @@index([templateId])
+  @@index([emailLogId])
+  @@map("email_attachments")
+}
+
+model BrandingSettings {
+  id             String   @id @default(cuid())
+  firmName       String
+  logoUrl        String?  // Path to logo file on Railway filesystem
+  primaryColor   String   @default("#2563eb") // Hex color
+  secondaryColor String   @default("#64748b") // Hex color
+  emailSignature String?  // HTML signature for emails
+  websiteUrl     String?
+  phoneNumber    String?
+  address        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Each firm has one branding setting
+  @@map("branding_settings")
+}
+
+enum TemplateCategory {
+  GENERAL
+  VAT_WORKFLOW
+  ACCOUNTS_WORKFLOW
+  CHASE_REMINDERS
+  DEADLINE_NOTIFICATIONS
+  COMPLETION_NOTIFICATIONS
+  QUERY_REQUESTS
+  APPROVAL_REQUESTS
+  FILING_CONFIRMATIONS
+  WELCOME_ONBOARDING
+  MARKETING
+  SYSTEM_NOTIFICATIONS
 }
 
 enum VATWorkflowStage {

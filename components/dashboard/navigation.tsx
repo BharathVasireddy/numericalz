@@ -179,6 +179,28 @@ export function DashboardNavigation() {
         ]
       },
       {
+        id: 'communication',
+        title: 'Communication',
+        icon: Mail,
+        items: [
+          {
+            name: 'Email Templates',
+            href: '/dashboard/communication/templates',
+            icon: Mail,
+          },
+          {
+            name: 'Email History',
+            href: '/dashboard/communication/history',
+            icon: Mail,
+          },
+          ...(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER' ? [{
+            name: 'Communication Settings',
+            href: '/dashboard/communication/settings',
+            icon: Settings,
+          }] : [])
+        ]
+      },
+      {
         id: 'tools',
         title: 'Tools & Utilities',
         icon: Wrench,

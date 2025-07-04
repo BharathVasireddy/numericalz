@@ -78,12 +78,25 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Send OTP email
-    const emailSent = await emailOTPService.sendOTP({
-      email: user.email,
-      name: user.name,
-      otpCode,
-    })
+    // Send OTP email (or use development mode)
+    let emailSent = false
+    
+    if (process.env.NODE_ENV === 'development' && !process.env.BREVO_API_KEY) {
+      // Development mode: Skip email sending but log OTP to console
+      console.log('\n🔐 DEVELOPMENT MODE - OTP Code Generated:')
+      console.log(`📧 Email: ${user.email}`)
+      console.log(`🔑 OTP Code: ${otpCode}`)
+      console.log(`⏰ Expires: ${otpExpiresAt.toLocaleString()}`)
+      console.log('💡 Use this code to login in development\n')
+      emailSent = true // Pretend email was sent successfully
+    } else {
+      // Production mode: Send actual email
+      emailSent = await emailOTPService.sendOTP({
+        email: user.email,
+        name: user.name,
+        otpCode,
+      })
+    }
 
     if (!emailSent) {
       // Clear OTP from database if email failed
