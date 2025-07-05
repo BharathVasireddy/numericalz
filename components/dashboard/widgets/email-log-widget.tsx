@@ -60,11 +60,11 @@ export function EmailLogWidget({ className }: EmailLogWidgetProps) {
   const fetchEmailLogs = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/notifications/email-logs?limit=20')
+      const response = await fetch('/api/communication/history?limit=20')
       const result = await response.json()
       
       if (result.success) {
-        setEmailLogs(result.data.emailLogs)
+        setEmailLogs(result.emailLogs)
       }
     } catch (error) {
       console.error('Error fetching email logs:', error)

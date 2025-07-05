@@ -148,7 +148,7 @@ All emails are automatically logged to the database with:
 - Timestamps and error details
 - Associated client and workflow information
 
-View email logs in the admin dashboard at `/dashboard/email-logs`.
+View email logs in the admin dashboard at `/dashboard/communication/history`.
 
 ## Email Templates
 
@@ -207,7 +207,7 @@ Common error scenarios:
 
 Monitor email delivery through:
 1. Database logs (`EmailLog` table)
-2. Admin dashboard (`/dashboard/email-logs`)
+2. Admin dashboard (`/dashboard/communication/history`)
 3. Brevo dashboard analytics
 4. Application console logs
 

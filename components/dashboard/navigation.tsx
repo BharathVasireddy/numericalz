@@ -114,12 +114,7 @@ export function DashboardNavigation() {
             name: 'Overview',
             href: dashboardHref,
             icon: LayoutDashboard,
-          },
-          ...(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER' ? [{
-            name: 'Email Logs',
-            href: '/dashboard/email-logs',
-            icon: Mail,
-          }] : [])
+          }
         ]
       },
       {
