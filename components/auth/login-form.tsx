@@ -76,31 +76,19 @@ export function LoginForm() {
       return
     }
 
-    // Debug logging
-    console.log('🔍 Frontend OTP Debug:', {
-      email,
-      otpCode,
-      emailLength: email?.length,
-      otpCodeLength: otpCode?.length
-    })
-
     setIsLoading(true)
 
     try {
       // Verify OTP
-      const requestBody = { email, otpCode }
-      console.log('📤 Sending request:', requestBody)
-      
       const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({ email, otpCode }),
       })
 
       const data = await response.json()
-      console.log('📥 Response received:', { status: response.status, data })
 
       if (!response.ok) {
         showToast.error(data.error || 'Verification failed')
