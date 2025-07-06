@@ -1,3 +1,7 @@
+// 🔒 AUTHENTICATION SYSTEM - LOCKED & PROTECTED
+// ⚠️ CRITICAL WARNING: DO NOT MODIFY THIS FILE WITHOUT EXTREME CAUTION
+// This file is part of the working authentication system - see AUTHENTICATION_LOCK.md
+
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
