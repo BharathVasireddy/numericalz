@@ -13,6 +13,15 @@ export async function POST(request: NextRequest) {
   try {
     // Parse and validate request
     const body = await request.json()
+    
+    // Debug logging to help identify the issue
+    console.log('🔍 OTP Verification Debug:', {
+      bodyReceived: body,
+      emailExists: !!body?.email,
+      otpCodeExists: !!body?.otpCode,
+      otpCodeLength: body?.otpCode?.length
+    })
+    
     const { email, otpCode } = VerifyOTPSchema.parse(body)
 
     // Find user with OTP data
@@ -146,14 +155,17 @@ export async function POST(request: NextRequest) {
     console.error('Verify OTP error:', error)
 
     if (error instanceof z.ZodError) {
+      console.log('🚨 Zod Validation Error:', error.errors)
       return NextResponse.json({
         error: 'Invalid request data',
-        details: error.errors
+        details: error.errors,
+        debug: 'Zod validation failed'
       }, { status: 400 })
     }
 
     return NextResponse.json({
-      error: 'Internal server error'
+      error: 'Internal server error',
+      debug: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 } 
