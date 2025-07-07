@@ -493,10 +493,11 @@ export function DeadlineCalendar({ deadlines, users, userRole, currentUserId, cu
           <Button variant="outline" size="sm" onClick={goToToday}>
             Today
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
+          {/* Export temporarily disabled - endpoint removed during VAT cleanup */}
+          {/* <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
             Export
-          </Button>
+          </Button> */}
         </div>
       </div>
 
