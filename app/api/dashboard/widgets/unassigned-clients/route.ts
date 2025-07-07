@@ -22,7 +22,6 @@ export async function GET(request: NextRequest) {
       include: {
         assignedUser: true,
         ltdCompanyAssignedUser: true,
-        vatAssignedUser: true,
         vatQuartersWorkflow: {
           where: { isCompleted: false },
           orderBy: { quarterEndDate: 'asc' },

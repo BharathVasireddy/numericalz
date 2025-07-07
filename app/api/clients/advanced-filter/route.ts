@@ -52,7 +52,7 @@ function buildPrismaWhereClause(filter: AdvancedFilter, userId: string): any {
 function buildConditionClause(condition: FilterCondition, userId: string): any {
   const { field, operator, value, value2 } = condition
 
-  if (field === 'assignedUser' || field === 'accountsAssignedUser' || field === 'vatAssignedUser') {
+  if (field === 'assignedUser' || field === 'accountsAssignedUser') {
     return buildUserAssignmentClause(field, operator, value, userId)
   }
 
@@ -173,30 +173,7 @@ function buildUserAssignmentClause(field: string, operator: string, value: strin
           return null
       }
 
-    case 'vatAssignedUser':
-      switch (operator) {
-        case 'equals':
-          return {
-            OR: [
-              { vatAssignedUserId: targetUserId },
-              {
-                AND: [
-                  { vatAssignedUserId: null },
-                  { assignedUserId: targetUserId }
-                ]
-              }
-            ]
-          }
-        case 'isNull':
-          return {
-            AND: [
-              { vatAssignedUserId: null },
-              { assignedUserId: null }
-            ]
-          }
-        default:
-          return null
-      }
+
 
     default:
       return null
@@ -276,13 +253,7 @@ export async function POST(request: NextRequest) {
               email: true,
             },
           },
-          vatAssignedUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
+
           corporationTaxStatus: true,
           corporationTaxPeriodStart: true,
           corporationTaxPeriodEnd: true,

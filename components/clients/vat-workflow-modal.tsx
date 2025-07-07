@@ -1,3 +1,50 @@
+/**
+ * VAT Workflow Modal Component
+ * 
+ * This component manages the VAT workflow for individual VAT quarters.
+ * 
+ * CRITICAL SYSTEM ARCHITECTURE NOTES:
+ * 
+ * 1. VAT ASSIGNMENT SYSTEM (Post-Cleanup):
+ *    - Manages QUARTER-LEVEL ASSIGNMENTS ONLY via VATQuarter.assignedUserId
+ *    - NO client-level VAT assignments (Client.vatAssignedUserId REMOVED)
+ *    - Each VAT quarter is independently assigned and managed
+ *    - No fallback assignment logic or priority hierarchies
+ * 
+ * 2. QUARTER INDEPENDENCE:
+ *    - Each quarter (Q1, Q2, Q3, Q4) has its own workflow and assignment
+ *    - Quarters start unassigned (assignedUserId = null)
+ *    - Assignment can be changed independently for each quarter
+ *    - No sync between quarters or client-level assignments
+ * 
+ * 3. WORKFLOW MANAGEMENT:
+ *    - 11-stage VAT workflow from "Paperwork Pending Chase" to "Filed to HMRC"
+ *    - Each stage change creates workflow history entry
+ *    - Milestone dates automatically tracked with user attribution
+ *    - Comprehensive timeline shows progression through stages
+ * 
+ * 4. ASSIGNMENT MANAGEMENT:
+ *    - Users can assign/reassign quarters to staff, managers, or partners
+ *    - Assignment changes trigger notification system
+ *    - Future quarters unassigned when current quarter is assigned
+ *    - Workload calculations based on quarter-level assignments only
+ * 
+ * 5. REMOVED FEATURES (Do NOT re-add):
+ *    - Client.vatAssignedUserId field references (cleaned up)
+ *    - Client.vatAssignedUser relation references (cleaned up)  
+ *    - Complex 3-tier assignment priority system (simplified)
+ *    - Client-level VAT assignment sync logic (removed)
+ * 
+ * 6. FRONTEND INTEGRATION:
+ *    - Opened from VAT deadlines table (/dashboard/clients/vat-dt)
+ *    - Supports month-specific quarter management
+ *    - Real-time updates to quarter assignment and workflow stage
+ *    - Comprehensive milestone tracking and timeline display
+ * 
+ * @component VATWorkflowModal
+ * @version 2.0 (Post-VAT-Cleanup)
+ * @lastModified July 2025
+ */
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -54,11 +101,6 @@ interface VATWorkflowModalProps {
       companyName: string
       vatQuarterGroup: string
       assignedUser?: {
-        id: string
-        name: string
-        email: string
-      }
-      vatAssignedUser?: {
         id: string
         name: string
         email: string

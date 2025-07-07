@@ -96,13 +96,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             email: true,
           },
         },
-        vatAssignedUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+
         ltdCompanyAssignedUser: {
           select: {
             id: true,
@@ -136,7 +130,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     // Check permissions - staff can only view their assigned clients
     if (session.user.role === 'STAFF') {
       const isAssigned = client.assignedUserId === session.user.id ||
-                        client.vatAssignedUserId === session.user.id ||
                         client.ltdCompanyAssignedUserId === session.user.id ||
                         client.nonLtdCompanyAssignedUserId === session.user.id ||
                         client.vatQuartersWorkflow.some(quarter => quarter.assignedUserId === session.user.id)

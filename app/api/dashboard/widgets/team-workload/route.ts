@@ -31,10 +31,6 @@ export async function GET(request: NextRequest) {
           where: { isActive: true },
           select: { id: true }
         },
-        vatAssignedClients: {
-          where: { isActive: true },
-          select: { id: true }
-        },
         ltdCompanyAssignedClients: {
           where: { isActive: true },
           select: { id: true }
@@ -73,9 +69,8 @@ export async function GET(request: NextRequest) {
 
     // Transform the data to match the expected format
     const formattedTeamWorkload = teamWorkload.map(member => {
-      // Get unique client IDs for VAT work (client-level + workflow-level)
+      // Get unique client IDs for VAT work (workflow-level only)
       const vatClientIds = new Set([
-        ...member.vatAssignedClients.map(c => c.id),
         ...member.assignedVATQuarters.map(q => q.clientId)
       ])
 

@@ -1,3 +1,55 @@
+/**
+ * VAT Quarter Workflow API Route
+ * 
+ * This API endpoint manages VAT quarter workflow stages and assignments.
+ * 
+ * CRITICAL SYSTEM ARCHITECTURE NOTES:
+ * 
+ * 1. VAT ASSIGNMENT SYSTEM (Post-Cleanup):
+ *    - Manages QUARTER-LEVEL ASSIGNMENTS ONLY via VATQuarter.assignedUserId
+ *    - NO client-level VAT assignments (Client.vatAssignedUserId REMOVED)
+ *    - Each VAT quarter is independently assigned and managed
+ *    - No fallback assignment logic or priority hierarchies
+ * 
+ * 2. QUARTER INDEPENDENCE LOGIC:
+ *    - Each quarter assignment is completely independent
+ *    - Assignment changes do NOT sync to client-level fields
+ *    - Future quarters are unassigned when current quarter is assigned
+ *    - No inheritance from client or other quarters
+ * 
+ * 3. WORKFLOW STAGE MANAGEMENT:
+ *    - 11-stage VAT workflow progression
+ *    - Automatic milestone date tracking with user attribution
+ *    - Comprehensive workflow history logging
+ *    - Stage-specific business logic and validations
+ * 
+ * 4. ASSIGNMENT MANAGEMENT:
+ *    - Users can assign/reassign quarters to any user
+ *    - Assignment changes trigger email notifications
+ *    - Future quarter unassignment maintains workflow independence
+ *    - Workload calculations based on quarter assignments only
+ * 
+ * 5. REMOVED FEATURES (Do NOT re-add):
+ *    - Client.vatAssignedUserId field sync (cleaned up)
+ *    - Client.vatAssignedUser relation sync (cleaned up)
+ *    - Complex 3-tier assignment priority system (simplified)
+ *    - Client-level VAT assignment fallback logic (removed)
+ * 
+ * 6. BUSINESS LOGIC RULES:
+ *    - Only current/active quarters need assignment
+ *    - Future quarters remain unassigned until their filing month
+ *    - Completed quarters maintain their assignment history
+ *    - Assignment notifications sent for all assignment changes
+ * 
+ * @route PUT /api/vat-quarters/[id]/workflow
+ * @param {string} id - VAT quarter ID
+ * @body {VATWorkflowStage} stage - New workflow stage
+ * @body {string} assignedUserId - User ID for quarter assignment
+ * @body {string} comments - Optional comments for workflow change
+ * @returns Updated VAT quarter with workflow history
+ * @version 2.0 (Post-VAT-Cleanup)
+ * @lastModified July 2025
+ */
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'

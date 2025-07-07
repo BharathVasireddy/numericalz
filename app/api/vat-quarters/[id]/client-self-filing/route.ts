@@ -102,13 +102,7 @@ export async function PUT(
                 email: true,
               }
             },
-            vatAssignedUser: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              }
-            }
+
           }
         },
         workflowHistory: {

@@ -27,7 +27,6 @@ model User {
   assignedClients              Client[]                     @relation("ClientAssignedUser")
   ltdCompanyAssignedClients    Client[]                     @relation("ClientLtdAssignedUser")
   nonLtdCompanyAssignedClients Client[]                     @relation("ClientNonLtdAssignedUser")
-  vatAssignedClients           Client[]                     @relation("ClientVATAssignedUser")
   sentCommunications           Communication[]
   triggeredEmailLogs           EmailLog[]
   createdTemplates             EmailTemplate[]
@@ -141,7 +140,6 @@ model Client {
   tradingAddressLine2             String?
   tradingAddressPostCode          String?
   utrNumber                       String?
-  vatAssignedUserId               String?
   vatDeregistrationDate           DateTime?
   vatFrequency                    String?
   vatQuarterGroup                 String?
@@ -155,7 +153,6 @@ model Client {
   assignedUser                    User?                 @relation("ClientAssignedUser", fields: [assignedUserId], references: [id])
   ltdCompanyAssignedUser          User?                 @relation("ClientLtdAssignedUser", fields: [ltdCompanyAssignedUserId], references: [id])
   nonLtdCompanyAssignedUser       User?                 @relation("ClientNonLtdAssignedUser", fields: [nonLtdCompanyAssignedUserId], references: [id])
-  vatAssignedUser                 User?                 @relation("ClientVATAssignedUser", fields: [vatAssignedUserId], references: [id])
   communications                  Communication[]
   emailLogs                       EmailLog[]
   ltdAccountsWorkflows            LtdAccountsWorkflow[]
@@ -165,7 +162,6 @@ model Client {
   @@index([assignedUserId])
   @@index([ltdCompanyAssignedUserId])
   @@index([nonLtdCompanyAssignedUserId])
-  @@index([vatAssignedUserId])
   @@index([isActive])
   @@index([companyType])
   @@index([companyStatus])

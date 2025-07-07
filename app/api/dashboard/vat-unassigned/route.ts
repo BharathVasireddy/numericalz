@@ -46,14 +46,6 @@ export async function GET(request: NextRequest) {
             email: true,
             role: true
           }
-        },
-        vatAssignedUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true
-          }
         }
       }
     })
@@ -118,8 +110,7 @@ export async function GET(request: NextRequest) {
           currentStage: currentQuarter.currentStage,
           daysSinceQuarterEnd,
           priority,
-          generalAssignedUser: client.assignedUser,
-          vatAssignedUser: client.vatAssignedUser
+          generalAssignedUser: client.assignedUser
         })
       }
     }

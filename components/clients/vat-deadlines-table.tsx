@@ -112,14 +112,6 @@ interface VATClient {
   vatQuarterGroup?: string
   createdAt: string // Client creation date to determine if old quarters are applicable
   
-  // VAT-specific assignee
-  vatAssignedUser?: {
-    id: string
-    name: string
-    email: string
-    role: string
-  }
-  
   // Current VAT quarter workflow info (for backward compatibility)
   currentVATQuarter?: VATQuarter
   
@@ -1060,30 +1052,7 @@ export function VATDeadlinesTable({
     }
   }
 
-  const handleQuickAssign = async (clientId: string, userId: string | null) => {
-    try {
-      const response = await fetch(`/api/clients/${clientId}/assign-vat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId: userId
-        })
-      })
 
-      if (!response.ok) {
-        throw new Error('Failed to assign VAT user')
-      }
-
-      showToast.success('VAT assignment updated successfully')
-      
-      // Refresh data
-      await fetchVATClients(true)
-      
-    } catch (error) {
-      console.error('Error assigning VAT user:', error)
-      showToast.error('Failed to assign VAT user. Please try again.')
-    }
-  }
 
   const handleClientSelfFiling = async () => {
     if (!selectedClient?.currentVATQuarter) {
@@ -1797,7 +1766,10 @@ export function VATDeadlinesTable({
                         <div className="flex flex-wrap gap-2">
                           {MONTHS.map((month) => {
                             const monthClients = getClientsForMonth(month.number)
-                            const unassignedInMonth = monthClients.filter(client => !client.vatAssignedUser?.id).length
+                            const unassignedInMonth = monthClients.filter(client => {
+                              const quarter = getQuarterForMonth(client, month.number)
+                              return quarter && !quarter.assignedUser?.id
+                            }).length
                             
                             if (unassignedInMonth > 0) {
                               return (

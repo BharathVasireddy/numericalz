@@ -117,7 +117,7 @@ const VAT_FILTER_FIELDS = [
     { value: '2_5_8_11', label: 'Feb, May, Aug, Nov' },
     { value: '3_6_9_12', label: 'Mar, Jun, Sep, Dec' }
   ]},
-  { value: 'vatAssignedUser', label: 'VAT Assigned User', type: 'user' },
+
   { value: 'workflowStage', label: 'Workflow Stage', type: 'select', options: [
     { value: 'PAPERWORK_PENDING_CHASE', label: 'Pending to chase' },
     { value: 'PAPERWORK_CHASED', label: 'Paperwork chased' },

@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get email logs with enhanced data (from Email Logs)
+    // Note: template relation removed due to missing templateId field in production
     const emailLogs = await db.emailLog.findMany({
       where: whereClause,
       include: {
@@ -93,14 +94,14 @@ export async function GET(request: NextRequest) {
             email: true,
             role: true // Enhanced: include role
           }
-        },
-        template: {
-          select: {
-            id: true,
-            name: true,
-            category: true
-          }
         }
+        // template: {  // REMOVED: templateId field doesn't exist in production
+        //   select: {
+        //     id: true,
+        //     name: true,
+        //     category: true
+        //   }
+        // }
       },
       orderBy: {
         createdAt: 'desc'
@@ -140,11 +141,7 @@ export async function GET(request: NextRequest) {
         email: log.triggeredByUser.email,
         role: log.triggeredByUser.role
       } : null,
-      template: log.template ? {
-        id: log.template.id,
-        name: log.template.name,
-        category: log.template.category
-      } : null
+      template: null // REMOVED: templateId field doesn't exist in production
     }))
 
     const totalPages = Math.ceil(totalCount / limit)

@@ -61,11 +61,20 @@ export async function GET(
     const allUsers = await db.user.findMany({
       where: { isActive: true },
       include: {
-        vatAssignedClients: {
-          where: { isActive: true },
+        assignedVATQuarters: {
+          where: { 
+            client: { isActive: true },
+            isCompleted: false
+          },
           select: {
             id: true,
-            isVatEnabled: true
+            clientId: true,
+            client: {
+              select: {
+                id: true,
+                isVatEnabled: true
+              }
+            }
           }
         },
         ltdCompanyAssignedClients: {
@@ -123,8 +132,9 @@ export async function GET(
 
     // 2. STAFF WORKLOAD - ONLY specific work-type assignments (NO GENERAL)
     const staffWorkload = allUsers.map(user => {
-      // Count VAT clients (from vatAssignedClients relation)
-      const vatClients = user.vatAssignedClients.filter(c => c.isVatEnabled).length
+      // Count VAT clients (from assignedVATQuarters relation - unique client IDs)
+      const vatClientIds = new Set(user.assignedVATQuarters.map(q => q.clientId))
+      const vatClients = vatClientIds.size
       
       // Count Accounts clients (from both Ltd and Non-Ltd assigned clients)
       const accountsClients = [

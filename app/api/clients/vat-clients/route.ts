@@ -1,3 +1,42 @@
+/**
+ * VAT Clients API Route
+ * 
+ * This API endpoint retrieves all VAT-enabled clients with their quarter-level assignments.
+ * 
+ * CRITICAL SYSTEM ARCHITECTURE NOTES:
+ * 
+ * 1. VAT ASSIGNMENT SYSTEM (Post-Cleanup):
+ *    - Uses QUARTER-LEVEL ASSIGNMENTS ONLY via VATQuarter.assignedUserId
+ *    - NO client-level VAT assignments (Client.vatAssignedUserId REMOVED)
+ *    - Each VAT quarter is independently assigned to users
+ *    - No fallback assignment logic or priority hierarchies
+ * 
+ * 2. QUARTER INDEPENDENCE:
+ *    - Each quarter (Q1, Q2, Q3, Q4) can have different assignees
+ *    - Quarters start unassigned (assignedUserId = null)
+ *    - Assignment happens during filing months via workflow management
+ * 
+ * 3. BUSINESS LOGIC:
+ *    - Returns all VAT quarters (completed + incomplete) for month-specific workflows
+ *    - Includes comprehensive milestone tracking data
+ *    - Supports month-specific quarter filtering in frontend
+ * 
+ * 4. REMOVED FEATURES (Do NOT re-add):
+ *    - Client.vatAssignedUserId field (cleaned up)
+ *    - Client.vatAssignedUser relation (cleaned up)  
+ *    - Complex 3-tier assignment priority system (simplified)
+ *    - Client-level VAT assignment fallback logic (removed)
+ * 
+ * 5. FRONTEND INTEGRATION:
+ *    - Used by VAT deadlines table (/dashboard/clients/vat-dt)
+ *    - Supports month-specific quarter display and workflows
+ *    - Enables independent quarter assignment management
+ * 
+ * @route GET /api/clients/vat-clients
+ * @returns Array of VAT clients with quarter-level assignment data
+ * @version 2.0 (Post-VAT-Cleanup)
+ * @lastModified July 2025
+ */
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -7,33 +46,26 @@ import { calculateVATQuarter, getNextVATQuarter } from '@/lib/vat-workflow'
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
 
-/**
- * GET /api/clients/vat-clients
- * 
- * Get all clients with VAT enabled for the VAT deadline tracker
- * Includes current VAT quarter workflow information and VAT-specific assignee
- * Automatically creates current quarter if it doesn't exist
- * Fixed: Properly handles completed quarters and creates next quarters
- */
 export async function GET(request: NextRequest) {
   try {
+    // Authentication check - all VAT data requires authenticated access
     const session = await getServerSession(authOptions)
-
     if (!session) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Build where clause - All roles can see all VAT clients
-    // Filtering by assignment is handled on the frontend
-    let whereClause: any = {
+    // Extract month filter from query parameters for month-specific workflows
+    const { searchParams } = new URL(request.url)
+    const monthFilter = searchParams.get('month')
+    
+    // Build where clause for VAT-enabled clients only
+    const whereClause = {
       isVatEnabled: true,
       isActive: true
     }
 
-    // Fetch VAT-enabled clients with ALL recent quarter workflow info
+    // Fetch VAT clients with comprehensive quarter-level assignment data
+    // NOTE: This query structure reflects the quarter-level assignment system
     const vatClients = await db.client.findMany({
       where: whereClause,
       select: {
@@ -49,10 +81,12 @@ export async function GET(request: NextRequest) {
         isVatEnabled: true,
         createdAt: true,
         
-        // SIMPLIFIED: No client-level assignment data needed
-        // Each VAT quarter has its own independent assignment
+        // CRITICAL: No client-level VAT assignment data included
+        // The old system included vatAssignedUser here - this has been REMOVED
+        // Each VAT quarter has its own independent assignment via assignedUser below
         
         // Include all VAT quarters (both completed and incomplete) for month-specific workflows
+        // This enables the frontend to show different quarters for different months
         vatQuartersWorkflow: {
           select: {
             id: true,
@@ -62,6 +96,9 @@ export async function GET(request: NextRequest) {
             filingDueDate: true,
             currentStage: true,
             isCompleted: true,
+            
+            // QUARTER-LEVEL ASSIGNMENT: This is the ONLY assignment that matters for VAT
+            // No fallback to client-level assignments - this is the single source of truth
             assignedUser: {
               select: {
                 id: true,
@@ -70,7 +107,9 @@ export async function GET(request: NextRequest) {
                 role: true
               }
             },
-            // Include milestone dates
+            
+            // Comprehensive milestone tracking data for workflow management
+            // Each milestone tracks who completed it and when
             chaseStartedDate: true,
             chaseStartedByUserName: true,
             paperworkReceivedDate: true,
@@ -89,7 +128,8 @@ export async function GET(request: NextRequest) {
           orderBy: {
             quarterEndDate: 'desc'
           }
-          // Remove take limit to get all quarters for month-specific workflows
+          // NOTE: No 'take' limit here - we get all quarters for month-specific workflows
+          // This allows frontend to show different quarters for different filing months
         }
       },
       orderBy: [
@@ -98,24 +138,24 @@ export async function GET(request: NextRequest) {
       ]
     })
 
-    // Process each client to ensure current quarter exists
-    const processedClients = await Promise.all(vatClients.map(async (client) => {
+    // Transform data for frontend consumption
+    // Each client now has independent quarter assignments with full workflow visibility
+    const transformedClients = await Promise.all(vatClients.map(async (client) => {
       // Skip if client doesn't have a quarter group
       if (!client.vatQuarterGroup) {
         return {
-      id: client.id,
-      clientCode: client.clientCode,
-      companyName: client.companyName,
-      companyType: client.companyType,
-      contactEmail: client.contactEmail,
-      contactPhone: client.contactPhone,
-      vatReturnsFrequency: client.vatReturnsFrequency,
-      vatQuarterGroup: client.vatQuarterGroup,
-      nextVatReturnDue: client.nextVatReturnDue,
-      isVatEnabled: client.isVatEnabled,
-      createdAt: client.createdAt.toISOString(),
-          // SIMPLIFIED: No client-level assignments
-          currentVATQuarter: undefined
+          id: client.id,
+          clientCode: client.clientCode,
+          companyName: client.companyName,
+          companyType: client.companyType,
+          contactEmail: client.contactEmail,
+          contactPhone: client.contactPhone,
+          vatReturnsFrequency: client.vatReturnsFrequency,
+          vatQuarterGroup: client.vatQuarterGroup,
+          nextVatReturnDue: client.nextVatReturnDue,
+          isVatEnabled: client.isVatEnabled,
+          createdAt: client.createdAt.toISOString(),
+          currentVATQuarter: null
         }
       }
 
@@ -392,7 +432,6 @@ export async function GET(request: NextRequest) {
         nextVatReturnDue: client.nextVatReturnDue,
         isVatEnabled: client.isVatEnabled,
         createdAt: client.createdAt.toISOString(),
-        // SIMPLIFIED: No client-level assignments
         currentVATQuarter: currentQuarter ? {
           id: currentQuarter.id,
           quarterPeriod: currentQuarter.quarterPeriod,
@@ -402,7 +441,6 @@ export async function GET(request: NextRequest) {
           currentStage: currentQuarter.currentStage,
           isCompleted: currentQuarter.isCompleted,
           assignedUser: currentQuarter.assignedUser,
-          // Include milestone dates
           chaseStartedDate: currentQuarter.chaseStartedDate?.toISOString(),
           chaseStartedByUserName: currentQuarter.chaseStartedByUserName,
           paperworkReceivedDate: currentQuarter.paperworkReceivedDate?.toISOString(),
@@ -417,8 +455,7 @@ export async function GET(request: NextRequest) {
           clientApprovedByUserName: currentQuarter.clientApprovedByUserName,
           filedToHMRCDate: currentQuarter.filedToHMRCDate?.toISOString(),
           filedToHMRCByUserName: currentQuarter.filedToHMRCByUserName
-        } : undefined,
-        // Include all VAT quarters for month-specific workflows
+        } : null,
         vatQuartersWorkflow: client.vatQuartersWorkflow?.map(q => ({
           id: q.id,
           quarterPeriod: q.quarterPeriod,
@@ -428,7 +465,6 @@ export async function GET(request: NextRequest) {
           currentStage: q.currentStage,
           isCompleted: q.isCompleted,
           assignedUser: q.assignedUser,
-          // Include milestone dates
           chaseStartedDate: q.chaseStartedDate?.toISOString(),
           chaseStartedByUserName: q.chaseStartedByUserName,
           paperworkReceivedDate: q.paperworkReceivedDate?.toISOString(),
@@ -449,7 +485,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      clients: processedClients
+      clients: transformedClients
     })
 
   } catch (error) {

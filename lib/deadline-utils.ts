@@ -1,3 +1,50 @@
+/**
+ * Deadline Utilities Library
+ * 
+ * This library provides utilities for calculating deadlines and managing assignments
+ * across different types of work (VAT, Accounts, Corporation Tax, Confirmation Statements).
+ * 
+ * CRITICAL SYSTEM ARCHITECTURE NOTES:
+ * 
+ * 1. ASSIGNMENT SYSTEM ARCHITECTURE (Post-Cleanup):
+ *    - VAT: Uses QUARTER-LEVEL ASSIGNMENTS ONLY via VATQuarter.assignedUserId
+ *    - Accounts: Uses Ltd company assignments + general assignment fallback
+ *    - Corporation Tax: Uses Ltd company assignments + general assignment fallback
+ *    - Confirmation Statements: Uses general assignment only
+ * 
+ * 2. VAT ASSIGNMENT LOGIC (Simplified):
+ *    - NO client-level VAT assignments (Client.vatAssignedUserId REMOVED)
+ *    - Each VAT quarter is independently assigned
+ *    - No fallback to client-level or general assignments for VAT
+ *    - Assignment retrieved directly from VATQuarter.assignedUser
+ * 
+ * 3. ASSIGNMENT PRIORITY SYSTEM:
+ *    - VAT: VATQuarter.assignedUser ONLY (no fallback)
+ *    - Accounts/CT: Client.ltdCompanyAssignedUser → Client.assignedUser
+ *    - Confirmation: Client.assignedUser ONLY
+ * 
+ * 4. BUSINESS LOGIC RULES:
+ *    - Each deadline type has specific assignment logic
+ *    - VAT assignments are completely independent from other work types
+ *    - Accounts and Corporation Tax share the same assignment logic
+ *    - Confirmation statements use general client assignment only
+ * 
+ * 5. REMOVED FEATURES (Do NOT re-add):
+ *    - Client.vatAssignedUserId field references (cleaned up)
+ *    - Client.vatAssignedUser relation references (cleaned up)
+ *    - Complex 3-tier VAT assignment priority system (simplified)
+ *    - VAT fallback to client-level assignments (removed)
+ * 
+ * 6. INTEGRATION POINTS:
+ *    - Used by dashboard widgets for deadline calculations
+ *    - Used by assignment notification system
+ *    - Used by workload calculation functions
+ *    - Used by deadline tracking and reporting features
+ * 
+ * @version 2.0 (Post-VAT-Cleanup)
+ * @lastModified July 2025
+ */
+import { format, parseISO, isValid, addDays, isBefore, isAfter, addYears, setMonth, setDate, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns'
 import { db } from '@/lib/db'
 import { getLondonDateStart } from '@/lib/london-time'
 
@@ -190,7 +237,42 @@ export interface DeadlineItem {
   completedDate?: Date
 }
 
-// Helper function to create deadline item
+/**
+ * Helper function to create deadline item with proper assignment logic
+ * 
+ * ASSIGNMENT LOGIC DOCUMENTATION (Post-VAT-Cleanup):
+ * 
+ * This function implements the core assignment logic for all deadline types.
+ * Each deadline type has specific assignment rules that must be followed:
+ * 
+ * 1. VAT ASSIGNMENTS (Simplified - Post-Cleanup):
+ *    - Uses QUARTER-LEVEL ASSIGNMENTS ONLY via VATQuarter.assignedUser
+ *    - NO fallback to client-level assignments (Client.vatAssignedUser REMOVED)
+ *    - Each VAT quarter is independently assigned
+ *    - If vatQuarter?.assignedUser exists, use it; otherwise leave unassigned
+ * 
+ * 2. ACCOUNTS & CORPORATION TAX ASSIGNMENTS (2-Tier System):
+ *    - Priority 1: Client.ltdCompanyAssignedUser (Ltd company-specific assignment)
+ *    - Priority 2: Client.assignedUser (General client assignment fallback)
+ *    - This allows different users to handle Ltd vs Non-Ltd company work
+ * 
+ * 3. CONFIRMATION STATEMENT ASSIGNMENTS (Simple):
+ *    - Uses Client.assignedUser ONLY (general client assignment)
+ *    - No special assignment logic needed for confirmation statements
+ * 
+ * REMOVED LOGIC (Do NOT re-add):
+ * - VAT fallback to Client.vatAssignedUser (REMOVED in cleanup)
+ * - VAT fallback to Client.assignedUser (REMOVED in cleanup)
+ * - Complex 3-tier VAT assignment priority (SIMPLIFIED)
+ * 
+ * @param client Client object with assignment data
+ * @param dueDate Deadline due date
+ * @param type Type of deadline (vat, accounts, corporation-tax, confirmation)
+ * @param today Current date for calculations
+ * @param assignedUser Override assignment (rarely used)
+ * @param vatQuarter VAT quarter object for quarter-level assignment (VAT only)
+ * @returns Formatted deadline item with correct assignment
+ */
 function createDeadlineItem(
   client: any,
   dueDate: Date,
@@ -200,36 +282,45 @@ function createDeadlineItem(
     id: string
     name: string
   } | null,
-  vatQuarter?: any // Add VAT quarter parameter for VAT-specific assignments
+  vatQuarter?: any // VAT quarter parameter for quarter-level assignments
 ): DeadlineItem {
   const timeDiff = dueDate.getTime() - today.getTime()
   const daysUntilDue = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
   const completionStatus = checkCompletionStatus(client, type, dueDate)
   
-  // Determine the correct assigned user based on deadline type
+  // CRITICAL: Assignment logic determines who is responsible for each deadline
+  // This logic has been carefully designed and cleaned up - do NOT modify without understanding impact
   let finalAssignedUser: { id: string; name: string } | undefined
   
   if (type === 'vat') {
-    // For VAT deadlines, use VAT quarter assignment first, then VAT client assignment, then general assignment
+    // VAT ASSIGNMENT LOGIC (Post-Cleanup - Simplified):
+    // Uses quarter-level assignment ONLY - no client-level fallback
+    // This ensures each VAT quarter is independently managed
     if (vatQuarter?.assignedUser) {
       finalAssignedUser = vatQuarter.assignedUser
-    } else if (client.vatAssignedUser) {
-      finalAssignedUser = client.vatAssignedUser
-    } else if (client.assignedUser) {
-      finalAssignedUser = client.assignedUser
     }
+    // NOTE: If vatQuarter.assignedUser is null, deadline remains unassigned
+    // This is correct behavior - VAT quarters start unassigned until filing month
+    
   } else if (type === 'accounts' || type === 'corporation-tax') {
-    // For accounts/corporation tax deadlines, use accounts assignment first, then general assignment
+    // ACCOUNTS/CORPORATION TAX ASSIGNMENT LOGIC (2-Tier System):
+    // Priority 1: Ltd company-specific assignment (ltdCompanyAssignedUser)
+    // Priority 2: General client assignment (assignedUser)
+    // This allows specialization where different users handle Ltd vs Non-Ltd work
     if (client.ltdCompanyAssignedUser) {
       finalAssignedUser = client.ltdCompanyAssignedUser
     } else if (client.assignedUser) {
       finalAssignedUser = client.assignedUser
     }
+    // If both are null, deadline remains unassigned
+    
   } else {
-    // For confirmation statements, use general assignment
+    // CONFIRMATION STATEMENT ASSIGNMENT LOGIC (Simple):
+    // Uses general client assignment only - no special logic needed
     if (client.assignedUser) {
       finalAssignedUser = client.assignedUser
     }
+    // If assignedUser is null, deadline remains unassigned
   }
   
   return {
@@ -268,13 +359,7 @@ export async function getAllDeadlines(): Promise<DeadlineItem[]> {
             name: true
           }
         },
-        // Add VAT-specific assignment
-        vatAssignedUser: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
+
         // Add accounts-specific assignment
         ltdCompanyAssignedUser: {
           select: {
@@ -380,7 +465,6 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
         isActive: true,
         OR: [
           { assignedUserId: userId },
-          { vatAssignedUserId: userId },
           { ltdCompanyAssignedUserId: userId },
           { 
             ltdAccountsWorkflows: {
@@ -407,13 +491,6 @@ export async function getDeadlinesForUser(userId: string): Promise<DeadlineItem[
         nextCorporationTaxDue: true,
         nextVatReturnDue: true,
         assignedUser: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        // Add VAT-specific assignment
-        vatAssignedUser: {
           select: {
             id: true,
             name: true
@@ -558,13 +635,6 @@ export async function getDeadlinesInDateRange(startDate: Date, endDate: Date): P
         nextCorporationTaxDue: true,
         nextVatReturnDue: true,
         assignedUser: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        // Add VAT-specific assignment
-        vatAssignedUser: {
           select: {
             id: true,
             name: true

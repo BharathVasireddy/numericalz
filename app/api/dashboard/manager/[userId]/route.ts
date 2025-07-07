@@ -331,7 +331,6 @@ export async function GET(
       include: {
         assignedUser: true,
         ltdCompanyAssignedUser: true,
-        vatAssignedUser: true,
         vatQuartersWorkflow: {
           where: { isCompleted: false },
           orderBy: { quarterEndDate: 'asc' },

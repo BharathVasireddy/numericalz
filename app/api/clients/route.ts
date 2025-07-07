@@ -173,7 +173,6 @@ export async function GET(request: NextRequest) {
         { assignedUserId: session.user.id },
         { ltdCompanyAssignedUserId: session.user.id },
         { nonLtdCompanyAssignedUserId: session.user.id },
-        { vatAssignedUserId: session.user.id },
         // Also include clients with VAT quarters assigned to them
         { vatQuartersWorkflow: { some: { assignedUserId: session.user.id } } }
       ]
@@ -197,7 +196,6 @@ export async function GET(request: NextRequest) {
               { assignedUserId: session.user.id },
               { ltdCompanyAssignedUserId: session.user.id },
               { nonLtdCompanyAssignedUserId: session.user.id },
-              { vatAssignedUserId: session.user.id },
               { vatQuartersWorkflow: { some: { assignedUserId: session.user.id } } }
             ]
           },

@@ -52,13 +52,13 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
           email: true,
         },
       },
-      vatAssignedUser: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
+      // vatAssignedUser: {  // REMOVED: Client-level VAT assignments no longer used
+      //   select: {
+      //     id: true,
+      //     name: true,
+      //     email: true,
+      //   },
+      // },
       ltdCompanyAssignedUser: {
         select: {
           id: true,
@@ -120,7 +120,7 @@ export default async function ClientDetailPage({ params }: ClientDetailPageProps
   // Check permissions - staff can only view their assigned clients
   if (session.user.role === 'STAFF') {
     const isAssigned = client.assignedUserId === session.user.id ||
-                      client.vatAssignedUserId === session.user.id ||
+                      // client.vatAssignedUserId === session.user.id ||  // REMOVED: Client-level VAT assignments no longer used
                       client.ltdCompanyAssignedUserId === session.user.id ||
                       client.nonLtdCompanyAssignedUserId === session.user.id ||
                       client.vatQuartersWorkflow.some(quarter => quarter.assignedUserId === session.user.id)

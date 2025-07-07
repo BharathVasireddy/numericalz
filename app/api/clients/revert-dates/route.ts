@@ -29,8 +29,7 @@ export async function POST(request: NextRequest) {
       include: {
         assignedUser: true,
         ltdCompanyAssignedUser: true,
-        nonLtdCompanyAssignedUser: true,
-        vatAssignedUser: true
+        nonLtdCompanyAssignedUser: true
       }
     })
 
@@ -68,8 +67,7 @@ export async function POST(request: NextRequest) {
       include: {
         assignedUser: true,
         ltdCompanyAssignedUser: true,
-        nonLtdCompanyAssignedUser: true,
-        vatAssignedUser: true
+        nonLtdCompanyAssignedUser: true
       }
     })
 
