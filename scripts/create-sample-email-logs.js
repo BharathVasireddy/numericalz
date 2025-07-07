@@ -3,181 +3,115 @@ const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
 
 async function createSampleEmailLogs() {
-  console.log('🔄 Creating sample email logs...')
+  console.log('🔄 Creating sample email logs for testing...')
   
   try {
-    // Get first user and client for testing
-    const user = await prisma.user.findFirst()
-    const client = await prisma.client.findFirst()
+    // Get existing users and clients from local database
+    const users = await prisma.user.findMany({ select: { id: true, name: true, email: true } })
+    const clients = await prisma.client.findMany({ select: { id: true, clientCode: true, companyName: true } })
     
-    if (!user || !client) {
-      console.log('❌ No users or clients found. Please create some first.')
+    console.log(`📋 Found ${users.length} users and ${clients.length} clients in local database`)
+    
+    if (users.length === 0 || clients.length === 0) {
+      console.log('❌ No users or clients found. Cannot create sample email logs.')
       return
     }
     
-    const sampleLogs = [
-      {
-        recipientEmail: 'staff@example.com',
-        recipientName: 'Test Staff Member',
-        subject: '✅ Review Approved - AUREY LTD (NZ-1)',
-        content: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-              <h1 style="margin: 0; font-size: 24px;">Review Approved ✅</h1>
-            </div>
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px;">
-              <div style="background: white; padding: 20px; border-radius: 8px;">
-                <h2 style="color: #333; margin-top: 0;">Client: AUREY LTD (NZ-1)</h2>
-                <p style="color: #666;">The VAT Return has been approved by the Partner.</p>
-              </div>
-            </div>
-          </div>
-        `,
-        emailType: 'WORKFLOW_REVIEW_COMPLETE',
-        status: 'DELIVERED',
-        sentAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-        deliveredAt: new Date(Date.now() - 2 * 60 * 60 * 1000 + 5 * 60 * 1000), // 1h 55m ago
-        clientId: client.id,
-        workflowType: 'vat',
-        triggeredBy: user.id
-      },
-      {
-        recipientEmail: 'manager@example.com',
-        recipientName: 'Test Manager',
-        subject: '🔄 Rework Requested - PAWLALAND LTD (NZ-2)',
-        content: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #f57c00 0%, #ff9800 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-              <h1 style="margin: 0; font-size: 24px;">Rework Requested 🔄</h1>
-            </div>
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px;">
-              <div style="background: white; padding: 20px; border-radius: 8px;">
-                <h2 style="color: #333; margin-top: 0;">Client: PAWLALAND LTD (NZ-2)</h2>
-                <p style="color: #666;">The Annual Accounts require corrections before approval.</p>
-                <div style="background: #fff3e0; padding: 15px; border-radius: 6px; margin: 15px 0;">
-                  <p style="margin: 0; color: #f57c00; font-weight: bold;">Rework Instructions:</p>
-                  <p style="margin: 5px 0 0 0; color: #666;">Please review the depreciation calculations and ensure all fixed assets are properly categorized.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        `,
-        emailType: 'WORKFLOW_REVIEW_COMPLETE',
-        status: 'SENT',
-        sentAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-        clientId: client.id,
-        workflowType: 'accounts',
-        triggeredBy: user.id
-      },
-      {
-        recipientEmail: 'client@example.com',
-        recipientName: 'Client Contact',
-        subject: '📅 Deadline Reminder - VAT Return Due Soon',
-        content: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-              <h1 style="margin: 0; font-size: 24px;">Deadline Reminder 📅</h1>
-            </div>
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px;">
-              <div style="background: white; padding: 20px; border-radius: 8px;">
-                <h2 style="color: #333; margin-top: 0;">VAT Return Due Soon</h2>
-                <p style="color: #666;">Your VAT return is due in 5 days. Please ensure all paperwork is submitted.</p>
-              </div>
-            </div>
-          </div>
-        `,
-        emailType: 'DEADLINE_REMINDER',
-        status: 'FAILED',
-        sentAt: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-        failedAt: new Date(Date.now() - 6 * 60 * 60 * 1000 + 30 * 1000), // 6h ago + 30s
-        failureReason: 'Invalid email address',
-        clientId: client.id,
-        workflowType: 'vat',
-        triggeredBy: user.id
-      },
-      {
-        recipientEmail: 'partner@example.com',
-        recipientName: 'Test Partner',
-        subject: '📋 Weekly Summary - Workflow Updates',
-        content: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #9c27b0 0%, #673ab7 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-              <h1 style="margin: 0; font-size: 24px;">Weekly Summary 📋</h1>
-            </div>
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px;">
-              <div style="background: white; padding: 20px; border-radius: 8px;">
-                <h2 style="color: #333; margin-top: 0;">Workflow Updates</h2>
-                <p style="color: #666;">Summary of workflow activities for the past week.</p>
-              </div>
-            </div>
-          </div>
-        `,
-        emailType: 'WEEKLY_SUMMARY',
-        status: 'PENDING',
-        clientId: null,
-        workflowType: null,
-        triggeredBy: user.id
-      },
-      {
-        recipientEmail: 'staff2@example.com',
-        recipientName: 'Another Staff Member',
-        subject: '✅ Review Approved - FISERMED LTD (NZ-3)',
-        content: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-              <h1 style="margin: 0; font-size: 24px;">Review Approved ✅</h1>
-            </div>
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px;">
-              <div style="background: white; padding: 20px; border-radius: 8px;">
-                <h2 style="color: #333; margin-top: 0;">Client: FISERMED LTD (NZ-3)</h2>
-                <p style="color: #666;">The Annual Accounts have been approved by the Manager.</p>
-                <div style="background: #e8f5e8; padding: 15px; border-radius: 6px; margin: 15px 0;">
-                  <p style="margin: 0; color: #2e7d32; font-weight: bold;">Review Comments:</p>
-                  <p style="margin: 5px 0 0 0; color: #666;">Excellent work on the financial statements. Ready for filing.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        `,
-        emailType: 'WORKFLOW_REVIEW_COMPLETE',
-        status: 'DELIVERED',
-        sentAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
-        deliveredAt: new Date(Date.now() - 1 * 60 * 60 * 1000 + 2 * 60 * 1000), // 58 minutes ago
-        clientId: client.id,
-        workflowType: 'accounts',
-        triggeredBy: user.id
-      }
+    // Clear existing email logs
+    console.log('🗑️ Clearing existing email logs...')
+    await prisma.emailLog.deleteMany({})
+    
+    // Create sample email logs
+    const sampleEmails = []
+    const emailTypes = ['WORKFLOW', 'NOTIFICATION', 'DEADLINE_REMINDER', 'CLIENT_NOTIFICATION', 'MANUAL']
+    const statuses = ['SENT', 'DELIVERED', 'PENDING', 'FAILED']
+    const subjects = [
+      'VAT Return Deadline Reminder',
+      'Accounts Filing Due Soon',
+      'Workflow Review Complete',
+      'Paperwork Required',
+      'Filing Completed Successfully',
+      'Action Required - VAT Quarter',
+      'Year End Accounts Ready',
+      'Client Assignment Update',
+      'Deadline Approaching',
+      'Weekly Summary Report'
     ]
     
-    // Create the email logs
-    for (const logData of sampleLogs) {
-      await prisma.emailLog.create({
-        data: {
-          ...logData,
-          createdAt: logData.sentAt ? new Date(logData.sentAt.getTime() - 5 * 60 * 1000) : new Date(), // Created 5 minutes before sent
-          updatedAt: logData.deliveredAt || logData.failedAt || logData.sentAt || new Date()
-        }
+    // Create 50 sample email logs
+    for (let i = 0; i < 50; i++) {
+      const randomUser = users[Math.floor(Math.random() * users.length)]
+      const randomClient = clients[Math.floor(Math.random() * clients.length)]
+      const randomType = emailTypes[Math.floor(Math.random() * emailTypes.length)]
+      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)]
+      const randomSubject = subjects[Math.floor(Math.random() * subjects.length)]
+      
+      const createdDate = new Date()
+      createdDate.setDate(createdDate.getDate() - Math.floor(Math.random() * 30)) // Last 30 days
+      
+      const sentDate = randomStatus !== 'PENDING' ? new Date(createdDate.getTime() + Math.random() * 3600000) : null
+      const deliveredDate = randomStatus === 'DELIVERED' ? new Date(sentDate.getTime() + Math.random() * 1800000) : null
+      const failedDate = randomStatus === 'FAILED' ? new Date(sentDate?.getTime() + Math.random() * 1800000) : null
+      
+      sampleEmails.push({
+        recipientEmail: `test${i}@example.com`,
+        recipientName: `Test Client ${i}`,
+        subject: randomSubject,
+        content: `<p>This is a sample email content for testing purposes.</p><p>Subject: ${randomSubject}</p><p>Client: ${randomClient.companyName}</p>`,
+        emailType: randomType,
+        status: randomStatus,
+        sentAt: sentDate,
+        deliveredAt: deliveredDate,
+        failedAt: failedDate,
+        failureReason: randomStatus === 'FAILED' ? 'Sample failure reason for testing' : null,
+        clientId: randomClient.id,
+        workflowType: randomType === 'WORKFLOW' ? 'VAT_WORKFLOW' : null,
+        triggeredBy: randomUser.id,
+        fromEmail: 'noreply@numericalz.com',
+        fromName: 'Numericalz',
+        createdAt: createdDate,
+        updatedAt: createdDate
       })
     }
     
-    console.log(`✅ Created ${sampleLogs.length} sample email logs`)
+    // Insert sample emails
+    console.log('📧 Creating sample email logs...')
+    let createdCount = 0
     
-    // Show summary
-    const counts = await prisma.emailLog.groupBy({
-      by: ['status'],
-      _count: {
-        status: true
+    for (const email of sampleEmails) {
+      try {
+        await prisma.emailLog.create({ data: email })
+        createdCount++
+      } catch (error) {
+        console.error(`❌ Error creating sample email:`, error.message)
+      }
+    }
+    
+    console.log(`✅ Successfully created ${createdCount} sample email logs`)
+    
+    // Verify creation
+    const totalCount = await prisma.emailLog.count()
+    console.log(`🔍 Verification: Local database now has ${totalCount} email logs`)
+    
+    // Show sample data
+    const sampleLog = await prisma.emailLog.findFirst({
+      include: {
+        client: { select: { companyName: true, clientCode: true } },
+        triggeredByUser: { select: { name: true } }
       }
     })
     
-    console.log('📊 Email log status summary:')
-    counts.forEach(count => {
-      console.log(`   ${count.status}: ${count._count.status}`)
-    })
+    if (sampleLog) {
+      console.log('📋 Sample email log created:')
+      console.log(`  Subject: ${sampleLog.subject}`)
+      console.log(`  Recipient: ${sampleLog.recipientEmail}`)
+      console.log(`  Status: ${sampleLog.status}`)
+      console.log(`  Client: ${sampleLog.client?.companyName}`)
+      console.log(`  Triggered by: ${sampleLog.triggeredByUser?.name}`)
+    }
     
   } catch (error) {
     console.error('❌ Error creating sample email logs:', error)
-    throw error
   } finally {
     await prisma.$disconnect()
   }

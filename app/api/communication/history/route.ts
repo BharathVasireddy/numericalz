@@ -76,39 +76,70 @@ export async function GET(request: NextRequest) {
     })
 
     // Get email logs with enhanced data (from Email Logs)
-    // Note: template relation removed due to missing templateId field in production
-    const emailLogs = await db.emailLog.findMany({
-      where: whereClause,
-      include: {
-        client: {
-          select: {
-            id: true,
-            companyName: true,
-            clientCode: true
+    // Try to include template data, fallback if templateId field doesn't exist (production)
+    let emailLogs
+    try {
+      emailLogs = await db.emailLog.findMany({
+        where: whereClause,
+        include: {
+          client: {
+            select: {
+              id: true,
+              companyName: true,
+              clientCode: true
+            }
+          },
+          triggeredByUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true
+            }
+          },
+          template: {
+            select: {
+              id: true,
+              name: true,
+              category: true
+            }
           }
         },
-        triggeredByUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true // Enhanced: include role
+        orderBy: {
+          createdAt: 'desc'
+        },
+        skip,
+        take: limit
+      })
+    } catch (templateError) {
+      console.log('Template relation failed, using fallback without template:', templateError.message)
+      // Fallback for production: query without template relation
+      emailLogs = await db.emailLog.findMany({
+        where: whereClause,
+        include: {
+          client: {
+            select: {
+              id: true,
+              companyName: true,
+              clientCode: true
+            }
+          },
+          triggeredByUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true
+            }
           }
-        }
-        // template: {  // REMOVED: templateId field doesn't exist in production
-        //   select: {
-        //     id: true,
-        //     name: true,
-        //     category: true
-        //   }
-        // }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      skip,
-      take: limit
-    })
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        skip,
+        take: limit
+      })
+    }
 
     // Enhanced response with all Email Logs data
     const transformedLogs = emailLogs.map(log => ({
@@ -141,7 +172,11 @@ export async function GET(request: NextRequest) {
         email: log.triggeredByUser.email,
         role: log.triggeredByUser.role
       } : null,
-      template: null // REMOVED: templateId field doesn't exist in production
+      template: log.template ? {
+        id: log.template.id,
+        name: log.template.name,
+        category: log.template.category
+      } : null
     }))
 
     const totalPages = Math.ceil(totalCount / limit)
