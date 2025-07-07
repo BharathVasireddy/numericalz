@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
         take: limit
       })
     } catch (templateError) {
-      console.log('Template relation failed, using fallback without template:', templateError.message)
+      console.log('Template relation failed, using fallback without template:', templateError instanceof Error ? templateError.message : String(templateError))
       // Fallback for production: query without template relation
       emailLogs = await db.emailLog.findMany({
         where: whereClause,
@@ -172,10 +172,10 @@ export async function GET(request: NextRequest) {
         email: log.triggeredByUser.email,
         role: log.triggeredByUser.role
       } : null,
-      template: log.template ? {
-        id: log.template.id,
-        name: log.template.name,
-        category: log.template.category
+      template: (log as any).template ? {
+        id: (log as any).template.id,
+        name: (log as any).template.name,
+        category: (log as any).template.category
       } : null
     }))
 

@@ -115,7 +115,14 @@ class EmailService {
    * Every email sent through this method is automatically logged to email_logs table
    */
   async sendEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    const primaryRecipient = params.to[0]
+    if (!params.to || params.to.length === 0) {
+      return {
+        success: false,
+        error: 'No recipients specified'
+      }
+    }
+    
+    const primaryRecipient = params.to[0]!
     let emailLogId: string | null = null
     
     try {
