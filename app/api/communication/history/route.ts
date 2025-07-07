@@ -12,14 +12,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 🔍 DEBUG: Log session info
-    console.log('🔍 [EMAIL DEBUG] Session user:', {
-      id: session.user.id,
-      email: session.user.email,
-      role: session.user.role,
-      name: session.user.name
-    })
-
     const { searchParams } = new URL(request.url)
     
     // Support both pagination styles: page-based (default) and offset-based (load more)
@@ -34,11 +26,6 @@ export async function GET(request: NextRequest) {
     const clientId = searchParams.get('clientId')
     const userId = searchParams.get('userId')
     const search = searchParams.get('search')
-
-    // 🔍 DEBUG: Log query params
-    console.log('🔍 [EMAIL DEBUG] Query params:', {
-      page, limit, offset, useOffset, status, emailType, clientId, userId, search
-    })
 
     const skip = useOffset ? offset : (page - 1) * limit
 
@@ -83,124 +70,38 @@ export async function GET(request: NextRequest) {
       whereClause.triggeredBy = session.user.id
     }
 
-    // 🔍 DEBUG: Log where clause before querying
-    console.log('🔍 [EMAIL DEBUG] Where clause:', JSON.stringify(whereClause, null, 2))
-
-    // 🔍 DEBUG: First, let's check total emails in database without any filters
-    const totalEmailsInDb = await db.emailLog.count()
-    console.log('🔍 [EMAIL DEBUG] Total emails in database (no filters):', totalEmailsInDb)
-
     // Get total count for pagination
     const totalCount = await db.emailLog.count({
       where: whereClause
     })
 
-    // 🔍 DEBUG: Log count with filters
-    console.log('🔍 [EMAIL DEBUG] Total count with filters:', totalCount)
-
-    // 🔍 DEBUG: Let's also check if there are any emails for this user specifically
-    if (session.user.role === 'STAFF') {
-      const userEmailCount = await db.emailLog.count({
-        where: { triggeredBy: session.user.id }
-      })
-      console.log('🔍 [EMAIL DEBUG] Emails for current user ID:', userEmailCount)
-    }
-
-    // 🔍 DEBUG: Let's check sample emails to understand the data structure
-    const sampleEmails = await db.emailLog.findMany({
-      take: 3,
-      select: {
-        id: true,
-        recipientEmail: true,
-        subject: true,
-        triggeredBy: true,
-        createdAt: true,
-        status: true,
-        emailType: true
+    // Get email logs - Production-safe query without template relation
+    const emailLogs = await db.emailLog.findMany({
+      where: whereClause,
+      include: {
+        client: {
+          select: {
+            id: true,
+            companyName: true,
+            clientCode: true
+          }
+        },
+        triggeredByUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        }
+        // Note: template relation removed for production compatibility
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: {
+        createdAt: 'desc'
+      },
+      skip,
+      take: limit
     })
-    console.log('🔍 [EMAIL DEBUG] Sample emails:', JSON.stringify(sampleEmails, null, 2))
-
-    // Get email logs with enhanced data (from Email Logs)
-    // Try to include template data, fallback if templateId field doesn't exist (production)
-    let emailLogs
-    try {
-      emailLogs = await db.emailLog.findMany({
-        where: whereClause,
-        include: {
-          client: {
-            select: {
-              id: true,
-              companyName: true,
-              clientCode: true
-            }
-          },
-          triggeredByUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true
-            }
-          },
-          template: {
-            select: {
-              id: true,
-              name: true,
-              category: true
-            }
-          }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        skip,
-        take: limit
-      })
-    } catch (templateError) {
-      console.log('Template relation failed, using fallback without template:', templateError instanceof Error ? templateError.message : String(templateError))
-      // Fallback for production: query without template relation
-      emailLogs = await db.emailLog.findMany({
-        where: whereClause,
-        include: {
-          client: {
-            select: {
-              id: true,
-              companyName: true,
-              clientCode: true
-            }
-          },
-          triggeredByUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true
-            }
-          }
-        },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        skip,
-        take: limit
-      })
-    }
-
-    // 🔍 DEBUG: Log results
-    console.log('🔍 [EMAIL DEBUG] Found email logs:', emailLogs.length)
-    console.log('🔍 [EMAIL DEBUG] First email log:', emailLogs[0] ? {
-      id: emailLogs[0].id,
-      recipientEmail: emailLogs[0].recipientEmail,
-      subject: emailLogs[0].subject,
-      triggeredBy: emailLogs[0].triggeredBy,
-      triggeredByUser: emailLogs[0].triggeredByUser ? {
-        id: emailLogs[0].triggeredByUser.id,
-        name: emailLogs[0].triggeredByUser.name,
-        email: emailLogs[0].triggeredByUser.email
-      } : null
-    } : 'No emails found')
 
     // Enhanced response with all Email Logs data
     const transformedLogs = emailLogs.map(log => ({
@@ -233,23 +134,11 @@ export async function GET(request: NextRequest) {
         email: log.triggeredByUser.email,
         role: log.triggeredByUser.role
       } : null,
-      template: (log as any).template ? {
-        id: (log as any).template.id,
-        name: (log as any).template.name,
-        category: (log as any).template.category
-      } : null
+      // Template will be null until schema is migrated
+      template: null
     }))
 
     const totalPages = Math.ceil(totalCount / limit)
-
-    // 🔍 DEBUG: Log final response data
-    console.log('🔍 [EMAIL DEBUG] Final response:', {
-      totalCount,
-      totalPages,
-      currentPage: page,
-      transformedLogsCount: transformedLogs.length,
-      useOffset
-    })
 
     // Enhanced response format supporting both pagination styles
     if (useOffset) {
