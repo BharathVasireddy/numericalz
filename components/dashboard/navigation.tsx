@@ -173,7 +173,7 @@ export function DashboardNavigation() {
           }
         ]
       },
-      {
+      ...(session?.user?.role === 'PARTNER' ? [{
         id: 'communication',
         title: 'Communication',
         icon: Mail,
@@ -188,13 +188,13 @@ export function DashboardNavigation() {
             href: '/dashboard/communication/history',
             icon: Mail,
           },
-          ...(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER' ? [{
+          {
             name: 'Communication Settings',
             href: '/dashboard/communication/settings',
             icon: Settings,
-          }] : [])
+          }
         ]
-      },
+      }] : []),
       {
         id: 'tools',
         title: 'Tools & Utilities',

@@ -26,6 +26,13 @@ interface SendEmailParams {
   cc?: EmailRecipient[]
   bcc?: EmailRecipient[]
   replyTo?: EmailRecipient
+  emailType?: string
+  triggeredBy?: string
+  clientId?: string
+  workflowType?: string
+  workflowId?: string
+  templateId?: string
+  templateData?: any
 }
 
 interface WorkflowEmailParams {
@@ -104,10 +111,48 @@ class EmailService {
   }
 
   /**
-   * Send a generic email
+   * Send a generic email with automatic database logging (like Fluent SMTP)
+   * Every email sent through this method is automatically logged to email_logs table
    */
   async sendEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const primaryRecipient = params.to[0]
+    let emailLogId: string | null = null
+    
     try {
+      // Import Prisma client for logging (dynamic import to avoid circular dependencies)
+      const { PrismaClient } = require('@prisma/client')
+      const prisma = new PrismaClient()
+      
+      // Create email log entry BEFORE sending (like Fluent SMTP)
+      try {
+        const emailLog = await prisma.emailLog.create({
+          data: {
+            recipientEmail: primaryRecipient.email,
+            recipientName: primaryRecipient.name,
+            subject: params.subject,
+            content: params.htmlContent,
+            emailType: params.emailType || 'MANUAL',
+            status: 'PENDING',
+            clientId: params.clientId,
+            workflowType: params.workflowType,
+            workflowId: params.workflowId,
+            triggeredBy: params.triggeredBy || 'system-email-service',
+            fromEmail: this.config.senderEmail,
+            fromName: this.config.senderName,
+            templateId: params.templateId,
+            templateData: params.templateData ? JSON.stringify(params.templateData) : null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        })
+        emailLogId = emailLog.id
+        console.log(`📧 Email logged to database: ${emailLogId} - ${params.subject}`)
+      } catch (logError) {
+        console.error('Failed to create email log entry:', logError)
+        // Continue with sending even if logging fails
+      }
+
+      // Send email via Brevo API
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
@@ -131,29 +176,91 @@ class EmailService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
+        const errorMessage = `Email sending failed: ${response.status} ${response.statusText}`
+        
         console.error('Email sending failed:', {
           status: response.status,
           statusText: response.statusText,
           error: errorData,
+          logId: emailLogId
         })
+
+        // Update email log with failure
+        if (emailLogId) {
+          try {
+            await prisma.emailLog.update({
+              where: { id: emailLogId },
+              data: {
+                status: 'FAILED',
+                failedAt: new Date(),
+                failureReason: errorMessage,
+                updatedAt: new Date()
+              }
+            })
+          } catch (updateError) {
+            console.error('Failed to update email log with failure:', updateError)
+          }
+        }
+
+        await prisma.$disconnect()
         return {
           success: false,
-          error: `Email sending failed: ${response.status} ${response.statusText}`
+          error: errorMessage
         }
       }
 
       const result = await response.json()
-      console.log('Email sent successfully:', {
+      console.log('✅ Email sent successfully:', {
         messageId: result.messageId,
-        to: params.to.map(r => r.email).join(', ')
+        to: params.to.map(r => r.email).join(', '),
+        subject: params.subject,
+        logId: emailLogId
       })
 
+      // Update email log with success
+      if (emailLogId) {
+        try {
+          await prisma.emailLog.update({
+            where: { id: emailLogId },
+            data: {
+              status: 'SENT',
+              sentAt: new Date(),
+              updatedAt: new Date()
+            }
+          })
+        } catch (updateError) {
+          console.error('Failed to update email log with success:', updateError)
+        }
+      }
+
+      await prisma.$disconnect()
       return {
         success: true,
         messageId: result.messageId
       }
     } catch (error) {
-      console.error('Error sending email:', error)
+      console.error('❌ Error sending email:', error)
+      
+      // Update email log with failure
+      if (emailLogId) {
+        try {
+          const { PrismaClient } = require('@prisma/client')
+          const prisma = new PrismaClient()
+          await prisma.emailLog.update({
+            where: { id: emailLogId },
+            data: {
+              status: 'FAILED',
+              failedAt: new Date(),
+              failureReason: error instanceof Error ? error.message : 'Unknown error',
+              updatedAt: new Date()
+            }
+          })
+          await prisma.$disconnect()
+        } catch (updateError) {
+          console.error('Failed to update email log with error:', updateError)
+        }
+      }
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -245,7 +352,18 @@ class EmailService {
     return this.sendEmail({
       to: [params.to],
       subject,
-      htmlContent
+      htmlContent,
+      emailType: 'WORKFLOW_REVIEW_COMPLETE',
+      clientId: params.clientId,
+      workflowType: params.workflowType,
+      templateData: {
+        action: params.action,
+        workflowType: params.workflowType,
+        reviewedBy: params.reviewedBy,
+        reviewerName: params.reviewerName,
+        clientCode: params.clientCode,
+        comments: params.comments
+      }
     })
   }
 
@@ -339,7 +457,16 @@ class EmailService {
     return this.sendEmail({
       to: [params.to],
       subject,
-      htmlContent
+      htmlContent,
+      emailType: 'DEADLINE_REMINDER',
+      templateData: {
+        deadlineType: params.deadlineType,
+        clientName: params.clientName,
+        clientCode: params.clientCode,
+        daysUntilDue: params.daysUntilDue,
+        isOverdue: params.isOverdue,
+        dueDate: params.dueDate.toISOString()
+      }
     })
   }
 
@@ -375,7 +502,18 @@ class EmailService {
       return this.sendEmail({
         to: [params.to],
         subject: emailData.subject,
-        htmlContent: emailData.htmlContent
+        htmlContent: emailData.htmlContent,
+        emailType: 'VAT_ASSIGNMENT',
+        clientId: params.clientData.id,
+        workflowType: 'VAT',
+        templateData: {
+          assigneeName: params.to.name,
+          companyName: params.clientData.companyName,
+          clientCode: params.clientData.clientCode,
+          quarterPeriod: params.vatQuarter.quarterPeriod,
+          assignedBy: params.assignedBy.name,
+          previousAssignee: params.previousAssignee
+        }
       })
     } catch (error) {
       console.error('Error sending VAT assignment notification:', error)
@@ -425,7 +563,18 @@ class EmailService {
       return this.sendEmail({
         to: [params.to],
         subject: emailData.subject,
-        htmlContent: emailData.htmlContent
+        htmlContent: emailData.htmlContent,
+        emailType: 'LTD_ASSIGNMENT',
+        clientId: params.clientData.id,
+        workflowType: 'ACCOUNTS',
+        templateData: {
+          assigneeName: params.to.name,
+          companyName: params.clientData.companyName,
+          clientCode: params.clientData.clientCode,
+          filingPeriod: params.workflow.filingPeriod,
+          assignedBy: params.assignedBy.name,
+          previousAssignee: params.previousAssignee
+        }
       })
     } catch (error) {
       console.error('Error sending Ltd assignment notification:', error)
