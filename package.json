@@ -86,7 +86,10 @@
     "migration:test-local": "node scripts/test-migration-local.js",
     "migration:production-backup": "node scripts/backup-production-complete.js",
     "migration:production-safe": "node scripts/migrate-production-safely.js",
-    "migration:template-fields": "echo 'Run migration:test-local first, then migration:production-backup, then migration:production-safe'"
+    "migration:template-fields": "echo 'Run migration:test-local first, then migration:production-backup, then migration:production-safe'",
+    "migrate:contact-names:preview": "node scripts/migrate-contact-names.js --preview",
+    "migrate:contact-names:apply": "node scripts/migrate-contact-names.js --apply",
+    "migrate:contact-names:rollback": "node scripts/migrate-contact-names.js --rollback"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",

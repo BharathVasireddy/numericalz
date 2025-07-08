@@ -24,6 +24,7 @@ import { ChaseTeamAssignment } from './chase-team-assignment'
 import { NonLtdCompanyForm } from './non-ltd-company-form'
 import { calculateCTDueFromYearEnd, calculateCTPeriod } from '@/lib/ct-tracking'
 import { calculateCorporationTaxDue } from '@/lib/year-end-utils'
+import { getDirectorWithSignificantControl } from '@/lib/companies-house'
 
 interface CompaniesHouseSearchResult {
   company_number: string
@@ -411,7 +412,17 @@ export function AddClientWizard() {
         companyType: formData.companyType,
         companyNumber: formData.companyNumber || undefined,
         companyName: companyData?.company_name || `${formData.companyType.replace('_', ' ')} Client`,
-        contactName: companyData?.company_name || `${formData.companyType.replace('_', ' ')} Contact`,
+        contactName: (() => {
+          // Try to get director with significant control first
+          if (companyData?.psc) {
+            const directorName = getDirectorWithSignificantControl(companyData.psc)
+            if (directorName) {
+              return directorName
+            }
+          }
+          // Fallback to company name if no director found
+          return companyData?.company_name || `${formData.companyType.replace('_', ' ')} Contact`
+        })(),
         contactEmail: 'contact@example.com', // This will need to be filled manually later
         isActive: true,
         // Include all Companies House data if available

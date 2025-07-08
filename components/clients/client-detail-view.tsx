@@ -192,6 +192,41 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
     return email === 'contact@tobeupdated.com' || !email ? 'TBU' : email
   }
 
+  const handleRefreshContactName = async () => {
+    if (!client.companyNumber || client.companyType !== 'LIMITED_COMPANY') {
+      showToast.error('Contact name refresh is only available for Limited Companies')
+      return
+    }
+    
+    setIsRefreshing(true)
+    try {
+      const response = await fetch(`/api/clients/${client.id}/refresh-contact-name`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        if (result.changed) {
+          router.refresh()
+          showToast.success(`Contact name updated to: ${result.changes.newContactName}`)
+        } else {
+          showToast.info('Contact name already matches director name')
+        }
+      } else {
+        const error = await response.json()
+        showToast.error(error.error || 'Failed to refresh contact name')
+      }
+    } catch (error) {
+      console.error('Error refreshing contact name:', error)
+      showToast.error('Error refreshing contact name')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
   return (
     <div className="page-container">
       <div className="content-wrapper">
@@ -349,7 +384,21 @@ export function ClientDetailView({ client, currentUser }: ClientDetailViewProps)
                     {/* Contact Information */}
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Contact Person:</span>
-                      <span className="text-sm font-medium">{client.contactName || 'Not provided'}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{client.contactName || 'Not provided'}</span>
+                        {client.companyType === 'LIMITED_COMPANY' && client.companyNumber && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRefreshContactName}
+                            disabled={isRefreshing}
+                            className="h-6 w-6 p-0"
+                            title="Refresh contact name from Companies House director data"
+                          >
+                            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Email:</span>

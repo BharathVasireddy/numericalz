@@ -202,6 +202,61 @@ export async function getCompanyPSC(companyNumber: string): Promise<any> {
 }
 
 /**
+ * Extract director with significant control from PSC data
+ * Returns the name of the person with the highest level of control
+ */
+export function getDirectorWithSignificantControl(psc: any): string | null {
+  if (!psc || !psc.items || psc.items.length === 0) {
+    return null
+  }
+
+  // Define control levels with weights (higher = more control)
+  const controlWeights: { [key: string]: number } = {
+    'ownership-of-shares-75-to-100-percent': 100,
+    'voting-rights-75-to-100-percent': 95,
+    'ownership-of-shares-50-to-75-percent': 90,
+    'voting-rights-50-to-75-percent': 85,
+    'ownership-of-shares-25-to-50-percent': 80,
+    'voting-rights-25-to-50-percent': 75,
+    'significant-influence-or-control': 70,
+    'right-to-appoint-and-remove-directors': 65,
+    'right-to-appoint-and-remove-members': 60,
+  }
+
+  let bestCandidate = null
+  let highestWeight = 0
+
+  for (const person of psc.items) {
+    // Skip if person has ceased to be a PSC
+    if (person.ceased === true || person.ceased_on) {
+      continue
+    }
+
+    // Skip if no name
+    if (!person.name) {
+      continue
+    }
+
+    // Calculate weight based on nature of control
+    let personWeight = 0
+    if (person.natures_of_control) {
+      for (const nature of person.natures_of_control) {
+        const weight = controlWeights[nature] || 0
+        personWeight = Math.max(personWeight, weight)
+      }
+    }
+
+    // Select person with highest control weight
+    if (personWeight > highestWeight) {
+      highestWeight = personWeight
+      bestCandidate = person
+    }
+  }
+
+  return bestCandidate?.name || null
+}
+
+/**
  * Get comprehensive company data including officers and PSC
  */
 export async function getComprehensiveCompanyData(companyNumber: string): Promise<{
