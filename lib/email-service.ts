@@ -146,8 +146,7 @@ class EmailService {
             triggeredBy: params.triggeredBy || 'system-email-service',
             fromEmail: this.config.senderEmail,
             fromName: this.config.senderName,
-            templateId: params.templateId,
-            templateData: params.templateData ? JSON.stringify(params.templateData) : null,
+            // templateId and templateData removed for production compatibility
             createdAt: new Date(),
             updatedAt: new Date()
           }
