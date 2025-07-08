@@ -25,19 +25,39 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = ResendEmailSchema.parse(body)
 
-    // Get the original email log
+    // Get the original email log (production-compatible query - no template fields)
     const originalEmail = await db.emailLog.findUnique({
       where: { id: validatedData.emailLogId },
-      include: {
-        client: {
-          select: {
-            id: true,
-            companyName: true,
-            clientCode: true
-          }
-        }
+      select: {
+        id: true,
+        createdAt: true,
+        recipientEmail: true,
+        recipientName: true,
+        subject: true,
+        content: true,
+        emailType: true,
+        status: true,
+        clientId: true,
+        triggeredBy: true,
+        sentAt: true,
+        deliveredAt: true,
+        failedAt: true,
+        failureReason: true
       }
     })
+    
+    // Get client data separately if clientId exists
+    let clientData = null
+    if (originalEmail?.clientId) {
+      clientData = await db.client.findUnique({
+        where: { id: originalEmail.clientId },
+        select: {
+          id: true,
+          companyName: true,
+          clientCode: true
+        }
+      })
+    }
 
     if (!originalEmail) {
       return NextResponse.json({ 
@@ -92,7 +112,7 @@ export async function POST(request: NextRequest) {
         message: 'Email resent successfully',
         details: {
           recipient: validatedData.to,
-          client: originalEmail.client ? `${originalEmail.client.companyName} (${originalEmail.client.clientCode})` : undefined,
+          client: clientData ? `${clientData.companyName} (${clientData.clientCode})` : undefined,
           resentBy: session.user.name,
           originalEmailId: validatedData.emailLogId
         }
