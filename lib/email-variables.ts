@@ -456,4 +456,189 @@ export function isValidVariable(key: string): boolean {
 // Get variable by key
 export function getVariableByKey(key: string): EmailVariable | undefined {
   return EMAIL_VARIABLES.find(v => v.key === key)
+}
+
+// Process variables in content with real data
+export function processEmailVariables(
+  content: string, 
+  data: {
+    client?: any
+    user?: any
+    assignedBy?: any
+    previousAssignee?: string
+    workflow?: any
+    vat?: any
+    accounts?: any
+    dates?: any
+    system?: any
+  }
+): string {
+  let processed = content
+
+  // Client variables
+  if (data.client) {
+    processed = processed.replace(/\{\{client\.companyName\}\}/g, data.client.companyName || '')
+    processed = processed.replace(/\{\{client\.clientCode\}\}/g, data.client.clientCode || '')
+    processed = processed.replace(/\{\{client\.companyNumber\}\}/g, data.client.companyNumber || '')
+    processed = processed.replace(/\{\{client\.vatNumber\}\}/g, data.client.vatNumber || '')
+    processed = processed.replace(/\{\{client\.contactName\}\}/g, data.client.contactName || '')
+    processed = processed.replace(/\{\{client\.contactEmail\}\}/g, data.client.email || data.client.contactEmail || '')
+    processed = processed.replace(/\{\{client\.contactPhone\}\}/g, data.client.phone || data.client.contactPhone || '')
+    processed = processed.replace(/\{\{client\.companyType\}\}/g, data.client.companyType || data.client.type || '')
+    
+    // Legacy client variable aliases
+    processed = processed.replace(/\{\{client\.email\}\}/g, data.client.email || data.client.contactEmail || '')
+    processed = processed.replace(/\{\{client\.phone\}\}/g, data.client.phone || data.client.contactPhone || '')
+  }
+
+  // User variables (assigned user)
+  if (data.user || data.client?.assignedUser) {
+    const user = data.user || data.client?.assignedUser
+    processed = processed.replace(/\{\{user\.name\}\}/g, user?.name || '')
+    processed = processed.replace(/\{\{user\.email\}\}/g, user?.email || '')
+    processed = processed.replace(/\{\{user\.role\}\}/g, user?.role || '')
+  }
+
+  // Assignment related variables
+  if (data.assignedBy) {
+    processed = processed.replace(/\{\{assignedBy\.name\}\}/g, data.assignedBy.name || '')
+    processed = processed.replace(/\{\{assignedBy\.email\}\}/g, data.assignedBy.email || '')
+  }
+  
+  if (data.previousAssignee) {
+    processed = processed.replace(/\{\{previousAssignee\}\}/g, data.previousAssignee || '')
+  }
+
+  // Workflow variables
+  if (data.workflow) {
+    processed = processed.replace(/\{\{workflow\.currentStage\}\}/g, data.workflow.currentStage || '')
+    processed = processed.replace(/\{\{workflow\.previousStage\}\}/g, data.workflow.previousStage || '')
+    processed = processed.replace(/\{\{workflow\.workflowType\}\}/g, data.workflow.workflowType || '')
+    processed = processed.replace(/\{\{workflow\.comments\}\}/g, data.workflow.comments || '')
+  }
+
+  // VAT specific variables
+  if (data.vat) {
+    processed = processed.replace(/\{\{vat\.quarterPeriod\}\}/g, data.vat.quarterPeriod || '')
+    processed = processed.replace(/\{\{vat\.quarterStartDate\}\}/g, formatDate(data.vat.quarterStartDate))
+    processed = processed.replace(/\{\{vat\.quarterEndDate\}\}/g, formatDate(data.vat.quarterEndDate))
+    processed = processed.replace(/\{\{vat\.filingDueDate\}\}/g, formatDate(data.vat.filingDueDate))
+    processed = processed.replace(/\{\{vat\.daysUntilDue\}\}/g, String(data.vat.daysUntilDue || ''))
+    processed = processed.replace(/\{\{vat\.isOverdue\}\}/g, String(data.vat.isOverdue || false))
+    
+    // Legacy VAT variable aliases
+    processed = processed.replace(/\{\{vat\.quarter\}\}/g, data.vat.quarterPeriod || '')
+    processed = processed.replace(/\{\{quarterPeriod\}\}/g, data.vat.quarterPeriod || '')
+    processed = processed.replace(/\{\{filingDueDate\}\}/g, formatDate(data.vat.filingDueDate))
+  }
+
+  // Accounts specific variables
+  if (data.accounts) {
+    processed = processed.replace(/\{\{accounts\.filingPeriod\}\}/g, data.accounts.filingPeriod || '')
+    processed = processed.replace(/\{\{accounts\.yearEndDate\}\}/g, formatDate(data.accounts.yearEndDate))
+    processed = processed.replace(/\{\{accounts\.accountsDueDate\}\}/g, formatDate(data.accounts.accountsDueDate))
+    processed = processed.replace(/\{\{accounts\.corporationTaxDueDate\}\}/g, formatDate(data.accounts.corporationTaxDueDate))
+    processed = processed.replace(/\{\{accounts\.daysUntilAccountsDue\}\}/g, String(data.accounts.daysUntilAccountsDue || ''))
+    processed = processed.replace(/\{\{accounts\.daysUntilCTDue\}\}/g, String(data.accounts.daysUntilCTDue || ''))
+    processed = processed.replace(/\{\{accounts\.isAccountsOverdue\}\}/g, String(data.accounts.isAccountsOverdue || false))
+    processed = processed.replace(/\{\{accounts\.isCTOverdue\}\}/g, String(data.accounts.isCTOverdue || false))
+  }
+
+  // Date variables
+  const now = new Date()
+  const ukDateOptions: Intl.DateTimeFormatOptions = { 
+    timeZone: 'Europe/London',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }
+  const ukDateTimeOptions: Intl.DateTimeFormatOptions = { 
+    timeZone: 'Europe/London',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }
+  
+  processed = processed.replace(/\{\{dates\.currentDate\}\}/g, now.toLocaleDateString('en-GB', ukDateOptions))
+  processed = processed.replace(/\{\{dates\.currentDateTime\}\}/g, now.toLocaleDateString('en-GB', ukDateTimeOptions))
+  processed = processed.replace(/\{\{dates\.currentYear\}\}/g, String(now.getFullYear()))
+  processed = processed.replace(/\{\{dates\.currentMonth\}\}/g, now.toLocaleDateString('en-GB', { month: 'long' }))
+  
+  // Legacy date variable aliases
+  processed = processed.replace(/\{\{currentDate\}\}/g, now.toLocaleDateString('en-GB', ukDateOptions))
+  processed = processed.replace(/\{\{date\.today\}\}/g, now.toLocaleDateString('en-GB'))
+  processed = processed.replace(/\{\{date\.todayLong\}\}/g, now.toLocaleDateString('en-GB', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  }))
+
+  // System variables
+  processed = processed.replace(/\{\{system\.companyName\}\}/g, 'Numericalz')
+  processed = processed.replace(/\{\{system\.companyEmail\}\}/g, 'hello@numericalz.com')
+  processed = processed.replace(/\{\{system\.companyPhone\}\}/g, '+44 20 1234 5678')
+  processed = processed.replace(/\{\{system\.websiteUrl\}\}/g, 'https://numericalz.com')
+  processed = processed.replace(/\{\{system\.dashboardUrl\}\}/g, 'https://app.numericalz.com/dashboard')
+  processed = processed.replace(/\{\{system\.supportEmail\}\}/g, 'support@numericalz.com')
+  
+  // Legacy system variable aliases
+  processed = processed.replace(/\{\{system\.firmName\}\}/g, 'Numericalz')
+  processed = processed.replace(/\{\{system\.firmEmail\}\}/g, 'hello@numericalz.com')
+  processed = processed.replace(/\{\{system\.firmPhone\}\}/g, '+44 20 1234 5678')
+
+  return processed
+}
+
+// Helper function to format dates for display
+function formatDate(date: string | Date | null | undefined): string {
+  if (!date) return ''
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date
+    if (isNaN(dateObj.getTime())) return ''
+    
+    return dateObj.toLocaleDateString('en-GB', {
+      timeZone: 'Europe/London',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+  } catch (error) {
+    return ''
+  }
+}
+
+// Extract variables used in content
+export function extractVariablesFromContent(content: string): string[] {
+  const variableRegex = /\{\{([^}]+)\}\}/g
+  const matches: string[] = []
+  let match
+
+  while ((match = variableRegex.exec(content)) !== null) {
+    const variableKey = match[1]?.trim()
+    if (variableKey && !matches.includes(variableKey)) {
+      matches.push(variableKey)
+    }
+  }
+
+  return matches
+}
+
+// Get variable data for display in Variable Info tab
+export function getVariableDisplayData(
+  variableKey: string,
+  data: any
+): { key: string; value: string; description?: string } {
+  const variable = getVariableByKey(variableKey)
+  const mockProcessed = processEmailVariables(`{{${variableKey}}}`, data)
+  const value = mockProcessed.replace(`{{${variableKey}}}`, '') || 'Not available'
+  
+  return {
+    key: variableKey,
+    value: value,
+    description: variable?.description
+  }
 } 

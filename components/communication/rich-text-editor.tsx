@@ -76,33 +76,79 @@ export function RichTextEditor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3],
+        },
+        bulletList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+        orderedList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+      }),
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: 'text-blue-600 underline'
-        }
+          class: 'text-blue-600 underline cursor-pointer',
+        },
+        protocols: ['mailto', 'tel'],
       }),
-      Image,
+      Image.configure({
+        inline: true,
+        allowBase64: true,
+      }),
       Table.configure({
         resizable: true,
+        HTMLAttributes: {
+          class: 'border-collapse border border-gray-300',
+        },
       }),
       TableRow,
-      TableHeader,
-      TableCell,
+      TableHeader.configure({
+        HTMLAttributes: {
+          class: 'border border-gray-300 bg-gray-50 font-medium',
+        },
+      }),
+      TableCell.configure({
+        HTMLAttributes: {
+          class: 'border border-gray-300 p-2',
+        },
+      }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
+        alignments: ['left', 'center', 'right', 'justify'],
       }),
-      Color,
+      Color.configure({
+        types: ['textStyle'],
+      }),
       TextStyle,
     ],
     content,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML())
     },
+    onCreate: ({ editor }) => {
+      // Ensure editor is properly initialized
+      if (content && !editor.getText()) {
+        editor.commands.setContent(content)
+      }
+    },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-[300px] p-4',
+        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-[300px] p-4 border-0 outline-none',
+      },
+      handleDOMEvents: {
+        keydown: (view, event) => {
+          // Handle keyboard shortcuts
+          if (event.key === 'Enter' && event.metaKey) {
+            event.preventDefault()
+            return true
+          }
+          return false
+        },
       },
     },
   })
@@ -144,19 +190,33 @@ export function RichTextEditor({
     onClick, 
     isActive = false, 
     disabled = false, 
-    children 
+    children,
+    title 
   }: { 
     onClick: () => void
     isActive?: boolean
     disabled?: boolean
-    children: React.ReactNode 
+    children: React.ReactNode
+    title?: string
   }) => (
     <Button
       variant={isActive ? "default" : "ghost"}
       size="sm"
-      onClick={onClick}
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!disabled && editor) {
+          onClick()
+          editor.chain().focus().run()
+        }
+      }}
       disabled={disabled}
-      className="h-9 w-9 p-0"
+      className={`h-9 w-9 p-0 transition-all ${
+        isActive 
+          ? 'bg-primary text-primary-foreground shadow-sm' 
+          : 'hover:bg-muted hover:text-foreground'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      title={title}
     >
       {children}
     </Button>
@@ -246,6 +306,7 @@ export function RichTextEditor({
             <ToolbarButton
               onClick={() => editor.chain().focus().toggleBold().run()}
               isActive={editor.isActive('bold')}
+              title="Bold (Ctrl+B)"
             >
               <Bold className="h-5 w-5" />
             </ToolbarButton>
@@ -253,6 +314,7 @@ export function RichTextEditor({
             <ToolbarButton
               onClick={() => editor.chain().focus().toggleItalic().run()}
               isActive={editor.isActive('italic')}
+              title="Italic (Ctrl+I)"
             >
               <Italic className="h-5 w-5" />
             </ToolbarButton>
@@ -260,6 +322,7 @@ export function RichTextEditor({
             <ToolbarButton
               onClick={() => editor.chain().focus().toggleStrike().run()}
               isActive={editor.isActive('strike')}
+              title="Strikethrough"
             >
               <Strikethrough className="h-5 w-5" />
             </ToolbarButton>
@@ -270,6 +333,7 @@ export function RichTextEditor({
             <ToolbarButton
               onClick={() => editor.chain().focus().toggleBulletList().run()}
               isActive={editor.isActive('bulletList')}
+              title="Bullet List"
             >
               <List className="h-5 w-5" />
             </ToolbarButton>
@@ -277,6 +341,7 @@ export function RichTextEditor({
             <ToolbarButton
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
               isActive={editor.isActive('orderedList')}
+              title="Numbered List"
             >
               <ListOrdered className="h-5 w-5" />
             </ToolbarButton>
@@ -287,12 +352,16 @@ export function RichTextEditor({
             <ToolbarButton
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
               isActive={editor.isActive('blockquote')}
+              title="Quote"
             >
               <Quote className="h-5 w-5" />
             </ToolbarButton>
 
             {!showLinkInput ? (
-              <ToolbarButton onClick={() => setShowLinkInput(true)}>
+              <ToolbarButton 
+                onClick={() => setShowLinkInput(true)}
+                title="Add Link"
+              >
                 <LinkIcon className="h-5 w-5" />
               </ToolbarButton>
             ) : (
@@ -318,6 +387,7 @@ export function RichTextEditor({
             <ToolbarButton
               onClick={() => editor.chain().focus().setTextAlign('left').run()}
               isActive={editor.isActive({ textAlign: 'left' })}
+              title="Align Left"
             >
               <AlignLeft className="h-5 w-5" />
             </ToolbarButton>
@@ -325,6 +395,7 @@ export function RichTextEditor({
             <ToolbarButton
               onClick={() => editor.chain().focus().setTextAlign('center').run()}
               isActive={editor.isActive({ textAlign: 'center' })}
+              title="Align Center"
             >
               <AlignCenter className="h-5 w-5" />
             </ToolbarButton>
@@ -332,6 +403,7 @@ export function RichTextEditor({
             <ToolbarButton
               onClick={() => editor.chain().focus().setTextAlign('right').run()}
               isActive={editor.isActive({ textAlign: 'right' })}
+              title="Align Right"
             >
               <AlignRight className="h-5 w-5" />
             </ToolbarButton>
@@ -339,7 +411,10 @@ export function RichTextEditor({
             <div className="w-px h-6 bg-border mx-1" />
 
             {/* Table */}
-            <ToolbarButton onClick={insertTable}>
+            <ToolbarButton 
+              onClick={insertTable}
+              title="Insert Table"
+            >
               <TableIcon className="h-5 w-5" />
             </ToolbarButton>
 
@@ -349,6 +424,7 @@ export function RichTextEditor({
             <ToolbarButton
               onClick={() => editor.chain().focus().undo().run()}
               disabled={!editor.can().undo()}
+              title="Undo (Ctrl+Z)"
             >
               <Undo className="h-5 w-5" />
             </ToolbarButton>
@@ -356,6 +432,7 @@ export function RichTextEditor({
             <ToolbarButton
               onClick={() => editor.chain().focus().redo().run()}
               disabled={!editor.can().redo()}
+              title="Redo (Ctrl+Y)"
             >
               <Redo className="h-5 w-5" />
             </ToolbarButton>

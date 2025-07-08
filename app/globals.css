@@ -903,41 +903,47 @@
   break-inside: avoid;
   margin-bottom: 1rem;
 } 
-/* Email Template Table Column Widths */
+  /* Email Template Table Column Widths */
   .col-template-name {
-    @apply w-80; /* 320px - Main template name column (increased) */
+    @apply w-40; /* 160px - Main template name column */
   }
   
   .col-template-subject {
-    @apply w-96; /* 384px - Email subject column (increased) */
+    @apply w-52; /* 208px - Email subject column */
   }
   
   .col-template-category {
-    @apply w-36; /* 144px - Category badge (increased) */
+    @apply w-24; /* 96px - Category badge */
   }
   
   .col-template-status {
-    @apply w-32; /* 128px - Status badges (increased) */
+    @apply w-20; /* 80px - Status badges */
   }
   
   .col-template-creator {
-    @apply w-36; /* 144px - Creator name (increased) */
+    @apply w-24; /* 96px - Creator name */
   }
   
   .col-template-date {
-    @apply w-32; /* 128px - Creation date (increased) */
+    @apply w-20; /* 80px - Creation date */
   }
   
   .col-template-actions {
-    @apply w-36; /* 144px - Action buttons (increased) */
+    @apply w-24; /* 96px - Action buttons */
   }
 
   /* Email Template Table Layout */
   .table-container .data-table {
-    @apply min-w-full table-fixed;
+    @apply w-full table-fixed;
+    max-width: 100%;
   }
   
   .table-container .data-table td,
   .table-container .data-table th {
     @apply overflow-hidden text-ellipsis;
+  }
+  
+  /* Ensure table container doesn't overflow viewport */
+  .table-container {
+    @apply w-full overflow-x-auto;
   } 

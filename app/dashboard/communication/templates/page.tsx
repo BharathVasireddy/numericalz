@@ -416,7 +416,12 @@ export default function EmailTemplatesPage() {
                 <div className="border rounded-lg p-4 bg-white">
                   <h4 className="font-semibold mb-2">Email Content</h4>
                   <div 
-                    className="prose prose-sm max-w-none"
+                    className="prose prose-sm max-w-none whitespace-pre-wrap"
+                    style={{ 
+                      lineHeight: '1.6',
+                      wordBreak: 'break-word',
+                      whiteSpace: 'pre-wrap'
+                    }}
                     dangerouslySetInnerHTML={{ __html: selectedTemplate.htmlContent }}
                   />
                 </div>

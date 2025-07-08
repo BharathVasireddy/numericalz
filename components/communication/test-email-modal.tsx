@@ -11,6 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Send, Loader2, Building } from 'lucide-react'
 import { toast } from 'sonner'
+import { 
+  processEmailVariables, 
+  extractVariablesFromContent, 
+  getVariableDisplayData 
+} from '@/lib/email-variables'
 
 interface Client {
   id: string
@@ -19,10 +24,42 @@ interface Client {
   email: string
   phone?: string
   contactName?: string
+  companyNumber?: string
+  vatNumber?: string
+  nextAccountsDue?: string
+  nextCorporationTaxDue?: string
+  nextVatReturnDue?: string
+  incorporationDate?: string
   assignedUser?: {
     id: string
     name: string
     email: string
+  }
+  // Extended data for variable processing
+  currentVATQuarter?: {
+    quarterPeriod: string
+    quarterStartDate: string
+    quarterEndDate: string
+    filingDueDate: string
+    currentStage: string
+    isCompleted: boolean
+    assignedUser?: {
+      id: string
+      name: string
+      email: string
+    }
+  }
+  currentLtdAccountsWorkflow?: {
+    filingPeriodEnd: string
+    accountsDueDate: string
+    ctDueDate: string
+    currentStage: string
+    isCompleted: boolean
+    assignedUser?: {
+      id: string
+      name: string
+      email: string
+    }
   }
 }
 
@@ -48,6 +85,8 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
     subject: '',
     htmlContent: ''
   })
+  const [selectedClientDetails, setSelectedClientDetails] = useState<Client | null>(null)
+  const [isLoadingClientDetails, setIsLoadingClientDetails] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -59,7 +98,15 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
 
   useEffect(() => {
     updatePreview()
-  }, [selectedClientId, templateData])
+  }, [selectedClientId, templateData, selectedClientDetails])
+
+  useEffect(() => {
+    if (selectedClientId) {
+      fetchClientDetails(selectedClientId)
+    } else {
+      setSelectedClientDetails(null)
+    }
+  }, [selectedClientId])
 
   const fetchClients = async () => {
     try {
@@ -77,12 +124,86 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
     }
   }
 
+  const fetchClientDetails = async (clientId: string) => {
+    try {
+      setIsLoadingClientDetails(true)
+      
+      // Fetch detailed client data including VAT quarters and accounts workflows
+      const [clientResponse, vatResponse, ltdResponse] = await Promise.all([
+        fetch(`/api/clients/${clientId}`),
+        fetch(`/api/clients/${clientId}/vat-quarters`),
+        fetch(`/api/clients/ltd-deadlines?clientId=${clientId}`)
+      ])
+
+      const clientData = await clientResponse.json()
+      const vatData = vatResponse.ok ? await vatResponse.json() : null
+      const ltdData = ltdResponse.ok ? await ltdResponse.json() : null
+
+      if (clientData.success) {
+        const client = clientData.client
+        
+        // Combine basic client data with VAT and accounts data
+        const enhancedClient: Client = {
+          id: client.id,
+          clientCode: client.clientCode,
+          companyName: client.companyName,
+          email: client.contactEmail || client.email,
+          phone: client.contactPhone || client.phone,
+          contactName: client.contactName,
+          companyNumber: client.companyNumber,
+          vatNumber: client.vatNumber,
+          nextAccountsDue: client.nextAccountsDue,
+          nextCorporationTaxDue: client.nextCorporationTaxDue,
+          nextVatReturnDue: client.nextVatReturnDue,
+          incorporationDate: client.incorporationDate,
+          assignedUser: client.assignedUser,
+        }
+
+        // Add VAT quarter data if available
+        if (vatData?.success && vatData.data?.vatQuarters?.length > 0) {
+          const currentQuarter = vatData.data.vatQuarters[0] // Most recent quarter
+          enhancedClient.currentVATQuarter = {
+            quarterPeriod: currentQuarter.quarterPeriod,
+            quarterStartDate: currentQuarter.quarterStartDate,
+            quarterEndDate: currentQuarter.quarterEndDate,
+            filingDueDate: currentQuarter.filingDueDate,
+            currentStage: currentQuarter.currentStage,
+            isCompleted: currentQuarter.isCompleted,
+            assignedUser: currentQuarter.assignedUser
+          }
+        }
+
+        // Add Ltd accounts workflow data if available
+        if (ltdData?.success && ltdData.clients?.length > 0) {
+          const clientLtdData = ltdData.clients.find((c: any) => c.id === clientId)
+          if (clientLtdData?.currentLtdAccountsWorkflow) {
+            enhancedClient.currentLtdAccountsWorkflow = {
+              filingPeriodEnd: clientLtdData.currentLtdAccountsWorkflow.filingPeriodEnd,
+              accountsDueDate: clientLtdData.currentLtdAccountsWorkflow.accountsDueDate,
+              ctDueDate: clientLtdData.currentLtdAccountsWorkflow.ctDueDate,
+              currentStage: clientLtdData.currentLtdAccountsWorkflow.currentStage,
+              isCompleted: clientLtdData.currentLtdAccountsWorkflow.isCompleted,
+              assignedUser: clientLtdData.currentLtdAccountsWorkflow.assignedUser
+            }
+          }
+        }
+
+        setSelectedClientDetails(enhancedClient)
+      }
+    } catch (error) {
+      console.error('Error fetching client details:', error)
+      toast.error('Failed to load client details')
+    } finally {
+      setIsLoadingClientDetails(false)
+    }
+  }
+
   const updatePreview = () => {
-    const selectedClient = clients.find(c => c.id === selectedClientId)
+    const clientData = selectedClientDetails || clients.find(c => c.id === selectedClientId)
     
-    if (selectedClient) {
-      const populatedSubject = populateVariables(templateData.subject, selectedClient)
-      const populatedContent = populateVariables(templateData.htmlContent, selectedClient)
+    if (clientData) {
+      const populatedSubject = populateVariables(templateData.subject, clientData)
+      const populatedContent = populateVariables(templateData.htmlContent, clientData)
       
       setPreviewData({
         subject: populatedSubject,
@@ -97,37 +218,63 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
   }
 
   const populateVariables = (content: string, client: Client) => {
-    let populated = content
+    // Prepare VAT data from client's current VAT quarter
+    const vatData = client.currentVATQuarter ? {
+      quarterPeriod: client.currentVATQuarter.quarterPeriod,
+      quarterStartDate: new Date(client.currentVATQuarter.quarterStartDate),
+      quarterEndDate: new Date(client.currentVATQuarter.quarterEndDate),
+      filingDueDate: new Date(client.currentVATQuarter.filingDueDate),
+      daysUntilDue: Math.ceil((new Date(client.currentVATQuarter.filingDueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
+      isOverdue: new Date() > new Date(client.currentVATQuarter.filingDueDate),
+      currentStage: client.currentVATQuarter.currentStage,
+      isCompleted: client.currentVATQuarter.isCompleted,
+      assignedUser: client.currentVATQuarter.assignedUser
+    } : null
 
-    // Client variables
-    populated = populated.replace(/\{\{client\.companyName\}\}/g, client.companyName || '')
-    populated = populated.replace(/\{\{client\.clientCode\}\}/g, client.clientCode || '')
-    populated = populated.replace(/\{\{client\.email\}\}/g, client.email || '')
-    populated = populated.replace(/\{\{client\.phone\}\}/g, client.phone || '')
-    populated = populated.replace(/\{\{client\.contactName\}\}/g, client.contactName || '')
+    // Prepare accounts data from client's current accounts workflow
+    const accountsData = client.currentLtdAccountsWorkflow ? {
+      filingPeriodEnd: client.currentLtdAccountsWorkflow.filingPeriodEnd,
+      accountsDueDate: new Date(client.currentLtdAccountsWorkflow.accountsDueDate),
+      corporationTaxDueDate: new Date(client.currentLtdAccountsWorkflow.ctDueDate),
+      daysUntilAccountsDue: Math.ceil((new Date(client.currentLtdAccountsWorkflow.accountsDueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
+      daysUntilCTDue: Math.ceil((new Date(client.currentLtdAccountsWorkflow.ctDueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
+      isAccountsOverdue: new Date() > new Date(client.currentLtdAccountsWorkflow.accountsDueDate),
+      isCTOverdue: new Date() > new Date(client.currentLtdAccountsWorkflow.ctDueDate),
+      currentStage: client.currentLtdAccountsWorkflow.currentStage,
+      isCompleted: client.currentLtdAccountsWorkflow.isCompleted,
+      assignedUser: client.currentLtdAccountsWorkflow.assignedUser
+    } : null
 
-    // User variables
-    if (client.assignedUser) {
-      populated = populated.replace(/\{\{user\.name\}\}/g, client.assignedUser.name || '')
-      populated = populated.replace(/\{\{user\.email\}\}/g, client.assignedUser.email || '')
+    // Prepare dates data
+    const datesData = {
+      today: new Date(),
+      nextAccountsDue: client.nextAccountsDue ? new Date(client.nextAccountsDue) : null,
+      nextCorporationTaxDue: client.nextCorporationTaxDue ? new Date(client.nextCorporationTaxDue) : null,
+      nextVatReturnDue: client.nextVatReturnDue ? new Date(client.nextVatReturnDue) : null,
+      incorporationDate: client.incorporationDate ? new Date(client.incorporationDate) : null
     }
 
-    // Date variables
-    const today = new Date()
-    populated = populated.replace(/\{\{date\.today\}\}/g, today.toLocaleDateString('en-GB'))
-    populated = populated.replace(/\{\{date\.todayLong\}\}/g, today.toLocaleDateString('en-GB', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    }))
-
-    // System variables
-    populated = populated.replace(/\{\{system\.firmName\}\}/g, 'Numericalz')
-    populated = populated.replace(/\{\{system\.firmEmail\}\}/g, 'info@numericalz.com')
-    populated = populated.replace(/\{\{system\.firmPhone\}\}/g, '+44 20 1234 5678')
-
-    return populated
+    // Use the comprehensive variable processing system
+    return processEmailVariables(content, {
+      client: {
+        companyName: client.companyName,
+        clientCode: client.clientCode,
+        companyNumber: client.companyNumber,
+        vatNumber: client.vatNumber,
+        contactName: client.contactName,
+        email: client.email,
+        phone: client.phone,
+        assignedUser: client.assignedUser
+      },
+      user: client.assignedUser,
+      vat: vatData,
+      accounts: accountsData,
+      dates: datesData,
+      system: {
+        currentDate: new Date(),
+        companyName: 'Numericalz'
+      }
+    })
   }
 
   const handleSendTest = async () => {
@@ -317,7 +464,12 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
                     
                     <div className="text-sm font-medium text-muted-foreground mb-2">Content:</div>
                     <div 
-                      className="prose prose-sm max-w-none"
+                      className="prose prose-sm max-w-none whitespace-pre-wrap"
+                      style={{ 
+                        lineHeight: '1.6',
+                        wordBreak: 'break-word',
+                        whiteSpace: 'pre-wrap'
+                      }}
                       dangerouslySetInnerHTML={{ 
                         __html: previewData.htmlContent || '<p class="text-muted-foreground">No content</p>' 
                       }}
@@ -326,27 +478,110 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
                 </TabsContent>
                 
                 <TabsContent value="variables" className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <h4 className="font-medium mb-2">Client Variables</h4>
-                      <div className="space-y-1 text-muted-foreground">
-                        <div><code>&#123;&#123;client.companyName&#125;&#125;</code> → {selectedClient?.companyName || 'Not selected'}</div>
-                        <div><code>&#123;&#123;client.clientCode&#125;&#125;</code> → {selectedClient?.clientCode || 'Not selected'}</div>
-                        <div><code>&#123;&#123;client.email&#125;&#125;</code> → {selectedClient?.email || 'Not selected'}</div>
-                        <div><code>&#123;&#123;client.phone&#125;&#125;</code> → {selectedClient?.phone || 'Not selected'}</div>
-                      </div>
-                    </div>
+                  {(() => {
+                    // Extract all variables used in the template
+                    const usedVariables = extractVariablesFromContent(`${templateData.subject} ${templateData.htmlContent}`)
+                    const selectedClient = clients.find(c => c.id === selectedClientId)
                     
-                    <div>
-                      <h4 className="font-medium mb-2">System Variables</h4>
-                      <div className="space-y-1 text-muted-foreground">
-                        <div><code>&#123;&#123;system.firmName&#125;&#125;</code> → Numericalz</div>
-                        <div><code>&#123;&#123;system.firmEmail&#125;&#125;</code> → info@numericalz.com</div>
-                        <div><code>&#123;&#123;date.today&#125;&#125;</code> → {new Date().toLocaleDateString('en-GB')}</div>
-                        <div><code>&#123;&#123;user.name&#125;&#125;</code> → {selectedClient?.assignedUser?.name || 'Not assigned'}</div>
+                    if (usedVariables.length === 0) {
+                      return (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <p>No variables found in this template.</p>
+                          <p className="text-sm mt-2">Use the "Add Shortcodes" button to insert variables.</p>
+                        </div>
+                      )
+                    }
+
+                    if (!selectedClient) {
+                      return (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <p>Select a client above to see variable values.</p>
+                        </div>
+                      )
+                    }
+
+                    // Get the data object for variable processing
+                    const variableData = {
+                      client: {
+                        companyName: selectedClient.companyName,
+                        clientCode: selectedClient.clientCode,
+                        companyNumber: selectedClient.companyNumber,
+                        vatNumber: selectedClient.vatNumber,
+                        contactName: selectedClient.contactName,
+                        email: selectedClient.email,
+                        phone: selectedClient.phone,
+                        assignedUser: selectedClient.assignedUser
+                      },
+                      user: selectedClient.assignedUser,
+                      vat: {
+                        quarterPeriod: 'Jul-Sep 2024',
+                        quarterStartDate: new Date('2024-07-01'),
+                        quarterEndDate: new Date('2024-09-30'),
+                        filingDueDate: new Date('2024-10-31'),
+                        daysUntilDue: Math.ceil((new Date('2024-10-31').getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
+                        isOverdue: new Date() > new Date('2024-10-31')
+                      },
+                      accounts: {
+                        filingPeriod: '2024 accounts',
+                        yearEndDate: new Date('2024-03-31'),
+                        accountsDueDate: new Date('2024-12-31'),
+                        corporationTaxDueDate: new Date('2025-03-31'),
+                        daysUntilAccountsDue: Math.ceil((new Date('2024-12-31').getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
+                        daysUntilCTDue: Math.ceil((new Date('2025-03-31').getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
+                        isAccountsOverdue: new Date() > new Date('2024-12-31'),
+                        isCTOverdue: new Date() > new Date('2025-03-31')
+                      }
+                    }
+
+                    return (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium">Variables Used in This Template</h4>
+                          <span className="text-sm text-muted-foreground">{usedVariables.length} variable{usedVariables.length !== 1 ? 's' : ''} found</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
+                          {usedVariables.map((variableKey) => {
+                            const variableInfo = getVariableDisplayData(variableKey, variableData)
+                            return (
+                              <div key={variableKey} className="border rounded-lg p-3 bg-muted/20">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-mono text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                      &#123;&#123;{variableKey}&#125;&#125;
+                                    </div>
+                                    {variableInfo.description && (
+                                      <div className="text-xs text-muted-foreground mt-1">
+                                        {variableInfo.description}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-sm font-medium">
+                                      {variableInfo.value || <span className="text-muted-foreground italic">Not available</span>}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm">
+                          <div className="flex items-start gap-2">
+                            <div className="text-blue-600 mt-0.5">💡</div>
+                            <div>
+                              <div className="font-medium text-blue-900">Variable Preview</div>
+                              <div className="text-blue-700 mt-1">
+                                Values shown are live data from the selected client, plus sample data for VAT and accounts variables.
+                                In actual emails, these will be populated with real workflow data.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    )
+                  })()}
                 </TabsContent>
               </Tabs>
             </CardContent>
