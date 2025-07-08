@@ -153,6 +153,17 @@
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-muted-foreground/30;
   }
+  
+  /* Fix text selection styling globally */
+  ::selection {
+    background-color: #3b82f6;
+    color: white;
+  }
+  
+  ::-moz-selection {
+    background-color: #3b82f6;
+    color: white;
+  }
 }
 
 @layer components {

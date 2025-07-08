@@ -198,6 +198,24 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
     }
   }
 
+  const processHtmlForPreview = (html: string) => {
+    // Convert HTML line breaks to plain text for better preview
+    return html
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p><p[^>]*>/gi, '\n\n')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<p[^>]*>/gi, '')
+      .replace(/<\/div><div[^>]*>/gi, '\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<div[^>]*>/gi, '')
+      .replace(/<\/li><li[^>]*>/gi, '\n• ')
+      .replace(/<li[^>]*>/gi, '• ')
+      .replace(/<\/li>/gi, '')
+      .replace(/<[^>]*>/g, '') // Remove remaining HTML tags
+      .replace(/\n\s*\n\s*\n/g, '\n\n') // Replace multiple line breaks with double
+      .trim()
+  }
+
   const updatePreview = () => {
     const clientData = selectedClientDetails || clients.find(c => c.id === selectedClientId)
     
@@ -207,12 +225,12 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
       
       setPreviewData({
         subject: populatedSubject,
-        htmlContent: populatedContent
+        htmlContent: processHtmlForPreview(populatedContent)
       })
     } else {
       setPreviewData({
         subject: templateData.subject,
-        htmlContent: templateData.htmlContent
+        htmlContent: processHtmlForPreview(templateData.htmlContent)
       })
     }
   }
@@ -464,16 +482,16 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
                     
                     <div className="text-sm font-medium text-muted-foreground mb-2">Content:</div>
                     <div 
-                      className="prose prose-sm max-w-none whitespace-pre-wrap"
+                      className="prose prose-sm max-w-none whitespace-pre-wrap border rounded-md p-4 bg-gray-50"
                       style={{ 
                         lineHeight: '1.6',
                         wordBreak: 'break-word',
-                        whiteSpace: 'pre-wrap'
+                        whiteSpace: 'pre-wrap',
+                        fontFamily: 'inherit'
                       }}
-                      dangerouslySetInnerHTML={{ 
-                        __html: previewData.htmlContent || '<p class="text-muted-foreground">No content</p>' 
-                      }}
-                    />
+                    >
+                      {previewData.htmlContent || 'No content'}
+                    </div>
                   </div>
                 </TabsContent>
                 
@@ -570,16 +588,16 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
                         <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm">
                           <div className="flex items-start gap-2">
                             <div className="text-blue-600 mt-0.5">💡</div>
-                            <div>
+                    <div>
                               <div className="font-medium text-blue-900">Variable Preview</div>
                               <div className="text-blue-700 mt-1">
                                 Values shown are live data from the selected client, plus sample data for VAT and accounts variables.
                                 In actual emails, these will be populated with real workflow data.
                               </div>
                             </div>
-                          </div>
-                        </div>
                       </div>
+                    </div>
+                  </div>
                     )
                   })()}
                 </TabsContent>

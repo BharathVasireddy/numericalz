@@ -388,57 +388,77 @@ export default function EmailTemplatesPage() {
 
         {/* Preview Template Dialog */}
         <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-          <DialogContent className="max-w-4xl">
-            <DialogHeader>
-              <DialogTitle>Template Preview</DialogTitle>
+          <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] h-[90vh] flex flex-col p-0">
+            <DialogHeader className="flex-shrink-0 p-6 pb-4 border-b">
+              <DialogTitle className="text-xl">Template Preview</DialogTitle>
               <DialogDescription>
                 Preview how the email template will look
               </DialogDescription>
             </DialogHeader>
             
             {selectedTemplate && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <strong>Name:</strong> {selectedTemplate.name}
+              <div className="flex-1 overflow-y-auto px-6">
+                <div className="py-4 space-y-6">
+                  {/* Template Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm bg-muted/50 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-muted-foreground">Name:</span>
+                      <span className="font-medium">{selectedTemplate.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-muted-foreground">Category:</span>
+                      <span className="font-medium">{getCategoryLabel(selectedTemplate.category)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-muted-foreground">Subject:</span>
+                      <span className="font-medium">{selectedTemplate.subject}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-muted-foreground">Status:</span>
+                      <span className="font-medium">{selectedTemplate.isActive ? 'Active' : 'Inactive'}</span>
+                    </div>
                   </div>
-                  <div>
-                    <strong>Category:</strong> {getCategoryLabel(selectedTemplate.category)}
+                  
+                  {/* Email Content Preview */}
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 border-b px-4 py-3">
+                      <h4 className="font-semibold text-gray-900">Email Content Preview</h4>
+                    </div>
+                    <div className="p-6 bg-white min-h-[200px] max-h-[400px] overflow-y-auto">
+                      <div 
+                        className="prose prose-sm max-w-none"
+                        style={{ 
+                          lineHeight: '1.6',
+                          wordBreak: 'break-word',
+                        }}
+                        dangerouslySetInnerHTML={{ __html: selectedTemplate.htmlContent }}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <strong>Subject:</strong> {selectedTemplate.subject}
-                  </div>
-                  <div>
-                    <strong>Status:</strong> {selectedTemplate.isActive ? 'Active' : 'Inactive'}
-                  </div>
+                  
+                  {/* Plain Text Version */}
+                  {selectedTemplate.textContent && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 border-b px-4 py-3">
+                        <h4 className="font-semibold text-gray-900">Plain Text Version</h4>
+                      </div>
+                      <div className="p-6 bg-muted/20 max-h-[300px] overflow-y-auto">
+                        <pre className="text-sm whitespace-pre-wrap font-mono text-gray-700">
+                          {selectedTemplate.textContent}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                
-                <div className="border rounded-lg p-4 bg-white">
-                  <h4 className="font-semibold mb-2">Email Content</h4>
-                  <div 
-                    className="prose prose-sm max-w-none whitespace-pre-wrap"
-                    style={{ 
-                      lineHeight: '1.6',
-                      wordBreak: 'break-word',
-                      whiteSpace: 'pre-wrap'
-                    }}
-                    dangerouslySetInnerHTML={{ __html: selectedTemplate.htmlContent }}
-                  />
-                </div>
-                
-                {selectedTemplate.textContent && (
-                  <div className="border rounded-lg p-4 bg-muted">
-                    <h4 className="font-semibold mb-2">Plain Text Version</h4>
-                    <pre className="text-sm whitespace-pre-wrap">
-                      {selectedTemplate.textContent}
-                    </pre>
-                  </div>
-                )}
               </div>
             )}
             
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowPreviewDialog(false)}>
+            <DialogFooter className="flex-shrink-0 p-6 pt-4 border-t bg-gray-50/50">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowPreviewDialog(false)}
+                className="min-w-[100px]"
+              >
                 Close
               </Button>
             </DialogFooter>
