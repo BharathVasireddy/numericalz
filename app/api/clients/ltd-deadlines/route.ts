@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
       companyNumber: client.companyNumber,
       companyName: client.companyName,
       companyType: client.companyType,
+      contactName: client.contactName,
       contactEmail: client.contactEmail,
       incorporationDate: client.incorporationDate?.toISOString(),
       nextYearEnd: client.nextYearEnd?.toISOString(),  // Include Companies House official year end date
