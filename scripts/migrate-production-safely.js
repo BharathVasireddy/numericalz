@@ -338,7 +338,7 @@ async function testEmailLogging() {
         '<p>This is a test email to verify template migration</p>',
         'MIGRATION_TEST',
         'SENT',
-        'migration-script',
+        NULL, -- System-generated migration email
         'test-template-migration',
         '{"migration":"add_email_template_fields","timestamp":"${new Date().toISOString()}"}',
         NOW(),

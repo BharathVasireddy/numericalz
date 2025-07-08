@@ -46,7 +46,7 @@ class EmailOTPService {
         htmlContent: this.generateOTPEmailHTML(name, otpCode),
         textContent: this.generateOTPEmailText(name, otpCode),
         emailType: 'OTP_LOGIN',
-        triggeredBy: 'system-otp-service',
+        triggeredBy: undefined, // System-generated OTP email
         templateData: {
           otpCode,
           recipientName: name,

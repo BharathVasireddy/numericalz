@@ -481,7 +481,7 @@ model EmailLog {
   clientId        String?
   workflowType    String?
   workflowId      String?
-  triggeredBy     String
+  triggeredBy     String?
   fromEmail       String?     @default("noreply@numericalz.com")
   fromName        String?     @default("Numericalz")
   
@@ -491,7 +491,7 @@ model EmailLog {
   
   // Relationships
   client          Client?     @relation(fields: [clientId], references: [id])
-  triggeredByUser User        @relation(fields: [triggeredBy], references: [id])
+  triggeredByUser User?       @relation(fields: [triggeredBy], references: [id])
   template        EmailTemplate? @relation("TemplateEmailLogs", fields: [templateId], references: [id])
   attachments     EmailAttachment[]
 

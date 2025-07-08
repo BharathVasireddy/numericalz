@@ -145,7 +145,7 @@ class EmailService {
             clientId: params.clientId,
             workflowType: params.workflowType,
             workflowId: params.workflowId,
-            triggeredBy: params.triggeredBy || 'system-email-service',
+            triggeredBy: params.triggeredBy || undefined, // Use undefined for system-generated emails
             fromEmail: this.config.senderEmail,
             fromName: this.config.senderName,
             templateId: params.templateId,
