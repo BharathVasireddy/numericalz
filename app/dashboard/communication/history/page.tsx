@@ -18,7 +18,9 @@ import {
   XCircle,
   Clock,
   Send,
-  RefreshCw
+  RefreshCw,
+  User,
+  Building
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -61,7 +63,10 @@ const EMAIL_TYPES = [
   { value: 'WORKFLOW', label: 'Workflow' },
   { value: 'NOTIFICATION', label: 'Notification' },
   { value: 'DEADLINE_REMINDER', label: 'Deadline' },
-  { value: 'MANUAL', label: 'Manual' }
+  { value: 'MANUAL', label: 'Manual' },
+  { value: 'VAT_ASSIGNMENT', label: 'VAT Assignment' },
+  { value: 'LTD_ASSIGNMENT', label: 'Ltd Assignment' },
+  { value: 'WORKFLOW_STAGE_CHANGE', label: 'Stage Change' }
 ]
 
 export default function EmailHistoryPage() {
@@ -71,16 +76,55 @@ export default function EmailHistoryPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [userFilter, setUserFilter] = useState('all')
+  const [clientFilter, setClientFilter] = useState('all')
   const [selectedEmail, setSelectedEmail] = useState<EmailLog | null>(null)
   const [showPreviewDialog, setShowPreviewDialog] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+  const [users, setUsers] = useState<{id: string, name: string}[]>([])
+  const [clients, setClients] = useState<{id: string, companyName: string, clientCode: string}[]>([])
   const pageSize = 50
 
+  // Separate useEffect for filters (resets to page 1)
   useEffect(() => {
+    setCurrentPage(1)
     fetchEmailLogs(true)
-  }, [statusFilter, typeFilter, searchTerm, currentPage])
+  }, [statusFilter, typeFilter, searchTerm, userFilter, clientFilter])
+
+  // Separate useEffect for pagination (doesn't reset)
+  useEffect(() => {
+    if (currentPage > 1) {
+      fetchEmailLogs(false)
+    }
+  }, [currentPage])
+
+  // Load initial data and filter options
+  useEffect(() => {
+    loadFilterOptions()
+    fetchEmailLogs(true)
+  }, [])
+
+  const loadFilterOptions = async () => {
+    try {
+      // Load users for filter
+      const usersResponse = await fetch('/api/users')
+      if (usersResponse.ok) {
+        const usersData = await usersResponse.json()
+        setUsers(usersData.users || [])
+      }
+
+      // Load clients for filter
+      const clientsResponse = await fetch('/api/clients?limit=1000')
+      if (clientsResponse.ok) {
+        const clientsData = await clientsResponse.json()
+        setClients(clientsData.clients || [])
+      }
+    } catch (error) {
+      console.error('Error loading filter options:', error)
+    }
+  }
 
   const fetchEmailLogs = async (reset = false) => {
     try {
@@ -93,6 +137,8 @@ export default function EmailHistoryPage() {
       
       if (statusFilter !== 'all') params.append('status', statusFilter)
       if (typeFilter !== 'all') params.append('emailType', typeFilter)
+      if (userFilter !== 'all') params.append('userId', userFilter)
+      if (clientFilter !== 'all') params.append('clientId', clientFilter)
       if (searchTerm) params.append('search', searchTerm)
 
       const response = await fetch(`/api/communication/history?${params}`)
@@ -158,11 +204,11 @@ export default function EmailHistoryPage() {
       />
       
       <PageContent>
-        {/* Simple Filters */}
+        {/* Enhanced Filters */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+              <div className="lg:col-span-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -175,7 +221,7 @@ export default function EmailHistoryPage() {
               </div>
               
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger>
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -188,7 +234,7 @@ export default function EmailHistoryPage() {
               </Select>
               
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger>
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -199,9 +245,46 @@ export default function EmailHistoryPage() {
                   ))}
                 </SelectContent>
               </Select>
-              
+
+              <Select value={userFilter} onValueChange={setUserFilter}>
+                <SelectTrigger>
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <SelectValue placeholder="User" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={clientFilter} onValueChange={setClientFilter}>
+                <SelectTrigger>
+                  <div className="flex items-center gap-2">
+                    <Building className="h-4 w-4" />
+                    <SelectValue placeholder="Client" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Clients</SelectItem>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.clientCode} - {client.companyName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex justify-end mt-4">
               <Button onClick={() => fetchEmailLogs(true)} variant="outline" size="sm">
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
               </Button>
             </div>
           </CardContent>

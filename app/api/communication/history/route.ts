@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
     const searchTerm = searchParams.get('search') // Frontend sends 'search' not 'recipient'
     const statusFilter = searchParams.get('status')
     const emailTypeFilter = searchParams.get('emailType') // Frontend sends 'emailType'
+    const userIdFilter = searchParams.get('userId') // Filter by user who triggered email
+    const clientIdFilter = searchParams.get('clientId') // Filter by client
     const dateFrom = searchParams.get('dateFrom')
     const dateTo = searchParams.get('dateTo')
 
@@ -45,6 +47,14 @@ export async function GET(request: NextRequest) {
     
     if (emailTypeFilter) {
       whereClause.emailType = emailTypeFilter
+    }
+    
+    if (userIdFilter) {
+      whereClause.triggeredBy = userIdFilter
+    }
+    
+    if (clientIdFilter) {
+      whereClause.clientId = clientIdFilter
     }
     
     if (dateFrom || dateTo) {
