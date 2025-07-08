@@ -257,6 +257,65 @@ export function getDirectorWithSignificantControl(psc: any): string | null {
 }
 
 /**
+ * Get the first active director from officers data
+ * Returns the name of the first active director
+ */
+export function getFirstDirector(officers: any): string | null {
+  if (!officers || !officers.items || officers.items.length === 0) {
+    return null
+  }
+
+  // Look for active directors (not resigned)
+  for (const officer of officers.items) {
+    // Skip if officer has resigned
+    if (officer.resigned_on) {
+      continue
+    }
+
+    // Skip if no name
+    if (!officer.name) {
+      continue
+    }
+
+    // Check if this is a director role
+    const role = officer.officer_role?.toLowerCase() || ''
+    if (role.includes('director') || role.includes('managing director') || role.includes('executive director')) {
+      return officer.name
+    }
+  }
+
+  // If no specific director found, return the first active officer
+  for (const officer of officers.items) {
+    if (!officer.resigned_on && officer.name) {
+      return officer.name
+    }
+  }
+
+  return null
+}
+
+/**
+ * Get the best contact name from both PSC and officers data
+ * Priority: PSC with significant control → First active director → Company name fallback
+ */
+export function getBestContactName(psc: any, officers: any, companyName: string): string {
+  // First, try to get director with significant control
+  const pscDirector = getDirectorWithSignificantControl(psc)
+  if (pscDirector) {
+    return pscDirector
+  }
+
+  // Second, try to get first active director
+  const firstDirector = getFirstDirector(officers)
+  if (firstDirector) {
+    return firstDirector
+  }
+
+  // Fall back to company name if no directors found
+  return companyName
+}
+
+/**
  * Get comprehensive company data including officers and PSC
  */
 export async function getComprehensiveCompanyData(companyNumber: string): Promise<{

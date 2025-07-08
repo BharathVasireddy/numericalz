@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { getCompanyPSC, getDirectorWithSignificantControl } from '@/lib/companies-house'
+import { getCompanyPSC, getCompanyOfficers, getBestContactName } from '@/lib/companies-house'
 
 export async function PATCH(
   request: NextRequest,
@@ -49,23 +49,36 @@ export async function PATCH(
       }, { status: 400 })
     }
 
-    // Fetch Companies House PSC data directly
-    let pscData
+    // Fetch Companies House PSC and officers data directly
+    let pscData, officersData
     try {
-      pscData = await getCompanyPSC(client.companyNumber)
+      const [pscResult, officersResult] = await Promise.allSettled([
+        getCompanyPSC(client.companyNumber),
+        getCompanyOfficers(client.companyNumber)
+      ])
+      
+      pscData = pscResult.status === 'fulfilled' ? pscResult.value : null
+      officersData = officersResult.status === 'fulfilled' ? officersResult.value : null
+      
+      if (!pscData && !officersData) {
+        throw new Error('No PSC or officers data available')
+      }
     } catch (error) {
-      console.error('Failed to fetch Companies House PSC data:', error)
+      console.error('Failed to fetch Companies House data:', error)
       return NextResponse.json({ 
         error: 'Failed to fetch Companies House data' 
       }, { status: 500 })
     }
 
-    // Extract director name
-    const directorName = getDirectorWithSignificantControl(pscData)
-    if (!directorName) {
+    // Get best contact name using both PSC and officers data
+    const directorName = getBestContactName(pscData, officersData, client.companyName)
+    
+    // If the result is the same as company name, no director was found
+    if (directorName === client.companyName) {
       return NextResponse.json({ 
-        error: 'No director with significant control found' 
-      }, { status: 404 })
+        changed: false,
+        message: 'No directors found - contact name would remain as company name' 
+      })
     }
 
     // Check if contact name would actually change
@@ -102,7 +115,7 @@ export async function PATCH(
           oldContactName: client.contactName,
           newContactName: directorName,
           companyNumber: client.companyNumber,
-          source: 'companies_house_psc'
+          source: 'companies_house_psc_and_officers'
         })
       }
     })
