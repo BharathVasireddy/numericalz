@@ -121,6 +121,7 @@
     "@types/react-beautiful-dnd": "^13.1.8",
     "@upstash/ratelimit": "^0.4.4",
     "@upstash/redis": "^1.25.1",
+    "@vercel/analytics": "^1.5.0",
     "axios": "^1.10.0",
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.1",
