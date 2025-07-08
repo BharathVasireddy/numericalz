@@ -4,6 +4,7 @@ import './globals.css'
 import { Providers } from '@/components/providers'
 import { SimpleToaster } from '@/components/ui/simple-toaster'
 import { PerformanceTracker } from '@/components/performance-tracker'
+import { Analytics } from '@vercel/analytics/next'
 
 // Optimized font loading with display: 'swap' for better performance
 const plusJakartaSans = Plus_Jakarta_Sans({ 
@@ -209,6 +210,9 @@ export default function RootLayout({
           <PerformanceTracker />
           
         </Providers>
+
+        {/* Vercel Analytics */}
+        <Analytics />
 
         {/* Performance monitoring script */}
         <script
