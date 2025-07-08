@@ -26,6 +26,7 @@ interface Client {
   contactName?: string
   companyNumber?: string
   vatNumber?: string
+  vatQuarterGroup?: string
   nextAccountsDue?: string
   nextCorporationTaxDue?: string
   nextVatReturnDue?: string
@@ -246,12 +247,15 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
       isOverdue: new Date() > new Date(client.currentVATQuarter.filingDueDate),
       currentStage: client.currentVATQuarter.currentStage,
       isCompleted: client.currentVATQuarter.isCompleted,
-      assignedUser: client.currentVATQuarter.assignedUser
+      assignedUser: client.currentVATQuarter.assignedUser,
+      quarterGroup: client.vatQuarterGroup || '',
+      quarterGroupCode: client.vatQuarterGroup || ''
     } : null
 
     // Prepare accounts data from client's current accounts workflow
     const accountsData = client.currentLtdAccountsWorkflow ? {
-      filingPeriodEnd: client.currentLtdAccountsWorkflow.filingPeriodEnd,
+      filingPeriod: `${new Date(client.currentLtdAccountsWorkflow.filingPeriodEnd).getFullYear()} accounts`,
+      yearEndDate: new Date(client.currentLtdAccountsWorkflow.filingPeriodEnd),
       accountsDueDate: new Date(client.currentLtdAccountsWorkflow.accountsDueDate),
       corporationTaxDueDate: new Date(client.currentLtdAccountsWorkflow.ctDueDate),
       daysUntilAccountsDue: Math.ceil((new Date(client.currentLtdAccountsWorkflow.accountsDueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
@@ -272,19 +276,28 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
       incorporationDate: client.incorporationDate ? new Date(client.incorporationDate) : null
     }
 
-    // Use the comprehensive variable processing system
+    // Use the comprehensive variable processing system - NO MOCK DATA, only real data
     return processEmailVariables(content, {
       client: {
-        companyName: client.companyName,
-        clientCode: client.clientCode,
-        companyNumber: client.companyNumber,
-        vatNumber: client.vatNumber,
-        contactName: client.contactName,
-        email: client.email,
-        phone: client.phone,
+        companyName: client.companyName || '',
+        clientCode: client.clientCode || '',
+        companyNumber: client.companyNumber || '',
+        vatNumber: client.vatNumber || '',
+        contactName: client.contactName || '',
+        email: client.email || '',
+        phone: client.phone || '',
         assignedUser: client.assignedUser
       },
-      user: client.assignedUser,
+      // Use the current logged-in user, not assigned user
+      user: session?.user ? {
+        name: session.user.name || '',
+        email: session.user.email || ''
+      } : null,
+      // Use real workflow data only
+      workflow: {
+        currentStage: vatData?.currentStage || accountsData?.currentStage || '',
+        comments: '' // No real comments data available in test context
+      },
       vat: vatData,
       accounts: accountsData,
       dates: datesData,
@@ -532,12 +545,13 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
                       },
                       user: selectedClient.assignedUser,
                       vat: {
-                        quarterPeriod: 'Jul-Sep 2024',
+                        quarterPeriod: '2024-07-01_to_2024-09-30', // This will be formatted to 'Jul - Sep 2024' by the email variables system
                         quarterStartDate: new Date('2024-07-01'),
                         quarterEndDate: new Date('2024-09-30'),
                         filingDueDate: new Date('2024-10-31'),
                         daysUntilDue: Math.ceil((new Date('2024-10-31').getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
-                        isOverdue: new Date() > new Date('2024-10-31')
+                        isOverdue: new Date() > new Date('2024-10-31'),
+                        currentStage: 'PAPERWORK_RECEIVED'
                       },
                       accounts: {
                         filingPeriod: '2024 accounts',

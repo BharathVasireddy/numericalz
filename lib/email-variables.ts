@@ -3,6 +3,8 @@
  * Defines all available variables for email templates with descriptions and examples
  */
 
+import { formatQuarterPeriodForDisplay } from '@/lib/vat-workflow'
+
 export interface EmailVariable {
   key: string
   label: string
@@ -166,6 +168,32 @@ export const EMAIL_VARIABLES: EmailVariable[] = [
     type: 'string'
   },
 
+  // VAT Quarter Group Variables
+  {
+    key: 'vat.quarterGroup',
+    label: 'VAT Quarter Group',
+    description: 'The VAT quarter group (e.g., Jan/Apr/Jul/Oct)',
+    example: 'Jan/Apr/Jul/Oct',
+    category: 'workflow',
+    type: 'string'
+  },
+  {
+    key: 'vat.quarterGroupCode',
+    label: 'VAT Quarter Group Code',
+    description: 'The VAT quarter group code (e.g., 1_4_7_10)',
+    example: '1_4_7_10',
+    category: 'workflow',
+    type: 'string'
+  },
+  {
+    key: 'vat.filingMonths',
+    label: 'VAT Filing Months',
+    description: 'The months when VAT returns are filed for this quarter group',
+    example: 'February, May, August, November',
+    category: 'workflow',
+    type: 'string'
+  },
+
   // VAT Specific Variables
   {
     key: 'vat.quarterPeriod',
@@ -245,7 +273,7 @@ export const EMAIL_VARIABLES: EmailVariable[] = [
     key: 'accounts.corporationTaxDueDate',
     label: 'Corporation Tax Due Date',
     description: 'The deadline for filing corporation tax',
-    example: '31 March 2025',
+    example: '31 December 2024',
     category: 'dates',
     type: 'date'
   },
@@ -253,33 +281,27 @@ export const EMAIL_VARIABLES: EmailVariable[] = [
     key: 'accounts.daysUntilAccountsDue',
     label: 'Days Until Accounts Due',
     description: 'Number of days until accounts filing is due',
-    example: '45',
+    example: '30',
     category: 'workflow',
     type: 'number'
   },
+
+  // Current Status Variables
   {
-    key: 'accounts.daysUntilCTDue',
-    label: 'Days Until CT Due',
-    description: 'Number of days until corporation tax is due',
-    example: '120',
+    key: 'workflow.currentStage',
+    label: 'Current Status',
+    description: 'Current stage of the workflow',
+    example: 'Work in Progress',
     category: 'workflow',
-    type: 'number'
+    type: 'string'
   },
   {
-    key: 'accounts.isAccountsOverdue',
-    label: 'Accounts Are Overdue',
-    description: 'Whether the annual accounts are overdue',
-    example: 'false',
+    key: 'workflow.comments',
+    label: 'Status Comments',
+    description: 'Comments about the current status',
+    example: 'Awaiting bank statements',
     category: 'workflow',
-    type: 'boolean'
-  },
-  {
-    key: 'accounts.isCTOverdue',
-    label: 'Corporation Tax Is Overdue',
-    description: 'Whether the corporation tax is overdue',
-    example: 'false',
-    category: 'workflow',
-    type: 'boolean'
+    type: 'string'
   },
 
   // Date Variables
@@ -364,6 +386,14 @@ export const EMAIL_VARIABLES: EmailVariable[] = [
     example: 'support@numericalz.com',
     category: 'system',
     type: 'string'
+  },
+  {
+    key: 'system.currentDate',
+    label: 'Current Date',
+    description: 'Today\'s date',
+    example: '15 July 2024',
+    category: 'system',
+    type: 'date'
   }
 ]
 
@@ -464,8 +494,6 @@ export function processEmailVariables(
   data: {
     client?: any
     user?: any
-    assignedBy?: any
-    previousAssignee?: string
     workflow?: any
     vat?: any
     accounts?: any
@@ -484,65 +512,50 @@ export function processEmailVariables(
     processed = processed.replace(/\{\{client\.contactName\}\}/g, data.client.contactName || '')
     processed = processed.replace(/\{\{client\.contactEmail\}\}/g, data.client.email || data.client.contactEmail || '')
     processed = processed.replace(/\{\{client\.contactPhone\}\}/g, data.client.phone || data.client.contactPhone || '')
-    processed = processed.replace(/\{\{client\.companyType\}\}/g, data.client.companyType || data.client.type || '')
+    processed = processed.replace(/\{\{client\.companyType\}\}/g, formatCompanyType(data.client.companyType || data.client.type || ''))
     
     // Legacy client variable aliases
     processed = processed.replace(/\{\{client\.email\}\}/g, data.client.email || data.client.contactEmail || '')
     processed = processed.replace(/\{\{client\.phone\}\}/g, data.client.phone || data.client.contactPhone || '')
   }
 
-  // User variables (assigned user)
-  if (data.user || data.client?.assignedUser) {
-    const user = data.user || data.client?.assignedUser
-    processed = processed.replace(/\{\{user\.name\}\}/g, user?.name || '')
-    processed = processed.replace(/\{\{user\.email\}\}/g, user?.email || '')
-    processed = processed.replace(/\{\{user\.role\}\}/g, user?.role || '')
-  }
+  // User variables - ALWAYS process, use "NA" if data not applicable
+  const user = data.user || data.client?.assignedUser
+  processed = processed.replace(/\{\{user\.name\}\}/g, user?.name || (data.user !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{user\.email\}\}/g, user?.email || (data.user !== undefined ? 'NA' : ''))
 
-  // Assignment related variables
-  if (data.assignedBy) {
-    processed = processed.replace(/\{\{assignedBy\.name\}\}/g, data.assignedBy.name || '')
-    processed = processed.replace(/\{\{assignedBy\.email\}\}/g, data.assignedBy.email || '')
-  }
+  // Workflow variables - ALWAYS process (client-relevant only)
+  processed = processed.replace(/\{\{workflow\.currentStage\}\}/g, data.workflow?.currentStage ? formatWorkflowStage(data.workflow.currentStage) : (data.workflow !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{workflow\.comments\}\}/g, data.workflow?.comments || (data.workflow !== undefined ? 'NA' : ''))
+
+  // VAT specific variables - ALWAYS process
+  const vatQuarterPeriod = data.vat?.quarterPeriod ? formatQuarterPeriod(data.vat.quarterPeriod) : (data.vat !== undefined ? 'NA' : '')
+  processed = processed.replace(/\{\{vat\.quarterPeriod\}\}/g, vatQuarterPeriod)
+  processed = processed.replace(/\{\{vat\.quarterStartDate\}\}/g, data.vat?.quarterStartDate ? formatDate(data.vat.quarterStartDate) : (data.vat !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{vat\.quarterEndDate\}\}/g, data.vat?.quarterEndDate ? formatDate(data.vat.quarterEndDate) : (data.vat !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{vat\.filingDueDate\}\}/g, data.vat?.filingDueDate ? formatDate(data.vat.filingDueDate) : (data.vat !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{vat\.daysUntilDue\}\}/g, data.vat?.daysUntilDue !== undefined ? String(data.vat.daysUntilDue) : (data.vat !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{vat\.isOverdue\}\}/g, data.vat?.isOverdue !== undefined ? String(data.vat.isOverdue) : (data.vat !== undefined ? 'NA' : ''))
   
-  if (data.previousAssignee) {
-    processed = processed.replace(/\{\{previousAssignee\}\}/g, data.previousAssignee || '')
-  }
+  // VAT quarter group variables - ALWAYS process
+  processed = processed.replace(/\{\{vat\.quarterGroup\}\}/g, data.vat?.quarterGroup ? formatVATQuarterGroup(data.vat.quarterGroup) : (data.vat !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{vat\.quarterGroupCode\}\}/g, data.vat?.quarterGroupCode || (data.vat !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{vat\.filingMonths\}\}/g, data.vat?.quarterGroupCode ? formatVATFilingMonths(data.vat.quarterGroupCode) : (data.vat !== undefined ? 'NA' : ''))
+  
+  // Legacy VAT variable aliases
+  processed = processed.replace(/\{\{vat\.quarter\}\}/g, vatQuarterPeriod)
+  processed = processed.replace(/\{\{quarterPeriod\}\}/g, vatQuarterPeriod)
+  processed = processed.replace(/\{\{filingDueDate\}\}/g, data.vat?.filingDueDate ? formatDate(data.vat.filingDueDate) : (data.vat !== undefined ? 'NA' : ''))
 
-  // Workflow variables
-  if (data.workflow) {
-    processed = processed.replace(/\{\{workflow\.currentStage\}\}/g, data.workflow.currentStage || '')
-    processed = processed.replace(/\{\{workflow\.previousStage\}\}/g, data.workflow.previousStage || '')
-    processed = processed.replace(/\{\{workflow\.workflowType\}\}/g, data.workflow.workflowType || '')
-    processed = processed.replace(/\{\{workflow\.comments\}\}/g, data.workflow.comments || '')
-  }
-
-  // VAT specific variables
-  if (data.vat) {
-    processed = processed.replace(/\{\{vat\.quarterPeriod\}\}/g, data.vat.quarterPeriod || '')
-    processed = processed.replace(/\{\{vat\.quarterStartDate\}\}/g, formatDate(data.vat.quarterStartDate))
-    processed = processed.replace(/\{\{vat\.quarterEndDate\}\}/g, formatDate(data.vat.quarterEndDate))
-    processed = processed.replace(/\{\{vat\.filingDueDate\}\}/g, formatDate(data.vat.filingDueDate))
-    processed = processed.replace(/\{\{vat\.daysUntilDue\}\}/g, String(data.vat.daysUntilDue || ''))
-    processed = processed.replace(/\{\{vat\.isOverdue\}\}/g, String(data.vat.isOverdue || false))
-    
-    // Legacy VAT variable aliases
-    processed = processed.replace(/\{\{vat\.quarter\}\}/g, data.vat.quarterPeriod || '')
-    processed = processed.replace(/\{\{quarterPeriod\}\}/g, data.vat.quarterPeriod || '')
-    processed = processed.replace(/\{\{filingDueDate\}\}/g, formatDate(data.vat.filingDueDate))
-  }
-
-  // Accounts specific variables
-  if (data.accounts) {
-    processed = processed.replace(/\{\{accounts\.filingPeriod\}\}/g, data.accounts.filingPeriod || '')
-    processed = processed.replace(/\{\{accounts\.yearEndDate\}\}/g, formatDate(data.accounts.yearEndDate))
-    processed = processed.replace(/\{\{accounts\.accountsDueDate\}\}/g, formatDate(data.accounts.accountsDueDate))
-    processed = processed.replace(/\{\{accounts\.corporationTaxDueDate\}\}/g, formatDate(data.accounts.corporationTaxDueDate))
-    processed = processed.replace(/\{\{accounts\.daysUntilAccountsDue\}\}/g, String(data.accounts.daysUntilAccountsDue || ''))
-    processed = processed.replace(/\{\{accounts\.daysUntilCTDue\}\}/g, String(data.accounts.daysUntilCTDue || ''))
-    processed = processed.replace(/\{\{accounts\.isAccountsOverdue\}\}/g, String(data.accounts.isAccountsOverdue || false))
-    processed = processed.replace(/\{\{accounts\.isCTOverdue\}\}/g, String(data.accounts.isCTOverdue || false))
-  }
+  // Accounts specific variables - ALWAYS process
+  processed = processed.replace(/\{\{accounts\.filingPeriod\}\}/g, data.accounts?.filingPeriod ? formatFilingPeriod(data.accounts.filingPeriod) : (data.accounts !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{accounts\.yearEndDate\}\}/g, data.accounts?.yearEndDate ? formatDate(data.accounts.yearEndDate) : (data.accounts !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{accounts\.accountsDueDate\}\}/g, data.accounts?.accountsDueDate ? formatDate(data.accounts.accountsDueDate) : (data.accounts !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{accounts\.corporationTaxDueDate\}\}/g, data.accounts?.corporationTaxDueDate ? formatDate(data.accounts.corporationTaxDueDate) : (data.accounts !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{accounts\.daysUntilAccountsDue\}\}/g, data.accounts?.daysUntilAccountsDue !== undefined ? String(data.accounts.daysUntilAccountsDue) : (data.accounts !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{accounts\.daysUntilCTDue\}\}/g, data.accounts?.daysUntilCTDue !== undefined ? String(data.accounts.daysUntilCTDue) : (data.accounts !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{accounts\.isAccountsOverdue\}\}/g, data.accounts?.isAccountsOverdue !== undefined ? String(data.accounts.isAccountsOverdue) : (data.accounts !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{accounts\.isCTOverdue\}\}/g, data.accounts?.isCTOverdue !== undefined ? String(data.accounts.isCTOverdue) : (data.accounts !== undefined ? 'NA' : ''))
 
   // Date variables
   const now = new Date()
@@ -583,6 +596,7 @@ export function processEmailVariables(
   processed = processed.replace(/\{\{system\.websiteUrl\}\}/g, 'https://numericalz.com')
   processed = processed.replace(/\{\{system\.dashboardUrl\}\}/g, 'https://app.numericalz.com/dashboard')
   processed = processed.replace(/\{\{system\.supportEmail\}\}/g, 'support@numericalz.com')
+  processed = processed.replace(/\{\{system\.currentDate\}\}/g, now.toLocaleDateString('en-GB', ukDateOptions))
   
   // Legacy system variable aliases
   processed = processed.replace(/\{\{system\.firmName\}\}/g, 'Numericalz')
@@ -609,6 +623,145 @@ function formatDate(date: string | Date | null | undefined): string {
   } catch (error) {
     return ''
   }
+}
+
+// Helper function to format VAT quarter period for display
+function formatQuarterPeriod(quarterPeriod: string | null | undefined): string {
+  if (!quarterPeriod) return ''
+  
+  try {
+    // Use the existing formatQuarterPeriodForDisplay function from vat-workflow.ts
+    return formatQuarterPeriodForDisplay(quarterPeriod)
+  } catch (error) {
+    // Fallback: try to format manually if the function fails
+    try {
+      // Parse format like "2025-07-01_to_2025-09-30" 
+      const parts = quarterPeriod.split('_to_')
+      if (parts.length === 2 && parts[0] && parts[1]) {
+        const startDate = new Date(parts[0])
+        const endDate = new Date(parts[1])
+        
+        const startMonth = startDate.toLocaleDateString('en-GB', { month: 'short', timeZone: 'Europe/London' })
+        const endMonth = endDate.toLocaleDateString('en-GB', { month: 'short', timeZone: 'Europe/London' })
+        const year = endDate.getFullYear()
+        
+        return `${startMonth} - ${endMonth} ${year}`
+      }
+    } catch (fallbackError) {
+      console.error('Error formatting quarter period:', fallbackError)
+    }
+    
+    // Last resort: return original value
+    return quarterPeriod
+  }
+}
+
+// Helper function to format company type for display
+function formatCompanyType(companyType: string): string {
+  if (!companyType) return ''
+  
+  const typeMap: { [key: string]: string } = {
+    'LIMITED_COMPANY': 'Limited Company',
+    'LTD_COMPANY': 'Limited Company',
+    'PARTNERSHIP': 'Partnership',
+    'SOLE_TRADER': 'Sole Trader',
+    'LLP': 'Limited Liability Partnership',
+    'CIC': 'Community Interest Company',
+    'OTHER': 'Other'
+  }
+  
+  return typeMap[companyType.toUpperCase()] || companyType
+}
+
+// Helper function to format user role for display
+function formatUserRole(role: string): string {
+  if (!role) return ''
+  
+  const roleMap: { [key: string]: string } = {
+    'PARTNER': 'Partner',
+    'MANAGER': 'Manager',
+    'STAFF': 'Staff Member'
+  }
+  
+  return roleMap[role.toUpperCase()] || role
+}
+
+// Helper function to format workflow stage for display
+function formatWorkflowStage(stage: string): string {
+  if (!stage) return ''
+  
+  // Convert from UPPERCASE_UNDERSCORE to Title Case
+  return stage
+    .split('_')
+    .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+    .join(' ')
+}
+
+// Helper function to format VAT quarter group for display
+function formatVATQuarterGroup(quarterGroup: string): string {
+  if (!quarterGroup) return ''
+  
+  const quarterGroupMap: { [key: string]: string } = {
+    '1_4_7_10': 'Jan/Apr/Jul/Oct',
+    '2_5_8_11': 'Feb/May/Aug/Nov',
+    '3_6_9_12': 'Mar/Jun/Sep/Dec'
+  }
+  
+  return quarterGroupMap[quarterGroup] || quarterGroup
+}
+
+// Helper function to format VAT filing months for display
+function formatVATFilingMonths(quarterGroupCode: string): string {
+  if (!quarterGroupCode) return ''
+  
+  const filingMonthsMap: { [key: string]: string } = {
+    '1_4_7_10': 'February, May, August, November',
+    '2_5_8_11': 'March, June, September, December', 
+    '3_6_9_12': 'April, July, October, January'
+  }
+  
+  return filingMonthsMap[quarterGroupCode] || ''
+}
+
+// Helper function to format filing period for display
+function formatFilingPeriod(filingPeriod: string): string {
+  if (!filingPeriod) return ''
+  
+  // Check if it's a year-based period like "2024 accounts"
+  if (filingPeriod.includes('accounts')) {
+    return filingPeriod
+  }
+  
+  // Check if it's a date range format
+  if (filingPeriod.includes('_to_')) {
+    try {
+      const parts = filingPeriod.split('_to_')
+      if (parts.length === 2 && parts[0] && parts[1]) {
+        const startDate = new Date(parts[0])
+        const endDate = new Date(parts[1])
+        
+        const startFormatted = startDate.toLocaleDateString('en-GB', { 
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          timeZone: 'Europe/London'
+        })
+        const endFormatted = endDate.toLocaleDateString('en-GB', { 
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          timeZone: 'Europe/London'
+        })
+        
+        return `${startFormatted} to ${endFormatted}`
+      }
+    } catch (error) {
+      console.error('Error formatting filing period:', error)
+    }
+  }
+  
+  // Return original if no formatting needed
+  return filingPeriod
 }
 
 // Extract variables used in content
