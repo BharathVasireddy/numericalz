@@ -91,13 +91,6 @@ export async function GET(request: NextRequest) {
             companyName: true,
             clientCode: true
           }
-        },
-        template: {
-          select: {
-            id: true,
-            name: true,
-            category: true
-          }
         }
       },
       orderBy: {
@@ -122,8 +115,7 @@ export async function GET(request: NextRequest) {
       failedAt: log.failedAt?.toISOString(),
       failureReason: log.failureReason || undefined,
       triggeredByUser: log.triggeredByUser || undefined,
-      client: log.client || undefined,
-      template: log.template || undefined
+      client: log.client || undefined
     }))
 
     const totalPages = Math.ceil(totalCount / limit)
