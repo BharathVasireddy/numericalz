@@ -12,89 +12,138 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // 🔍 DEBUG: Comprehensive production debugging
+    console.log('🔍 [EMAIL DEBUG] Starting email history request...')
+    console.log('🔍 [EMAIL DEBUG] Session user:', {
+      id: session.user.id,
+      email: session.user.email,
+      role: session.user.role,
+      name: session.user.name
+    })
+
     const { searchParams } = new URL(request.url)
     
     // Support both pagination styles: page-based (default) and offset-based (load more)
-    const page = parseInt(searchParams.get('page') || '1', 10)
-    const limit = parseInt(searchParams.get('limit') || '20', 10)
-    const offset = parseInt(searchParams.get('offset') || '0', 10)
-    const useOffset = searchParams.has('offset') // Use offset if explicitly provided
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const offset = parseInt(searchParams.get('offset') || '0')
     
-    // Enhanced filtering options (from Email Logs)
-    const status = searchParams.get('status')
-    const emailType = searchParams.get('emailType')
-    const clientId = searchParams.get('clientId')
-    const userId = searchParams.get('userId')
-    const search = searchParams.get('search')
+    // Use offset if provided, otherwise calculate from page
+    const skip = offset > 0 ? offset : (page - 1) * limit
+    
+    console.log('🔍 [EMAIL DEBUG] Query params:', { page, limit, offset, skip })
 
-    const skip = useOffset ? offset : (page - 1) * limit
-
-    // Build where clause with enhanced filtering
-    const whereClause: any = {}
-
-    if (status && status !== 'all') {
-      whereClause.status = status
+    // 🔍 DEBUG: Test basic database connection
+    try {
+      const dbTest = await db.$queryRaw`SELECT 1 as test`
+      console.log('🔍 [EMAIL DEBUG] Database connection test:', dbTest)
+    } catch (dbError) {
+      console.error('🚨 [EMAIL DEBUG] Database connection failed:', dbError)
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
     }
 
-    if (emailType && emailType !== 'all') {
-      whereClause.emailType = emailType
-    }
-
-    // Enhanced filtering from Email Logs
-    if (clientId) {
-      whereClause.clientId = clientId
-    }
-
-    if (userId) {
-      whereClause.triggeredBy = userId
-    }
-
-    if (search) {
-      whereClause.OR = [
-        { recipientEmail: { contains: search, mode: 'insensitive' } },
-        { recipientName: { contains: search, mode: 'insensitive' } },
-        { subject: { contains: search, mode: 'insensitive' } },
-        { 
-          client: { 
-            OR: [
-              { companyName: { contains: search, mode: 'insensitive' } },
-              { clientCode: { contains: search, mode: 'insensitive' } }
-            ]
+    // 🔍 DEBUG: Check if EmailLog table exists and get count
+    try {
+      const totalCount = await db.emailLog.count()
+      console.log('🔍 [EMAIL DEBUG] Total emails in database:', totalCount)
+      
+      if (totalCount === 0) {
+        console.log('🚨 [EMAIL DEBUG] No emails found in database!')
+        return NextResponse.json({
+          emails: [],
+          pagination: {
+            page: 1,
+            limit: limit,
+            total: 0,
+            totalPages: 0
           }
-        }
-      ]
+        })
+      }
+    } catch (countError) {
+      console.error('🚨 [EMAIL DEBUG] Failed to count emails:', countError)
+      return NextResponse.json({ error: 'Failed to count emails' }, { status: 500 })
     }
 
-    // For staff users, only show emails they sent (unless specific user filter is applied)
-    if (session.user.role === 'STAFF' && !userId) {
-      whereClause.triggeredBy = session.user.id
+    // 🔍 DEBUG: Check table structure
+    try {
+      const firstEmail = await db.emailLog.findFirst()
+      console.log('🔍 [EMAIL DEBUG] First email structure:', firstEmail)
+    } catch (structureError) {
+      console.error('🚨 [EMAIL DEBUG] Failed to get first email:', structureError)
     }
 
-    // Get total count for pagination
-    const totalCount = await db.emailLog.count({
-      where: whereClause
+    // Filtering
+    const recipientFilter = searchParams.get('recipient')
+    const subjectFilter = searchParams.get('subject')
+    const statusFilter = searchParams.get('status')
+    const templateFilter = searchParams.get('template')
+    const dateFrom = searchParams.get('dateFrom')
+    const dateTo = searchParams.get('dateTo')
+
+    console.log('🔍 [EMAIL DEBUG] Filters:', {
+      recipientFilter,
+      subjectFilter,
+      statusFilter,
+      templateFilter,
+      dateFrom,
+      dateTo
     })
 
-    // Get email logs - Production-safe query without template relation
-    const emailLogs = await db.emailLog.findMany({
+    // Build where clause
+    const whereClause: any = {}
+    
+    if (recipientFilter) {
+      whereClause.OR = [
+        { recipientEmail: { contains: recipientFilter, mode: 'insensitive' } },
+        { recipientName: { contains: recipientFilter, mode: 'insensitive' } }
+      ]
+    }
+    
+    if (subjectFilter) {
+      whereClause.subject = { contains: subjectFilter, mode: 'insensitive' }
+    }
+    
+    if (statusFilter) {
+      whereClause.status = statusFilter
+    }
+    
+    if (dateFrom || dateTo) {
+      whereClause.createdAt = {}
+      if (dateFrom) {
+        whereClause.createdAt.gte = new Date(dateFrom)
+      }
+      if (dateTo) {
+        whereClause.createdAt.lte = new Date(dateTo)
+      }
+    }
+
+    console.log('🔍 [EMAIL DEBUG] Where clause:', JSON.stringify(whereClause, null, 2))
+
+    // 🔍 DEBUG: Test filtered count
+    const filteredCount = await db.emailLog.count({ where: whereClause })
+    console.log('🔍 [EMAIL DEBUG] Filtered count:', filteredCount)
+
+    // Main query - simplified without template relation
+    const emails = await db.emailLog.findMany({
       where: whereClause,
-      include: {
-        client: {
-          select: {
-            id: true,
-            companyName: true,
-            clientCode: true
-          }
-        },
-        triggeredByUser: {
+      select: {
+        id: true,
+        recipientEmail: true,
+        recipientName: true,
+        subject: true,
+        status: true,
+        createdAt: true,
+        sentAt: true,
+        failedAt: true,
+        failureReason: true,
+        triggeredBy: true,
+        user: {
           select: {
             id: true,
             name: true,
-            email: true,
-            role: true
+            email: true
           }
         }
-        // Note: template relation removed for production compatibility
       },
       orderBy: {
         createdAt: 'desc'
@@ -103,75 +152,56 @@ export async function GET(request: NextRequest) {
       take: limit
     })
 
-    // Enhanced response with all Email Logs data
-    const transformedLogs = emailLogs.map(log => ({
+    console.log('🔍 [EMAIL DEBUG] Query results:', {
+      emailsFound: emails.length,
+      firstEmailId: emails[0]?.id,
+      firstEmailSubject: emails[0]?.subject,
+      firstEmailRecipient: emails[0]?.recipientEmail
+    })
+
+    // Transform the data for the frontend
+    const transformedEmails = emails.map(log => ({
       id: log.id,
-      createdAt: log.createdAt,
-      updatedAt: log.updatedAt,
-      // Enhanced: Include all technical metadata from Email Logs
-      fromEmail: log.fromEmail,
-      fromName: log.fromName,
       recipientEmail: log.recipientEmail,
-      recipientName: log.recipientName,
-      subject: log.subject,
-      content: log.content,
-      emailType: log.emailType,
+      recipientName: log.recipientName || '',
+      subject: log.subject || '',
       status: log.status,
-      // Enhanced: Include all delivery tracking fields
+      createdAt: log.createdAt,
       sentAt: log.sentAt,
-      deliveredAt: log.deliveredAt,
       failedAt: log.failedAt,
       failureReason: log.failureReason,
-      workflowType: log.workflowType,
-      client: log.client ? {
-        id: log.client.id,
-        clientCode: log.client.clientCode,
-        companyName: log.client.companyName
-      } : null,
-      triggeredByUser: log.triggeredByUser ? {
-        id: log.triggeredByUser.id,
-        name: log.triggeredByUser.name,
-        email: log.triggeredByUser.email,
-        role: log.triggeredByUser.role
-      } : null,
-      // Template will be null until schema is migrated
-      template: null
+      triggeredBy: log.triggeredBy,
+      user: log.user,
+      template: null // Template data not available in production schema
     }))
 
-    const totalPages = Math.ceil(totalCount / limit)
+    const totalPages = Math.ceil(filteredCount / limit)
 
-    // Enhanced response format supporting both pagination styles
-    if (useOffset) {
-      // Email Logs style response (offset-based)
-      return NextResponse.json({
-        success: true,
-        data: {
-          emailLogs: transformedLogs,
-          pagination: {
-            total: totalCount,
-            limit,
-            offset,
-            hasMore: offset + limit < totalCount
-          }
-        }
-      })
-    } else {
-      // Email History style response (page-based)
-      return NextResponse.json({
-        success: true,
-        emailLogs: transformedLogs,
-        currentPage: page,
-        totalPages,
-        totalCount,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1
-      })
-    }
+    console.log('🔍 [EMAIL DEBUG] Final response:', {
+      emailsCount: transformedEmails.length,
+      pagination: {
+        page,
+        limit,
+        total: filteredCount,
+        totalPages
+      }
+    })
+
+    return NextResponse.json({
+      emails: transformedEmails,
+      pagination: {
+        page,
+        limit,
+        total: filteredCount,
+        totalPages
+      }
+    })
 
   } catch (error) {
-    console.error('Error fetching email history:', error)
-    return NextResponse.json({
-      error: 'Failed to fetch email history'
+    console.error('🚨 [EMAIL DEBUG] API Error:', error)
+    return NextResponse.json({ 
+      error: 'Failed to fetch email history',
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 } 
