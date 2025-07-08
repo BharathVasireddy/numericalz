@@ -350,17 +350,13 @@ export default function EmailHistoryPage() {
 
         {/* Email Logs Table */}
         <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle>Email Logs</CardTitle>
-                <CardDescription>
-                  {totalCount} emails found
-                </CardDescription>
+          <CardContent className="pt-6">
+            <div className="flex justify-between items-center mb-4">
+              <div></div>
+              <div className="text-sm text-muted-foreground">
+                {totalCount} emails
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <RefreshCw className="h-6 w-6 animate-spin mr-2" />

@@ -75,6 +75,7 @@ interface VATAssignmentParams {
     currentStage: string
   }
   assignedBy: {
+    id: string
     name: string
     email: string
   }
@@ -97,6 +98,7 @@ interface LtdAssignmentParams {
     filingPeriod: string
   }
   assignedBy: {
+    id: string
     name: string
     email: string
   }
@@ -146,7 +148,8 @@ class EmailService {
             triggeredBy: params.triggeredBy || 'system-email-service',
             fromEmail: this.config.senderEmail,
             fromName: this.config.senderName,
-            // templateId and templateData removed for production compatibility
+            templateId: params.templateId,
+            templateData: params.templateData ? JSON.stringify(params.templateData) : null,
             createdAt: new Date(),
             updatedAt: new Date()
           }
@@ -512,6 +515,7 @@ class EmailService {
         emailType: 'VAT_ASSIGNMENT',
         clientId: params.clientData.id,
         workflowType: 'VAT',
+        triggeredBy: params.assignedBy.id,
         templateData: {
           assigneeName: params.to.name,
           companyName: params.clientData.companyName,
@@ -573,6 +577,7 @@ class EmailService {
         emailType: 'LTD_ASSIGNMENT',
         clientId: params.clientData.id,
         workflowType: 'ACCOUNTS',
+        triggeredBy: params.assignedBy.id,
         templateData: {
           assigneeName: params.to.name,
           companyName: params.clientData.companyName,

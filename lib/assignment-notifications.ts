@@ -95,6 +95,7 @@ export class AssignmentNotificationService {
           currentStage: vatQuarter.currentStage
         },
         assignedBy: {
+          id: context.assignedBy.id,
           name: context.assignedBy.name || context.assignedBy.email,
           email: context.assignedBy.email
         },
@@ -222,6 +223,7 @@ export class AssignmentNotificationService {
           filingPeriod
         },
         assignedBy: {
+          id: context.assignedBy.id,
           name: context.assignedBy.name || context.assignedBy.email,
           email: context.assignedBy.email
         },

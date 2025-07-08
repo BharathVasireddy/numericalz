@@ -16,10 +16,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Get current date for calculations
+    // Get current date for calculations (force UTC to avoid timezone issues)
     const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1))
+    const endOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999))
 
     // Get all active clients with relevant deadline data
     const allClients = await db.client.findMany({
