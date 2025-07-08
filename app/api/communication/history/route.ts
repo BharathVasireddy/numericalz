@@ -4,22 +4,12 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 // GET /api/communication/history - Get email history with pagination and filtering
-// Enhanced with all Email Logs functionality
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    // 🔍 DEBUG: Comprehensive production debugging
-    console.log('🔍 [EMAIL DEBUG] Starting email history request...')
-    console.log('🔍 [EMAIL DEBUG] Session user:', {
-      id: session.user.id,
-      email: session.user.email,
-      role: session.user.role,
-      name: session.user.name
-    })
 
     const { searchParams } = new URL(request.url)
     
@@ -30,47 +20,6 @@ export async function GET(request: NextRequest) {
     
     // Use offset if provided, otherwise calculate from page
     const skip = offset > 0 ? offset : (page - 1) * limit
-    
-    console.log('🔍 [EMAIL DEBUG] Query params:', { page, limit, offset, skip })
-
-    // 🔍 DEBUG: Test basic database connection
-    try {
-      const dbTest = await db.$queryRaw`SELECT 1 as test`
-      console.log('🔍 [EMAIL DEBUG] Database connection test:', dbTest)
-    } catch (dbError) {
-      console.error('🚨 [EMAIL DEBUG] Database connection failed:', dbError)
-      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
-    }
-
-    // 🔍 DEBUG: Check if EmailLog table exists and get count
-    try {
-      const totalCount = await db.emailLog.count()
-      console.log('🔍 [EMAIL DEBUG] Total emails in database:', totalCount)
-      
-      if (totalCount === 0) {
-        console.log('🚨 [EMAIL DEBUG] No emails found in database!')
-        return NextResponse.json({
-          emails: [],
-          pagination: {
-            page: 1,
-            limit: limit,
-            total: 0,
-            totalPages: 0
-          }
-        })
-      }
-    } catch (countError) {
-      console.error('🚨 [EMAIL DEBUG] Failed to count emails:', countError)
-      return NextResponse.json({ error: 'Failed to count emails' }, { status: 500 })
-    }
-
-    // 🔍 DEBUG: Check table structure
-    try {
-      const firstEmail = await db.emailLog.findFirst()
-      console.log('🔍 [EMAIL DEBUG] First email structure:', firstEmail)
-    } catch (structureError) {
-      console.error('🚨 [EMAIL DEBUG] Failed to get first email:', structureError)
-    }
 
     // Filtering
     const recipientFilter = searchParams.get('recipient')
@@ -79,15 +28,6 @@ export async function GET(request: NextRequest) {
     const templateFilter = searchParams.get('template')
     const dateFrom = searchParams.get('dateFrom')
     const dateTo = searchParams.get('dateTo')
-
-    console.log('🔍 [EMAIL DEBUG] Filters:', {
-      recipientFilter,
-      subjectFilter,
-      statusFilter,
-      templateFilter,
-      dateFrom,
-      dateTo
-    })
 
     // Build where clause
     const whereClause: any = {}
@@ -117,13 +57,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log('🔍 [EMAIL DEBUG] Where clause:', JSON.stringify(whereClause, null, 2))
-
-    // 🔍 DEBUG: Test filtered count
+    // Get filtered count
     const filteredCount = await db.emailLog.count({ where: whereClause })
-    console.log('🔍 [EMAIL DEBUG] Filtered count:', filteredCount)
 
-    // Main query - simplified without template relation
+    // Main query - production-safe without template relation for now
     const emails = await db.emailLog.findMany({
       where: whereClause,
       select: {
@@ -152,13 +89,6 @@ export async function GET(request: NextRequest) {
       take: limit
     })
 
-    console.log('🔍 [EMAIL DEBUG] Query results:', {
-      emailsFound: emails.length,
-      firstEmailId: emails[0]?.id,
-      firstEmailSubject: emails[0]?.subject,
-      firstEmailRecipient: emails[0]?.recipientEmail
-    })
-
     // Transform the data for the frontend
     const transformedEmails = emails.map(log => ({
       id: log.id,
@@ -172,20 +102,10 @@ export async function GET(request: NextRequest) {
       failureReason: log.failureReason,
       triggeredBy: log.triggeredBy,
       user: log.user,
-      template: null // Template data not available in production schema
+      template: null // Template data not available until schema migration
     }))
 
     const totalPages = Math.ceil(filteredCount / limit)
-
-    console.log('🔍 [EMAIL DEBUG] Final response:', {
-      emailsCount: transformedEmails.length,
-      pagination: {
-        page,
-        limit,
-        total: filteredCount,
-        totalPages
-      }
-    })
 
     return NextResponse.json({
       emails: transformedEmails,
@@ -198,7 +118,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('🚨 [EMAIL DEBUG] API Error:', error)
+    console.error('API Error:', error)
     return NextResponse.json({ 
       error: 'Failed to fetch email history',
       details: error instanceof Error ? error.message : 'Unknown error'
