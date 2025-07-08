@@ -21,30 +21,30 @@ export async function GET(request: NextRequest) {
     // Use offset if provided, otherwise calculate from page
     const skip = offset > 0 ? offset : (page - 1) * limit
 
-    // Filtering
-    const recipientFilter = searchParams.get('recipient')
-    const subjectFilter = searchParams.get('subject')
+    // Filtering - updated to match frontend parameters
+    const searchTerm = searchParams.get('search') // Frontend sends 'search' not 'recipient'
     const statusFilter = searchParams.get('status')
-    const templateFilter = searchParams.get('template')
+    const emailTypeFilter = searchParams.get('emailType') // Frontend sends 'emailType'
     const dateFrom = searchParams.get('dateFrom')
     const dateTo = searchParams.get('dateTo')
 
     // Build where clause
     const whereClause: any = {}
     
-    if (recipientFilter) {
+    if (searchTerm) {
       whereClause.OR = [
-        { recipientEmail: { contains: recipientFilter, mode: 'insensitive' } },
-        { recipientName: { contains: recipientFilter, mode: 'insensitive' } }
+        { recipientEmail: { contains: searchTerm, mode: 'insensitive' } },
+        { recipientName: { contains: searchTerm, mode: 'insensitive' } },
+        { subject: { contains: searchTerm, mode: 'insensitive' } }
       ]
-    }
-    
-    if (subjectFilter) {
-      whereClause.subject = { contains: subjectFilter, mode: 'insensitive' }
     }
     
     if (statusFilter) {
       whereClause.status = statusFilter
+    }
+    
+    if (emailTypeFilter) {
+      whereClause.emailType = emailTypeFilter
     }
     
     if (dateFrom || dateTo) {
@@ -58,9 +58,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Get filtered count
-    const filteredCount = await db.emailLog.count({ where: whereClause })
+    const totalCount = await db.emailLog.count({ where: whereClause })
 
-    // Main query - production-safe without template relation for now
+    // Main query with correct relation names
     const emails = await db.emailLog.findMany({
       where: whereClause,
       select: {
@@ -68,17 +68,35 @@ export async function GET(request: NextRequest) {
         recipientEmail: true,
         recipientName: true,
         subject: true,
+        content: true,
+        emailType: true,
         status: true,
         createdAt: true,
         sentAt: true,
+        deliveredAt: true,
         failedAt: true,
         failureReason: true,
         triggeredBy: true,
-        user: {
+        triggeredByUser: {
           select: {
             id: true,
             name: true,
-            email: true
+            email: true,
+            role: true
+          }
+        },
+        client: {
+          select: {
+            id: true,
+            companyName: true,
+            clientCode: true
+          }
+        },
+        template: {
+          select: {
+            id: true,
+            name: true,
+            category: true
           }
         }
       },
@@ -89,32 +107,32 @@ export async function GET(request: NextRequest) {
       take: limit
     })
 
-    // Transform the data for the frontend
-    const transformedEmails = emails.map(log => ({
+    // Transform the data for the frontend - match exact interface expected
+    const emailLogs = emails.map(log => ({
       id: log.id,
+      createdAt: log.createdAt.toISOString(),
       recipientEmail: log.recipientEmail,
-      recipientName: log.recipientName || '',
+      recipientName: log.recipientName || undefined,
       subject: log.subject || '',
-      status: log.status,
-      createdAt: log.createdAt,
-      sentAt: log.sentAt,
-      failedAt: log.failedAt,
-      failureReason: log.failureReason,
-      triggeredBy: log.triggeredBy,
-      user: log.user,
-      template: null // Template data not available until schema migration
+      content: log.content || '',
+      emailType: log.emailType,
+      status: log.status as 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED' | 'BOUNCED',
+      sentAt: log.sentAt?.toISOString(),
+      deliveredAt: log.deliveredAt?.toISOString(),
+      failedAt: log.failedAt?.toISOString(),
+      failureReason: log.failureReason || undefined,
+      triggeredByUser: log.triggeredByUser || undefined,
+      client: log.client || undefined,
+      template: log.template || undefined
     }))
 
-    const totalPages = Math.ceil(filteredCount / limit)
+    const totalPages = Math.ceil(totalCount / limit)
 
+    // Return in the exact format the frontend expects
     return NextResponse.json({
-      emails: transformedEmails,
-      pagination: {
-        page,
-        limit,
-        total: filteredCount,
-        totalPages
-      }
+      emailLogs,
+      totalPages,
+      totalCount
     })
 
   } catch (error) {

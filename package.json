@@ -82,8 +82,7 @@
     "migrate:assignments": "node scripts/migrate-client-assignments.js",
     "migrate:vat-cleanup": "node migrations/001-cleanup-vat-assignment.js",
     "migrate:email-template": "node migrations/002-create-email-template.js",
-    "migrate:all": "node migrations/run-all-migrations.js",
-    "migrate:emails": "node scripts/migrate-emails-from-activity-logs.js"
+    "migrate:all": "node migrations/run-all-migrations.js"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",
