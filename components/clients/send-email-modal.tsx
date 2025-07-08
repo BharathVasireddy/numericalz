@@ -166,13 +166,11 @@ export function SendEmailModal({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          templateId: selectedTemplate.id,
-          clientId: client.id,
-          toEmail: client.contactEmail,
+          to: client.contactEmail,
           subject: previewSubject,
-          content: previewContent,
-          workflowType: workflowType || 'general',
-          workflowId: workflowData?.id || null
+          htmlContent: previewContent,
+          clientId: client.id,
+          templateId: selectedTemplate.id
         })
       })
 
