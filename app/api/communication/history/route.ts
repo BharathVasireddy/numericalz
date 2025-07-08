@@ -50,7 +50,14 @@ export async function GET(request: NextRequest) {
     }
     
     if (userIdFilter) {
-      whereClause.triggeredBy = userIdFilter
+      // Filter by recipient user - get user's email address first
+      const user = await db.user.findUnique({
+        where: { id: userIdFilter },
+        select: { email: true }
+      })
+      if (user) {
+        whereClause.recipientEmail = user.email
+      }
     }
     
     if (clientIdFilter) {

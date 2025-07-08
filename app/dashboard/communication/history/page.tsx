@@ -20,7 +20,9 @@ import {
   Send,
   RefreshCw,
   User,
-  Building
+  Building,
+  Trash2,
+  RotateCcw
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -61,13 +63,14 @@ const EMAIL_STATUSES = [
 const EMAIL_TYPES = [
   { value: 'all', label: 'All Types' },
   { value: 'OTP_LOGIN', label: 'OTP Login' },
-  { value: 'WORKFLOW', label: 'Workflow' },
-  { value: 'NOTIFICATION', label: 'Notification' },
-  { value: 'DEADLINE_REMINDER', label: 'Deadline' },
-  { value: 'MANUAL', label: 'Manual' },
+  { value: 'TEST_EMAIL', label: 'Test Emails' },
+  { value: 'RESENT_EMAIL', label: 'Resent Emails' },
   { value: 'VAT_ASSIGNMENT', label: 'VAT Assignment' },
   { value: 'LTD_ASSIGNMENT', label: 'Ltd Assignment' },
-  { value: 'WORKFLOW_STAGE_CHANGE', label: 'Stage Change' }
+  { value: 'WORKFLOW_STAGE_CHANGE', label: 'Stage Change' },
+  { value: 'WORKFLOW_REVIEW_COMPLETE', label: 'Workflow Review' },
+  { value: 'DEADLINE_REMINDER', label: 'Deadline Reminder' },
+  { value: 'MANUAL', label: 'Manual' }
 ]
 
 export default function EmailHistoryPage() {
@@ -124,6 +127,60 @@ export default function EmailHistoryPage() {
       }
     } catch (error) {
       console.error('Error loading filter options:', error)
+    }
+  }
+
+  const handleDeleteEmail = async (emailId: string) => {
+    if (!confirm('Are you sure you want to delete this email log? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/communication/history/${emailId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        toast.success('Email log deleted successfully')
+        fetchEmailLogs(true) // Refresh the list
+      } else {
+        const error = await response.json()
+        toast.error(error.message || 'Failed to delete email log')
+      }
+    } catch (error) {
+      console.error('Error deleting email:', error)
+      toast.error('Failed to delete email log')
+    }
+  }
+
+  const handleResendEmail = async (email: EmailLog) => {
+    if (!confirm(`Resend this email to ${email.recipientEmail}?`)) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/communication/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailLogId: email.id,
+          to: email.recipientEmail,
+          subject: email.subject,
+          htmlContent: email.content,
+          clientId: email.client?.id
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Email resent successfully')
+        fetchEmailLogs(true) // Refresh to show new email log
+      } else {
+        const error = await response.json()
+        toast.error(error.message || 'Failed to resend email')
+      }
+    } catch (error) {
+      console.error('Error resending email:', error)
+      toast.error('Failed to resend email')
     }
   }
 
@@ -325,7 +382,7 @@ export default function EmailHistoryPage() {
                         <TableHead>Subject</TableHead>
                         <TableHead className="w-24">Type</TableHead>
                         <TableHead className="w-32">From</TableHead>
-                        <TableHead className="w-16">Actions</TableHead>
+                        <TableHead className="w-32">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -369,13 +426,34 @@ export default function EmailHistoryPage() {
                             {email.triggeredByUser?.name || 'System'}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openPreviewDialog(email)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openPreviewDialog(email)}
+                                title="Preview email"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleResendEmail(email)}
+                                title="Resend email"
+                                disabled={email.status === 'PENDING'}
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteEmail(email.id)}
+                                title="Delete email log"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
