@@ -60,6 +60,7 @@ const EMAIL_STATUSES = [
 
 const EMAIL_TYPES = [
   { value: 'all', label: 'All Types' },
+  { value: 'OTP_LOGIN', label: 'OTP Login' },
   { value: 'WORKFLOW', label: 'Workflow' },
   { value: 'NOTIFICATION', label: 'Notification' },
   { value: 'DEADLINE_REMINDER', label: 'Deadline' },

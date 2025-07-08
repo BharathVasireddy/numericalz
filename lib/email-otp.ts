@@ -5,9 +5,12 @@
 /**
  * Email OTP Service
  * 
- * Handles sending OTP codes via email using Brevo (Sendinblue) API
+ * Handles sending OTP codes via email using centralized email service
+ * Now logs ALL OTP emails to EmailLog table for complete audit trail
  * This is a clean implementation that can be easily extended to other providers
  */
+
+import { emailService } from './email-service'
 
 interface EmailOTPConfig {
   apiKey: string
@@ -29,47 +32,38 @@ class EmailOTPService {
   }
 
   /**
-   * Send OTP code via email
+   * Send OTP code via email using centralized email service
+   * This ensures ALL OTP emails are logged in EmailLog table
    */
   async sendOTP({ email, name, otpCode }: SendOTPParams): Promise<boolean> {
     try {
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': this.config.apiKey,
-        },
-        body: JSON.stringify({
-          sender: {
-            email: this.config.senderEmail,
-            name: this.config.senderName,
-          },
-          to: [
-            {
-              email: email,
-              name: name,
-            },
-          ],
-          subject: 'Your Numericalz Login Code',
-          htmlContent: this.generateOTPEmailHTML(name, otpCode),
-          textContent: this.generateOTPEmailText(name, otpCode),
-        }),
+      console.log('📧 Sending OTP email via centralized service to:', email)
+      
+      // Use centralized email service for automatic logging
+      const result = await emailService.sendEmail({
+        to: [{ email, name }],
+        subject: 'Your Numericalz Login Code',
+        htmlContent: this.generateOTPEmailHTML(name, otpCode),
+        textContent: this.generateOTPEmailText(name, otpCode),
+        emailType: 'OTP_LOGIN',
+        triggeredBy: 'system-otp-service',
+        templateData: {
+          otpCode,
+          recipientName: name,
+          recipientEmail: email,
+          expirationMinutes: 10
+        }
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('Email sending failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData,
-        })
+      if (result.success) {
+        console.log('✅ OTP email sent successfully and logged to database:', email)
+        return true
+      } else {
+        console.error('❌ OTP email sending failed:', result.error)
         return false
       }
-
-      console.log('OTP email sent successfully to:', email)
-      return true
     } catch (error) {
-      console.error('Error sending OTP email:', error)
+      console.error('❌ Error sending OTP email:', error)
       return false
     }
   }
