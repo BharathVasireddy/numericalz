@@ -501,6 +501,11 @@ export function processEmailVariables(
     system?: any
   }
 ): string {
+  // Handle undefined or null content
+  if (!content || typeof content !== 'string') {
+    return ''
+  }
+  
   let processed = content
 
   // Client variables

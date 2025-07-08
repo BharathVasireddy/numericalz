@@ -28,6 +28,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu'
+import {
   Table,
   TableBody,
   TableCell,
@@ -57,7 +64,8 @@ import {
   Edit,
   Settings,
   Filter,
-  Undo2
+  Undo2,
+  Mail
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
 import { 
@@ -72,6 +80,7 @@ import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 import { AdvancedFilterModal } from './advanced-filter-modal'
 import { WorkflowSkipWarningDialog } from '@/components/ui/workflow-skip-warning-dialog'
 import { validateStageTransition, getSelectableStages } from '@/lib/workflow-validation'
+import { SendEmailModal } from './send-email-modal'
 
 interface VATQuarter {
   id: string
@@ -108,6 +117,7 @@ interface VATClient {
   id: string
   clientCode: string
   companyName: string
+  contactEmail?: string
   vatReturnsFrequency?: string
   vatQuarterGroup?: string
   createdAt: string // Client creation date to determine if old quarters are applicable
@@ -312,6 +322,11 @@ export function VATDeadlinesTable({
   const [selectedWorkflowStageFilter, setSelectedWorkflowStageFilter] = useState<string>('all')
   const [filter, setFilter] = useState<'assigned_to_me' | 'all'>(initialFilterState.filter)
   const [showAllMonths, setShowAllMonths] = useState(initialFilterState.showAllMonths)
+  
+  // Email modal state
+  const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false)
+  const [emailClient, setEmailClient] = useState<VATClient | null>(null)
+  const [emailQuarter, setEmailQuarter] = useState<VATQuarter | null>(null)
 
   // Advanced filter state
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false)
@@ -1466,19 +1481,45 @@ export function VATDeadlinesTable({
                 </TableCell>
                 <TableCell className="p-2 text-center">
                   {isApplicable ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 hover:bg-muted/50 transition-colors"
-                      onClick={() => toggleRowExpansion(client.id, monthNumber)}
-                      title="Show/Hide Workflow Timeline"
-                    >
-                      {expandedRows[rowKey] ? (
-                        <ChevronDown className="h-4 w-4 text-foreground" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-foreground" />
-                      )}
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted/50 transition-colors">
+                          <Settings className="h-4 w-4 text-foreground" />
+                          <span className="sr-only">Open menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem 
+                          onClick={() => toggleRowExpansion(client.id, monthNumber)}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          {expandedRows[rowKey] ? (
+                            <>
+                              <ChevronDown className="h-4 w-4" />
+                              Hide Timeline
+                            </>
+                          ) : (
+                            <>
+                              <ChevronRight className="h-4 w-4" />
+                              Show Timeline
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setEmailClient(client)
+                            setEmailQuarter(monthQuarter)
+                            setSendEmailModalOpen(true)
+                          }}
+                          className="flex items-center gap-2 cursor-pointer"
+                          disabled={!client.contactEmail}
+                        >
+                          <Mail className="h-4 w-4" />
+                          Send Mail
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   ) : (
                     <span className="text-xs text-gray-400">—</span>
                   )}
@@ -2253,6 +2294,15 @@ export function VATDeadlinesTable({
         currentFilter={advancedFilter}
         users={users}
         tableType="vat"
+      />
+
+      {/* Send Email Modal */}
+      <SendEmailModal
+        open={sendEmailModalOpen}
+        onOpenChange={setSendEmailModalOpen}
+        client={emailClient}
+        workflowData={emailQuarter}
+        workflowType="vat"
       />
     </>
   )

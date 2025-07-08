@@ -70,13 +70,15 @@ import {
   Undo2,
   X,
   Search,
-  AlertTriangle
+  AlertTriangle,
+  Mail
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
 import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 import { AdvancedFilterModal } from './advanced-filter-modal'
 import { WorkflowSkipWarningDialog } from '@/components/ui/workflow-skip-warning-dialog'
 import { validateStageTransition, getSelectableStages } from '@/lib/workflow-validation'
+import { SendEmailModal } from './send-email-modal'
 
 
 interface LtdAccountsWorkflow {
@@ -127,6 +129,7 @@ interface LtdClient {
   companyNumber?: string
   companyName: string
   companyType?: string
+  contactEmail?: string
   incorporationDate?: string
   accountingReferenceDate?: string
   nextYearEnd?: string  // Companies House official year end date
@@ -259,6 +262,10 @@ export function LtdCompaniesDeadlinesTable({
   const [undoingClientId, setUndoingClientId] = useState<string | null>(null)
   const [showActivityLogModal, setShowActivityLogModal] = useState(false)
   const [activityLogClient, setActivityLogClient] = useState<LtdClient | null>(null)
+  
+  // Email modal state
+  const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false)
+  const [emailClient, setEmailClient] = useState<LtdClient | null>(null)
   
   // Advanced filter state
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false)
@@ -1727,6 +1734,18 @@ export function LtdCompaniesDeadlinesTable({
                                   )}
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem 
+                                    onClick={() => {
+                                      setEmailClient(client)
+                                      setSendEmailModalOpen(true)
+                                    }}
+                                    className="flex items-center gap-2 cursor-pointer"
+                                    disabled={!client.contactEmail}
+                                  >
+                                    <Mail className="h-4 w-4" />
+                                    Send Mail
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
                                     onClick={() => router.push(`/dashboard/clients/${client.id}/edit`)}
                                     className="flex items-center gap-2 cursor-pointer"
                                   >
@@ -2588,6 +2607,15 @@ export function LtdCompaniesDeadlinesTable({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Send Email Modal */}
+      <SendEmailModal
+        open={sendEmailModalOpen}
+        onOpenChange={setSendEmailModalOpen}
+        client={emailClient}
+        workflowData={emailClient?.currentLtdAccountsWorkflow}
+        workflowType="ltd"
+      />
     </>
   )
 } 
