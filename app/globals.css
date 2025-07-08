@@ -903,3 +903,41 @@
   break-inside: avoid;
   margin-bottom: 1rem;
 } 
+/* Email Template Table Column Widths */
+  .col-template-name {
+    @apply w-80; /* 320px - Main template name column (increased) */
+  }
+  
+  .col-template-subject {
+    @apply w-96; /* 384px - Email subject column (increased) */
+  }
+  
+  .col-template-category {
+    @apply w-36; /* 144px - Category badge (increased) */
+  }
+  
+  .col-template-status {
+    @apply w-32; /* 128px - Status badges (increased) */
+  }
+  
+  .col-template-creator {
+    @apply w-36; /* 144px - Creator name (increased) */
+  }
+  
+  .col-template-date {
+    @apply w-32; /* 128px - Creation date (increased) */
+  }
+  
+  .col-template-actions {
+    @apply w-36; /* 144px - Action buttons (increased) */
+  }
+
+  /* Email Template Table Layout */
+  .table-container .data-table {
+    @apply min-w-full table-fixed;
+  }
+  
+  .table-container .data-table td,
+  .table-container .data-table th {
+    @apply overflow-hidden text-ellipsis;
+  } 

@@ -6,15 +6,12 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
 import { TestEmailModal } from '@/components/communication/test-email-modal'
-import { Mail, Plus, Search, Edit, Trash2, Copy, Eye, Send } from 'lucide-react'
+import { Mail, Plus, Search, Edit, Trash2, Copy, Eye, Send, MoreHorizontal, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface EmailTemplate {
@@ -211,25 +208,17 @@ export default function EmailTemplatesPage() {
           </Select>
         </div>
 
-        {/* Templates Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, index) => (
-              <Card key={index} className="animate-pulse">
-                <CardHeader>
-                  <div className="h-4 bg-muted rounded w-3/4"></div>
-                  <div className="h-3 bg-muted rounded w-1/2"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-3 bg-muted rounded w-full mb-2"></div>
-                  <div className="h-3 bg-muted rounded w-2/3"></div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : filteredTemplates.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-8">
+        {/* Templates List */}
+        <div className="border rounded-lg">
+          {loading ? (
+            <div className="p-8 text-center">
+              <div className="inline-flex items-center gap-2 text-muted-foreground">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                Loading templates...
+              </div>
+            </div>
+          ) : filteredTemplates.length === 0 ? (
+            <div className="p-8 text-center">
               <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No templates found</h3>
               <p className="text-muted-foreground mb-4">
@@ -243,116 +232,159 @@ export default function EmailTemplatesPage() {
                   Create Template
                 </Button>
               )}
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredTemplates.map((template) => (
-              <Card key={template.id} className="hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-base truncate">
-                        {template.name}
-                      </CardTitle>
-                      <CardDescription className="text-sm truncate">
-                        {template.subject}
-                      </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-1 ml-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openPreviewDialog(template)}
-                        className="h-9 w-9 p-0"
-                        title="Preview template"
-                      >
-                        <Eye className="h-5 w-5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openTestModal(template)}
-                        className="h-9 w-9 p-0"
-                        title="Test email template"
-                      >
-                        <Send className="h-5 w-5" />
-                      </Button>
-                      {canManageTemplates && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditTemplate(template)}
-                            className="h-9 w-9 p-0"
-                            title="Edit template"
-                          >
-                            <Edit className="h-5 w-5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => duplicateTemplate(template)}
-                            className="h-9 w-9 p-0"
-                            title="Duplicate template"
-                          >
-                            <Copy className="h-5 w-5" />
-                          </Button>
-                          {!template.isSystem && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteTemplate(template.id)}
-                              className="h-9 w-9 p-0 text-destructive hover:text-destructive"
-                              title="Delete template"
-                            >
-                              <Trash2 className="h-5 w-5" />
-                            </Button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="text-xs">
-                      {getCategoryLabel(template.category)}
-                    </Badge>
-                    <div className="flex items-center gap-2">
-                      {template.isSystem && (
-                        <Badge variant="secondary" className="text-xs">
-                          System
+            </div>
+          ) : (
+                         <div className="table-container">
+               <table className="data-table w-full table-fixed">
+                <thead>
+                  <tr className="border-b">
+                    <th className="col-template-name text-left p-4 font-medium">Template Name</th>
+                    <th className="col-template-subject text-left p-4 font-medium">Subject</th>
+                    <th className="col-template-category text-left p-4 font-medium">Category</th>
+                    <th className="col-template-status text-left p-4 font-medium">Status</th>
+                    <th className="col-template-creator text-left p-4 font-medium">Creator</th>
+                    <th className="col-template-date text-left p-4 font-medium">Created</th>
+                    <th className="col-template-actions text-right p-4 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTemplates.map((template) => (
+                    <tr key={template.id} className="border-b hover:bg-muted/50 transition-colors">
+                      {/* Template Name */}
+                      <td className="col-template-name p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                            <Mail className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate font-medium" title={template.name}>
+                              {template.name}
+                            </div>
+                            {template.description && (
+                              <div className="text-sm text-muted-foreground truncate" title={template.description}>
+                                {template.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Subject */}
+                      <td className="col-template-subject p-4">
+                        <div className="truncate" title={template.subject}>
+                          {template.subject}
+                        </div>
+                      </td>
+
+                      {/* Category */}
+                      <td className="col-template-category p-4">
+                        <Badge variant="outline" className="text-xs">
+                          {getCategoryLabel(template.category)}
                         </Badge>
-                      )}
-                      <Badge 
-                        variant={template.isActive ? "default" : "secondary"}
-                        className="text-xs"
-                      >
-                        {template.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  {template.description && (
-                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                      {template.description}
-                    </p>
-                  )}
-                  
-                  <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
-                    <span>
-                      Created by {template.creator?.name || 'Unknown'}
-                    </span>
-                    <span>
-                      {new Date(template.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                      </td>
+
+                      {/* Status */}
+                      <td className="col-template-status p-4">
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant={template.isActive ? "default" : "secondary"}
+                            className="text-xs"
+                          >
+                            {template.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                          {template.isSystem && (
+                            <Badge variant="secondary" className="text-xs">
+                              System
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Creator */}
+                      <td className="col-template-creator p-4">
+                        <div className="text-sm">
+                          {template.creator?.name || 'Unknown'}
+                        </div>
+                      </td>
+
+                      {/* Created Date */}
+                      <td className="col-template-date p-4">
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(template.createdAt).toLocaleDateString()}
+                        </div>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="col-template-actions p-4">
+                        <div className="flex items-center justify-end gap-2">
+                          {/* Quick Actions */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openPreviewDialog(template)}
+                            className="h-8 w-8 p-0"
+                            title="Preview template"
+                          >
+                            <Eye className="action-trigger-icon" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openTestModal(template)}
+                            className="h-8 w-8 p-0"
+                            title="Test email template"
+                          >
+                            <Send className="action-trigger-icon" />
+                          </Button>
+                          
+                          {/* More Actions Menu */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                              >
+                                <MoreHorizontal className="action-trigger-icon" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              {canManageTemplates && (
+                                <>
+                                  <DropdownMenuItem onClick={() => handleEditTemplate(template)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit Template
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => duplicateTemplate(template)}>
+                                    <Copy className="h-4 w-4 mr-2" />
+                                    Duplicate Template
+                                  </DropdownMenuItem>
+                                  {!template.isSystem && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem 
+                                        onClick={() => handleDeleteTemplate(template.id)}
+                                        className="text-destructive focus:text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete Template
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         {/* Preview Template Dialog */}
         <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
