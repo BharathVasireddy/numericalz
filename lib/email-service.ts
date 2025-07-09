@@ -148,6 +148,19 @@ class EmailService {
         
         console.log(`📧 Using email settings: ${row.senderName} <${senderEmail}>, Reply-To: ${replyToEmail}`)
         
+        // Ensure replyToEmail is always valid
+        if (!this.validateEmail(replyToEmail)) {
+          console.warn(`⚠️ Invalid replyToEmail detected: ${replyToEmail}, falling back to senderEmail`)
+          const fallbackReplyTo = senderEmail
+          return {
+            senderEmail,
+            senderName: row.senderName || this.config.senderName,
+            replyToEmail: fallbackReplyTo,
+            emailSignature: row.emailSignature || '',
+            enableTestMode: row.enableTestMode || false
+          }
+        }
+        
         return {
           senderEmail,
           senderName: row.senderName || this.config.senderName,
@@ -256,7 +269,7 @@ class EmailService {
           to: params.to,
           cc: params.cc,
           bcc: params.bcc,
-          replyTo: params.replyTo || [{ email: emailSettings.replyToEmail, name: emailSettings.senderName }],
+          replyTo: params.replyTo || { email: emailSettings.replyToEmail, name: emailSettings.senderName },
           subject: params.subject,
           htmlContent: this.wrapWithProfessionalTemplate(params.htmlContent),
           textContent: params.textContent || this.htmlToText(params.htmlContent),
@@ -264,8 +277,7 @@ class EmailService {
             'X-Priority': '1',
             'X-MSMail-Priority': 'High',
             'Importance': 'High',
-            'X-Mailer': 'Numericalz Internal Management System',
-            'Reply-To': emailSettings.replyToEmail
+            'X-Mailer': 'Numericalz Internal Management System'
           }
         }),
       })
