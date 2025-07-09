@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 
+// Force production rebuild - Fix cached Prisma client issue
+// Last updated: 2025-01-08 to resolve column 'new' error
+
 const UpdateSettingsSchema = z.object({
   // Email settings
   senderEmail: z.string().email('Invalid sender email format'),
@@ -152,7 +155,7 @@ export async function PUT(request: NextRequest) {
       { key: 'enableTestMode', value: validatedData.enableTestMode.toString() }
     ]
 
-    // Update branding settings
+    // Update branding settings - Explicit field mapping to prevent column issues
     const brandingData = {
       firmName: validatedData.firmName,
       logoUrl: validatedData.logoUrl || null,
@@ -161,6 +164,14 @@ export async function PUT(request: NextRequest) {
       websiteUrl: validatedData.websiteUrl || null,
       phoneNumber: validatedData.phoneNumber || null,
       address: validatedData.address || null
+    }
+
+    // Validate that no reserved keywords are used as property names
+    const reservedKeywords = ['new', 'constructor', 'prototype', 'class', 'function']
+    const dataKeys = Object.keys(brandingData)
+    const invalidKey = dataKeys.find(key => reservedKeywords.includes(key))
+    if (invalidKey) {
+      throw new Error(`Invalid property name: ${invalidKey}`)
     }
 
     // Use transaction to update all settings atomically
@@ -176,14 +187,17 @@ export async function PUT(request: NextRequest) {
         )
       )
 
-      // Update branding settings
+      // Update branding settings with explicit logging
+      console.log('🔍 Branding data before update:', JSON.stringify(brandingData, null, 2))
       const existingBranding = await tx.brandingSettings.findFirst()
       if (existingBranding) {
+        console.log('🔍 Existing branding found, updating...')
         await tx.brandingSettings.update({
           where: { id: existingBranding.id },
           data: brandingData
         })
       } else {
+        console.log('🔍 No existing branding, creating new...')
         await tx.brandingSettings.create({
           data: brandingData
         })
@@ -222,6 +236,19 @@ export async function PUT(request: NextRequest) {
           message: err.message
         }))
       }, { status: 400 })
+    }
+    
+    // Handle Prisma column errors specifically
+    if (error && typeof error === 'object' && 'message' in error) {
+      const errorMessage = (error as Error).message
+      if (errorMessage.includes('column') && errorMessage.includes('does not exist')) {
+        console.error('❌ Prisma column error detected:', errorMessage)
+        return NextResponse.json({
+          error: 'Database schema error',
+          message: 'Please contact support - database schema needs to be updated',
+          details: errorMessage
+        }, { status: 500 })
+      }
     }
     
     return NextResponse.json({
