@@ -178,8 +178,6 @@ export async function PUT(request: NextRequest) {
     
     // Convert back to regular object to ensure compatibility
     const safeBrandingData = JSON.parse(JSON.stringify(brandingData))
-    
-    console.log('🔍 DEBUG: Safe branding data:', JSON.stringify(safeBrandingData, null, 2))
 
     // Use transaction to update all settings atomically
     await db.$transaction(async (tx) => {
@@ -197,13 +195,11 @@ export async function PUT(request: NextRequest) {
       // Update branding settings with safe data
       const existingBranding = await tx.brandingSettings.findFirst()
       if (existingBranding) {
-        console.log('🔍 DEBUG: Updating existing branding with safe data')
         await tx.brandingSettings.update({
           where: { id: existingBranding.id },
           data: safeBrandingData
         })
       } else {
-        console.log('🔍 DEBUG: Creating new branding with safe data')
         await tx.brandingSettings.create({
           data: safeBrandingData
         })
