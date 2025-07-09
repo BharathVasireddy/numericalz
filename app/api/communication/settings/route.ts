@@ -16,18 +16,22 @@ async function createDirectPGClient() {
 
 const CommunicationSettingsSchema = z.object({
   // Email settings (not stored in DB yet, but accepted for validation)
-  senderEmail: z.string().email('Invalid email format').optional(),
+  senderEmail: z.string().optional(),
   senderName: z.string().optional(),
-  replyToEmail: z.string().email('Invalid email format').optional(),
+  replyToEmail: z.string().optional(),
   emailSignature: z.string().optional(),
   enableTestMode: z.boolean().optional(),
   
   // Branding settings (stored in DB)
   firmName: z.string().min(1, 'Firm name is required'),
-  logoUrl: z.string().url('Invalid logo URL').optional(),
+  logoUrl: z.string().refine((val) => !val || z.string().url().safeParse(val).success, {
+    message: 'Invalid logo URL format'
+  }).optional(),
   primaryColor: z.string().min(1, 'Primary color is required'),
   secondaryColor: z.string().min(1, 'Secondary color is required'),
-  websiteUrl: z.string().url('Invalid website URL').optional(),
+  websiteUrl: z.string().refine((val) => !val || z.string().url().safeParse(val).success, {
+    message: 'Invalid website URL format'
+  }).optional(),
   phoneNumber: z.string().optional(),
   address: z.string().optional(),
 })
