@@ -192,17 +192,36 @@ export async function PUT(request: NextRequest) {
         )
       )
 
-      // Update branding settings with safe data
+      // Update branding settings using raw SQL to bypass Prisma serialization issues
       const existingBranding = await tx.brandingSettings.findFirst()
       if (existingBranding) {
-        await tx.brandingSettings.update({
-          where: { id: existingBranding.id },
-          data: safeBrandingData
-        })
+        // Use raw SQL to avoid any object serialization issues in production
+        await tx.$executeRaw`
+          UPDATE branding_settings 
+          SET 
+            "firmName" = ${safeBrandingData.firmName},
+            "logoUrl" = ${safeBrandingData.logoUrl},
+            "primaryColor" = ${safeBrandingData.primaryColor},
+            "secondaryColor" = ${safeBrandingData.secondaryColor},
+            "websiteUrl" = ${safeBrandingData.websiteUrl},
+            "phoneNumber" = ${safeBrandingData.phoneNumber},
+            "address" = ${safeBrandingData.address},
+            "updatedAt" = NOW()
+          WHERE id = ${existingBranding.id}
+        `
       } else {
-        await tx.brandingSettings.create({
-          data: safeBrandingData
-        })
+        // Use raw SQL for creation as well
+        await tx.$executeRaw`
+          INSERT INTO branding_settings (
+            "firmName", "logoUrl", "primaryColor", "secondaryColor", 
+            "websiteUrl", "phoneNumber", "address", "createdAt", "updatedAt"
+          ) VALUES (
+            ${safeBrandingData.firmName}, ${safeBrandingData.logoUrl}, 
+            ${safeBrandingData.primaryColor}, ${safeBrandingData.secondaryColor},
+            ${safeBrandingData.websiteUrl}, ${safeBrandingData.phoneNumber}, 
+            ${safeBrandingData.address}, NOW(), NOW()
+          )
+        `
       }
     })
 
