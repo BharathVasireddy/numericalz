@@ -9,7 +9,7 @@ const UpdateSettingsSchema = z.object({
   senderEmail: z.string().email('Invalid sender email format'),
   senderName: z.string().min(1, 'Sender name is required').max(100, 'Sender name too long'),
   replyToEmail: z.string().email('Invalid reply-to email format').optional(),
-  emailSignature: z.string().max(1000, 'Email signature too long').optional(),
+  emailSignature: z.string().max(10000, 'Email signature too long (max 10,000 characters)').optional(),
   enableTestMode: z.boolean().default(false),
   
   // Branding settings
