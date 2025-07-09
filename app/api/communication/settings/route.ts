@@ -4,9 +4,6 @@ import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 
-// Force production rebuild - Fix cached Prisma client issue
-// Last updated: 2025-01-08 to resolve column 'new' error
-
 const UpdateSettingsSchema = z.object({
   // Email settings
   senderEmail: z.string().email('Invalid sender email format'),
@@ -187,17 +184,14 @@ export async function PUT(request: NextRequest) {
         )
       )
 
-      // Update branding settings with explicit logging
-      console.log('🔍 Branding data before update:', JSON.stringify(brandingData, null, 2))
+      // Update branding settings
       const existingBranding = await tx.brandingSettings.findFirst()
       if (existingBranding) {
-        console.log('🔍 Existing branding found, updating...')
         await tx.brandingSettings.update({
           where: { id: existingBranding.id },
           data: brandingData
         })
       } else {
-        console.log('🔍 No existing branding, creating new...')
         await tx.brandingSettings.create({
           data: brandingData
         })
