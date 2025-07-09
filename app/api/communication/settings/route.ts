@@ -24,14 +24,10 @@ const CommunicationSettingsSchema = z.object({
   
   // Branding settings (stored in DB)
   firmName: z.string().min(1, 'Firm name is required'),
-  logoUrl: z.string().refine((val) => !val || z.string().url().safeParse(val).success, {
-    message: 'Invalid logo URL format'
-  }).optional(),
+  logoUrl: z.union([z.string().url(), z.literal('')]).optional(),
   primaryColor: z.string().min(1, 'Primary color is required'),
   secondaryColor: z.string().min(1, 'Secondary color is required'),
-  websiteUrl: z.string().refine((val) => !val || z.string().url().safeParse(val).success, {
-    message: 'Invalid website URL format'
-  }).optional(),
+  websiteUrl: z.union([z.string().url(), z.literal('')]).optional(),
   phoneNumber: z.string().optional(),
   address: z.string().optional(),
 })
