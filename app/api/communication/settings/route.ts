@@ -163,12 +163,37 @@ export async function PUT(request: NextRequest) {
       address: validatedData.address || null
     }
 
-    // Validate that no reserved keywords are used as property names
-    const reservedKeywords = ['new', 'constructor', 'prototype', 'class', 'function']
-    const dataKeys = Object.keys(brandingData)
-    const invalidKey = dataKeys.find(key => reservedKeywords.includes(key))
-    if (invalidKey) {
-      throw new Error(`Invalid property name: ${invalidKey}`)
+    // DEBUG: Log everything to identify the 'new' column issue
+    console.log('🔍 DEBUG: Raw request body:', JSON.stringify(body, null, 2))
+    console.log('🔍 DEBUG: Validated data:', JSON.stringify(validatedData, null, 2))
+    console.log('🔍 DEBUG: Branding data keys:', Object.keys(brandingData))
+    console.log('🔍 DEBUG: Branding data:', JSON.stringify(brandingData, null, 2))
+    
+    // Check for any 'new' properties in the data
+    const hasNewProperty = (obj: any, path = ''): string[] => {
+      const found: string[] = []
+      for (const [key, value] of Object.entries(obj)) {
+        const currentPath = path ? `${path}.${key}` : key
+        if (key === 'new') {
+          found.push(currentPath)
+        }
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          found.push(...hasNewProperty(value, currentPath))
+        }
+      }
+      return found
+    }
+    
+    const newPropsInBody = hasNewProperty(body)
+    const newPropsInValidated = hasNewProperty(validatedData)
+    const newPropsInBranding = hasNewProperty(brandingData)
+    
+    console.log('🔍 DEBUG: "new" properties in body:', newPropsInBody)
+    console.log('🔍 DEBUG: "new" properties in validated:', newPropsInValidated)
+    console.log('🔍 DEBUG: "new" properties in branding:', newPropsInBranding)
+    
+    if (newPropsInBody.length > 0 || newPropsInValidated.length > 0 || newPropsInBranding.length > 0) {
+      throw new Error(`Found "new" properties in data: ${[...newPropsInBody, ...newPropsInValidated, ...newPropsInBranding].join(', ')}`)
     }
 
     // Use transaction to update all settings atomically
@@ -187,11 +212,16 @@ export async function PUT(request: NextRequest) {
       // Update branding settings
       const existingBranding = await tx.brandingSettings.findFirst()
       if (existingBranding) {
+        console.log('🔍 DEBUG: Existing branding found:', JSON.stringify(existingBranding, null, 2))
+        console.log('🔍 DEBUG: Update data about to be sent to Prisma:', JSON.stringify(brandingData, null, 2))
+        console.log('🔍 DEBUG: Update where clause:', JSON.stringify({ id: existingBranding.id }, null, 2))
+        
         await tx.brandingSettings.update({
           where: { id: existingBranding.id },
           data: brandingData
         })
       } else {
+        console.log('🔍 DEBUG: No existing branding, creating new with data:', JSON.stringify(brandingData, null, 2))
         await tx.brandingSettings.create({
           data: brandingData
         })
