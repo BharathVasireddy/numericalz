@@ -192,10 +192,10 @@ export async function PUT(request: NextRequest) {
         )
       )
 
-      // Update branding settings using raw SQL to bypass Prisma serialization issues
+      // Update branding settings using raw SQL to bypass serverless object serialization issues
       const existingBranding = await tx.brandingSettings.findFirst()
       if (existingBranding) {
-        // Use raw SQL to avoid any object serialization issues in production
+        // Use raw SQL to avoid any object serialization issues in production serverless environment
         await tx.$executeRaw`
           UPDATE branding_settings 
           SET 
@@ -210,7 +210,7 @@ export async function PUT(request: NextRequest) {
           WHERE id = ${existingBranding.id}
         `
       } else {
-        // Use raw SQL for creation as well
+        // Use raw SQL for creation to maintain consistency
         await tx.$executeRaw`
           INSERT INTO branding_settings (
             "firmName", "logoUrl", "primaryColor", "secondaryColor", 
