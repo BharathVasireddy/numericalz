@@ -11,6 +11,15 @@ interface EmailConfig {
   apiKey: string
   senderEmail: string
   senderName: string
+  replyToEmail?: string
+}
+
+interface EmailSettings {
+  senderEmail: string
+  senderName: string
+  replyToEmail: string
+  emailSignature: string
+  enableTestMode: boolean
 }
 
 interface EmailRecipient {
@@ -113,6 +122,48 @@ class EmailService {
   }
 
   /**
+   * Fetch current email settings from branding_settings table
+   */
+  private async getEmailSettings(): Promise<EmailSettings> {
+    try {
+      // Use direct PostgreSQL client to avoid Prisma issues
+      const { Client } = require('pg')
+      const client = new Client({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      })
+      
+      await client.connect()
+      
+      const result = await client.query('SELECT "senderEmail", "senderName", "replyToEmail", "emailSignature", "enableTestMode" FROM branding_settings ORDER BY id DESC LIMIT 1')
+      
+      await client.end()
+      
+      if (result.rows.length > 0) {
+        const row = result.rows[0]
+        return {
+          senderEmail: row.senderEmail || this.config.senderEmail,
+          senderName: row.senderName || this.config.senderName,
+          replyToEmail: row.replyToEmail || this.config.replyToEmail || this.config.senderEmail,
+          emailSignature: row.emailSignature || '',
+          enableTestMode: row.enableTestMode || false
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to fetch email settings from database, using defaults:', error)
+    }
+    
+    // Fallback to config defaults
+    return {
+      senderEmail: this.config.senderEmail,
+      senderName: this.config.senderName,
+      replyToEmail: this.config.replyToEmail || this.config.senderEmail,
+      emailSignature: '',
+      enableTestMode: false
+    }
+  }
+
+  /**
    * Send a generic email with automatic database logging (like Fluent SMTP)
    * Every email sent through this method is automatically logged to email_logs table
    */
@@ -128,6 +179,10 @@ class EmailService {
     let emailLogId: string | null = null
     
     try {
+      // Fetch current email settings from database
+      const emailSettings = await this.getEmailSettings()
+      console.log(`📧 Using email settings: ${emailSettings.senderName} <${emailSettings.senderEmail}>, Reply-To: ${emailSettings.replyToEmail}`)
+      
       // Import Prisma client for logging (dynamic import to avoid circular dependencies)
       const { PrismaClient } = require('@prisma/client')
       const prisma = new PrismaClient()
@@ -146,8 +201,8 @@ class EmailService {
             workflowType: params.workflowType,
             workflowId: params.workflowId,
             triggeredBy: params.triggeredBy || undefined, // Use undefined for system-generated emails
-            fromEmail: this.config.senderEmail,
-            fromName: this.config.senderName,
+            fromEmail: emailSettings.senderEmail,
+            fromName: emailSettings.senderName,
             templateId: params.templateId,
             templateData: params.templateData ? JSON.stringify(params.templateData) : null,
             createdAt: new Date(),
@@ -170,13 +225,13 @@ class EmailService {
         },
         body: JSON.stringify({
           sender: {
-            email: this.config.senderEmail,
-            name: this.config.senderName,
+            email: emailSettings.senderEmail,
+            name: emailSettings.senderName,
           },
           to: params.to,
           cc: params.cc,
           bcc: params.bcc,
-          replyTo: params.replyTo,
+          replyTo: params.replyTo || [{ email: emailSettings.replyToEmail, name: emailSettings.senderName }],
           subject: params.subject,
           htmlContent: this.wrapWithProfessionalTemplate(params.htmlContent),
           textContent: params.textContent || this.htmlToText(params.htmlContent),
@@ -185,7 +240,7 @@ class EmailService {
             'X-MSMail-Priority': 'High',
             'Importance': 'High',
             'X-Mailer': 'Numericalz Internal Management System',
-            'Reply-To': this.config.senderEmail
+            'Reply-To': emailSettings.replyToEmail
           }
         }),
       })
@@ -795,6 +850,7 @@ export const emailService = new EmailService({
   apiKey: process.env.BREVO_API_KEY || '',
   senderEmail: process.env.BREVO_SENDER_EMAIL || 'notifications@cloud9digital.in',
   senderName: 'Numericalz',
+  replyToEmail: process.env.BREVO_REPLY_TO_EMAIL || 'support@numericalz.com'
 })
 
 // Export types for use in other modules

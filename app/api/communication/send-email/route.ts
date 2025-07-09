@@ -96,19 +96,32 @@ export async function POST(request: NextRequest) {
     // Get sender email settings from database
     let senderEmail = 'notifications@cloud9digital.in'
     let senderName = 'Numericalz'
+    let replyToEmail = 'support@numericalz.com'
     let emailSignature = ''
+    
     try {
-      const emailSettings = await db.settings.findMany({
-        where: { key: { in: ['senderEmail', 'senderName', 'emailSignature'] } }
+      // Use direct PostgreSQL client to get settings from branding_settings table
+      const { Client } = require('pg')
+      const client = new Client({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
       })
       
-      emailSettings.forEach(setting => {
-        if (setting.key === 'senderEmail') senderEmail = setting.value
-        if (setting.key === 'senderName') senderName = setting.value
-        if (setting.key === 'emailSignature') emailSignature = setting.value
-      })
+      await client.connect()
       
-      console.log(`✅ Send Email API: Using configured sender: ${senderName} <${senderEmail}>`)
+      const result = await client.query('SELECT "senderEmail", "senderName", "replyToEmail", "emailSignature" FROM branding_settings ORDER BY id DESC LIMIT 1')
+      
+      if (result.rows.length > 0) {
+        const row = result.rows[0]
+        senderEmail = row.senderEmail || senderEmail
+        senderName = row.senderName || senderName
+        replyToEmail = row.replyToEmail || replyToEmail
+        emailSignature = row.emailSignature || emailSignature
+      }
+      
+      await client.end()
+      
+      console.log(`✅ Send Email API: Using configured sender: ${senderName} <${senderEmail}>, Reply-To: ${replyToEmail}`)
     } catch (error) {
       console.log(`⚠️ Send Email API: Using default sender settings due to error:`, error)
     }
@@ -143,6 +156,10 @@ export async function POST(request: NextRequest) {
               name: client.contactName || client.companyName
             }
           ],
+          replyTo: {
+            email: replyToEmail,
+            name: senderName
+          },
           subject: validatedData.subject,
           htmlContent: `
             <html>
@@ -196,7 +213,7 @@ export async function POST(request: NextRequest) {
             'X-MSMail-Priority': 'High',
             'Importance': 'High',
             'X-Mailer': 'Numericalz Internal Management System',
-            'Reply-To': senderEmail
+            'Reply-To': replyToEmail
           }
         })
       })
