@@ -94,9 +94,10 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
     
     // Check if item can be reviewed
     const isValidLtdReview = item.type === 'ltd' && item.currentStage === 'REVIEW_BY_PARTNER'
-    const isValidVATReview = item.type === 'vat' && item.currentStage === 'REVIEW_PENDING_PARTNER'
+    const isValidVATPartnerReview = item.type === 'vat' && item.currentStage === 'REVIEW_PENDING_PARTNER'
+    const isValidVATManagerReview = item.type === 'vat' && item.currentStage === 'REVIEW_PENDING_MANAGER'
     
-    if (!isValidLtdReview && !isValidVATReview) {
+    if (!isValidLtdReview && !isValidVATPartnerReview && !isValidVATManagerReview) {
       toast({
         title: "Cannot complete review",
         description: "Only workflows at review stages can be marked as done.",
@@ -136,14 +137,22 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
     try {
       console.log(`🔄 Processing review for ${selectedItem.clientName} (${selectedItem.clientCode}) - Action: ${reviewAction}`)
       
-      // Determine next stage based on workflow type
+      // Determine next stage based on workflow type and current stage
       let nextStage: string
       let endpoint: string
       
       if (selectedItem.type === 'vat') {
-        nextStage = reviewAction === 'approve' ? 'REVIEWED_BY_PARTNER' : 'WORK_IN_PROGRESS'
+        // Handle VAT workflow transitions
+        if (selectedItem.currentStage === 'REVIEW_PENDING_MANAGER') {
+          nextStage = reviewAction === 'approve' ? 'REVIEWED_BY_MANAGER' : 'WORK_IN_PROGRESS'
+        } else if (selectedItem.currentStage === 'REVIEW_PENDING_PARTNER') {
+          nextStage = reviewAction === 'approve' ? 'REVIEWED_BY_PARTNER' : 'WORK_IN_PROGRESS'
+        } else {
+          nextStage = reviewAction === 'approve' ? 'REVIEWED_BY_PARTNER' : 'WORK_IN_PROGRESS' // fallback
+        }
         endpoint = `/api/vat-quarters/${selectedItem.workflowId}/workflow`
       } else {
+        // Handle LTD workflow transitions
         nextStage = reviewAction === 'approve' ? 'REVIEW_DONE_HELLO_SIGN' : 'WORK_IN_PROGRESS'
         endpoint = `/api/clients/ltd-deadlines/${selectedItem.clientId}/workflow`
       }
@@ -163,13 +172,14 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
 
       if (result.success) {
         const workflowType = selectedItem.type === 'vat' ? 'VAT Return' : 'Annual Accounts'
+        const reviewerType = selectedItem.currentStage === 'REVIEW_PENDING_MANAGER' ? 'Manager' : 'Partner'
         const nextStepText = selectedItem.type === 'vat' 
           ? (reviewAction === 'approve' ? 'ready to continue workflow' : 'sent back for rework')
           : (reviewAction === 'approve' ? 'approved - Ready for HelloSign' : 'sent back for rework')
         
         toast({
           title: `${workflowType} Review ${reviewAction === 'approve' ? 'Approved' : 'Sent for Rework'}`,
-          description: `${selectedItem.clientName} ${nextStepText}`,
+          description: `${selectedItem.clientName} reviewed by ${reviewerType} - ${nextStepText}`,
         })
         
         // Close modal and refresh data
@@ -249,12 +259,20 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
   }
 
   const canMarkReviewDone = (item: ReviewItem) => {
-    if (userRole !== 'PARTNER') return false
+    // Partners can review: LTD reviews and VAT partner reviews
+    if (userRole === 'PARTNER') {
+      const isLtdReview = item.type === 'ltd' && item.currentStage === 'REVIEW_BY_PARTNER'
+      const isVATPartnerReview = item.type === 'vat' && item.currentStage === 'REVIEW_PENDING_PARTNER'
+      return isLtdReview || isVATPartnerReview
+    }
     
-    const isLtdReview = item.type === 'ltd' && item.currentStage === 'REVIEW_BY_PARTNER'
-    const isVATReview = item.type === 'vat' && item.currentStage === 'REVIEW_PENDING_PARTNER'
+    // Managers can review: VAT manager reviews
+    if (userRole === 'MANAGER') {
+      const isVATManagerReview = item.type === 'vat' && item.currentStage === 'REVIEW_PENDING_MANAGER'
+      return isVATManagerReview
+    }
     
-    return isLtdReview || isVATReview
+    return false
   }
 
   const displayItems = compact ? reviewItems.slice(0, 3) : reviewItems.slice(0, 5)
