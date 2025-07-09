@@ -80,14 +80,16 @@ export async function POST(request: NextRequest) {
     // Get sender email settings from database
     let senderEmail = 'notifications@cloud9digital.in'
     let senderName = 'Numericalz'
+    let emailSignature = ''
     try {
       const emailSettings = await db.settings.findMany({
-        where: { key: { in: ['senderEmail', 'senderName'] } }
+        where: { key: { in: ['senderEmail', 'senderName', 'emailSignature'] } }
       })
       
       emailSettings.forEach(setting => {
         if (setting.key === 'senderEmail') senderEmail = setting.value
         if (setting.key === 'senderName') senderName = setting.value
+        if (setting.key === 'emailSignature') emailSignature = setting.value
       })
       
       console.log(`✅ Test Email API: Using configured sender: ${senderName} <${senderEmail}>`)
@@ -138,6 +140,7 @@ export async function POST(request: NextRequest) {
               </div>
               <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e9ecef;">
                 ${validatedData.htmlContent}
+                ${emailSignature ? `<br><br>${emailSignature}` : ''}
               </div>
               <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; font-size: 12px; color: #6c757d;">
                 <p style="margin: 0;">
@@ -156,6 +159,8 @@ Sent by: ${session.user.name || 'Unknown'}
 ---
 
 ${validatedData.htmlContent.replace(/<[^>]*>/g, '')}
+
+${emailSignature ? `\n\n${emailSignature.replace(/<[^>]*>/g, '')}` : ''}
 
 ---
 This email was sent as a test from the Numericalz email template system.

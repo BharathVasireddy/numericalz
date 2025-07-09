@@ -96,14 +96,16 @@ export async function POST(request: NextRequest) {
     // Get sender email settings from database
     let senderEmail = 'notifications@cloud9digital.in'
     let senderName = 'Numericalz'
+    let emailSignature = ''
     try {
       const emailSettings = await db.settings.findMany({
-        where: { key: { in: ['senderEmail', 'senderName'] } }
+        where: { key: { in: ['senderEmail', 'senderName', 'emailSignature'] } }
       })
       
       emailSettings.forEach(setting => {
         if (setting.key === 'senderEmail') senderEmail = setting.value
         if (setting.key === 'senderName') senderName = setting.value
+        if (setting.key === 'emailSignature') emailSignature = setting.value
       })
       
       console.log(`✅ Send Email API: Using configured sender: ${senderName} <${senderEmail}>`)
@@ -142,8 +144,12 @@ export async function POST(request: NextRequest) {
             }
           ],
           subject: validatedData.subject,
-          htmlContent: validatedData.htmlContent,
-          textContent: validatedData.htmlContent.replace(/<[^>]*>/g, '')
+          htmlContent: emailSignature 
+            ? `${validatedData.htmlContent}<br><br>${emailSignature}`
+            : validatedData.htmlContent,
+          textContent: emailSignature 
+            ? `${validatedData.htmlContent.replace(/<[^>]*>/g, '')}\n\n${emailSignature.replace(/<[^>]*>/g, '')}`
+            : validatedData.htmlContent.replace(/<[^>]*>/g, '')
         })
       })
     } catch (networkError) {

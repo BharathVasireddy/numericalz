@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
+import { RichTextEditor } from '@/components/communication/rich-text-editor'
 import { Save, Mail, Shield, AlertCircle, CheckCircle, Settings, Palette, Building2, Link, Phone, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -481,16 +482,22 @@ export default function CommunicationSettingsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="emailSignature">Email Signature</Label>
-                <Textarea
-                  id="emailSignature"
-                  value={settings.emailSignature}
-                  onChange={(e) => handleInputChange('emailSignature', e.target.value)}
-                  placeholder="Best regards,&#10;Numericalz Team&#10;&#10;Email: info@numericalz.com&#10;Phone: +44 20 1234 5678"
-                  rows={6}
-                  disabled={session.user.role !== 'PARTNER' || isLoading}
-                />
+                {session.user.role === 'PARTNER' && !isLoading ? (
+                  <RichTextEditor
+                    content={settings.emailSignature}
+                    onChange={(content) => handleInputChange('emailSignature', content)}
+                    placeholder="Best regards,&#10;Numericalz Team&#10;&#10;Email: info@numericalz.com&#10;Phone: +44 20 1234 5678"
+                    className="min-h-[200px]"
+                  />
+                ) : (
+                  <div 
+                    className="min-h-[200px] p-4 border rounded-lg bg-muted/50 prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: settings.emailSignature || '<p class="text-muted-foreground">No signature set</p>' }}
+                  />
+                )}
                 <p className="text-xs text-muted-foreground">
-                  Optional. Signature to append to all outgoing emails. HTML is supported.
+                  Optional. Rich text signature to append to all outgoing emails. 
+                  {session.user.role === 'PARTNER' ? ' Supports rich formatting, images, and copy-paste from Gmail/Outlook.' : ' Contact a Partner to modify.'}
                 </p>
               </div>
             </CardContent>
