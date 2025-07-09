@@ -14,12 +14,19 @@ async function createDirectPGClient() {
   return client
 }
 
-const BrandingSettingsSchema = z.object({
+const CommunicationSettingsSchema = z.object({
+  // Email settings (not stored in DB yet, but accepted for validation)
+  senderEmail: z.string().email('Invalid email format').optional(),
+  senderName: z.string().optional(),
+  replyToEmail: z.string().email('Invalid email format').optional(),
+  emailSignature: z.string().optional(),
+  enableTestMode: z.boolean().optional(),
+  
+  // Branding settings (stored in DB)
   firmName: z.string().min(1, 'Firm name is required'),
   logoUrl: z.string().url('Invalid logo URL').optional(),
   primaryColor: z.string().min(1, 'Primary color is required'),
   secondaryColor: z.string().min(1, 'Secondary color is required'),
-  emailSignature: z.string().optional(),
   websiteUrl: z.string().url('Invalid website URL').optional(),
   phoneNumber: z.string().optional(),
   address: z.string().optional(),
@@ -38,33 +45,47 @@ export async function GET(request: NextRequest) {
       const result = await client.query('SELECT * FROM branding_settings ORDER BY id DESC LIMIT 1')
       
       if (result.rows.length === 0) {
-        // Return default branding settings
+        // Return default settings (both email and branding)
         const defaultSettings = {
+          // Email settings
+          senderEmail: 'noreply@numericalz.com',
+          senderName: 'Numericalz',
+          replyToEmail: 'support@numericalz.com',
+          emailSignature: '',
+          enableTestMode: false,
+          
+          // Branding settings
           firmName: 'Numericalz',
           logoUrl: '',
           primaryColor: '#3B82F6',
           secondaryColor: '#1E40AF',
-          emailSignature: '',
           websiteUrl: 'https://numericalz.com',
           phoneNumber: '',
           address: ''
         }
-        return NextResponse.json({ success: true, data: defaultSettings })
+        return NextResponse.json({ success: true, settings: defaultSettings })
       }
 
-      // Convert database row to clean object
+      // Convert database row to clean object (including default email settings)
       const settings = {
+        // Email settings (defaults for now)
+        senderEmail: 'noreply@numericalz.com',
+        senderName: 'Numericalz',
+        replyToEmail: 'support@numericalz.com',
+        emailSignature: result.rows[0].emailSignature || '',
+        enableTestMode: false,
+        
+        // Branding settings from database
         firmName: result.rows[0].firmName,
         logoUrl: result.rows[0].logoUrl || '',
         primaryColor: result.rows[0].primaryColor,
         secondaryColor: result.rows[0].secondaryColor,
-        emailSignature: result.rows[0].emailSignature || '',
         websiteUrl: result.rows[0].websiteUrl || '',
         phoneNumber: result.rows[0].phoneNumber || '',
         address: result.rows[0].address || ''
       }
 
-      return NextResponse.json({ success: true, data: settings })
+      return NextResponse.json({ success: true, settings: settings })
     } finally {
       await client.end()
     }
@@ -77,7 +98,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session) {
@@ -85,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const validatedData = BrandingSettingsSchema.parse(body)
+    const validatedData = CommunicationSettingsSchema.parse(body)
 
     const client = await createDirectPGClient()
     
@@ -125,17 +146,24 @@ export async function POST(request: NextRequest) {
         ])
         
         const newSettings = {
+          // Email settings (defaults for now)
+          senderEmail: 'noreply@numericalz.com',
+          senderName: 'Numericalz',
+          replyToEmail: 'support@numericalz.com',
+          emailSignature: insertResult.rows[0].emailSignature || '',
+          enableTestMode: false,
+          
+          // Branding settings from database
           firmName: insertResult.rows[0].firmName,
           logoUrl: insertResult.rows[0].logoUrl || '',
           primaryColor: insertResult.rows[0].primaryColor,
           secondaryColor: insertResult.rows[0].secondaryColor,
-          emailSignature: insertResult.rows[0].emailSignature || '',
           websiteUrl: insertResult.rows[0].websiteUrl || '',
           phoneNumber: insertResult.rows[0].phoneNumber || '',
           address: insertResult.rows[0].address || ''
         }
         
-        return NextResponse.json({ success: true, data: newSettings })
+        return NextResponse.json({ success: true, settings: newSettings, message: 'Settings saved successfully' })
       } else {
         // Update existing settings
         const updateResult = await client.query(`
@@ -166,17 +194,24 @@ export async function POST(request: NextRequest) {
         ])
         
         const updatedSettings = {
+          // Email settings (defaults for now)
+          senderEmail: 'noreply@numericalz.com',
+          senderName: 'Numericalz',
+          replyToEmail: 'support@numericalz.com',
+          emailSignature: updateResult.rows[0].emailSignature || '',
+          enableTestMode: false,
+          
+          // Branding settings from database
           firmName: updateResult.rows[0].firmName,
           logoUrl: updateResult.rows[0].logoUrl || '',
           primaryColor: updateResult.rows[0].primaryColor,
           secondaryColor: updateResult.rows[0].secondaryColor,
-          emailSignature: updateResult.rows[0].emailSignature || '',
           websiteUrl: updateResult.rows[0].websiteUrl || '',
           phoneNumber: updateResult.rows[0].phoneNumber || '',
           address: updateResult.rows[0].address || ''
         }
         
-        return NextResponse.json({ success: true, data: updatedSettings })
+        return NextResponse.json({ success: true, settings: updatedSettings, message: 'Settings updated successfully' })
       }
     } finally {
       await client.end()
