@@ -15,10 +15,10 @@ async function createDirectPGClient() {
 }
 
 const CommunicationSettingsSchema = z.object({
-  // Email settings (not stored in DB yet, but accepted for validation)
-  senderEmail: z.string().optional(),
-  senderName: z.string().optional(),
-  replyToEmail: z.string().optional(),
+  // Email settings (now stored in DB)
+  senderEmail: z.string().email('Invalid sender email format').optional(),
+  senderName: z.string().min(1, 'Sender name is required').optional(),
+  replyToEmail: z.string().email('Invalid reply-to email format').optional(),
   emailSignature: z.string().optional(),
   enableTestMode: z.boolean().optional(),
   
@@ -66,14 +66,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: true, settings: defaultSettings })
       }
 
-      // Convert database row to clean object (including default email settings)
+      // Convert database row to clean object (all settings from database)
       const settings = {
-        // Email settings (defaults for now)
-        senderEmail: 'noreply@numericalz.com',
-        senderName: 'Numericalz',
-        replyToEmail: 'support@numericalz.com',
+        // Email settings from database
+        senderEmail: result.rows[0].senderEmail || 'noreply@numericalz.com',
+        senderName: result.rows[0].senderName || 'Numericalz',
+        replyToEmail: result.rows[0].replyToEmail || 'support@numericalz.com',
         emailSignature: result.rows[0].emailSignature || '',
-        enableTestMode: false,
+        enableTestMode: result.rows[0].enableTestMode || false,
         
         // Branding settings from database
         firmName: result.rows[0].firmName,
@@ -120,24 +120,32 @@ export async function PUT(request: NextRequest) {
         // Insert new settings
         const insertResult = await client.query(`
           INSERT INTO branding_settings (
+            "senderEmail",
+            "senderName",
+            "replyToEmail",
+            "emailSignature",
+            "enableTestMode",
             "firmName", 
             "logoUrl", 
             "primaryColor", 
             "secondaryColor", 
-            "emailSignature", 
             "websiteUrl", 
             "phoneNumber", 
             "address", 
             "createdAt", 
             "updatedAt"
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
           RETURNING *
         `, [
+          validatedData.senderEmail || 'noreply@numericalz.com',
+          validatedData.senderName || 'Numericalz',
+          validatedData.replyToEmail || 'support@numericalz.com',
+          validatedData.emailSignature || '',
+          validatedData.enableTestMode || false,
           validatedData.firmName,
           validatedData.logoUrl || '',
           validatedData.primaryColor,
           validatedData.secondaryColor,
-          validatedData.emailSignature || '',
           validatedData.websiteUrl || '',
           validatedData.phoneNumber || '',
           validatedData.address || '',
@@ -146,12 +154,12 @@ export async function PUT(request: NextRequest) {
         ])
         
         const newSettings = {
-          // Email settings (defaults for now)
-          senderEmail: 'noreply@numericalz.com',
-          senderName: 'Numericalz',
-          replyToEmail: 'support@numericalz.com',
+          // Email settings from database
+          senderEmail: insertResult.rows[0].senderEmail || 'noreply@numericalz.com',
+          senderName: insertResult.rows[0].senderName || 'Numericalz',
+          replyToEmail: insertResult.rows[0].replyToEmail || 'support@numericalz.com',
           emailSignature: insertResult.rows[0].emailSignature || '',
-          enableTestMode: false,
+          enableTestMode: insertResult.rows[0].enableTestMode || false,
           
           // Branding settings from database
           firmName: insertResult.rows[0].firmName,
@@ -169,23 +177,31 @@ export async function PUT(request: NextRequest) {
         const updateResult = await client.query(`
           UPDATE branding_settings 
           SET 
-            "firmName" = $1,
-            "logoUrl" = $2,
-            "primaryColor" = $3,
-            "secondaryColor" = $4,
-            "emailSignature" = $5,
-            "websiteUrl" = $6,
-            "phoneNumber" = $7,
-            "address" = $8,
-            "updatedAt" = $9
-          WHERE id = $10
+            "senderEmail" = $1,
+            "senderName" = $2,
+            "replyToEmail" = $3,
+            "emailSignature" = $4,
+            "enableTestMode" = $5,
+            "firmName" = $6,
+            "logoUrl" = $7,
+            "primaryColor" = $8,
+            "secondaryColor" = $9,
+            "websiteUrl" = $10,
+            "phoneNumber" = $11,
+            "address" = $12,
+            "updatedAt" = $13
+          WHERE id = $14
           RETURNING *
         `, [
+          validatedData.senderEmail || 'noreply@numericalz.com',
+          validatedData.senderName || 'Numericalz',
+          validatedData.replyToEmail || 'support@numericalz.com',
+          validatedData.emailSignature || '',
+          validatedData.enableTestMode || false,
           validatedData.firmName,
           validatedData.logoUrl || '',
           validatedData.primaryColor,
           validatedData.secondaryColor,
-          validatedData.emailSignature || '',
           validatedData.websiteUrl || '',
           validatedData.phoneNumber || '',
           validatedData.address || '',
@@ -194,12 +210,12 @@ export async function PUT(request: NextRequest) {
         ])
         
         const updatedSettings = {
-          // Email settings (defaults for now)
-          senderEmail: 'noreply@numericalz.com',
-          senderName: 'Numericalz',
-          replyToEmail: 'support@numericalz.com',
+          // Email settings from database
+          senderEmail: updateResult.rows[0].senderEmail || 'noreply@numericalz.com',
+          senderName: updateResult.rows[0].senderName || 'Numericalz',
+          replyToEmail: updateResult.rows[0].replyToEmail || 'support@numericalz.com',
           emailSignature: updateResult.rows[0].emailSignature || '',
-          enableTestMode: false,
+          enableTestMode: updateResult.rows[0].enableTestMode || false,
           
           // Branding settings from database
           firmName: updateResult.rows[0].firmName,
