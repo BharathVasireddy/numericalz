@@ -141,26 +141,51 @@ class EmailService {
       
       if (result.rows.length > 0) {
         const row = result.rows[0]
+        
+        // Validate email addresses and provide fallbacks
+        const senderEmail = this.validateEmail(row.senderEmail) ? row.senderEmail : this.config.senderEmail
+        const replyToEmail = this.validateEmail(row.replyToEmail) ? row.replyToEmail : this.config.replyToEmail || this.config.senderEmail
+        
+        console.log(`📧 Using email settings: ${row.senderName} <${senderEmail}>, Reply-To: ${replyToEmail}`)
+        
         return {
-          senderEmail: row.senderEmail || this.config.senderEmail,
+          senderEmail,
           senderName: row.senderName || this.config.senderName,
-          replyToEmail: row.replyToEmail || this.config.replyToEmail || this.config.senderEmail,
+          replyToEmail,
           emailSignature: row.emailSignature || '',
           enableTestMode: row.enableTestMode || false
         }
       }
+      
+      // Fallback to constructor config if no database settings
+      return {
+        senderEmail: this.config.senderEmail,
+        senderName: this.config.senderName,
+        replyToEmail: this.config.replyToEmail || this.config.senderEmail,
+        emailSignature: '',
+        enableTestMode: false
+      }
     } catch (error) {
-      console.warn('Failed to fetch email settings from database, using defaults:', error)
+      console.error('❌ Failed to fetch email settings from database:', error)
+      
+      // Fallback to constructor config on error
+      return {
+        senderEmail: this.config.senderEmail,
+        senderName: this.config.senderName,
+        replyToEmail: this.config.replyToEmail || this.config.senderEmail,
+        emailSignature: '',
+        enableTestMode: false
+      }
     }
-    
-    // Fallback to config defaults
-    return {
-      senderEmail: this.config.senderEmail,
-      senderName: this.config.senderName,
-      replyToEmail: this.config.replyToEmail || this.config.senderEmail,
-      emailSignature: '',
-      enableTestMode: false
-    }
+  }
+
+  /**
+   * Validate email address format
+   */
+  private validateEmail(email: string): boolean {
+    if (!email) return false
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
   }
 
   /**
