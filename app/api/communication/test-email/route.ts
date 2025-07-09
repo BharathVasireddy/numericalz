@@ -129,26 +129,90 @@ export async function POST(request: NextRequest) {
           ],
           subject: `[TEST] ${validatedData.subject}`,
           htmlContent: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #007bff;">
-                <h3 style="margin: 0; color: #007bff;">Test Email</h3>
-                <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 14px;">
-                  This is a test email for template: <strong>${validatedData.templateName}</strong><br>
-                  Test client: <strong>${client.companyName} (${client.clientCode})</strong><br>
-                  Sent by: <strong>${session.user.name || 'Unknown'}</strong>
-                </p>
-              </div>
-              <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e9ecef;">
-                ${validatedData.htmlContent}
-                ${emailSignature ? `<br><br>${emailSignature}` : ''}
-              </div>
-              <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; font-size: 12px; color: #6c757d;">
-                <p style="margin: 0;">
-                  This email was sent as a test from the Numericalz email template system. 
-                  In production, emails would be sent directly without this test banner.
-                </p>
-              </div>
-            </div>
+            <html>
+              <head>
+                <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                <style>
+                  body { 
+                    font-family: 'Plus Jakarta Sans', Arial, sans-serif; 
+                    line-height: 1.6; 
+                    color: #374151; 
+                    margin: 0; 
+                    padding: 0; 
+                  }
+                  .email-container { 
+                    max-width: 600px; 
+                    margin: 0 auto; 
+                    background: #ffffff; 
+                  }
+                  .test-banner { 
+                    background-color: #f8f9fa; 
+                    padding: 20px; 
+                    border-radius: 8px; 
+                    margin-bottom: 20px; 
+                    border-left: 4px solid #007bff; 
+                  }
+                  .test-banner h3 { 
+                    margin: 0; 
+                    color: #007bff; 
+                    font-family: 'Plus Jakarta Sans', Arial, sans-serif; 
+                  }
+                  .test-banner p { 
+                    margin: 5px 0 0 0; 
+                    color: #6c757d; 
+                    font-size: 14px; 
+                  }
+                  .content { 
+                    background-color: #ffffff; 
+                    padding: 20px; 
+                    border-radius: 8px; 
+                    border: 1px solid #e9ecef; 
+                  }
+                  .signature { 
+                    margin-top: 24px; 
+                    border-top: 1px solid #e5e7eb; 
+                    padding-top: 16px; 
+                  }
+                  .test-footer { 
+                    margin-top: 20px; 
+                    padding: 15px; 
+                    background-color: #f8f9fa; 
+                    border-radius: 8px; 
+                    font-size: 12px; 
+                    color: #6c757d; 
+                  }
+                  h1, h2, h3, h4, h5, h6 { 
+                    font-family: 'Plus Jakarta Sans', Arial, sans-serif; 
+                    color: #1f2937; 
+                  }
+                  p { 
+                    margin-bottom: 16px; 
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="email-container">
+                  <div class="test-banner">
+                    <h3>Test Email</h3>
+                    <p>
+                      This is a test email for template: <strong>${validatedData.templateName}</strong><br>
+                      Test client: <strong>${client.companyName} (${client.clientCode})</strong><br>
+                      Sent by: <strong>${session.user.name || 'Unknown'}</strong>
+                    </p>
+                  </div>
+                  <div class="content">
+                    ${validatedData.htmlContent}
+                    ${emailSignature ? `<div class="signature">${emailSignature}</div>` : ''}
+                  </div>
+                  <div class="test-footer">
+                    <p style="margin: 0;">
+                      This email was sent as a test from the Numericalz email template system. 
+                      In production, emails would be sent directly without this test banner.
+                    </p>
+                  </div>
+                </div>
+              </body>
+            </html>
           `,
           textContent: `
 [TEST EMAIL]
@@ -164,7 +228,14 @@ ${emailSignature ? `\n\n${emailSignature.replace(/<[^>]*>/g, '')}` : ''}
 
 ---
 This email was sent as a test from the Numericalz email template system.
-          `
+          `,
+          headers: {
+            'X-Priority': '1',
+            'X-MSMail-Priority': 'High',
+            'Importance': 'High',
+            'X-Mailer': 'Numericalz Internal Management System',
+            'Reply-To': senderEmail
+          }
         })
       })
     } catch (networkError) {

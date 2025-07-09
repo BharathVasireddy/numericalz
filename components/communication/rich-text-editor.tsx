@@ -173,6 +173,68 @@ export function RichTextEditor({
           }
           return false
         },
+        paste: (view, event) => {
+          // Handle pasted images from clipboard
+          const clipboardData = event.clipboardData || (event as any).originalEvent?.clipboardData
+          
+          if (clipboardData && clipboardData.files && clipboardData.files.length > 0) {
+            const file = clipboardData.files[0]
+            if (file && file.type.startsWith('image/')) {
+              event.preventDefault()
+              
+              // Convert file to base64
+              const reader = new FileReader()
+              reader.onload = (e) => {
+                const base64 = e.target?.result as string
+                if (base64 && editor) {
+                  editor.chain().focus().setImage({ src: base64 }).run()
+                  toast.success('Image pasted successfully')
+                }
+              }
+              reader.readAsDataURL(file)
+              
+              return true
+            }
+          }
+          return false
+        },
+        drop: (view, event) => {
+          // Handle dropped images
+          const files = event.dataTransfer?.files
+          
+          if (files && files.length > 0) {
+            const file = files[0]
+            if (file && file.type.startsWith('image/')) {
+              event.preventDefault()
+              
+              // Convert file to base64
+              const reader = new FileReader()
+              reader.onload = (e) => {
+                const base64 = e.target?.result as string
+                if (base64 && editor) {
+                  editor.chain().focus().setImage({ src: base64 }).run()
+                  toast.success('Image dropped successfully')
+                }
+              }
+              reader.readAsDataURL(file)
+              
+              return true
+            }
+          }
+          return false
+        },
+        dragover: (view, event) => {
+          // Allow drag over for image files
+          const files = event.dataTransfer?.files
+          if (files && files.length > 0) {
+            const file = files[0]
+            if (file && file.type.startsWith('image/')) {
+              event.preventDefault()
+              return true
+            }
+          }
+          return false
+        },
       },
     },
   })
@@ -188,10 +250,25 @@ export function RichTextEditor({
 
 
     const addImage = useCallback(() => {
-    const url = window.prompt('Enter image URL:')
-    if (url && editor) {
-      editor.chain().focus().setImage({ src: url }).run()
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.onchange = (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0]
+      if (file && editor) {
+        // Convert file to base64
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const base64 = e.target?.result as string
+          if (base64) {
+            editor.chain().focus().setImage({ src: base64 }).run()
+            toast.success('Image added successfully')
+          }
+        }
+        reader.readAsDataURL(file)
+      }
     }
+    input.click()
   }, [editor])
 
   // Enhanced URL validation for web, email, and phone links
@@ -416,7 +493,7 @@ export function RichTextEditor({
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={addImage}>
             <ImageIcon className="h-5 w-5 mr-2" />
-            Add media
+            Add Image
           </Button>
           
           {/* Add Shortcodes Dropdown */}

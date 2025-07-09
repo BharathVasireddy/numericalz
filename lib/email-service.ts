@@ -178,8 +178,15 @@ class EmailService {
           bcc: params.bcc,
           replyTo: params.replyTo,
           subject: params.subject,
-          htmlContent: params.htmlContent,
+          htmlContent: this.wrapWithProfessionalTemplate(params.htmlContent),
           textContent: params.textContent || this.htmlToText(params.htmlContent),
+          headers: {
+            'X-Priority': '1',
+            'X-MSMail-Priority': 'High',
+            'Importance': 'High',
+            'X-Mailer': 'Numericalz Internal Management System',
+            'Reply-To': this.config.senderEmail
+          }
         }),
       })
 
@@ -638,6 +645,127 @@ class EmailService {
         error: error instanceof Error ? error.message : 'Unknown error'
       }
     }
+  }
+
+  /**
+   * Wrap HTML content with professional template including Plus Jakarta Sans font
+   */
+  private wrapWithProfessionalTemplate(htmlContent: string): string {
+    return `
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+          <style>
+            body { 
+              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+              line-height: 1.6; 
+              color: #374151; 
+              margin: 0; 
+              padding: 0; 
+              background-color: #f8f9fa;
+            }
+            .email-container { 
+              max-width: 600px; 
+              margin: 0 auto; 
+              background: #ffffff; 
+            }
+            .content { 
+              padding: 20px; 
+            }
+            h1, h2, h3, h4, h5, h6 { 
+              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+              color: #1f2937; 
+              margin-top: 0;
+            }
+            p { 
+              margin-bottom: 16px; 
+              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }
+            .otp-code { 
+              background: #f3f4f6; 
+              padding: 20px; 
+              border-radius: 8px; 
+              text-align: center; 
+              margin: 20px 0; 
+              font-family: 'Plus Jakarta Sans', 'Courier New', monospace; 
+              font-size: 24px; 
+              font-weight: 600; 
+              color: #1f2937; 
+              border: 2px solid #e5e7eb; 
+              letter-spacing: 2px;
+            }
+            .workflow-stage { 
+              background: #f0f9ff; 
+              padding: 15px; 
+              border-radius: 8px; 
+              border-left: 4px solid #3b82f6; 
+              margin: 20px 0; 
+            }
+            .assignment-card { 
+              background: #f8fafc; 
+              padding: 20px; 
+              border-radius: 8px; 
+              border: 1px solid #e2e8f0; 
+              margin: 20px 0; 
+            }
+            .action-button { 
+              display: inline-block; 
+              background: #3b82f6; 
+              color: white; 
+              padding: 12px 24px; 
+              text-decoration: none; 
+              border-radius: 6px; 
+              font-weight: 500; 
+              margin: 20px 0; 
+              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            }
+            .footer { 
+              text-align: center; 
+              margin-top: 30px; 
+              padding-top: 20px; 
+              border-top: 1px solid #e5e7eb; 
+              color: #6b7280; 
+              font-size: 14px; 
+            }
+            table { 
+              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            }
+            td, th { 
+              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            }
+            strong, b { 
+              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            }
+            em, i { 
+              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            }
+            ul, ol, li { 
+              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            }
+            a { 
+              color: #3b82f6; 
+              text-decoration: none; 
+            }
+            a:hover { 
+              text-decoration: underline; 
+            }
+            /* Force font inheritance for Gmail compatibility */
+            * { 
+              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important; 
+            }
+          </style>
+        </head>
+        <body>
+          <div class="email-container">
+            <div class="content">
+              ${htmlContent}
+            </div>
+          </div>
+        </body>
+      </html>
+    `
   }
 
   /**

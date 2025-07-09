@@ -144,12 +144,60 @@ export async function POST(request: NextRequest) {
             }
           ],
           subject: validatedData.subject,
-          htmlContent: emailSignature 
-            ? `${validatedData.htmlContent}<br><br>${emailSignature}`
-            : validatedData.htmlContent,
+          htmlContent: `
+            <html>
+              <head>
+                <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                <style>
+                  body { 
+                    font-family: 'Plus Jakarta Sans', Arial, sans-serif; 
+                    line-height: 1.6; 
+                    color: #374151; 
+                    margin: 0; 
+                    padding: 0; 
+                  }
+                  .email-container { 
+                    max-width: 600px; 
+                    margin: 0 auto; 
+                    background: #ffffff; 
+                  }
+                  .content { 
+                    padding: 20px; 
+                  }
+                  h1, h2, h3, h4, h5, h6 { 
+                    font-family: 'Plus Jakarta Sans', Arial, sans-serif; 
+                    color: #1f2937; 
+                  }
+                  p { 
+                    margin-bottom: 16px; 
+                  }
+                  .signature { 
+                    margin-top: 24px; 
+                    border-top: 1px solid #e5e7eb; 
+                    padding-top: 16px; 
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="email-container">
+                  <div class="content">
+                    ${validatedData.htmlContent}
+                    ${emailSignature ? `<div class="signature">${emailSignature}</div>` : ''}
+                  </div>
+                </div>
+              </body>
+            </html>
+          `,
           textContent: emailSignature 
             ? `${validatedData.htmlContent.replace(/<[^>]*>/g, '')}\n\n${emailSignature.replace(/<[^>]*>/g, '')}`
-            : validatedData.htmlContent.replace(/<[^>]*>/g, '')
+            : validatedData.htmlContent.replace(/<[^>]*>/g, ''),
+          headers: {
+            'X-Priority': '1',
+            'X-MSMail-Priority': 'High',
+            'Importance': 'High',
+            'X-Mailer': 'Numericalz Internal Management System',
+            'Reply-To': senderEmail
+          }
         })
       })
     } catch (networkError) {
