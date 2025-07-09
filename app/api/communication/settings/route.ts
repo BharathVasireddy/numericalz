@@ -152,8 +152,12 @@ export async function PUT(request: NextRequest) {
       { key: 'enableTestMode', value: validatedData.enableTestMode.toString() }
     ]
 
-    // Update branding settings - Explicit field mapping to prevent column issues
-    const brandingData = {
+    // Create clean branding data object - Aggressive filtering to prevent column issues
+    // Using Object.create(null) to avoid prototype pollution and explicit property assignment
+    const brandingData = Object.create(null)
+    
+    // Only assign known, safe properties
+    const allowedBrandingFields = {
       firmName: validatedData.firmName,
       logoUrl: validatedData.logoUrl || null,
       primaryColor: validatedData.primaryColor,
@@ -162,39 +166,20 @@ export async function PUT(request: NextRequest) {
       phoneNumber: validatedData.phoneNumber || null,
       address: validatedData.address || null
     }
-
-    // DEBUG: Log everything to identify the 'new' column issue
-    console.log('🔍 DEBUG: Raw request body:', JSON.stringify(body, null, 2))
-    console.log('🔍 DEBUG: Validated data:', JSON.stringify(validatedData, null, 2))
-    console.log('🔍 DEBUG: Branding data keys:', Object.keys(brandingData))
-    console.log('🔍 DEBUG: Branding data:', JSON.stringify(brandingData, null, 2))
     
-    // Check for any 'new' properties in the data
-    const hasNewProperty = (obj: any, path = ''): string[] => {
-      const found: string[] = []
-      for (const [key, value] of Object.entries(obj)) {
-        const currentPath = path ? `${path}.${key}` : key
-        if (key === 'new') {
-          found.push(currentPath)
-        }
-        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-          found.push(...hasNewProperty(value, currentPath))
-        }
-      }
-      return found
+    // Explicit assignment to prevent any unwanted properties
+    Object.assign(brandingData, allowedBrandingFields)
+    
+    // Additional safety check - remove any potential 'new' property
+    if ('new' in brandingData) {
+      delete brandingData.new
+      console.error('⚠️ Warning: Found and removed "new" property from branding data')
     }
     
-    const newPropsInBody = hasNewProperty(body)
-    const newPropsInValidated = hasNewProperty(validatedData)
-    const newPropsInBranding = hasNewProperty(brandingData)
+    // Convert back to regular object to ensure compatibility
+    const safeBrandingData = JSON.parse(JSON.stringify(brandingData))
     
-    console.log('🔍 DEBUG: "new" properties in body:', newPropsInBody)
-    console.log('🔍 DEBUG: "new" properties in validated:', newPropsInValidated)
-    console.log('🔍 DEBUG: "new" properties in branding:', newPropsInBranding)
-    
-    if (newPropsInBody.length > 0 || newPropsInValidated.length > 0 || newPropsInBranding.length > 0) {
-      throw new Error(`Found "new" properties in data: ${[...newPropsInBody, ...newPropsInValidated, ...newPropsInBranding].join(', ')}`)
-    }
+    console.log('🔍 DEBUG: Safe branding data:', JSON.stringify(safeBrandingData, null, 2))
 
     // Use transaction to update all settings atomically
     await db.$transaction(async (tx) => {
@@ -209,21 +194,18 @@ export async function PUT(request: NextRequest) {
         )
       )
 
-      // Update branding settings
+      // Update branding settings with safe data
       const existingBranding = await tx.brandingSettings.findFirst()
       if (existingBranding) {
-        console.log('🔍 DEBUG: Existing branding found:', JSON.stringify(existingBranding, null, 2))
-        console.log('🔍 DEBUG: Update data about to be sent to Prisma:', JSON.stringify(brandingData, null, 2))
-        console.log('🔍 DEBUG: Update where clause:', JSON.stringify({ id: existingBranding.id }, null, 2))
-        
+        console.log('🔍 DEBUG: Updating existing branding with safe data')
         await tx.brandingSettings.update({
           where: { id: existingBranding.id },
-          data: brandingData
+          data: safeBrandingData
         })
       } else {
-        console.log('🔍 DEBUG: No existing branding, creating new with data:', JSON.stringify(brandingData, null, 2))
+        console.log('🔍 DEBUG: Creating new branding with safe data')
         await tx.brandingSettings.create({
-          data: brandingData
+          data: safeBrandingData
         })
       }
     })
