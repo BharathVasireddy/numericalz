@@ -1341,9 +1341,9 @@ export function VATDeadlinesTable({
     } catch (error) {
       console.error('❌ Exception during filing:', error)
       console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : 'Unknown'
       })
       showToast.error('Failed to file to HMRC. Please try again.')
     } finally {
