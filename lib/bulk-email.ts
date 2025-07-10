@@ -104,7 +104,7 @@ export async function sendBulkVATEmails({
         to: [{ email: quarter.client.contactEmail, name: quarter.client.companyName }],
         subject: emailSubject,
         htmlContent: emailBody,
-        emailType: 'VAT_BULK_EMAIL',
+        emailType: 'VAT_BULK_EMAIL', // This will get importance headers
         clientId: quarter.client.id,
         workflowType: 'VAT',
         templateId: template.id,
@@ -249,7 +249,7 @@ export async function sendBulkLtdEmails({
         to: [{ email: client.contactEmail, name: client.companyName }],
         subject: emailSubject,
         htmlContent: emailBody,
-        emailType: 'LTD_BULK_EMAIL',
+        emailType: 'LTD_BULK_EMAIL', // This will get importance headers
         clientId: client.id,
         workflowType: 'LTD',
         templateId: template.id,

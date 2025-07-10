@@ -80,10 +80,10 @@ class EmailOTPService {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Your Numericalz Login Code</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .logo { font-size: 24px; font-weight: bold; color: #1a365d; }
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .logo { font-size: 24px; font-weight: bold; color: #1a365d; margin-bottom: 10px; }
         .otp-box { 
             background: #f7fafc; 
             border: 2px solid #e2e8f0; 
@@ -96,12 +96,13 @@ class EmailOTPService {
             font-size: 32px; 
             font-weight: bold; 
             color: #1a365d; 
-            letter-spacing: 8px; 
+            letter-spacing: 4px; 
             margin: 10px 0; 
+            font-family: monospace;
         }
         .footer { 
-            margin-top: 30px; 
-            padding-top: 20px; 
+            margin-top: 20px; 
+            padding-top: 15px; 
             border-top: 1px solid #e2e8f0; 
             text-align: center; 
             color: #718096; 
@@ -118,26 +119,24 @@ class EmailOTPService {
         
         <h2>Hello ${name},</h2>
         
-        <p>You have requested to sign in to your Numericalz account. Please use the verification code below to complete your login:</p>
+        <p>Please use this verification code to complete your login:</p>
         
         <div class="otp-box">
-            <p><strong>Your verification code is:</strong></p>
+            <p><strong>Your verification code:</strong></p>
             <div class="otp-code">${otpCode}</div>
-            <p><small>This code will expire in 10 minutes</small></p>
+            <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">Expires in 10 minutes</p>
         </div>
         
-        <p>If you didn't request this code, please ignore this email or contact your system administrator.</p>
-        
-        <p>For security reasons:</p>
-        <ul>
+        <p><strong>Security Notice:</strong></p>
+        <ul style="color: #666; font-size: 14px; line-height: 1.5;">
             <li>Never share this code with anyone</li>
             <li>Our team will never ask for this code</li>
-            <li>This code is only valid for 10 minutes</li>
+            <li>If you didn't request this, please ignore this email</li>
         </ul>
         
         <div class="footer">
-            <p>This is an automated message from Numericalz Internal Management System</p>
-            <p>If you need assistance, please contact your system administrator</p>
+            <p>Numericalz Internal Management System</p>
+            <p>This is an automated message - please do not reply</p>
         </div>
     </div>
 </body>

@@ -254,6 +254,24 @@ class EmailService {
         // Continue with sending even if logging fails
       }
 
+      // Determine if this should be a high priority email (only templates)
+      const isTemplateEmail = params.emailType === 'TEMPLATE' || 
+                              params.emailType === 'VAT_BULK_EMAIL' || 
+                              params.emailType === 'LTD_BULK_EMAIL' ||
+                              params.templateId // Any email using a template
+
+      // Build headers conditionally
+      const emailHeaders: Record<string, string> = {
+        'X-Mailer': 'Numericalz Internal Management System'
+      }
+
+      // Only add importance headers for template emails
+      if (isTemplateEmail) {
+        emailHeaders['X-Priority'] = '1'
+        emailHeaders['X-MSMail-Priority'] = 'High'
+        emailHeaders['Importance'] = 'High'
+      }
+
       // Send email via Brevo API
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
@@ -271,14 +289,9 @@ class EmailService {
           bcc: params.bcc,
           replyTo: params.replyTo || { email: emailSettings.replyToEmail, name: emailSettings.senderName },
           subject: params.subject,
-          htmlContent: this.wrapWithProfessionalTemplate(params.htmlContent),
+          htmlContent: this.wrapWithCleanTemplate(params.htmlContent),
           textContent: params.textContent || this.htmlToText(params.htmlContent),
-          headers: {
-            'X-Priority': '1',
-            'X-MSMail-Priority': 'High',
-            'Importance': 'High',
-            'X-Mailer': 'Numericalz Internal Management System'
-          }
+          headers: emailHeaders
         }),
       })
 
@@ -740,124 +753,61 @@ class EmailService {
   }
 
   /**
-   * Wrap HTML content with professional template including Plus Jakarta Sans font
+   * Wrap HTML content with clean, clipping-resistant template
+   * Reduces Gmail truncation by using minimal HTML structure
    */
-  private wrapWithProfessionalTemplate(htmlContent: string): string {
+  private wrapWithCleanTemplate(htmlContent: string): string {
     return `
-      <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-          <style>
-            body { 
-              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-              line-height: 1.6; 
-              color: #374151; 
-              margin: 0; 
-              padding: 0; 
-              background-color: #f8f9fa;
-            }
-            .email-container { 
-              max-width: 600px; 
-              margin: 0 auto; 
-              background: #ffffff; 
-            }
-            .content { 
-              padding: 20px; 
-            }
-            h1, h2, h3, h4, h5, h6 { 
-              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-              color: #1f2937; 
-              margin-top: 0;
-            }
-            p { 
-              margin-bottom: 16px; 
-              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }
-            .otp-code { 
-              background: #f3f4f6; 
-              padding: 20px; 
-              border-radius: 8px; 
-              text-align: center; 
-              margin: 20px 0; 
-              font-family: 'Plus Jakarta Sans', 'Courier New', monospace; 
-              font-size: 24px; 
-              font-weight: 600; 
-              color: #1f2937; 
-              border: 2px solid #e5e7eb; 
-              letter-spacing: 2px;
-            }
-            .workflow-stage { 
-              background: #f0f9ff; 
-              padding: 15px; 
-              border-radius: 8px; 
-              border-left: 4px solid #3b82f6; 
-              margin: 20px 0; 
-            }
-            .assignment-card { 
-              background: #f8fafc; 
-              padding: 20px; 
-              border-radius: 8px; 
-              border: 1px solid #e2e8f0; 
-              margin: 20px 0; 
-            }
-            .action-button { 
-              display: inline-block; 
-              background: #3b82f6; 
-              color: white; 
-              padding: 12px 24px; 
-              text-decoration: none; 
-              border-radius: 6px; 
-              font-weight: 500; 
-              margin: 20px 0; 
-              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            }
-            .footer { 
-              text-align: center; 
-              margin-top: 30px; 
-              padding-top: 20px; 
-              border-top: 1px solid #e5e7eb; 
-              color: #6b7280; 
-              font-size: 14px; 
-            }
-            table { 
-              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            }
-            td, th { 
-              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            }
-            strong, b { 
-              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            }
-            em, i { 
-              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            }
-            ul, ol, li { 
-              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            }
-            a { 
-              color: #3b82f6; 
-              text-decoration: none; 
-            }
-            a:hover { 
-              text-decoration: underline; 
-            }
-            /* Force font inheritance for Gmail compatibility */
-            * { 
-              font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important; 
-            }
-          </style>
-        </head>
-        <body>
-          <div class="email-container">
-            <div class="content">
-              ${htmlContent}
-            </div>
-          </div>
-        </body>
-      </html>
-    `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      line-height: 1.6; 
+      color: #333; 
+      margin: 0; 
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    .container { 
+      max-width: 600px; 
+      margin: 0 auto; 
+      background: white; 
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .content { 
+      line-height: 1.6; 
+    }
+    .footer { 
+      margin-top: 30px; 
+      padding-top: 20px; 
+      border-top: 1px solid #eee; 
+      text-align: center; 
+      color: #666; 
+      font-size: 12px; 
+    }
+    a { color: #0066cc; }
+    h1, h2, h3 { color: #333; }
+    p { margin: 16px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="content">
+      ${htmlContent}
+    </div>
+    <div class="footer">
+      <p>Numericalz Internal Management System</p>
+    </div>
+  </div>
+</body>
+</html>
+    `.trim()
   }
 
   /**

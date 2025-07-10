@@ -209,11 +209,12 @@ export async function POST(request: NextRequest) {
             ? `${validatedData.htmlContent.replace(/<[^>]*>/g, '')}\n\n${emailSignature.replace(/<[^>]*>/g, '')}`
             : validatedData.htmlContent.replace(/<[^>]*>/g, ''),
           headers: {
+            'X-Mailer': 'Numericalz Internal Management System',
+            'Reply-To': replyToEmail,
+            // Add importance headers only for template emails
             'X-Priority': '1',
             'X-MSMail-Priority': 'High',
-            'Importance': 'High',
-            'X-Mailer': 'Numericalz Internal Management System',
-            'Reply-To': replyToEmail
+            'Importance': 'High'
           }
         })
       })

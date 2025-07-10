@@ -247,9 +247,6 @@ ${emailSignature ? `\n\n${emailSignature.replace(/<[^>]*>/g, '')}` : ''}
 This email was sent as a test from the Numericalz email template system.
           `,
           headers: {
-            'X-Priority': '1',
-            'X-MSMail-Priority': 'High',
-            'Importance': 'High',
             'X-Mailer': 'Numericalz Internal Management System',
             'Reply-To': replyToEmail
           }
