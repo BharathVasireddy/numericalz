@@ -530,15 +530,15 @@ export function VATDeadlinesTable({
   }
 
   // Bulk operations handlers
-  // Helper function to check if a quarter ID is calculated (not a real database ID)
+  // Helper function to check if a quarter ID is calculated or pending (not a real database ID)
   const isCalculatedQuarter = (quarterId: string): boolean => {
-    return quarterId.startsWith('calculated-')
+    return quarterId.startsWith('calculated-') || quarterId === 'pending'
   }
 
   const handleSelectQuarter = (quarterId: string, monthNumber: number, checked: boolean) => {
-    // Skip selection of calculated quarters (they don't exist in the database)
+    // Skip selection of calculated or pending quarters (they don't exist in the database)
     if (isCalculatedQuarter(quarterId)) {
-      showToast('Cannot select quarters that haven\'t been created yet. Please create the quarter first.', 'warning')
+      showToast('Cannot select quarters that haven\'t been created yet. Please create the quarter first by adding an update.', 'warning')
       return
     }
 
@@ -1574,7 +1574,7 @@ export function VATDeadlinesTable({
                   <TableCell className="p-2 text-center">
                     {monthQuarter ? (
                       isCalculatedQuarter(monthQuarter.id) ? (
-                        <span className="text-xs text-gray-400" title="Quarter not created yet">—</span>
+                        <span className="text-xs text-gray-400" title="Quarter not created yet - add an update to create">—</span>
                       ) : (
                         <Checkbox
                           checked={getQuarterSelectionForMonth(monthNumber).includes(monthQuarter.id)}

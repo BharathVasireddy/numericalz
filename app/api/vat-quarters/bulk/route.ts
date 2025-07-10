@@ -36,6 +36,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { quarterIds, operation, assignedUserId, templateId, customSubject, customMessage } = VATBulkOperationSchema.parse(body)
 
+    console.log('🔍 VAT Bulk Operation Debug:', {
+      quarterIds,
+      operation,
+      assignedUserId,
+      quarterIdsLength: quarterIds.length
+    })
+
     // Validate quarters exist and get data
     const quarters = await db.vATQuarter.findMany({
       where: { id: { in: quarterIds } },
@@ -58,9 +65,27 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log('📊 Database lookup results:', {
+      requestedQuarters: quarterIds.length,
+      foundQuarters: quarters.length,
+      foundIds: quarters.map(q => q.id),
+      missingIds: quarterIds.filter(id => !quarters.find(q => q.id === id))
+    })
+
     if (quarters.length !== quarterIds.length) {
+      console.error('❌ Quarter mismatch:', {
+        requested: quarterIds,
+        found: quarters.map(q => q.id),
+        missing: quarterIds.filter(id => !quarters.find(q => q.id === id))
+      })
+      
       return NextResponse.json({ 
-        error: 'Some quarters were not found' 
+        error: 'Some quarters were not found',
+        details: {
+          requested: quarterIds.length,
+          found: quarters.length,
+          missing: quarterIds.filter(id => !quarters.find(q => q.id === id))
+        }
       }, { status: 404 })
     }
 
