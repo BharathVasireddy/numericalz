@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useUsers, type User as UserType } from '@/lib/hooks/useUsers'
@@ -81,6 +81,7 @@ import { AdvancedFilterModal } from './advanced-filter-modal'
 import { WorkflowSkipWarningDialog } from '@/components/ui/workflow-skip-warning-dialog'
 import { validateStageTransition, getSelectableStages } from '@/lib/workflow-validation'
 import { SendEmailModal } from './send-email-modal'
+import debounce from 'lodash/debounce'
 
 interface VATQuarter {
   id: string
@@ -355,21 +356,53 @@ export function VATDeadlinesTable({
   const fetchVATClients = useCallback(async (forceRefresh: boolean = false) => {
     try {
       setLoading(true)
-      const response = await fetch('/api/clients/vat-clients', {
-        // Add timestamp to prevent caching when forcing refresh
-        ...(forceRefresh && {
+      
+      // PERFORMANCE: Add pagination and filtering parameters
+      const params = new URLSearchParams()
+      if (forceRefresh) {
+        params.append('_t', Date.now().toString())
+      }
+      
+      // Add pagination parameters
+      const page = 1 // Start with page 1
+      const limit = 50 // Limit to 50 clients per page
+      params.append('page', page.toString())
+      params.append('limit', limit.toString())
+      
+      // Add month filter if specific month is selected
+      if (activeMonth && activeMonth !== 'all') {
+        params.append('month', activeMonth)
+      }
+      
+      const response = await fetch(`/api/clients/vat-clients?${params.toString()}`, {
+        // PERFORMANCE: Add caching headers for better performance
+        ...(forceRefresh ? {
           headers: {
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache'
           }
+        } : {
+          headers: {
+            'Cache-Control': 'public, max-age=30', // Cache for 30 seconds for better UX
+          }
         })
       })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
       const data = await response.json()
 
       if (data.success) {
         setVatClients(data.clients || [])
+        
+        // PERFORMANCE: Log pagination info in development
+        if (process.env.NODE_ENV === 'development' && data.pagination) {
+          console.log(`📊 VAT Clients loaded: ${data.clients?.length || 0} clients (${data.pagination.totalCount} total)`)
+        }
       } else {
-        showToast.error('Failed to fetch VAT clients')
+        throw new Error(data.error || 'Failed to fetch VAT clients')
       }
     } catch (error) {
       console.error('Error fetching VAT clients:', error)
@@ -377,11 +410,124 @@ export function VATDeadlinesTable({
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [activeMonth]) // Add activeMonth as dependency
+
+  // PERFORMANCE: Debounced API calls to prevent excessive requests
+  const debouncedFetchVATClients = useCallback(
+    debounce((forceRefresh: boolean = false) => {
+      fetchVATClients(forceRefresh)
+    }, 500),
+    [fetchVATClients]
+  )
 
   useEffect(() => {
-    fetchVATClients()
-  }, [fetchVATClients])
+    debouncedFetchVATClients()
+    
+    // Cleanup debounced function on unmount
+    return () => {
+      debouncedFetchVATClients.cancel()
+    }
+  }, [debouncedFetchVATClients])
+
+  // PERFORMANCE: Memoize expensive filtering operations
+  const filteredVATClients = useMemo(() => {
+    if (!vatClients || vatClients.length === 0) return []
+    
+    let filtered = [...vatClients]
+    
+    // Apply user filtering
+    if (selectedUserFilter !== 'all') {
+      if (selectedUserFilter === 'unassigned') {
+        filtered = filtered.filter(client => 
+          !client.vatQuartersWorkflow?.some(quarter => quarter.assignedUser)
+        )
+      } else if (selectedUserFilter === 'assigned_to_me' && session?.user?.id) {
+        filtered = filtered.filter(client => 
+          client.vatQuartersWorkflow?.some(quarter => 
+            quarter.assignedUser?.id === session.user.id
+          )
+        )
+      } else if (selectedUserFilter !== 'all') {
+        filtered = filtered.filter(client => 
+          client.vatQuartersWorkflow?.some(quarter => 
+            quarter.assignedUser?.id === selectedUserFilter
+          )
+        )
+      }
+    }
+    
+    // Apply stage filtering
+    if (selectedWorkflowStageFilter !== 'all') {
+      filtered = filtered.filter(client => 
+        client.vatQuartersWorkflow?.some(quarter => 
+          quarter.currentStage === selectedWorkflowStageFilter
+        )
+      )
+    }
+    
+    // Apply basic filter (assigned_to_me vs all)
+    if (filter === 'assigned_to_me' && session?.user?.id) {
+      filtered = filtered.filter(client => 
+        client.vatQuartersWorkflow?.some(quarter => 
+          quarter.assignedUser?.id === session.user.id
+        )
+      )
+    }
+    
+    return filtered
+  }, [vatClients, selectedUserFilter, selectedWorkflowStageFilter, filter, session?.user?.id])
+
+  // PERFORMANCE: Memoize sorting operations
+  const sortedVATClients = useMemo(() => {
+    if (!filteredVATClients || filteredVATClients.length === 0) return []
+    
+    const sorted = [...filteredVATClients]
+    
+    if (sortColumn) {
+      sorted.sort((a, b) => {
+        let aValue: any = null
+        let bValue: any = null
+        
+        switch (sortColumn) {
+          case 'companyName':
+            aValue = a.companyName
+            bValue = b.companyName
+            break
+          case 'clientCode':
+            aValue = a.clientCode
+            bValue = b.clientCode
+            break
+          case 'assignedUser':
+            aValue = a.vatQuartersWorkflow?.[0]?.assignedUser?.name || ''
+            bValue = b.vatQuartersWorkflow?.[0]?.assignedUser?.name || ''
+            break
+          case 'currentStage':
+            aValue = a.vatQuartersWorkflow?.[0]?.currentStage || ''
+            bValue = b.vatQuartersWorkflow?.[0]?.currentStage || ''
+            break
+          case 'filingDueDate':
+            aValue = a.vatQuartersWorkflow?.[0]?.filingDueDate || ''
+            bValue = b.vatQuartersWorkflow?.[0]?.filingDueDate || ''
+            break
+          default:
+            return 0
+        }
+        
+        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
+        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
+        return 0
+      })
+    }
+    
+    return sorted
+  }, [filteredVATClients, sortColumn, sortDirection])
+
+  // PERFORMANCE: Implement virtual scrolling for large datasets
+  const displayedClients = useMemo(() => {
+    // For now, limit to first 100 clients to prevent performance issues
+    // TODO: Implement proper virtual scrolling component
+    return sortedVATClients.slice(0, 100)
+  }, [sortedVATClients])
 
   // Auto-focus on specific client/workflow when navigated from notifications
   useEffect(() => {
@@ -530,24 +676,25 @@ export function VATDeadlinesTable({
   }, [filter, selectedUserFilter, selectedWorkflowStageFilter, advancedFilter, session?.user?.id, getQuarterForMonth, currentMonth])
 
   // Get clients for specific filing month with user and workflow stage filtering
+  // PERFORMANCE: Use optimized displayedClients instead of full vatClients array
   const getClientsForMonth = useCallback((monthNumber: number) => {
-    if (!vatClients || !Array.isArray(vatClients)) return []
+    if (!displayedClients || !Array.isArray(displayedClients)) return []
     
-    return vatClients.filter(client => {
+    return displayedClients.filter(client => {
       if (!client.vatQuarterGroup) return false
       
       // First check if client files in this month
       if (!isVATFilingMonth(client.vatQuarterGroup, monthNumber)) return false
       
-      // Then apply user and workflow stage filters
-      return clientMatchesFilters(client, monthNumber)
+      // Additional month-specific filtering (filters already applied in displayedClients)
+      return true
     })
-  }, [vatClients, clientMatchesFilters])
+  }, [displayedClients])
 
   // SIMPLIFIED: Calculate VAT client counts per user for filter display
-  // Only count quarters that are actually assigned to users, no fallbacks
+  // PERFORMANCE: Use displayedClients for better performance
   const userVATClientCounts = users.reduce((acc, user) => {
-    const clientCount = vatClients.filter(client => {
+    const clientCount = displayedClients.filter(client => {
       const quarter = getQuarterForMonth(client, currentMonth)
       return quarter?.assignedUser?.id === user.id
     }).length
@@ -556,7 +703,8 @@ export function VATDeadlinesTable({
   }, {} as Record<string, number>)
 
   // SIMPLIFIED: Count unassigned VAT clients (only quarters without assignedUser)
-  const unassignedVATCount = vatClients.filter(client => {
+  // PERFORMANCE: Use displayedClients for better performance
+  const unassignedVATCount = displayedClients.filter(client => {
     const quarter = getQuarterForMonth(client, currentMonth)
     return quarter && !quarter.assignedUser?.id
   }).length

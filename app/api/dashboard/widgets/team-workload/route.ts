@@ -16,48 +16,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Get ALL users in the system (not filtered by role)
+    // PERFORMANCE OPTIMIZATION: Use more efficient queries with counts
+    // Get users with aggregated counts instead of fetching all relations
     const teamWorkload = await db.user.findMany({
       where: { 
         isActive: true
-        // Removed role filter - show ALL users
       },
       select: {
         id: true,
         name: true,
         role: true,
-        // Client-level assignments
-        assignedClients: {
-          where: { isActive: true },
-          select: { id: true }
-        },
-        ltdCompanyAssignedClients: {
-          where: { isActive: true },
-          select: { id: true }
-        },
-        nonLtdCompanyAssignedClients: {
-          where: { isActive: true },
-          select: { id: true }
-        },
-        // Workflow-level assignments
-        assignedVATQuarters: {
-          where: { 
-            client: { isActive: true },
-            isCompleted: false
-          },
-          select: { 
-            id: true,
-            clientId: true
-          }
-        },
-        assignedLtdAccountsWorkflows: {
-          where: { 
-            client: { isActive: true },
-            isCompleted: false
-          },
-          select: { 
-            id: true,
-            clientId: true
+        
+        // OPTIMIZED: Use _count for efficient counting
+        _count: {
+          select: {
+            assignedClients: {
+              where: { isActive: true }
+            },
+            ltdCompanyAssignedClients: {
+              where: { isActive: true }
+            },
+            nonLtdCompanyAssignedClients: {
+              where: { isActive: true }
+            },
+            assignedVATQuarters: {
+              where: { 
+                client: { isActive: true },
+                isCompleted: false
+              }
+            },
+            assignedLtdAccountsWorkflows: {
+              where: { 
+                client: { isActive: true },
+                isCompleted: false
+              }
+            }
           }
         }
       },
@@ -68,39 +61,44 @@ export async function GET(request: NextRequest) {
     })
 
     // Transform the data to match the expected format
-    const formattedTeamWorkload = teamWorkload.map(member => {
-      // Get unique client IDs for VAT work (workflow-level only)
-      const vatClientIds = new Set([
-        ...member.assignedVATQuarters.map(q => q.clientId)
-      ])
+    const transformedData = teamWorkload.map(user => ({
+      id: user.id,
+      name: user.name || 'Unknown',
+      role: user.role,
+      
+      // Calculate total client count efficiently
+      clientCount: user._count.assignedClients + 
+                  user._count.ltdCompanyAssignedClients + 
+                  user._count.nonLtdCompanyAssignedClients,
+      
+      // Separate counts for detailed breakdown
+      generalAssignments: user._count.assignedClients,
+      ltdAssignments: user._count.ltdCompanyAssignedClients,
+      nonLtdAssignments: user._count.nonLtdCompanyAssignedClients,
+      
+      // Active workflow counts
+      activeVATQuarters: user._count.assignedVATQuarters,
+      activeLtdWorkflows: user._count.assignedLtdAccountsWorkflows
+    }))
 
-      // Get unique client IDs for accounts work (client-level + workflow-level)
-      const accountsClientIds = new Set([
-        ...member.ltdCompanyAssignedClients.map(c => c.id),
-        ...member.nonLtdCompanyAssignedClients.map(c => c.id),
-        ...member.assignedLtdAccountsWorkflows.map(w => w.clientId)
-      ])
-
-      return {
-        id: member.id,
-        name: member.name,
-        role: member.role,
-        clientCount: member.assignedClients.length,
-        vatClients: vatClientIds.size,
-        accountsClients: accountsClientIds.size
-      }
-    })
+    // Calculate summary statistics
+    const summary = {
+      totalUsers: transformedData.length,
+      totalClients: transformedData.reduce((sum, user) => sum + user.clientCount, 0),
+      totalVATQuarters: transformedData.reduce((sum, user) => sum + user.activeVATQuarters, 0),
+      totalLtdWorkflows: transformedData.reduce((sum, user) => sum + user.activeLtdWorkflows, 0),
+      
+      // Role distribution
+      partners: transformedData.filter(u => u.role === 'PARTNER').length,
+      managers: transformedData.filter(u => u.role === 'MANAGER').length,
+      staff: transformedData.filter(u => u.role === 'STAFF').length
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        teamWorkload: formattedTeamWorkload
-      }
-    }, {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        teamWorkload: transformedData,
+        summary
       }
     })
 

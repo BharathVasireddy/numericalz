@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || 'companyName'
     const sortOrder = searchParams.get('sortOrder') || 'asc'
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = parseInt(searchParams.get('limit') || '25') // Reduced from 50 for better performance
 
     // Build where clause
     const where: any = {
@@ -219,52 +219,52 @@ export async function GET(request: NextRequest) {
     // Calculate pagination
     const skip = (page - 1) * limit
 
-        // Direct parallel database queries - no caching for real-time updates
+    // Direct parallel database queries - optimized for performance
     const [clients, totalCount] = await Promise.all([
       db.client.findMany({
-          where,
-          select: {
-            id: true,
-            clientCode: true,
-            companyName: true,
-            companyNumber: true,
-            companyType: true,
-            contactName: true,
-            contactEmail: true,
-            contactPhone: true,
-            nextAccountsDue: true,
-            nextConfirmationDue: true,
-            nextCorporationTaxDue: true,
-            nextYearEnd: true,
-            lastAccountsMadeUpTo: true,
-            incorporationDate: true,
-            isActive: true,
-            isVatEnabled: true,
-            createdAt: true,
-            
-            // OPTIMIZED: Only essential user fields for list view
-            assignedUser: {
-              select: {
-                id: true,
-                name: true,
-              },
+        where,
+        select: {
+          id: true,
+          clientCode: true,
+          companyName: true,
+          companyNumber: true,
+          companyType: true,
+          contactName: true,
+          contactEmail: true,
+          contactPhone: true,
+          nextAccountsDue: true,
+          nextConfirmationDue: true,
+          nextCorporationTaxDue: true,
+          nextYearEnd: true,
+          lastAccountsMadeUpTo: true,
+          incorporationDate: true,
+          isActive: true,
+          isVatEnabled: true,
+          createdAt: true,
+          
+          // OPTIMIZED: Only essential user fields for list view
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
             },
           },
-          orderBy: (() => {
-            // Handle special sorting cases
-            if (sortBy === 'assignedUser') {
-              return [
-                { assignedUser: { name: sortOrder as 'asc' | 'desc' } },
-                { companyName: 'asc' }
-              ]
-            } else {
-              // Standard field sorting
-              return { [sortBy]: sortOrder as 'asc' | 'desc' }
-            }
-          })(),
-          skip,
-          take: limit,
-        }),
+        },
+        orderBy: (() => {
+          // Handle special sorting cases
+          if (sortBy === 'assignedUser') {
+            return [
+              { assignedUser: { name: sortOrder as 'asc' | 'desc' } },
+              { companyName: 'asc' }
+            ]
+          } else {
+            // Standard field sorting
+            return { [sortBy]: sortOrder as 'asc' | 'desc' }
+          }
+        })(),
+        skip,
+        take: limit,
+      }),
       db.client.count({ where }),
     ])
 
@@ -276,41 +276,23 @@ export async function GET(request: NextRequest) {
       console.log(`📊 Clients API Performance: ${responseTime}ms (${clients.length} clients, ${totalCount} total)`)
     }
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
       clients,
       pagination: {
-        page,
-        limit,
-        totalCount,
+        currentPage: page,
         totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
+        totalCount,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+        pageSize: limit
       },
-      meta: {
+      performance: {
         responseTime,
-        queriedAt: new Date().toISOString()
+        clientsReturned: clients.length,
+        totalClientsInDatabase: totalCount
       }
     })
-
-    // PERFORMANCE: Smart caching based on search and filters
-    if (search) {
-      // Dynamic queries - shorter cache
-      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-      response.headers.set('Pragma', 'no-cache')
-      response.headers.set('Expires', '0')
-    } else {
-      // Static/simple queries - longer cache
-      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-      response.headers.set('Pragma', 'no-cache')
-      response.headers.set('Expires', '0')
-    }
-    
-    // Add ETag for conditional requests
-    const etag = `"clients-${JSON.stringify(where)}-${page}"`
-    response.headers.set('ETag', etag)
-    
-    return response
 
   } catch (error) {
     console.error('Error fetching clients:', error)
