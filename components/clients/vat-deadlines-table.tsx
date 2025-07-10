@@ -530,7 +530,18 @@ export function VATDeadlinesTable({
   }
 
   // Bulk operations handlers
+  // Helper function to check if a quarter ID is calculated (not a real database ID)
+  const isCalculatedQuarter = (quarterId: string): boolean => {
+    return quarterId.startsWith('calculated-')
+  }
+
   const handleSelectQuarter = (quarterId: string, monthNumber: number, checked: boolean) => {
+    // Skip selection of calculated quarters (they don't exist in the database)
+    if (isCalculatedQuarter(quarterId)) {
+      showToast('Cannot select quarters that haven\'t been created yet. Please create the quarter first.', 'warning')
+      return
+    }
+
     const monthKey = monthNumber.toString()
     
     if (checked) {
@@ -551,10 +562,10 @@ export function VATDeadlinesTable({
   const handleSelectAllInMonth = (monthNumber: number, checked: boolean) => {
     const monthKey = monthNumber.toString()
     const monthClients = getClientsForMonth(monthNumber)
-    // Select ALL quarters regardless of applicability - no filtering
+    // Select ALL quarters regardless of applicability - but filter out calculated quarters
     const allQuarters = monthClients
       .map(client => getQuarterForMonth(client, monthNumber))
-      .filter(quarter => quarter !== null)
+      .filter(quarter => quarter !== null && !isCalculatedQuarter(quarter!.id))
       .map(quarter => quarter!.id)
 
     if (checked) {
@@ -1523,7 +1534,7 @@ export function VATDeadlinesTable({
                 <Checkbox
                   checked={getQuarterSelectionForMonth(monthNumber).length > 0 && getQuarterSelectionForMonth(monthNumber).length === getClientsForMonth(monthNumber).filter(client => {
                     const quarter = getQuarterForMonth(client, monthNumber)
-                    return quarter !== null
+                    return quarter !== null && !isCalculatedQuarter(quarter.id)
                   }).length}
                   onCheckedChange={(checked) => handleSelectAllInMonth(monthNumber, checked as boolean)}
                   aria-label={`Select all VAT quarters for ${getMonthDisplay(monthNumber)}`}
@@ -1562,11 +1573,15 @@ export function VATDeadlinesTable({
                 {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
                   <TableCell className="p-2 text-center">
                     {monthQuarter ? (
-                      <Checkbox
-                        checked={getQuarterSelectionForMonth(monthNumber).includes(monthQuarter.id)}
-                        onCheckedChange={(checked) => handleSelectQuarter(monthQuarter.id, monthNumber, checked as boolean)}
-                        aria-label={`Select ${client.companyName} VAT quarter`}
-                      />
+                      isCalculatedQuarter(monthQuarter.id) ? (
+                        <span className="text-xs text-gray-400" title="Quarter not created yet">—</span>
+                      ) : (
+                        <Checkbox
+                          checked={getQuarterSelectionForMonth(monthNumber).includes(monthQuarter.id)}
+                          onCheckedChange={(checked) => handleSelectQuarter(monthQuarter.id, monthNumber, checked as boolean)}
+                          aria-label={`Select ${client.companyName} VAT quarter`}
+                        />
+                      )
                     ) : (
                       <span className="text-xs text-gray-400">—</span>
                     )}
