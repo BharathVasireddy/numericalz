@@ -167,18 +167,10 @@ export async function GET(request: NextRequest) {
       isActive: isActive
     }
 
-    // Role-based filtering: Staff can only see their assigned clients
-    if (session.user.role === 'STAFF') {
-      where.OR = [
-        { assignedUserId: session.user.id },
-        { ltdCompanyAssignedUserId: session.user.id },
-        { nonLtdCompanyAssignedUserId: session.user.id },
-        // Also include clients with VAT quarters assigned to them
-        { vatQuartersWorkflow: { some: { assignedUserId: session.user.id } } }
-      ]
-    }
+    // REMOVED: Role-based filtering - All users can see all clients on the main clients page
+    // Staff users should be able to see all clients, not just their assigned ones
 
-    // Search filter - need to handle OR logic carefully when role filtering is present
+    // Search filter - simplified logic since we removed role-based filtering
     if (search) {
       const searchConditions = [
         { companyName: { contains: search, mode: 'insensitive' } },
@@ -188,27 +180,8 @@ export async function GET(request: NextRequest) {
         { clientCode: { contains: search, mode: 'insensitive' } }
       ]
 
-      if (session.user.role === 'STAFF') {
-        // For staff users, combine role filtering with search
-        where.AND = [
-          {
-            OR: [
-              { assignedUserId: session.user.id },
-              { ltdCompanyAssignedUserId: session.user.id },
-              { nonLtdCompanyAssignedUserId: session.user.id },
-              { vatQuartersWorkflow: { some: { assignedUserId: session.user.id } } }
-            ]
-          },
-          {
-            OR: searchConditions
-          }
-        ]
-        // Remove the role OR clause since it's now in AND
-        delete where.OR
-      } else {
-        // For non-staff users, just add search conditions
-        where.OR = searchConditions
-      }
+      // Apply search conditions for all users
+      where.OR = searchConditions
     }
 
     // Company type filter
