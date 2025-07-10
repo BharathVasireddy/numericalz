@@ -29,11 +29,19 @@ export async function GET(request: NextRequest) {
       isActive: true,
     }
 
-    // If staff user only sees their assigned clients by default (unless overridden)
-    if (session.user.role === 'STAFF' && assignedFilter !== 'all') {
+    // FIX: Apply assigned filter for ALL user roles when "assigned_to_me" is selected
+    if (assignedFilter === 'assigned_to_me') {
       whereClause.OR = [
-        { ltdCompanyAssignedUserId: session.user.id },
-        { assignedUserId: session.user.id }
+        { ltdCompanyAssignedUserId: session.user.id }, // Ltd-specific assignment
+        { assignedUserId: session.user.id }, // General assignment
+        { 
+          ltdAccountsWorkflows: {
+            some: {
+              assignedUserId: session.user.id, // Workflow-level assignment
+              isCompleted: false // Only active workflows
+            }
+          }
+        }
       ]
     }
 

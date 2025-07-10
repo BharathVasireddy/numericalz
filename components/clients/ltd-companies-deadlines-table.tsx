@@ -318,8 +318,8 @@ export function LtdCompaniesDeadlinesTable({
       params.append('page', page.toString())
       params.append('limit', pagination.pageSize.toString())
       
-      // Add assigned filter for staff users optimization
-      if (session?.user?.role === 'STAFF' && filter === 'assigned_to_me') {
+      // FIX: Apply assigned filter for ALL user roles, not just staff
+      if (filter === 'assigned_to_me') {
         params.append('assignedFilter', 'assigned_to_me')
       } else {
         params.append('assignedFilter', 'all')
@@ -369,7 +369,7 @@ export function LtdCompaniesDeadlinesTable({
     } finally {
       setLoading(false)
     }
-  }, [pagination.pageSize, session?.user?.role, session?.user?.id, filter])
+  }, [pagination.pageSize, filter])
 
   useEffect(() => {
     fetchLtdClients(false, 1) // Always start from page 1 when filters change
