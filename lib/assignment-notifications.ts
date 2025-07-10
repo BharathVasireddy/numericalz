@@ -117,7 +117,8 @@ export class AssignmentNotificationService {
               companyName: client.companyName,
               quarterPeriod: vatQuarter.quarterPeriod,
               messageId: emailResult.messageId,
-              emailType: 'VAT_ASSIGNMENT_NOTIFICATION'
+              emailType: 'VAT_ASSIGNMENT_NOTIFICATION',
+              templateName: 'VAT Assignment Notification'
             }
           })
         }
@@ -245,7 +246,8 @@ export class AssignmentNotificationService {
               companyName: client.companyName,
               filingPeriod,
               messageId: emailResult.messageId,
-              emailType: 'LTD_ASSIGNMENT_NOTIFICATION'
+              emailType: 'LTD_ASSIGNMENT_NOTIFICATION',
+              templateName: 'Ltd Company Assignment Notification'
             }
           })
         }
