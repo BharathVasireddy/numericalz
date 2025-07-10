@@ -560,11 +560,15 @@ export function LtdCompaniesDeadlinesTable({
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return '—'
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })
+    try {
+      return new Date(dateString).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    } catch {
+      return '—'
+    }
   }
 
   // Use direct Companies House year end date (next_made_up_to)
