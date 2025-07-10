@@ -301,21 +301,42 @@ export function LtdCompaniesDeadlinesTable({
   const currentMonth = new Date().getMonth() + 1
   const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'long' })
 
-  const fetchLtdClients = useCallback(async (forceRefresh: boolean = false) => {
+  // PERFORMANCE OPTIMIZATION: Add pagination state
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0,
+    pageSize: 50 // Optimized page size
+  })
+
+  const fetchLtdClients = useCallback(async (forceRefresh: boolean = false, page: number = 1) => {
     try {
       setLoading(true)
-      // Add timestamp to prevent caching when forcing refresh
-      const url = forceRefresh 
-        ? `/api/clients/ltd-deadlines?_t=${Date.now()}`
-        : '/api/clients/ltd-deadlines'
+      
+      // PERFORMANCE: Build optimized API call with pagination and filters
+      const params = new URLSearchParams()
+      params.append('page', page.toString())
+      params.append('limit', pagination.pageSize.toString())
+      
+      // Add assigned filter for staff users optimization
+      if (session?.user?.role === 'STAFF' && filter === 'assigned_to_me') {
+        params.append('assignedFilter', 'assigned_to_me')
+      } else {
+        params.append('assignedFilter', 'all')
+      }
+      
+      if (forceRefresh) {
+        params.append('_t', Date.now().toString())
+      }
+      
+      const url = `/api/clients/ltd-deadlines?${params.toString()}`
       
       const response = await fetch(url, {
+        // PERFORMANCE: Use smart caching - API handles cache headers
+        method: 'GET',
         ...(forceRefresh && { 
-          cache: 'no-store',
           headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
+            'Cache-Control': 'no-cache'
           }
         })
       })
@@ -325,18 +346,53 @@ export function LtdCompaniesDeadlinesTable({
       }
       
       const data = await response.json()
-      setLtdClients(data.clients || [])
+      
+      if (data.success) {
+        setLtdClients(data.clients || [])
+        
+        // Update pagination info
+        if (data.pagination) {
+          setPagination({
+            currentPage: data.pagination.currentPage,
+            totalPages: data.pagination.totalPages,
+            totalCount: data.pagination.totalCount,
+            pageSize: data.pagination.pageSize
+          })
+        }
+      } else {
+        throw new Error(data.error || 'Failed to fetch Ltd companies')
+      }
+      
     } catch (error) {
       console.error('Error fetching Ltd companies:', error)
       showToast.error('Failed to fetch Ltd companies data')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [pagination.pageSize, session?.user?.role, session?.user?.id, filter])
 
   useEffect(() => {
-    fetchLtdClients()
-  }, [fetchLtdClients])
+    fetchLtdClients(false, 1) // Always start from page 1 when filters change
+  }, [filter, selectedUserFilter]) // Removed fetchLtdClients dependency to prevent infinite loops
+
+  // Pagination handlers
+  const handlePageChange = useCallback((newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      fetchLtdClients(false, newPage)
+    }
+  }, [fetchLtdClients, pagination.totalPages])
+
+  const handlePreviousPage = useCallback(() => {
+    if (pagination.currentPage > 1) {
+      handlePageChange(pagination.currentPage - 1)
+    }
+  }, [pagination.currentPage, handlePageChange])
+
+  const handleNextPage = useCallback(() => {
+    if (pagination.currentPage < pagination.totalPages) {
+      handlePageChange(pagination.currentPage + 1)
+    }
+  }, [pagination.currentPage, pagination.totalPages, handlePageChange])
 
   // Bulk refresh Companies House data for all filtered clients
   const handleBulkRefreshCompaniesHouse = async () => {
@@ -383,8 +439,8 @@ export function LtdCompaniesDeadlinesTable({
         console.warn('Failed refreshes:', result.results.failed)
       }
 
-      // Refresh the table data after Companies House refresh
-      await fetchLtdClients(true)
+      // Refresh the table data after Companies House refresh (back to page 1)
+      await fetchLtdClients(true, 1)
       
     } catch (error) {
       console.error('Error refreshing Companies House data:', error)
@@ -408,16 +464,11 @@ export function LtdCompaniesDeadlinesTable({
     setAdvancedFilter(null)
   }
 
-  // Enhanced filter function with advanced filters
+  // PERFORMANCE OPTIMIZATION: Client-side filtering for current page only
+  // Server handles major filtering (assigned/role-based), client handles search/stage filtering
   const filteredClients = useMemo(() => {
     return ltdClients.filter(client => {
-      // Basic assigned filter
-      let passesBasicFilter = true
-      if (filter === 'assigned_to_me') {
-        passesBasicFilter = client.ltdCompanyAssignedUser?.id === session?.user?.id
-      }
-      
-      // Search filter
+      // Search filter (client-side for instant feedback)
       let passesSearchFilter = true
       if (searchTerm.trim()) {
         const searchLower = searchTerm.toLowerCase()
@@ -428,7 +479,7 @@ export function LtdCompaniesDeadlinesTable({
         )
       }
       
-      // User filter
+      // User filter (client-side refinement)
       let passesUserFilter = true
       if (selectedUserFilter !== 'all') {
         if (selectedUserFilter === 'unassigned') {
@@ -438,24 +489,15 @@ export function LtdCompaniesDeadlinesTable({
         }
       }
       
-      // Workflow stage filter
+      // Workflow stage filter (client-side)
       let passesWorkflowFilter = true
       if (selectedWorkflowStageFilter !== 'all') {
         passesWorkflowFilter = client.currentLtdAccountsWorkflow?.currentStage === selectedWorkflowStageFilter
       }
 
-      // Advanced filter
-      let passesAdvancedFilter = true
-      if (advancedFilter) {
-        // This would be processed by the API in a real implementation
-        // For now, we'll show all results when advanced filter is active
-        // The actual filtering would happen server-side
-        passesAdvancedFilter = true
-      }
-
-      return passesBasicFilter && passesSearchFilter && passesUserFilter && passesWorkflowFilter && passesAdvancedFilter
+      return passesSearchFilter && passesUserFilter && passesWorkflowFilter
     })
-  }, [ltdClients, filter, searchTerm, selectedUserFilter, selectedWorkflowStageFilter, advancedFilter, session?.user?.id])
+  }, [ltdClients, searchTerm, selectedUserFilter, selectedWorkflowStageFilter])
 
   // Calculate client counts per user for filter display
   const userClientCounts = users.reduce((acc, user) => {
@@ -1067,7 +1109,7 @@ export function LtdCompaniesDeadlinesTable({
         showToast.success('Marked as client self-filing')
         setUpdateModalOpen(false)
         setShowClientSelfFilingConfirm(false)
-        await fetchLtdClients(true)
+        await fetchLtdClients(true, pagination.currentPage)
       } else {
         showToast.error(data.error || 'Failed to update workflow')
       }
@@ -1106,7 +1148,7 @@ export function LtdCompaniesDeadlinesTable({
         setCompaniesHouseWarning(null)
         setSelectedStage(undefined)
         setUpdateComments('')
-        await fetchLtdClients(true)
+        await fetchLtdClients(true, pagination.currentPage)
       } else if (data.requiresConfirmation && data.warning) {
         // Show Companies House warning
         setCompaniesHouseWarning(data.warning)
@@ -1172,7 +1214,7 @@ export function LtdCompaniesDeadlinesTable({
         setShowFiledHMRCConfirm(false)
         setSelectedStage(undefined)
         setUpdateComments('')
-        await fetchLtdClients(true)
+        await fetchLtdClients(true, pagination.currentPage)
       } else {
         showToast.error(data.error || 'Failed to file to HMRC')
       }
@@ -1215,7 +1257,7 @@ export function LtdCompaniesDeadlinesTable({
       
       if (data.success) {
         showToast.success('Filing undone successfully - workflow reopened')
-        await fetchLtdClients(true)
+        await fetchLtdClients(true, pagination.currentPage)
       } else {
         throw new Error(data.error || 'Failed to undo filing')
       }
@@ -1264,7 +1306,7 @@ export function LtdCompaniesDeadlinesTable({
       if (result.success) {
         showToast.success(`Successfully refreshed Companies House data for ${client.companyName}`)
         // Refresh the table data to show updated information
-        await fetchLtdClients(true)
+        await fetchLtdClients(true, pagination.currentPage)
       } else {
         throw new Error(result.error || 'Failed to refresh Companies House data')
       }
@@ -1305,7 +1347,7 @@ export function LtdCompaniesDeadlinesTable({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => fetchLtdClients(true)}
+              onClick={() => fetchLtdClients(true, 1)}
               disabled={loading || refreshingCompaniesHouse}
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -1800,11 +1842,76 @@ export function LtdCompaniesDeadlinesTable({
                         )
                       })
                     )}
-                  </TableBody>
-                    </Table>
+                                    </TableBody>
+                  </Table>
+                </div>
+                
+                {/* PERFORMANCE OPTIMIZATION: Pagination Controls */}
+                {pagination.totalPages > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/30">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>
+                        Showing {((pagination.currentPage - 1) * pagination.pageSize) + 1} to{' '}
+                        {Math.min(pagination.currentPage * pagination.pageSize, pagination.totalCount)} of{' '}
+                        {pagination.totalCount} Ltd companies
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePreviousPage}
+                        disabled={pagination.currentPage === 1 || loading}
+                      >
+                        Previous
+                      </Button>
+                      
+                      <div className="flex items-center gap-1">
+                        {/* Show page numbers */}
+                        {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                          let pageNum
+                          if (pagination.totalPages <= 5) {
+                            pageNum = i + 1
+                          } else {
+                            // Smart page number display
+                            if (pagination.currentPage <= 3) {
+                              pageNum = i + 1
+                            } else if (pagination.currentPage >= pagination.totalPages - 2) {
+                              pageNum = pagination.totalPages - 4 + i
+                            } else {
+                              pageNum = pagination.currentPage - 2 + i
+                            }
+                          }
+                          
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={pageNum === pagination.currentPage ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handlePageChange(pageNum)}
+                              disabled={loading}
+                              className="w-8 h-8 p-0"
+                            >
+                              {pageNum}
+                            </Button>
+                          )
+                        })}
+                      </div>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNextPage}
+                        disabled={pagination.currentPage === pagination.totalPages || loading}
+                      >
+                        Next
+                      </Button>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </CardContent>
+            </Card>
         </PageContent>
       </PageLayout>
 
