@@ -58,25 +58,31 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const monthFilter = searchParams.get('month')
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '25')
+    const limit = parseInt(searchParams.get('limit') || '25') // Reduced default for better performance
     const skip = (page - 1) * limit
     
-    // PERFORMANCE OPTIMIZATION: For high limits (>100), fetch all data without pagination
-    // This optimizes for client-side filtering approach where all data is fetched once
-    const fetchAll = limit >= 100
-    const actualLimit = fetchAll ? undefined : limit
-    const actualSkip = fetchAll ? undefined : skip
+    // PERFORMANCE OPTIMIZATION: Server-side filtering parameters
+    const assignedUserId = searchParams.get('assignedUserId')
+    const workflowStage = searchParams.get('workflowStage')
     
     // Build where clause for VAT-enabled clients only
-    const whereClause = {
+    const whereClause: any = {
       isVatEnabled: true,
       isActive: true
     }
 
-    // PERFORMANCE OPTIMIZATION: Get total count and clients
-    // For fetchAll mode, skip count query to improve performance
+    // PERFORMANCE: Add server-side user assignment filtering
+    if (assignedUserId) {
+      whereClause.vatQuartersWorkflow = {
+        some: {
+          assignedUserId: assignedUserId
+        }
+      }
+    }
+
+    // PERFORMANCE: Get total count and clients with optimized filtering
     const [vatClients, totalCount] = await Promise.all([
-      // Fetch VAT clients with OPTIMIZED query structure
+      // Fetch VAT clients with OPTIMIZED query structure and server-side filtering
       db.client.findMany({
         where: whereClause,
         select: {
@@ -93,9 +99,9 @@ export async function GET(request: NextRequest) {
           isVatEnabled: true,
           createdAt: true,
           
-          // OPTIMIZED: Get ALL VAT quarters for client-side month filtering
-          // Remove limit when fetching all data for better client-side performance
+          // OPTIMIZED: Get relevant VAT quarters with server-side stage filtering
           vatQuartersWorkflow: {
+            where: workflowStage ? { currentStage: workflowStage as any } : {},
             select: {
               id: true,
               quarterPeriod: true,
@@ -133,103 +139,92 @@ export async function GET(request: NextRequest) {
             orderBy: {
               quarterEndDate: 'desc'
             },
-            ...(fetchAll ? {} : { take: 4 }) // Include all quarters when fetching all data
+            take: 3 // Limit quarters per client for performance
           }
         },
         orderBy: [
           { nextVatReturnDue: 'asc' },
           { companyName: 'asc' }
         ],
-        ...(actualSkip !== undefined && { skip: actualSkip }),
-        ...(actualLimit !== undefined && { take: actualLimit })
+        skip,
+        take: limit
       }),
       
-      // Skip count query for fetchAll mode to improve performance
-      fetchAll ? Promise.resolve(0) : db.client.count({ where: whereClause })
+      // Count query with same filtering
+      db.client.count({ where: whereClause })
     ])
 
-    // PERFORMANCE OPTIMIZATION: Calculate additional quarters on-demand
-    // For each client, create placeholder for quarters that might be needed
+    // PERFORMANCE OPTIMIZATION: Lightweight data transformation for remaining clients
     const processedClients = vatClients.map(client => {
-      // If no quarters exist, create current quarter on-demand
+      // If no quarters exist and no server-side filtering, create current quarter on-demand
       if (!client.vatQuartersWorkflow || client.vatQuartersWorkflow.length === 0) {
-        if (!client.vatQuarterGroup) return client
-        const currentQuarter = calculateVATQuarter(client.vatQuarterGroup)
-        if (currentQuarter) {
-          return {
-            ...client,
-            vatQuartersWorkflow: [{
-              id: 'pending',
-              quarterPeriod: currentQuarter.quarterPeriod,
-              quarterStartDate: currentQuarter.quarterStartDate,
-              quarterEndDate: currentQuarter.quarterEndDate,
-              filingDueDate: currentQuarter.filingDueDate,
-              currentStage: 'PAPERWORK_PENDING_CHASE' as const,
-              isCompleted: false,
-              assignedUser: null,
-              // Initialize milestone fields
-              chaseStartedDate: null,
-              chaseStartedByUserName: null,
-              paperworkReceivedDate: null,
-              paperworkReceivedByUserName: null,
-              workStartedDate: null,
-              workStartedByUserName: null,
-              workFinishedDate: null,
-              workFinishedByUserName: null,
-              sentToClientDate: null,
-              sentToClientByUserName: null,
-              clientApprovedDate: null,
-              clientApprovedByUserName: null,
-              filedToHMRCDate: null,
-              filedToHMRCByUserName: null
-            }]
+        if (!assignedUserId && !workflowStage && client.vatQuarterGroup) {
+          const currentQuarter = calculateVATQuarter(client.vatQuarterGroup)
+          if (currentQuarter) {
+            return {
+              ...client,
+              vatQuartersWorkflow: [{
+                id: 'pending',
+                quarterPeriod: currentQuarter.quarterPeriod,
+                quarterStartDate: currentQuarter.quarterStartDate,
+                quarterEndDate: currentQuarter.quarterEndDate,
+                filingDueDate: currentQuarter.filingDueDate,
+                currentStage: 'PAPERWORK_PENDING_CHASE' as const,
+                isCompleted: false,
+                assignedUser: null,
+                // Initialize milestone fields
+                chaseStartedDate: null,
+                chaseStartedByUserName: null,
+                paperworkReceivedDate: null,
+                paperworkReceivedByUserName: null,
+                workStartedDate: null,
+                workStartedByUserName: null,
+                workFinishedDate: null,
+                workFinishedByUserName: null,
+                sentToClientDate: null,
+                sentToClientByUserName: null,
+                clientApprovedDate: null,
+                clientApprovedByUserName: null,
+                filedToHMRCDate: null,
+                filedToHMRCByUserName: null
+              }]
+            }
           }
         }
       }
       return client
     })
 
-    // PERFORMANCE: Log data fetch info for monitoring
+    // Calculate pagination info
+    const totalPages = Math.ceil(totalCount / limit)
+
+    // PERFORMANCE: Log API performance for monitoring
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🚀 VAT Clients API: Fetched ${processedClients.length} clients ${fetchAll ? '(ALL DATA MODE)' : '(PAGINATED MODE)'} in response`)
+      console.log(`🚀 VAT Clients API: Fetched ${processedClients.length}/${totalCount} clients (page ${page}/${totalPages}) with server-side filtering`)
     }
 
-    // Calculate pagination info (only for non-fetchAll mode)
-    const actualTotalCount = fetchAll ? processedClients.length : totalCount
-    const totalPages = fetchAll ? 1 : Math.ceil(totalCount / limit)
-    const hasNextPage = fetchAll ? false : page < totalPages
-    const hasPreviousPage = fetchAll ? false : page > 1
-
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       clients: processedClients,
-      ...(fetchAll ? {
-        // For fetchAll mode, indicate all data was fetched
-        totalCount: processedClients.length,
-        fetchMode: 'all'
-      } : {
-        // Standard pagination info for paginated mode
-        pagination: {
-          currentPage: page,
-          totalPages,
-          totalCount,
-          hasNextPage,
-          hasPreviousPage,
-          pageSize: limit
-        }
-      }),
-      performance: {
-        clientsReturned: processedClients.length,
-        totalClientsInDatabase: totalCount,
-        quartersLimited: true
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalCount,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
       }
     })
 
+    // PERFORMANCE: Smart caching with stale-while-revalidate
+    response.headers.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=15')
+    
+    return response
+
   } catch (error) {
-    console.error('VAT Clients API Error:', error)
+    console.error('VAT clients API error:', error)
     return NextResponse.json({
-      error: 'Failed to fetch VAT clients',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      success: false,
+      error: 'Failed to fetch VAT clients'
     }, { status: 500 })
   }
 } 

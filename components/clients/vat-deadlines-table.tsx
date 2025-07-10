@@ -357,32 +357,38 @@ export function VATDeadlinesTable({
     try {
       setLoading(true)
       
-      // PERFORMANCE FIX: Remove month filtering from API - fetch ALL VAT clients once
-      // Then filter client-side for instant month switching
+      // PERFORMANCE OPTIMIZATION: Use pagination with smaller page size
       const params = new URLSearchParams()
       if (forceRefresh) {
         params.append('_t', Date.now().toString())
       }
       
-      // PERFORMANCE: Fetch all data at once for client-side filtering
-      // Remove month-specific filtering from API call
+      // PERFORMANCE: Use smaller page size for better response times
       const page = 1
-      const limit = 200 // Increased limit to get all clients in one request
+      const limit = 25 // Reduced from 200 to 25 for better performance
       params.append('page', page.toString())
       params.append('limit', limit.toString())
       
+      // PERFORMANCE: Add server-side filtering to reduce data transfer
+      if (filter === 'assigned_to_me' && session?.user?.id) {
+        params.append('assignedUserId', session.user.id)
+      }
+      
+      // Add user filter to server request if specific user selected
+      if (selectedUserFilter !== 'all' && selectedUserFilter !== 'unassigned') {
+        params.append('assignedUserId', selectedUserFilter)
+      }
+      
+      // Add workflow stage filter to server request
+      if (selectedWorkflowStageFilter !== 'all') {
+        params.append('workflowStage', selectedWorkflowStageFilter)
+      }
+      
       const response = await fetch(`/api/clients/vat-clients?${params.toString()}`, {
-        // PERFORMANCE: Cache for better UX but allow force refresh for real data
-        ...(forceRefresh ? {
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        } : {
-          headers: {
-            'Cache-Control': 'public, max-age=60', // Cache for 1 minute for better UX
-          }
-        })
+        // PERFORMANCE: Smart caching for better UX
+        headers: {
+          'Cache-Control': forceRefresh ? 'no-cache' : 'public, max-age=30, stale-while-revalidate=15'
+        }
       })
       
       if (!response.ok) {
@@ -394,9 +400,9 @@ export function VATDeadlinesTable({
       if (data.success) {
         setVatClients(data.clients || [])
         
-        // PERFORMANCE: Log data fetching in development
+        // PERFORMANCE: Log optimized data fetching
         if (process.env.NODE_ENV === 'development') {
-          console.log(`📊 VAT Clients loaded: ${data.clients?.length || 0} clients (all data fetched for client-side filtering)`)
+          console.log(`📊 VAT Clients loaded: ${data.clients?.length || 0} clients (optimized pagination)`)
         }
       } else {
         throw new Error(data.error || 'Failed to fetch VAT clients')
@@ -407,75 +413,31 @@ export function VATDeadlinesTable({
     } finally {
       setLoading(false)
     }
-  }, []) // PERFORMANCE FIX: Remove activeMonth dependency - fetch all data once
+  }, [filter, selectedUserFilter, selectedWorkflowStageFilter, session?.user?.id]) // Add filter dependencies
 
-  // PERFORMANCE: Debounced API calls to prevent excessive requests
-  const debouncedFetchVATClients = useCallback(
-    debounce((forceRefresh: boolean = false) => {
-      fetchVATClients(forceRefresh)
-    }, 500),
-    [fetchVATClients]
-  )
-
-  // PERFORMANCE FIX: Only fetch data on mount or manual refresh
+  // PERFORMANCE: Remove debouncing for instant updates when filters change
   useEffect(() => {
-    debouncedFetchVATClients()
-    
-    // Cleanup debounced function on unmount
-    return () => {
-      debouncedFetchVATClients.cancel()
-    }
-  }, [debouncedFetchVATClients]) // Remove activeMonth dependency
+    fetchVATClients()
+  }, [fetchVATClients])
 
-  // PERFORMANCE: Memoize expensive filtering operations
+  // PERFORMANCE: Memoize filtering operations with smaller dataset
   const filteredVATClients = useMemo(() => {
     if (!vatClients || vatClients.length === 0) return []
     
+    // Since server-side filtering is now applied, do minimal client-side filtering
     let filtered = [...vatClients]
     
-    // Apply user filtering
-    if (selectedUserFilter !== 'all') {
-      if (selectedUserFilter === 'unassigned') {
-        filtered = filtered.filter(client => 
-          !client.vatQuartersWorkflow?.some(quarter => quarter.assignedUser)
-        )
-      } else if (selectedUserFilter === 'assigned_to_me' && session?.user?.id) {
-        filtered = filtered.filter(client => 
-          client.vatQuartersWorkflow?.some(quarter => 
-            quarter.assignedUser?.id === session.user.id
-          )
-        )
-      } else if (selectedUserFilter !== 'all') {
-        filtered = filtered.filter(client => 
-          client.vatQuartersWorkflow?.some(quarter => 
-            quarter.assignedUser?.id === selectedUserFilter
-          )
-        )
-      }
-    }
-    
-    // Apply stage filtering
-    if (selectedWorkflowStageFilter !== 'all') {
+    // Only apply filters that weren't handled server-side
+    if (selectedUserFilter === 'unassigned') {
       filtered = filtered.filter(client => 
-        client.vatQuartersWorkflow?.some(quarter => 
-          quarter.currentStage === selectedWorkflowStageFilter
-        )
-      )
-    }
-    
-    // Apply basic filter (assigned_to_me vs all)
-    if (filter === 'assigned_to_me' && session?.user?.id) {
-      filtered = filtered.filter(client => 
-        client.vatQuartersWorkflow?.some(quarter => 
-          quarter.assignedUser?.id === session.user.id
-        )
+        !client.vatQuartersWorkflow?.some(quarter => quarter.assignedUser)
       )
     }
     
     return filtered
-  }, [vatClients, selectedUserFilter, selectedWorkflowStageFilter, filter, session?.user?.id])
+  }, [vatClients, selectedUserFilter])
 
-  // PERFORMANCE: Memoize sorting operations
+  // PERFORMANCE: Simplified sorting with smaller dataset
   const sortedVATClients = useMemo(() => {
     if (!filteredVATClients || filteredVATClients.length === 0) return []
     
@@ -520,12 +482,8 @@ export function VATDeadlinesTable({
     return sorted
   }, [filteredVATClients, sortColumn, sortDirection])
 
-  // PERFORMANCE: Implement virtual scrolling for large datasets
-  const displayedClients = useMemo(() => {
-    // For now, limit to first 100 clients to prevent performance issues
-    // TODO: Implement proper virtual scrolling component
-    return sortedVATClients.slice(0, 100)
-  }, [sortedVATClients])
+  // PERFORMANCE: No need for virtual scrolling with smaller dataset
+  const displayedClients = sortedVATClients
 
   // Auto-focus on specific client/workflow when navigated from notifications
   useEffect(() => {
