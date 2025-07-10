@@ -373,10 +373,20 @@ function getMilestoneFieldForStage(stage: string) {
       userField: 'managerDiscussionByUserId',
       nameField: 'managerDiscussionByUserName'
     },
+    'REVIEWED_BY_MANAGER': {
+      dateField: 'managerDiscussionDate',
+      userField: 'managerDiscussionByUserId',
+      nameField: 'managerDiscussionByUserName'
+    },
     'REVIEW_BY_PARTNER': {
       dateField: 'partnerReviewDate',
       userField: 'partnerReviewByUserId',
       nameField: 'partnerReviewByUserName'
+    },
+    'REVIEWED_BY_PARTNER': {
+      dateField: 'partnerApprovedDate',
+      userField: 'partnerApprovedByUserId',
+      nameField: 'partnerApprovedByUserName'
     },
     'REVIEW_DONE_HELLO_SIGN': {
       dateField: 'reviewCompletedDate',

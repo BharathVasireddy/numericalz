@@ -653,7 +653,7 @@ export function LtdCompaniesDeadlinesTable({
         id: 'MANAGER_DISCUSSION', 
         date: workflow.managerDiscussionDate, 
         user: workflow.managerDiscussionByUserName,
-        label: 'Manager Discussion',
+        label: 'Manager Review',
         icon: <MessageSquare className="h-4 w-4" />
       },
       { 
@@ -662,6 +662,13 @@ export function LtdCompaniesDeadlinesTable({
         user: workflow.partnerReviewByUserName,
         label: 'Partner Review',
         icon: <Eye className="h-4 w-4" />
+      },
+      { 
+        id: 'PARTNER_APPROVED', 
+        date: workflow.partnerApprovedDate, 
+        user: workflow.partnerApprovedByUserName,
+        label: 'Partner Approved',
+        icon: <CheckCircle className="h-4 w-4" />
       },
       { 
         id: 'REVIEW_COMPLETED', 
@@ -683,13 +690,6 @@ export function LtdCompaniesDeadlinesTable({
         user: workflow.clientApprovedByUserName,
         label: 'Client Approved',
         icon: <UserCheck className="h-4 w-4" />
-      },
-      { 
-        id: 'PARTNER_APPROVED', 
-        date: workflow.partnerApprovedDate, 
-        user: workflow.partnerApprovedByUserName,
-        label: 'Partner Approved',
-        icon: <CheckCircle className="h-4 w-4" />
       },
       { 
         id: 'FILED_TO_COMPANIES_HOUSE', 
