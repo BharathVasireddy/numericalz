@@ -1290,17 +1290,41 @@ export function VATDeadlinesTable({
         return
       }
 
+      console.log('🚀 Filing to HMRC - Debug Info:', {
+        quarterId: selectedQuarter.id,
+        quarterPeriod: selectedQuarter.quarterPeriod,
+        currentStage: selectedQuarter.currentStage,
+        targetStage: selectedStage,
+        assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
+        clientName: selectedClient.companyName
+      })
+
+      const requestBody = {
+        stage: selectedStage,
+        assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
+        comments: updateComments || 'Filed to HMRC - VAT return completed'
+      }
+
+      console.log('📡 API Request:', {
+        url: `/api/vat-quarters/${selectedQuarter.id}/workflow`,
+        method: 'PUT',
+        body: requestBody
+      })
+
       const response = await fetch(`/api/vat-quarters/${selectedQuarter.id}/workflow`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stage: selectedStage,
-          assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
-          comments: updateComments || 'Filed to HMRC - VAT return completed'
-        })
+        body: JSON.stringify(requestBody)
+      })
+
+      console.log('📥 API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
       })
 
       const data = await response.json()
+      console.log('📊 Response Data:', data)
 
       if (data.success) {
         showToast.success('VAT return successfully filed to HMRC')
@@ -1310,11 +1334,17 @@ export function VATDeadlinesTable({
         setUpdateComments('')
         await fetchVATClients(true)
       } else {
+        console.error('❌ API Error Response:', data)
         showToast.error(data.error || 'Failed to file to HMRC')
       }
       
     } catch (error) {
-      console.error('Error filing to HMRC:', error)
+      console.error('❌ Exception during filing:', error)
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      })
       showToast.error('Failed to file to HMRC. Please try again.')
     } finally {
       setUpdating(false)
