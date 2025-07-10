@@ -538,7 +538,7 @@ export function VATDeadlinesTable({
   const handleSelectQuarter = (quarterId: string, monthNumber: number, checked: boolean) => {
     // Skip selection of calculated or pending quarters (they don't exist in the database)
     if (isCalculatedQuarter(quarterId)) {
-      showToast('Cannot select quarters that haven\'t been created yet. Please create the quarter first by adding an update.', 'warning')
+      showToast.error('Cannot select quarters that haven\'t been created yet. Please create the quarter first by adding an update.')
       return
     }
 
