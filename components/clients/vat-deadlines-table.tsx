@@ -1244,14 +1244,14 @@ export function VATDeadlinesTable({
 
 
   const handleClientSelfFiling = async () => {
-    if (!selectedClient?.currentVATQuarter) {
-      showToast.error('No active VAT quarter found for this client')
+    if (!selectedClient || !selectedQuarter) {
+      showToast.error('No VAT quarter selected for client self-filing')
       return
     }
 
     setUpdating(true)
     try {
-      const response = await fetch(`/api/vat-quarters/${selectedClient.currentVATQuarter.id}/client-self-filing`, {
+      const response = await fetch(`/api/vat-quarters/${selectedQuarter.id}/client-self-filing`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1278,18 +1278,19 @@ export function VATDeadlinesTable({
   }
 
   const handleFiledToHMRCConfirm = async () => {
-    if (!selectedClient || !selectedStage) {
+    if (!selectedClient || !selectedStage || !selectedQuarter) {
       return
     }
 
     setUpdating(true)
     try {
-      if (!selectedClient.currentVATQuarter) {
-        showToast.error('No active VAT quarter found for this client')
+      // Use selectedQuarter instead of currentVATQuarter for month-specific workflows
+      if (!selectedQuarter) {
+        showToast.error('No VAT quarter selected for filing')
         return
       }
 
-      const response = await fetch(`/api/vat-quarters/${selectedClient.currentVATQuarter.id}/workflow`, {
+      const response = await fetch(`/api/vat-quarters/${selectedQuarter.id}/workflow`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
