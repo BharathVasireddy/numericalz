@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logActivityEnhanced } from '@/lib/activity-middleware'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -166,6 +167,47 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       },
     })
 
+    // Log user update activity with change tracking
+    const changes = []
+    if (isActive !== undefined && isActive !== existingUser.isActive) {
+      changes.push(`Status: ${existingUser.isActive ? 'Active' : 'Inactive'} → ${isActive ? 'Active' : 'Inactive'}`)
+    }
+    if (role && role !== existingUser.role) {
+      changes.push(`Role: ${existingUser.role} → ${role}`)
+    }
+    if (name && name !== existingUser.name) {
+      changes.push(`Name: ${existingUser.name} → ${name}`)
+    }
+    if (email && email !== existingUser.email) {
+      changes.push(`Email: ${existingUser.email} → ${email}`)
+    }
+
+    if (changes.length > 0) {
+      await logActivityEnhanced(request, {
+        action: 'USER_UPDATED',
+        details: {
+          updatedUserId: params.id,
+          updatedUserName: updatedUser.name,
+          updatedUserEmail: updatedUser.email,
+          changes: changes,
+          message: `User account updated: ${changes.join(', ')}`,
+          updatedBy: session.user.name || session.user.email || 'Unknown User',
+          oldValues: {
+            isActive: existingUser.isActive,
+            role: existingUser.role,
+            name: existingUser.name,
+            email: existingUser.email
+          },
+          newValues: {
+            isActive: updatedUser.isActive,
+            role: updatedUser.role,
+            name: updatedUser.name,
+            email: updatedUser.email
+          }
+        }
+      })
+    }
+
     const response = NextResponse.json({
       success: true,
       user: updatedUser,
@@ -219,7 +261,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       where: { id: params.id },
       include: {
         assignedClients: {
-          where: { isActive: true }
+          where: { isActive: true },
+          select: {
+            id: true,
+            companyName: true,
+            clientCode: true
+          }
         }
       }
     })
@@ -272,6 +319,25 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         data: { assignedUserId: null }
       })
     }
+
+    // Log user deletion activity before deletion
+    await logActivityEnhanced(request, {
+      action: 'USER_DELETED',
+      details: {
+        deletedUserId: params.id,
+        deletedUserName: existingUser.name,
+        deletedUserEmail: existingUser.email,
+        deletedUserRole: existingUser.role,
+        unassignedClientCount: existingUser.assignedClients.length,
+        message: `User account deleted: ${existingUser.name} (${existingUser.email}, ${existingUser.role})`,
+        deletedBy: session.user.name || session.user.email || 'Unknown User',
+        clientsAffected: existingUser.assignedClients.map(client => ({
+          id: client.id,
+          companyName: client.companyName,
+          clientCode: client.clientCode
+        }))
+      }
+    })
 
     // Delete user
     await db.user.delete({

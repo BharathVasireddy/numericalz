@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logActivityEnhanced } from '@/lib/activity-middleware'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -36,7 +37,14 @@ export async function POST(
 
     // Check if client exists and is inactive
     const existingClient = await db.client.findUnique({
-      where: { id: clientId }
+      where: { id: clientId },
+      select: { 
+        id: true, 
+        companyName: true,
+        clientCode: true,
+        isActive: true,
+        assignedUserId: true
+      }
     })
 
     if (!existingClient) {
@@ -67,6 +75,20 @@ export async function POST(
             email: true
           }
         }
+      }
+    })
+
+    // Log client reassignment (reactivation) activity
+    await logActivityEnhanced(request, {
+      action: 'CLIENT_REASSIGNED',
+      clientId: clientId,
+      details: {
+        companyName: existingClient.companyName,
+        clientCode: existingClient.clientCode,
+        message: `Client reactivated from inactive status`,
+        previousStatus: 'INACTIVE',
+        newStatus: 'ACTIVE',
+        reactivatedBy: session.user.name || session.user.email || 'Unknown User'
       }
     })
 

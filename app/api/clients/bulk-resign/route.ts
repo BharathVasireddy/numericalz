@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logActivityEnhanced } from '@/lib/activity-middleware'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -33,6 +34,20 @@ export async function POST(request: NextRequest) {
       },
       data: {
         isActive: false
+      }
+    })
+
+    // Log bulk resignation activity
+    await logActivityEnhanced(request, {
+      action: 'BULK_CLIENT_RESIGNED',
+      details: {
+        message: `Bulk resigned ${result.count} clients`,
+        requestedClients: clientIds.length,
+        resignedClients: result.count,
+        clientIds: clientIds,
+        resignedBy: session.user.name || session.user.email || 'Unknown User',
+        resignedByRole: session.user.role,
+        operationType: 'BULK_RESIGNATION'
       }
     })
 

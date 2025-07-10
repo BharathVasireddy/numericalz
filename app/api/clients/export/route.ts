@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logActivityEnhanced } from '@/lib/activity-middleware'
 
 // Force dynamic rendering and disable caching
 export const dynamic = 'force-dynamic'
@@ -116,6 +117,27 @@ export async function GET(request: NextRequest) {
     ]
 
     const csvContent = csvRows.join('\n')
+
+    // Log data export activity for compliance auditing
+    await logActivityEnhanced(request, {
+      action: 'DATA_EXPORT',
+      details: {
+        message: `Client data exported to CSV: ${clients.length} records`,
+        exportedRecords: clients.length,
+        exportFormat: 'CSV',
+        appliedFilters: {
+          search: searchQuery || 'None',
+          companyType: companyType || 'All',
+          assignedUser: assignedUser || 'All',
+          status: status || 'All'
+        },
+        exportedBy: session.user.name || session.user.email || 'Unknown User',
+        exportedByRole: session.user.role,
+        exportDate: new Date().toISOString(),
+        filename: `clients-export-${new Date().toISOString().split('T')[0]}.csv`,
+        compliance: 'DATA_EXPORT_LOGGED_FOR_AUDIT'
+      }
+    })
 
     return new NextResponse(csvContent, {
       status: 200,

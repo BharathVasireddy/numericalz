@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logActivityEnhanced } from '@/lib/activity-middleware'
 
 // Force dynamic rendering for this route since it uses session
 export const dynamic = 'force-dynamic'
@@ -131,6 +132,21 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
 
+    // Get current settings for change tracking
+    const currentSettings = await db.userSettings.findUnique({
+      where: { userId: params.id },
+      include: {
+        defaultAssignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        }
+      }
+    })
+
     // Update or create settings
     const updatedSettings = await db.userSettings.upsert({
       where: { userId: params.id },
@@ -159,6 +175,44 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         }
       }
     })
+
+    // Log settings changes activity
+    const changes = []
+    const oldDefaultAssignee = currentSettings?.defaultAssignee?.name || 'Auto-assign to creator'
+    const newDefaultAssignee = updatedSettings.defaultAssignee?.name || 'Auto-assign to creator'
+    
+    if (defaultAssigneeId !== undefined && oldDefaultAssignee !== newDefaultAssignee) {
+      changes.push(`Default Assignee: ${oldDefaultAssignee} → ${newDefaultAssignee}`)
+    }
+    if (emailNotifications !== undefined && emailNotifications !== currentSettings?.emailNotifications) {
+      changes.push(`Email Notifications: ${currentSettings?.emailNotifications ? 'Enabled' : 'Disabled'} → ${emailNotifications ? 'Enabled' : 'Disabled'}`)
+    }
+    if (smsNotifications !== undefined && smsNotifications !== currentSettings?.smsNotifications) {
+      changes.push(`SMS Notifications: ${currentSettings?.smsNotifications ? 'Enabled' : 'Disabled'} → ${smsNotifications ? 'Enabled' : 'Disabled'}`)
+    }
+
+    if (changes.length > 0) {
+      await logActivityEnhanced(request, {
+        action: 'USER_SETTINGS_UPDATED',
+        details: {
+          userId: params.id,
+          changes: changes,
+          message: `User settings updated: ${changes.join(', ')}`,
+          oldSettings: {
+            defaultAssigneeId: currentSettings?.defaultAssigneeId,
+            defaultAssigneeName: currentSettings?.defaultAssignee?.name,
+            emailNotifications: currentSettings?.emailNotifications,
+            smsNotifications: currentSettings?.smsNotifications
+          },
+          newSettings: {
+            defaultAssigneeId: updatedSettings.defaultAssigneeId,
+            defaultAssigneeName: updatedSettings.defaultAssignee?.name,
+            emailNotifications: updatedSettings.emailNotifications,
+            smsNotifications: updatedSettings.smsNotifications
+          }
+        }
+      })
+    }
 
     return NextResponse.json({
       success: true,

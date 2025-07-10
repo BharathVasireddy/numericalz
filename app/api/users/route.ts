@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-
+import { logActivityEnhanced } from '@/lib/activity-middleware'
 import bcrypt from 'bcryptjs'
 
 // Force dynamic rendering for this route since it uses session
@@ -191,6 +191,19 @@ export async function POST(request: NextRequest) {
         role: true,
         isActive: true,
         createdAt: true,
+      }
+    })
+
+    // Log activity for user creation
+    await logActivityEnhanced(request, {
+      action: 'USER_CREATED',
+      details: {
+        createdUserId: newUser.id,
+        createdUserName: newUser.name,
+        createdUserEmail: newUser.email,
+        createdUserRole: newUser.role,
+        message: `User account created for ${newUser.name} (${newUser.email}) with ${newUser.role} role`,
+        createdBy: session.user.name || session.user.email || 'Unknown User'
       }
     })
 

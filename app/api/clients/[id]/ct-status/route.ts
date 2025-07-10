@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logActivityEnhanced } from '@/lib/activity-middleware'
 import { 
   markCTAsFiled, 
   setManualCTDue, 
@@ -139,6 +140,8 @@ export async function PUT(
       data: updateData,
       select: {
         id: true,
+        companyName: true,
+        clientCode: true,
         corporationTaxStatus: true,
         corporationTaxPeriodStart: true,
         corporationTaxPeriodEnd: true,
@@ -149,6 +152,71 @@ export async function PUT(
         ctStatusUpdatedBy: true
       }
     })
+
+    // Log CT status activity based on action type
+    const actionDetails = {
+      clientCode: updatedClient.clientCode,
+      companyName: updatedClient.companyName,
+      action: action,
+      ctStatus: updatedClient.corporationTaxStatus,
+      periodStart: updatedClient.corporationTaxPeriodStart?.toISOString(),
+      periodEnd: updatedClient.corporationTaxPeriodEnd?.toISOString(),
+      nextCTDue: updatedClient.nextCorporationTaxDue?.toISOString(),
+      ctDueSource: updatedClient.ctDueSource,
+      manualOverride: updatedClient.manualCTDueOverride
+    }
+
+    switch (action) {
+      case 'mark_filed':
+        await logActivityEnhanced(request, {
+          action: 'CT_MARKED_AS_FILED',
+          clientId: params.id,
+          details: {
+            ...actionDetails,
+            message: `Corporation Tax marked as filed`,
+            nextYearEnd: nextYearEnd ? new Date(nextYearEnd).toISOString() : null,
+            advancedToNextPeriod: true
+          }
+        })
+        break
+
+      case 'set_manual':
+        await logActivityEnhanced(request, {
+          action: 'CT_MANUAL_DUE_SET',
+          clientId: params.id,
+          details: {
+            ...actionDetails,
+            message: `Manual CT due date set to ${new Date(manualDueDate).toLocaleDateString()}`,
+            manualDueDate: new Date(manualDueDate).toISOString()
+          }
+        })
+        break
+
+      case 'reset_auto':
+        await logActivityEnhanced(request, {
+          action: 'CT_RESET_TO_AUTO',
+          clientId: params.id,
+          details: {
+            ...actionDetails,
+            message: `Corporation Tax due reset to auto-calculated date`,
+            resetToAuto: true
+          }
+        })
+        break
+
+      case 'update_period':
+        await logActivityEnhanced(request, {
+          action: 'CT_PERIOD_UPDATED',
+          clientId: params.id,
+          details: {
+            ...actionDetails,
+            message: `Corporation Tax period updated due to year end change`,
+            newYearEnd: new Date(nextYearEnd).toISOString(),
+            periodUpdated: true
+          }
+        })
+        break
+    }
 
     return NextResponse.json({
       success: true,

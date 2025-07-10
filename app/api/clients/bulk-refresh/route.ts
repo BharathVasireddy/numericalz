@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { logActivityEnhanced } from '@/lib/activity-middleware'
 import { z } from 'zod'
 
 const BulkRefreshSchema = z.object({
@@ -78,6 +79,21 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`Bulk refresh completed: ${results.successful.length} successful, ${results.failed.length} failed`)
+
+    // Log bulk Companies House refresh activity
+    await logActivityEnhanced(request, {
+      action: 'BULK_COMPANIES_HOUSE_REFRESH',
+      details: {
+        message: `Bulk Companies House refresh: ${results.successful.length}/${results.total} clients updated successfully`,
+        requestedClients: results.total,
+        successfulClients: results.successful.length,
+        failedClients: results.failed.length,
+        successfulClientIds: results.successful,
+        failedResults: results.failed,
+        operatedBy: session.user.name || session.user.email || 'Unknown User',
+        operatedByRole: session.user.role
+      }
+    })
 
     // Return results
     return NextResponse.json({

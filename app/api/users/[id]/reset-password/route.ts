@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { logActivityEnhanced } from '@/lib/activity-middleware'
 import bcrypt from 'bcryptjs'
 
 // Force dynamic rendering for this route since it uses session
@@ -123,6 +124,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         password: hashedPassword,
         updatedAt: new Date(),
       },
+    })
+
+    // Log password reset activity for security audit
+    await logActivityEnhanced(request, {
+      action: 'PASSWORD_RESET',
+      details: {
+        targetUserId: params.id,
+        targetUserName: existingUser.name,
+        targetUserEmail: existingUser.email,
+        targetUserRole: existingUser.role,
+        resetBy: session.user.name || session.user.email || 'Unknown User',
+        resetByRole: session.user.role,
+        emailSent: sendEmail,
+        passwordConfig: {
+          length: passwordConfig.length,
+          includeUppercase: passwordConfig.includeUppercase,
+          includeLowercase: passwordConfig.includeLowercase,
+          includeNumbers: passwordConfig.includeNumbers,
+          includeSymbols: passwordConfig.includeSymbols
+        },
+        message: `Password reset for ${existingUser.name} (${existingUser.email})`,
+        securityNote: 'Temporary password generated and user must change on next login'
+      }
     })
 
     // TODO: Implement email sending functionality
