@@ -126,7 +126,7 @@ export function SendEmailModal({
       accounts: workflowType === 'ltd' && workflowData ? {
         filingPeriod: workflowData.filingPeriodStart && workflowData.filingPeriodEnd ? 
           `${workflowData.filingPeriodStart}_to_${workflowData.filingPeriodEnd}` : '',
-        yearEndDate: workflowData.filingPeriodEnd ? new Date(workflowData.filingPeriodEnd) : null,
+        yearEndDate: client.nextYearEnd ? new Date(client.nextYearEnd) : null, // Use official Companies House year end date
         accountsDueDate: workflowData.accountsDueDate ? new Date(workflowData.accountsDueDate) : null,
         corporationTaxDueDate: workflowData.ctDueDate ? new Date(workflowData.ctDueDate) : null,
         currentStage: workflowData.currentStage || '',
