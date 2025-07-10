@@ -44,7 +44,7 @@ import {
 import { 
   ChevronDown, 
   ChevronRight, 
-  ChevronUp,
+  ChevronUp, 
   Plus, 
   Calendar, 
   User, 
@@ -664,13 +664,6 @@ export function LtdCompaniesDeadlinesTable({
         icon: <Eye className="h-4 w-4" />
       },
       { 
-        id: 'PARTNER_APPROVED', 
-        date: workflow.partnerApprovedDate, 
-        user: workflow.partnerApprovedByUserName,
-        label: 'Partner Approved',
-        icon: <CheckCircle className="h-4 w-4" />
-      },
-      { 
         id: 'REVIEW_COMPLETED', 
         date: workflow.reviewCompletedDate, 
         user: workflow.reviewCompletedByUserName,
@@ -690,6 +683,13 @@ export function LtdCompaniesDeadlinesTable({
         user: workflow.clientApprovedByUserName,
         label: 'Client Approved',
         icon: <UserCheck className="h-4 w-4" />
+      },
+      { 
+        id: 'PARTNER_APPROVED', 
+        date: workflow.partnerApprovedDate, 
+        user: workflow.partnerApprovedByUserName,
+        label: 'Partner Approved',
+        icon: <CheckCircle className="h-4 w-4" />
       },
       { 
         id: 'FILED_TO_COMPANIES_HOUSE', 
@@ -831,7 +831,8 @@ export function LtdCompaniesDeadlinesTable({
       }
     }
 
-    const stage = WORKFLOW_STAGES.find(s => s.key === workflow.currentStage)
+    // Use ALL_WORKFLOW_STAGES for proper stage lookup including excluded stages
+    const stage = ALL_WORKFLOW_STAGES.find(s => s.key === workflow.currentStage)
     return stage || { 
       label: workflow.currentStage, 
       icon: <Clock className="h-4 w-4" />, 
@@ -930,8 +931,9 @@ export function LtdCompaniesDeadlinesTable({
       return
     }
 
-    const currentStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === selectedClient.currentLtdAccountsWorkflow?.currentStage)
-    const newStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === stageKey)
+    // Use ALL_WORKFLOW_STAGES for proper stage index comparison
+    const currentStageIndex = ALL_WORKFLOW_STAGES.findIndex(s => s.key === selectedClient.currentLtdAccountsWorkflow?.currentStage)
+    const newStageIndex = ALL_WORKFLOW_STAGES.findIndex(s => s.key === stageKey)
     
     // If trying to move backwards, show confirmation
     if (currentStageIndex !== -1 && newStageIndex < currentStageIndex) {
@@ -1963,10 +1965,20 @@ export function LtdCompaniesDeadlinesTable({
                 </SelectTrigger>
                 <SelectContent>
                   {WORKFLOW_STAGES.map((stage) => {
-                    const currentStageIndex = WORKFLOW_STAGES.findIndex(s => s.key === selectedClient?.currentLtdAccountsWorkflow?.currentStage)
-                    const stageIndex = WORKFLOW_STAGES.findIndex(s => s.key === stage.key)
+                    // Use ALL_WORKFLOW_STAGES for proper completion status calculation
+                    const currentStageIndex = ALL_WORKFLOW_STAGES.findIndex(s => s.key === selectedClient?.currentLtdAccountsWorkflow?.currentStage)
+                    const stageIndex = ALL_WORKFLOW_STAGES.findIndex(s => s.key === stage.key)
                     const isCompletedStage = currentStageIndex !== -1 && stageIndex < currentStageIndex
                     const isCurrentStage = stage.key === selectedClient?.currentLtdAccountsWorkflow?.currentStage
+                    
+                    // Role-based restrictions for SUBMISSION_APPROVED_PARTNER
+                    const isRestrictedStage = stage.key === 'SUBMISSION_APPROVED_PARTNER'
+                    const canAccessRestrictedStage = session?.user?.role === 'MANAGER' || session?.user?.role === 'PARTNER'
+                    
+                    // Skip restricted stages for non-authorized users
+                    if (isRestrictedStage && !canAccessRestrictedStage) {
+                      return null
+                    }
                     
                     return (
                       <SelectItem 
@@ -2001,6 +2013,11 @@ export function LtdCompaniesDeadlinesTable({
                           {isCompletedStage && !isCurrentStage && (
                             <Badge variant="outline" className="ml-auto text-xs text-gray-400 border-gray-300">
                               ✅ COMPLETED
+                            </Badge>
+                          )}
+                          {isRestrictedStage && canAccessRestrictedStage && (
+                            <Badge variant="outline" className="ml-auto text-xs text-purple-600 border-purple-300">
+                              🔒 MANAGER+
                             </Badge>
                           )}
                         </div>
@@ -2222,9 +2239,9 @@ export function LtdCompaniesDeadlinesTable({
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-amber-800">Stage Change Warning</p>
                   <p className="text-xs text-amber-700">
-                    Current: {WORKFLOW_STAGES.find(s => s.key === selectedClient?.currentLtdAccountsWorkflow?.currentStage)?.label}
+                    Current: {ALL_WORKFLOW_STAGES.find(s => s.key === selectedClient?.currentLtdAccountsWorkflow?.currentStage)?.label}
                     <br />
-                    Moving to: {WORKFLOW_STAGES.find(s => s.key === selectedStage)?.label}
+                    Moving to: {ALL_WORKFLOW_STAGES.find(s => s.key === selectedStage)?.label}
                   </p>
                 </div>
               </div>
