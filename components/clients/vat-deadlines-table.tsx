@@ -357,25 +357,22 @@ export function VATDeadlinesTable({
     try {
       setLoading(true)
       
-      // PERFORMANCE: Add pagination and filtering parameters
+      // PERFORMANCE FIX: Remove month filtering from API - fetch ALL VAT clients once
+      // Then filter client-side for instant month switching
       const params = new URLSearchParams()
       if (forceRefresh) {
         params.append('_t', Date.now().toString())
       }
       
-      // Add pagination parameters
-      const page = 1 // Start with page 1
-      const limit = 50 // Limit to 50 clients per page
+      // PERFORMANCE: Fetch all data at once for client-side filtering
+      // Remove month-specific filtering from API call
+      const page = 1
+      const limit = 200 // Increased limit to get all clients in one request
       params.append('page', page.toString())
       params.append('limit', limit.toString())
       
-      // Add month filter if specific month is selected
-      if (activeMonth && activeMonth !== 'all') {
-        params.append('month', activeMonth)
-      }
-      
       const response = await fetch(`/api/clients/vat-clients?${params.toString()}`, {
-        // PERFORMANCE: Add caching headers for better performance
+        // PERFORMANCE: Cache for better UX but allow force refresh for real data
         ...(forceRefresh ? {
           headers: {
             'Cache-Control': 'no-cache',
@@ -383,7 +380,7 @@ export function VATDeadlinesTable({
           }
         } : {
           headers: {
-            'Cache-Control': 'public, max-age=30', // Cache for 30 seconds for better UX
+            'Cache-Control': 'public, max-age=60', // Cache for 1 minute for better UX
           }
         })
       })
@@ -397,9 +394,9 @@ export function VATDeadlinesTable({
       if (data.success) {
         setVatClients(data.clients || [])
         
-        // PERFORMANCE: Log pagination info in development
-        if (process.env.NODE_ENV === 'development' && data.pagination) {
-          console.log(`📊 VAT Clients loaded: ${data.clients?.length || 0} clients (${data.pagination.totalCount} total)`)
+        // PERFORMANCE: Log data fetching in development
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`📊 VAT Clients loaded: ${data.clients?.length || 0} clients (all data fetched for client-side filtering)`)
         }
       } else {
         throw new Error(data.error || 'Failed to fetch VAT clients')
@@ -410,7 +407,7 @@ export function VATDeadlinesTable({
     } finally {
       setLoading(false)
     }
-  }, [activeMonth]) // Add activeMonth as dependency
+  }, []) // PERFORMANCE FIX: Remove activeMonth dependency - fetch all data once
 
   // PERFORMANCE: Debounced API calls to prevent excessive requests
   const debouncedFetchVATClients = useCallback(
@@ -420,6 +417,7 @@ export function VATDeadlinesTable({
     [fetchVATClients]
   )
 
+  // PERFORMANCE FIX: Only fetch data on mount or manual refresh
   useEffect(() => {
     debouncedFetchVATClients()
     
@@ -427,7 +425,7 @@ export function VATDeadlinesTable({
     return () => {
       debouncedFetchVATClients.cancel()
     }
-  }, [debouncedFetchVATClients])
+  }, [debouncedFetchVATClients]) // Remove activeMonth dependency
 
   // PERFORMANCE: Memoize expensive filtering operations
   const filteredVATClients = useMemo(() => {
@@ -1720,16 +1718,25 @@ export function VATDeadlinesTable({
                   <p className="text-xs md:text-sm text-muted-foreground">
                     Track and manage VAT filing deadlines for all VAT-enabled clients
                   </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    ⚡ Instant month switching • Real-time data • Optimized performance
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    Live Data
+                  </Badge>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => fetchVATClients(true)}
+                    onClick={() => {
+                      showToast.success('Fetching latest VAT data...')
+                      fetchVATClients(true)
+                    }}
                     disabled={loading}
                   >
                     <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh Data
+                    {loading ? 'Refreshing...' : 'Refresh Data'}
                   </Button>
                 </div>
               </div>
@@ -1986,7 +1993,17 @@ export function VATDeadlinesTable({
             {/* Monthly Tabs */}
             <Card>
               <CardContent className="p-0">
-                <Tabs value={activeMonth} onValueChange={setActiveMonth} className="w-full">
+                <Tabs 
+                  value={activeMonth} 
+                  onValueChange={(newMonth) => {
+                    // PERFORMANCE: Instant month switching with visual feedback
+                    setActiveMonth(newMonth)
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log(`📅 Month switched to ${newMonth} (instant client-side filtering)`)
+                    }
+                  }} 
+                  className="w-full"
+                >
                   <div className="border-b px-6 py-4">
                     <TabsList className="grid grid-cols-6 lg:grid-cols-12 gap-1 h-auto p-1">
                       {MONTHS.map((month) => {

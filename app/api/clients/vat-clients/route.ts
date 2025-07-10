@@ -58,8 +58,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const monthFilter = searchParams.get('month')
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '25') // Reduced from unlimited
+    const limit = parseInt(searchParams.get('limit') || '25')
     const skip = (page - 1) * limit
+    
+    // PERFORMANCE OPTIMIZATION: For high limits (>100), fetch all data without pagination
+    // This optimizes for client-side filtering approach where all data is fetched once
+    const fetchAll = limit >= 100
+    const actualLimit = fetchAll ? undefined : limit
+    const actualSkip = fetchAll ? undefined : skip
     
     // Build where clause for VAT-enabled clients only
     const whereClause = {
@@ -67,7 +73,8 @@ export async function GET(request: NextRequest) {
       isActive: true
     }
 
-    // PERFORMANCE OPTIMIZATION: Get total count and paginated results in parallel
+    // PERFORMANCE OPTIMIZATION: Get total count and clients
+    // For fetchAll mode, skip count query to improve performance
     const [vatClients, totalCount] = await Promise.all([
       // Fetch VAT clients with OPTIMIZED query structure
       db.client.findMany({
@@ -86,8 +93,8 @@ export async function GET(request: NextRequest) {
           isVatEnabled: true,
           createdAt: true,
           
-          // OPTIMIZED: Limit VAT quarters to reduce data load
-          // Only fetch recent quarters (last 3) + current active quarter
+          // OPTIMIZED: Get ALL VAT quarters for client-side month filtering
+          // Remove limit when fetching all data for better client-side performance
           vatQuartersWorkflow: {
             select: {
               id: true,
@@ -126,19 +133,19 @@ export async function GET(request: NextRequest) {
             orderBy: {
               quarterEndDate: 'desc'
             },
-            take: 4 // PERFORMANCE: Limit to 4 most recent quarters
+            ...(fetchAll ? {} : { take: 4 }) // Include all quarters when fetching all data
           }
         },
         orderBy: [
           { nextVatReturnDue: 'asc' },
           { companyName: 'asc' }
         ],
-        skip,
-        take: limit
+        ...(actualSkip !== undefined && { skip: actualSkip }),
+        ...(actualLimit !== undefined && { take: actualLimit })
       }),
       
-      // Get total count for pagination
-      db.client.count({ where: whereClause })
+      // Skip count query for fetchAll mode to improve performance
+      fetchAll ? Promise.resolve(0) : db.client.count({ where: whereClause })
     ])
 
     // PERFORMANCE OPTIMIZATION: Calculate additional quarters on-demand
@@ -182,22 +189,35 @@ export async function GET(request: NextRequest) {
       return client
     })
 
-    // Calculate pagination info
-    const totalPages = Math.ceil(totalCount / limit)
-    const hasNextPage = page < totalPages
-    const hasPreviousPage = page > 1
+    // PERFORMANCE: Log data fetch info for monitoring
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🚀 VAT Clients API: Fetched ${processedClients.length} clients ${fetchAll ? '(ALL DATA MODE)' : '(PAGINATED MODE)'} in response`)
+    }
+
+    // Calculate pagination info (only for non-fetchAll mode)
+    const actualTotalCount = fetchAll ? processedClients.length : totalCount
+    const totalPages = fetchAll ? 1 : Math.ceil(totalCount / limit)
+    const hasNextPage = fetchAll ? false : page < totalPages
+    const hasPreviousPage = fetchAll ? false : page > 1
 
     return NextResponse.json({
       success: true,
       clients: processedClients,
-      pagination: {
-        currentPage: page,
-        totalPages,
-        totalCount,
-        hasNextPage,
-        hasPreviousPage,
-        pageSize: limit
-      },
+      ...(fetchAll ? {
+        // For fetchAll mode, indicate all data was fetched
+        totalCount: processedClients.length,
+        fetchMode: 'all'
+      } : {
+        // Standard pagination info for paginated mode
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalCount,
+          hasNextPage,
+          hasPreviousPage,
+          pageSize: limit
+        }
+      }),
       performance: {
         clientsReturned: processedClients.length,
         totalClientsInDatabase: totalCount,
