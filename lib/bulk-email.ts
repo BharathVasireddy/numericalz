@@ -1,7 +1,9 @@
-import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
-import { logActivityEnhanced } from '@/lib/activity-middleware'
 import { emailService } from '@/lib/email-service'
+import { processEmailVariables } from '@/lib/email-variables'
+import { logActivityEnhanced } from '@/lib/activity-middleware'
+import type { NextRequest } from 'next/server'
+import { createOptimizedEmailTemplate, analyzeEmailContent } from '@/lib/email-optimization'
 
 interface VATQuarterWithClient {
   id: string
@@ -99,15 +101,28 @@ export async function sendBulkVATEmails({
         emailBody = emailBody.replace(new RegExp(placeholder, 'g'), value)
       })
 
+      // 🔧 GMAIL OPTIMIZATION: Optimize email content to prevent clipping
+      const optimizedHtmlContent = await createOptimizedEmailTemplate(emailBody, {
+        subject: emailSubject,
+        companyName: 'Numericalz'
+      })
+
+      // Analyze email content for optimization insights
+      const analysis = analyzeEmailContent(optimizedHtmlContent)
+      if (!analysis.isOptimal) {
+        console.warn(`📧 Bulk VAT Email: ${analysis.suggestions.join(', ')}`)
+      }
+
       // Send email
       const emailResult = await emailService.sendEmail({
         to: [{ email: quarter.client.contactEmail, name: quarter.client.companyName }],
         subject: emailSubject,
-        htmlContent: emailBody,
-        emailType: 'VAT_BULK_EMAIL', // This will get importance headers
+        htmlContent: optimizedHtmlContent,
+        emailType: 'VAT_BULK_EMAIL',
         clientId: quarter.client.id,
         workflowType: 'VAT',
-        templateId: template.id,
+        workflowId: quarter.id,
+        templateId: templateId,
         templateData: emailVariables
       })
 
@@ -244,15 +259,28 @@ export async function sendBulkLtdEmails({
         emailBody = emailBody.replace(new RegExp(placeholder, 'g'), value)
       })
 
+      // 🔧 GMAIL OPTIMIZATION: Optimize email content to prevent clipping
+      const optimizedHtmlContent = await createOptimizedEmailTemplate(emailBody, {
+        subject: emailSubject,
+        companyName: 'Numericalz'
+      })
+
+      // Analyze email content for optimization insights
+      const analysis = analyzeEmailContent(optimizedHtmlContent)
+      if (!analysis.isOptimal) {
+        console.warn(`📧 Bulk LTD Email: ${analysis.suggestions.join(', ')}`)
+      }
+
       // Send email
       const emailResult = await emailService.sendEmail({
         to: [{ email: client.contactEmail, name: client.companyName }],
         subject: emailSubject,
-        htmlContent: emailBody,
-        emailType: 'LTD_BULK_EMAIL', // This will get importance headers
+        htmlContent: optimizedHtmlContent,
+        emailType: 'LTD_BULK_EMAIL',
         clientId: client.id,
         workflowType: 'LTD',
-        templateId: template.id,
+        workflowId: client.id,
+        templateId: templateId,
         templateData: emailVariables
       })
 

@@ -36,53 +36,85 @@ export function SendEmailModal({
 }: SendEmailModalProps) {
   const { data: session } = useSession()
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null)
-  const [previewContent, setPreviewContent] = useState('')
+  const [customSubject, setCustomSubject] = useState('')
+  const [customMessage, setCustomMessage] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
   const [previewSubject, setPreviewSubject] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [sending, setSending] = useState(false)
+  const [previewContent, setPreviewContent] = useState('')
+  
+  // 🔧 FIX: Add state for fresh client data to ensure latest email is used
+  const [freshClientData, setFreshClientData] = useState<any>(null)
+  const [isFetchingFreshData, setIsFetchingFreshData] = useState(false)
 
-  // Load templates when modal opens
+  // Fetch email templates
   useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const response = await fetch('/api/communication/templates')
+        if (response.ok) {
+          const data = await response.json()
+          setTemplates(data.templates || [])
+        }
+      } catch (error) {
+        console.error('Error fetching templates:', error)
+      }
+    }
+
     if (open) {
       fetchTemplates()
     }
   }, [open])
 
-  // Update preview when template selection changes
+  // 🔧 FIX: Fetch fresh client data when modal opens to get latest email
   useEffect(() => {
-    if (selectedTemplateId && templates.length > 0) {
-      const template = templates.find(t => t.id === selectedTemplateId)
-      if (template) {
-        setSelectedTemplate(template)
-        generatePreview(template)
+    const fetchFreshClientData = async () => {
+      if (!open || !client?.id) return
+      
+      setIsFetchingFreshData(true)
+      try {
+        console.log('📧 Fetching fresh client data for email modal...')
+        const response = await fetch(`/api/clients/${client.id}`, {
+          headers: { 'Cache-Control': 'no-cache' }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.client) {
+            setFreshClientData(data.client)
+            console.log('✅ Fresh client data loaded:', {
+              oldEmail: client.contactEmail,
+              newEmail: data.client.contactEmail,
+              emailChanged: client.contactEmail !== data.client.contactEmail
+            })
+          }
+        }
+      } catch (error) {
+        console.warn('Could not fetch fresh client data:', error)
+        // Fallback to original client data
+        setFreshClientData(client)
+      } finally {
+        setIsFetchingFreshData(false)
       }
     }
-  }, [selectedTemplateId, templates, client, workflowData])
 
-  const fetchTemplates = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch('/api/communication/templates')
-      if (response.ok) {
-        const data = await response.json()
-        setTemplates(data.templates || [])
-      }
-    } catch (error) {
-      console.error('Error fetching templates:', error)
-      toast({
-        title: "Error",
-        description: "Failed to load email templates",
-        variant: "destructive"
-      })
-    } finally {
-      setLoading(false)
+    fetchFreshClientData()
+  }, [open, client?.id])
+
+  // Handle template selection
+  const handleTemplateSelect = (templateId: string) => {
+    const template = templates.find(t => t.id === templateId)
+    if (template) {
+      setSelectedTemplate(template)
+      generatePreview(template)
     }
   }
 
+  // Use fresh client data if available, otherwise fall back to original
+  const activeClient = freshClientData || client
+
   const generatePreview = (template: EmailTemplate) => {
-    if (!client || !template) return
+    if (!activeClient || !template) return
 
     // Validate template has required properties
     if (!template.subject && !template.htmlContent) {
@@ -92,17 +124,17 @@ export function SendEmailModal({
       return
     }
 
-    // Prepare data for variable processing
+    // Prepare data for variable processing using fresh client data
     const emailData = {
       client: {
-        companyName: client.companyName || '',
-        clientCode: client.clientCode || '',
-        companyNumber: client.companyNumber || '',
-        vatNumber: client.vatNumber || '',
-        contactName: client.contactName || '',
-        email: client.contactEmail || '',
-        phone: client.phone || '',
-        assignedUser: client.assignedUser || client.ltdCompanyAssignedUser || client.currentVATQuarter?.assignedUser
+        companyName: activeClient.companyName || '',
+        clientCode: activeClient.clientCode || '',
+        companyNumber: activeClient.companyNumber || '',
+        vatNumber: activeClient.vatNumber || '',
+        contactName: activeClient.contactName || '',
+        email: activeClient.contactEmail || '', // Use fresh email data
+        phone: activeClient.phone || '',
+        assignedUser: activeClient.assignedUser || activeClient.ltdCompanyAssignedUser || activeClient.currentVATQuarter?.assignedUser
       },
       user: session?.user ? {
         name: session.user.name || '',
@@ -148,7 +180,7 @@ export function SendEmailModal({
   }
 
   const handleSendEmail = async () => {
-    if (!selectedTemplate || !client?.contactEmail) {
+    if (!selectedTemplate || !activeClient?.contactEmail) {
       toast({
         title: "Error",
         description: "Please select a template and ensure client has an email address",
@@ -158,7 +190,7 @@ export function SendEmailModal({
     }
 
     try {
-      setSending(true)
+      setIsLoading(true)
       
       const response = await fetch('/api/communication/send-email', {
         method: 'POST',
@@ -166,10 +198,10 @@ export function SendEmailModal({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          to: client.contactEmail,
+          to: activeClient.contactEmail,
           subject: previewSubject,
           htmlContent: previewContent,
-          clientId: client.id,
+          clientId: activeClient.id,
           templateId: selectedTemplate.id
         })
       })
@@ -177,12 +209,11 @@ export function SendEmailModal({
       if (response.ok) {
         toast({
           title: "Success",
-          description: `Email sent successfully to ${client.contactEmail}`,
+          description: `Email sent successfully to ${activeClient.contactEmail}`,
           variant: "default"
         })
         onOpenChange(false)
         // Reset form
-        setSelectedTemplateId('')
         setSelectedTemplate(null)
         setPreviewContent('')
         setPreviewSubject('')
@@ -198,7 +229,7 @@ export function SendEmailModal({
         variant: "destructive"
       })
     } finally {
-      setSending(false)
+      setIsLoading(false)
     }
   }
 
@@ -208,10 +239,10 @@ export function SendEmailModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
-            Send Email to {client?.companyName}
+            Send Email to {activeClient?.companyName}
           </DialogTitle>
           <DialogDescription>
-            Select a template and preview the email before sending to {client?.contactEmail}
+            Select a template and preview the email before sending to {activeClient?.contactEmail}
           </DialogDescription>
         </DialogHeader>
 
@@ -220,12 +251,12 @@ export function SendEmailModal({
           <div className="space-y-2">
             <Label htmlFor="template-select">Select Email Template</Label>
             <Select 
-              value={selectedTemplateId} 
-              onValueChange={setSelectedTemplateId}
-              disabled={loading}
+              value={selectedTemplate?.id} 
+              onValueChange={handleTemplateSelect}
+              disabled={isLoading}
             >
               <SelectTrigger id="template-select">
-                <SelectValue placeholder={loading ? "Loading templates..." : "Choose a template"} />
+                <SelectValue placeholder={isLoading ? "Loading templates..." : "Choose a template"} />
               </SelectTrigger>
               <SelectContent>
                 {templates.map((template) => (
@@ -276,16 +307,16 @@ export function SendEmailModal({
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)}
-            disabled={sending}
+            disabled={isLoading}
           >
             Cancel
           </Button>
           <Button 
             onClick={handleSendEmail}
-            disabled={!selectedTemplate || !client?.contactEmail || sending}
+            disabled={!selectedTemplate || !activeClient?.contactEmail || isLoading}
             className="flex items-center gap-2"
           >
-            {sending ? (
+            {isLoading ? (
               <>
                 <RefreshCw className="h-4 w-4 animate-spin" />
                 Sending...

@@ -289,7 +289,7 @@ class EmailService {
           bcc: params.bcc,
           replyTo: params.replyTo || { email: emailSettings.replyToEmail, name: emailSettings.senderName },
           subject: params.subject,
-          htmlContent: this.wrapWithCleanTemplate(params.htmlContent),
+          htmlContent: await this.wrapWithCleanTemplate(params.htmlContent),
           textContent: params.textContent || this.htmlToText(params.htmlContent),
           headers: emailHeaders
         }),
@@ -756,58 +756,88 @@ class EmailService {
    * Wrap HTML content with clean, clipping-resistant template
    * Reduces Gmail truncation by using minimal HTML structure
    */
-  private wrapWithCleanTemplate(htmlContent: string): string {
-    return `
-<!DOCTYPE html>
+  private async wrapWithCleanTemplate(htmlContent: string): Promise<string> {
+    // Gmail clips emails over 102KB. Aim for under 80KB to be safe.
+    const MAX_EMAIL_SIZE = 80 * 1024 // 80KB
+    
+    // Get email signature from settings
+    const emailSettings = await this.getEmailSettings()
+    const signature = emailSettings.emailSignature
+    
+    // Minimal HTML structure to prevent clipping with signature
+    const wrappedHtml = `<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { 
-      font-family: Arial, sans-serif; 
-      line-height: 1.6; 
-      color: #333; 
-      margin: 0; 
-      padding: 20px;
-      background: #f9f9f9;
-    }
-    .container { 
-      max-width: 600px; 
-      margin: 0 auto; 
-      background: white; 
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .content { 
-      line-height: 1.6; 
-    }
-    .footer { 
-      margin-top: 30px; 
-      padding-top: 20px; 
-      border-top: 1px solid #eee; 
-      text-align: center; 
-      color: #666; 
-      font-size: 12px; 
-    }
-    a { color: #0066cc; }
-    h1, h2, h3 { color: #333; }
-    p { margin: 16px 0; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:20px;background:#f9f9f9}
+.container{max-width:600px;margin:0 auto;background:#fff;padding:30px;border-radius:8px}
+.content{line-height:1.6}
+.signature{margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb}
+.footer{margin-top:30px;padding-top:20px;border-top:1px solid #eee;text-align:center;color:#666;font-size:12px}
+a{color:#0066cc}
+h1,h2,h3{color:#333;margin:20px 0 10px}
+p{margin:16px 0}
+</style>
 </head>
 <body>
-  <div class="container">
-    <div class="content">
-      ${htmlContent}
-    </div>
-    <div class="footer">
-      <p>Numericalz Internal Management System</p>
-    </div>
-  </div>
+<div class="container">
+<div class="content">
+${htmlContent}
+${signature ? `<div class="signature">${signature}</div>` : ''}
+</div>
+<div class="footer">
+<p>Numericalz Internal Management System</p>
+</div>
+</div>
 </body>
-</html>
-    `.trim()
+</html>`
+
+    // Check email size and truncate if necessary
+    const emailSize = new Blob([wrappedHtml]).size
+    
+    if (emailSize > MAX_EMAIL_SIZE) {
+      console.warn(`📧 Email Service: Email size (${Math.round(emailSize/1024)}KB) exceeds Gmail limit. Truncating content.`)
+      
+      // Calculate how much content we can safely include (reserve space for signature)
+      const signatureSize = signature ? new Blob([signature]).size : 0
+      const maxContentSize = MAX_EMAIL_SIZE - 1500 - signatureSize // Reserve space for wrapper HTML + signature
+      const truncatedContent = htmlContent.substring(0, maxContentSize) + 
+        '\n\n<p><em>[Email content truncated to prevent Gmail clipping. Full content available in your dashboard.]</em></p>'
+      
+      return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:20px;background:#f9f9f9}
+.container{max-width:600px;margin:0 auto;background:#fff;padding:30px;border-radius:8px}
+.content{line-height:1.6}
+.signature{margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb}
+.footer{margin-top:30px;padding-top:20px;border-top:1px solid #eee;text-align:center;color:#666;font-size:12px}
+a{color:#0066cc}
+h1,h2,h3{color:#333;margin:20px 0 10px}
+p{margin:16px 0}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="content">
+${truncatedContent}
+${signature ? `<div class="signature">${signature}</div>` : ''}
+</div>
+<div class="footer">
+<p>Numericalz Internal Management System</p>
+</div>
+</div>
+</body>
+</html>`
+    }
+    
+    console.log(`📧 Email Service: Email optimized for Gmail: ${Math.round(emailSize/1024)}KB`)
+    return wrappedHtml
   }
 
   /**

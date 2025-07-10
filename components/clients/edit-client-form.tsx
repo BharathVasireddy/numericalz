@@ -265,7 +265,32 @@ export function EditClientForm({ client }: EditClientFormProps) {
 
       const data = await response.json()
 
-      if (data.success) {
+              if (data.success) {
+          // 🔧 FIX: Force refresh VAT and Ltd tables if email was updated
+          // This ensures the deadline tables see the updated email immediately
+          const emailChanged = formData.contactEmail !== client.contactEmail
+          if (emailChanged) {
+            console.log('📧 Email updated - invalidating table caches...')
+            
+            // Force refresh VAT clients cache
+            try {
+              await fetch('/api/clients/vat-clients?_refresh=' + Date.now(), {
+                headers: { 'Cache-Control': 'no-cache' }
+              })
+            } catch (error) {
+              console.warn('Could not refresh VAT clients cache:', error)
+            }
+            
+            // Force refresh Ltd deadlines cache
+            try {
+              await fetch('/api/clients/ltd-deadlines?_refresh=' + Date.now(), {
+                headers: { 'Cache-Control': 'no-cache' }
+              })
+            } catch (error) {
+              console.warn('Could not refresh Ltd deadlines cache:', error)
+            }
+          }
+        
         showToast.success('Client updated successfully')
         router.push('/dashboard/clients')
         router.refresh()

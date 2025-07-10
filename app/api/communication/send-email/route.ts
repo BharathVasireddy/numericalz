@@ -12,6 +12,91 @@ const SendEmailSchema = z.object({
   templateId: z.string().min(1, 'Template ID is required')
 })
 
+// 🔧 GMAIL OPTIMIZATION: Helper functions to prevent email clipping
+function stripHtmlTags(html: string): string {
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+}
+
+function optimizeEmailForGmail(htmlContent: string, subject: string, signature?: string): string {
+  // Gmail clips emails over 102KB. We'll aim for under 80KB to be safe.
+  const MAX_EMAIL_SIZE = 80 * 1024 // 80KB in bytes
+  
+  // Create minimal, clipping-resistant HTML structure with signature
+  const optimizedHtml = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:20px;background:#f9f9f9}
+.container{max-width:600px;margin:0 auto;background:#fff;padding:30px;border-radius:8px}
+.content{line-height:1.6}
+.signature{margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb}
+.footer{margin-top:30px;padding-top:20px;border-top:1px solid #eee;text-align:center;color:#666;font-size:12px}
+a{color:#0066cc}
+h1,h2,h3{color:#333;margin:20px 0 10px}
+p{margin:16px 0}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="content">
+${htmlContent}
+${signature ? `<div class="signature">${signature}</div>` : ''}
+</div>
+<div class="footer">
+<p>Numericalz - UK Accounting Services</p>
+</div>
+</div>
+</body>
+</html>`
+
+  // Check size and truncate if necessary
+  const emailSize = new Blob([optimizedHtml]).size
+  
+  if (emailSize > MAX_EMAIL_SIZE) {
+    console.warn(`📧 Email size (${Math.round(emailSize/1024)}KB) exceeds Gmail limit. Truncating content.`)
+    
+    // Calculate available space for content (reserve space for signature)
+    const signatureSize = signature ? new Blob([signature]).size : 0
+    const maxContentSize = MAX_EMAIL_SIZE - 2000 - signatureSize // Reserve space for wrapper + signature
+    const truncatedContent = htmlContent.substring(0, maxContentSize) + 
+      '\n\n<p><em>[Email content truncated to prevent Gmail clipping. Please view full content in your dashboard.]</em></p>'
+    
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:20px;background:#f9f9f9}
+.container{max-width:600px;margin:0 auto;background:#fff;padding:30px;border-radius:8px}
+.content{line-height:1.6}
+.signature{margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb}
+.footer{margin-top:30px;padding-top:20px;border-top:1px solid #eee;text-align:center;color:#666;font-size:12px}
+a{color:#0066cc}
+h1,h2,h3{color:#333;margin:20px 0 10px}
+p{margin:16px 0}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="content">
+${truncatedContent}
+${signature ? `<div class="signature">${signature}</div>` : ''}
+</div>
+<div class="footer">
+<p>Numericalz - UK Accounting Services</p>
+</div>
+</div>
+</body>
+</html>`
+  }
+  
+  console.log(`📧 Email optimized for Gmail: ${Math.round(emailSize/1024)}KB (Subject: ${subject.substring(0, 50)}...)`)
+  return optimizedHtml
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('📧 Send Email API: Starting request processing')
@@ -161,53 +246,10 @@ export async function POST(request: NextRequest) {
             name: senderName
           },
           subject: validatedData.subject,
-          htmlContent: `
-            <html>
-              <head>
-                <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-                <style>
-                  body { 
-                    font-family: 'Plus Jakarta Sans', Arial, sans-serif; 
-                    line-height: 1.6; 
-                    color: #374151; 
-                    margin: 0; 
-                    padding: 0; 
-                  }
-                  .email-container { 
-                    max-width: 600px; 
-                    margin: 0 auto; 
-                    background: #ffffff; 
-                  }
-                  .content { 
-                    padding: 20px; 
-                  }
-                  h1, h2, h3, h4, h5, h6 { 
-                    font-family: 'Plus Jakarta Sans', Arial, sans-serif; 
-                    color: #1f2937; 
-                  }
-                  p { 
-                    margin-bottom: 16px; 
-                  }
-                  .signature { 
-                    margin-top: 24px; 
-                    border-top: 1px solid #e5e7eb; 
-                    padding-top: 16px; 
-                  }
-                </style>
-              </head>
-              <body>
-                <div class="email-container">
-                  <div class="content">
-                    ${validatedData.htmlContent}
-                    ${emailSignature ? `<div class="signature">${emailSignature}</div>` : ''}
-                  </div>
-                </div>
-              </body>
-            </html>
-          `,
+          htmlContent: optimizeEmailForGmail(validatedData.htmlContent, validatedData.subject, emailSignature),
           textContent: emailSignature 
-            ? `${validatedData.htmlContent.replace(/<[^>]*>/g, '')}\n\n${emailSignature.replace(/<[^>]*>/g, '')}`
-            : validatedData.htmlContent.replace(/<[^>]*>/g, ''),
+            ? `${stripHtmlTags(validatedData.htmlContent)}\n\n${stripHtmlTags(emailSignature)}`
+            : stripHtmlTags(validatedData.htmlContent),
           headers: {
             'X-Mailer': 'Numericalz Internal Management System',
             'Reply-To': replyToEmail,
