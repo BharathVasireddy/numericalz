@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -79,6 +80,7 @@ import { AdvancedFilterModal } from './advanced-filter-modal'
 import { WorkflowSkipWarningDialog } from '@/components/ui/workflow-skip-warning-dialog'
 import { validateStageTransition, getSelectableStages } from '@/lib/workflow-validation'
 import { SendEmailModal } from './send-email-modal'
+import { DeadlinesBulkOperations } from './deadlines-bulk-operations'
 
 
 interface LtdAccountsWorkflow {
@@ -271,6 +273,9 @@ export function LtdCompaniesDeadlinesTable({
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false)
   const [advancedFilter, setAdvancedFilter] = useState<AdvancedFilter | null>(null)
   
+  // Bulk operations state
+  const [selectedClients, setSelectedClients] = useState<string[]>([])
+  
   // Workflow skip validation states
   const [showSkipWarning, setShowSkipWarning] = useState(false)
   const [pendingStageChange, setPendingStageChange] = useState<{
@@ -462,6 +467,29 @@ export function LtdCompaniesDeadlinesTable({
 
   const clearAdvancedFilter = () => {
     setAdvancedFilter(null)
+  }
+
+  // Bulk operations handlers
+  const handleSelectClient = (clientId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedClients(prev => [...prev, clientId])
+    } else {
+      setSelectedClients(prev => prev.filter(id => id !== clientId))
+    }
+  }
+
+  const handleSelectAllClients = (checked: boolean) => {
+    if (checked) {
+      // Select ALL visible clients regardless of workflow status
+      const allVisibleClients = sortedFilteredClients.map(client => client.id)
+      setSelectedClients(allVisibleClients)
+    } else {
+      setSelectedClients([])
+    }
+  }
+
+  const handleClearSelection = () => {
+    setSelectedClients([])
   }
 
   // PERFORMANCE OPTIMIZATION: Client-side filtering for current page only
@@ -1567,6 +1595,15 @@ export function LtdCompaniesDeadlinesTable({
               </Button>
             </div>
 
+            {/* Bulk Operations */}
+            <DeadlinesBulkOperations
+              selectedItems={selectedClients}
+              users={users}
+              onClearSelection={handleClearSelection}
+              onRefreshData={() => fetchLtdClients(true)}
+              type="ltd"
+            />
+
             {/* Table */}
             <Card>
               <CardContent className="p-0">
@@ -1574,6 +1611,16 @@ export function LtdCompaniesDeadlinesTable({
                   <Table className="table-fixed w-full">
                     <TableHeader>
                       <TableRow className="border-b">
+                        {/* Bulk selection checkbox column - only for managers and partners */}
+                        {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
+                          <TableHead className="w-12 p-2 text-center">
+                            <Checkbox
+                              checked={selectedClients.length > 0 && selectedClients.length === sortedFilteredClients.length}
+                              onCheckedChange={(checked) => handleSelectAllClients(checked as boolean)}
+                              aria-label="Select all Ltd company clients"
+                            />
+                          </TableHead>
+                        )}
                         <SortableHeader column="clientCode" className="w-14 col-ltd-client-code text-center">Code</SortableHeader>
                         <SortableHeader column="companyNumber" className="w-16 col-ltd-company-number text-center">Co. No.</SortableHeader>
                         <SortableHeader column="companyName" className="w-40 col-ltd-company-name">Company Name</SortableHeader>
@@ -1590,14 +1637,14 @@ export function LtdCompaniesDeadlinesTable({
                   <TableBody className="table-compact">
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={11} className="text-center py-8">
+                        <TableCell colSpan={(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') ? 12 : 11} className="text-center py-8">
                           <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
                           Loading Ltd companies...
                         </TableCell>
                       </TableRow>
                     ) : sortedFilteredClients.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={11} className="text-center py-8">
+                        <TableCell colSpan={(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') ? 12 : 11} className="text-center py-8">
                           <div className="space-y-2">
                             <Building className="h-12 w-12 mx-auto text-muted-foreground" />
                             <p className="text-muted-foreground">No Ltd companies found</p>
@@ -1619,6 +1666,16 @@ export function LtdCompaniesDeadlinesTable({
                         <React.Fragment key={client.id}>
                           {/* Main Row */}
                           <TableRow className="hover:bg-muted/50 h-10">
+                            {/* Bulk selection checkbox - only for managers and partners */}
+                            {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
+                              <TableCell className="p-2 text-center">
+                                <Checkbox
+                                  checked={selectedClients.includes(client.id)}
+                                  onCheckedChange={(checked) => handleSelectClient(client.id, checked as boolean)}
+                                  aria-label={`Select ${client.companyName}`}
+                                />
+                              </TableCell>
+                            )}
                             <TableCell className="font-mono text-xs p-1 text-center">
                               {client.clientCode}
                             </TableCell>
@@ -1833,7 +1890,7 @@ export function LtdCompaniesDeadlinesTable({
                           {/* Expanded Row - Workflow Timeline */}
                           {expandedRows.has(rowKey) && (
                             <TableRow>
-                              <TableCell colSpan={11} className="p-0">
+                              <TableCell colSpan={(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') ? 12 : 11} className="p-0">
                                 <div className="bg-muted/20 p-4 border-t">
                                   <h4 className="font-medium mb-3 flex items-center gap-2">
                                     <Briefcase className="h-4 w-4" />

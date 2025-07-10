@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Checkbox } from '@/components/ui/checkbox'
 import { 
   Select,
   SelectContent,
@@ -81,6 +82,7 @@ import { AdvancedFilterModal } from './advanced-filter-modal'
 import { WorkflowSkipWarningDialog } from '@/components/ui/workflow-skip-warning-dialog'
 import { validateStageTransition, getSelectableStages } from '@/lib/workflow-validation'
 import { SendEmailModal } from './send-email-modal'
+import { DeadlinesBulkOperations } from './deadlines-bulk-operations'
 import debounce from 'lodash/debounce'
 
 interface VATQuarter {
@@ -333,6 +335,10 @@ export function VATDeadlinesTable({
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false)
   const [advancedFilter, setAdvancedFilter] = useState<AdvancedFilter | null>(null)
   
+  // Bulk operations state
+  const [selectedQuarters, setSelectedQuarters] = useState<string[]>([])
+  const [selectedQuartersByMonth, setSelectedQuartersByMonth] = useState<Record<string, string[]>>({})
+  
   // Workflow skip validation states
   const [showSkipWarning, setShowSkipWarning] = useState(false)
   const [pendingStageChange, setPendingStageChange] = useState<{
@@ -521,6 +527,59 @@ export function VATDeadlinesTable({
 
   const clearAdvancedFilter = () => {
     setAdvancedFilter(null)
+  }
+
+  // Bulk operations handlers
+  const handleSelectQuarter = (quarterId: string, monthNumber: number, checked: boolean) => {
+    const monthKey = monthNumber.toString()
+    
+    if (checked) {
+      setSelectedQuartersByMonth(prev => ({
+        ...prev,
+        [monthKey]: [...(prev[monthKey] || []), quarterId]
+      }))
+      setSelectedQuarters(prev => [...prev, quarterId])
+    } else {
+      setSelectedQuartersByMonth(prev => ({
+        ...prev,
+        [monthKey]: (prev[monthKey] || []).filter(id => id !== quarterId)
+      }))
+      setSelectedQuarters(prev => prev.filter(id => id !== quarterId))
+    }
+  }
+
+  const handleSelectAllInMonth = (monthNumber: number, checked: boolean) => {
+    const monthKey = monthNumber.toString()
+    const monthClients = getClientsForMonth(monthNumber)
+    // Select ALL quarters regardless of applicability - no filtering
+    const allQuarters = monthClients
+      .map(client => getQuarterForMonth(client, monthNumber))
+      .filter(quarter => quarter !== null)
+      .map(quarter => quarter!.id)
+
+    if (checked) {
+      setSelectedQuartersByMonth(prev => ({
+        ...prev,
+        [monthKey]: allQuarters
+      }))
+      setSelectedQuarters(prev => [...prev.filter(id => !allQuarters.includes(id)), ...allQuarters])
+    } else {
+      setSelectedQuartersByMonth(prev => ({
+        ...prev,
+        [monthKey]: []
+      }))
+      setSelectedQuarters(prev => prev.filter(id => !allQuarters.includes(id)))
+    }
+  }
+
+  const handleClearSelection = () => {
+    setSelectedQuarters([])
+    setSelectedQuartersByMonth({})
+  }
+
+  const getQuarterSelectionForMonth = (monthNumber: number) => {
+    const monthKey = monthNumber.toString()
+    return selectedQuartersByMonth[monthKey] || []
   }
 
   // Get quarter that files in a specific month for a client
@@ -1458,6 +1517,19 @@ export function VATDeadlinesTable({
       <Table>
         <TableHeader>
           <TableRow className="border-b">
+            {/* Bulk selection checkbox column - only for managers and partners */}
+            {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
+              <TableHead className="w-12 p-2 text-center">
+                <Checkbox
+                  checked={getQuarterSelectionForMonth(monthNumber).length > 0 && getQuarterSelectionForMonth(monthNumber).length === getClientsForMonth(monthNumber).filter(client => {
+                    const quarter = getQuarterForMonth(client, monthNumber)
+                    return quarter !== null
+                  }).length}
+                  onCheckedChange={(checked) => handleSelectAllInMonth(monthNumber, checked as boolean)}
+                  aria-label={`Select all VAT quarters for ${getMonthDisplay(monthNumber)}`}
+                />
+              </TableHead>
+            )}
                                     <SortableHeader column="clientCode" className="col-vat-client-code p-2 text-center">Code</SortableHeader>
                         <SortableHeader column="companyName" className="col-vat-company-name p-2">Company</SortableHeader>
                         <SortableHeader column="quarterEnd" className="col-vat-quarter-end p-2 text-center">Q.End</SortableHeader>
@@ -1486,6 +1558,20 @@ export function VATDeadlinesTable({
                 id={`vat-client-${client.id}`}
                 className="hover:bg-muted/50 h-14"
               >
+                {/* Bulk selection checkbox - only for managers and partners */}
+                {(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') && (
+                  <TableCell className="p-2 text-center">
+                    {monthQuarter ? (
+                      <Checkbox
+                        checked={getQuarterSelectionForMonth(monthNumber).includes(monthQuarter.id)}
+                        onCheckedChange={(checked) => handleSelectQuarter(monthQuarter.id, monthNumber, checked as boolean)}
+                        aria-label={`Select ${client.companyName} VAT quarter`}
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
+                  </TableCell>
+                )}
                 <TableCell className="font-mono text-xs p-2 text-center">
                   {client.clientCode}
                 </TableCell>
@@ -1633,7 +1719,7 @@ export function VATDeadlinesTable({
               {/* Expanded Row - Workflow Timeline */}
               {expandedRows[rowKey] && isApplicable && (
                 <TableRow>
-                  <TableCell colSpan={9} className="p-0">
+                  <TableCell colSpan={(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER') ? 10 : 9} className="p-0">
                     {renderWorkflowTimeline(client, monthQuarter)}
                   </TableCell>
                 </TableRow>
@@ -1947,6 +2033,15 @@ export function VATDeadlinesTable({
                 </Card>
               </div>
             )}
+
+            {/* Bulk Operations */}
+            <DeadlinesBulkOperations
+              selectedItems={selectedQuarters}
+              users={users}
+              onClearSelection={handleClearSelection}
+              onRefreshData={() => fetchVATClients(true)}
+              type="vat"
+            />
 
             {/* Monthly Tabs */}
             <Card>
