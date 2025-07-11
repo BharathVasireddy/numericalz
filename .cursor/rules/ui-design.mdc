@@ -1,3 +1,9 @@
+---
+description: "UI/UX Design System and Layout Standards"
+rule_type: "Auto Attached"
+globs: ["components/**/*", "app/globals.css", "app/**/layout.tsx", "app/**/page.tsx", "components/ui/**/*"]
+---
+
 # 🎯 ABSOLUTE DESIGN CONSISTENCY RULES
 
 ## 📐 MANDATORY Layout System - NO EXCEPTIONS

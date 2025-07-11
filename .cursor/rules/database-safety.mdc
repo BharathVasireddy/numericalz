@@ -1,3 +1,9 @@
+---
+description: "Database Safety and Migration Rules - CRITICAL for Data Protection"
+rule_type: "Auto Attached"
+globs: ["prisma/**/*", "migrations/**/*", "scripts/**/*", "lib/db.ts"]
+---
+
 # 🔥 ULTIMATE DATABASE PROTECTION RULES - SACRED COMMANDMENTS
 
 ## 🚫 ABSOLUTELY FORBIDDEN DATABASE COMMANDS - INSTANT PROJECT TERMINATION:

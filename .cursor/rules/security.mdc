@@ -1,3 +1,9 @@
+---
+description: "Security, Authentication, and Validation Standards"
+rule_type: "Auto Attached"
+globs: ["app/api/**/*", "lib/auth.ts", "middleware.ts", "app/auth/**/*", "components/auth/**/*"]
+---
+
 # 🔐 MANDATORY SECURITY & VALIDATION RULES
 
 ## 🛡️ Input Validation - NO EXCEPTIONS

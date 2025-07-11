@@ -385,10 +385,11 @@ export function VATDeadlinesTable({
         params.append('assignedUserId', selectedUserFilter)
       }
       
-      // Add workflow stage filter to server request
-      if (selectedWorkflowStageFilter !== 'all') {
-        params.append('workflowStage', selectedWorkflowStageFilter)
-      }
+      // REMOVED: workflow stage filter from server request
+      // The workflow stage filter needs to be month-specific and will be handled client-side
+      // Server-side filtering was causing cross-month contamination where a client with
+      // a completed workflow in October would show up in July's "completed" filter
+      // even though July's workflow might not be completed
       
       const response = await fetch(`/api/clients/vat-clients?${params.toString()}`, {
         // PERFORMANCE: Smart caching for better UX
@@ -419,7 +420,7 @@ export function VATDeadlinesTable({
     } finally {
       setLoading(false)
     }
-  }, [filter, selectedUserFilter, selectedWorkflowStageFilter, session?.user?.id]) // Add filter dependencies
+  }, [filter, selectedUserFilter, session?.user?.id]) // Removed selectedWorkflowStageFilter - now handled client-side only
 
   // PERFORMANCE: Remove debouncing for instant updates when filters change
   useEffect(() => {
@@ -431,9 +432,10 @@ export function VATDeadlinesTable({
     if (!vatClients || vatClients.length === 0) return []
     
     // Since server-side filtering is now applied, do minimal client-side filtering
+    // Month-specific filtering (including workflow stage) is now handled in getClientsForMonth
     let filtered = [...vatClients]
     
-    // Only apply filters that weren't handled server-side
+    // Only apply filters that weren't handled server-side and aren't month-specific
     if (selectedUserFilter === 'unassigned') {
       filtered = filtered.filter(client => 
         !client.vatQuartersWorkflow?.some(quarter => quarter.assignedUser)
@@ -712,10 +714,11 @@ export function VATDeadlinesTable({
       // First check if client files in this month
       if (!isVATFilingMonth(client.vatQuarterGroup, monthNumber)) return false
       
-      // Additional month-specific filtering (filters already applied in displayedClients)
-      return true
+      // FIXED: Apply month-specific filtering (especially workflow stage filter)
+      // This ensures workflow stage filters are scoped to the specific month being viewed
+      return clientMatchesFilters(client, monthNumber)
     })
-  }, [displayedClients])
+  }, [displayedClients, clientMatchesFilters])
 
   // SIMPLIFIED: Calculate VAT client counts per user for filter display
   // PERFORMANCE: Use displayedClients for better performance

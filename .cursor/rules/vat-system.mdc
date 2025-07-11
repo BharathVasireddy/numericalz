@@ -1,3 +1,9 @@
+---
+description: "VAT Assignment System Rules - Quarter-Level Independence"
+rule_type: "Auto Attached"
+globs: ["components/clients/vat-*.tsx", "app/api/vat-quarters/**/*", "app/api/clients/vat-clients/**/*", "app/dashboard/clients/vat-*/**/*", "lib/vat-workflow.ts"]
+---
+
 # 🎨 VAT ASSIGNMENT SYSTEM - CRITICAL UNDERSTANDING
 
 ## 🚨 ABSOLUTE VAT ASSIGNMENT RULES - NEVER VIOLATE
