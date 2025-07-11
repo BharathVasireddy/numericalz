@@ -1,0 +1,312 @@
+# 🔐 MANDATORY SECURITY & VALIDATION RULES
+
+## 🛡️ Input Validation - NO EXCEPTIONS
+
+### Zod Validation for ALL Inputs
+```typescript
+// ✅ REQUIRED - Zod validation for ALL inputs
+const ClientValidation = z.object({
+  companyName: z.string()
+    .min(1, 'Company name is required')
+    .max(255, 'Company name too long')
+    .regex(/^[a-zA-Z0-9\s&.-]+$/, 'Invalid characters'),
+  
+  email: z.string()
+    .email('Invalid email format')
+    .toLowerCase(),
+    
+  vatNumber: z.string()
+    .regex(/^GB\d{9}$/, 'Invalid UK VAT number format')
+    .optional()
+})
+
+// ❌ FORBIDDEN - No validation
+const createClient = async (data: any) => { // NEVER DO THIS
+  await db.client.create({ data })
+}
+```
+
+## 🔒 Authentication Pattern - MANDATORY
+
+### Authentication Check in ALL Protected Routes
+```typescript
+// ✅ REQUIRED - Authentication check in ALL protected routes
+export async function POST(request: NextRequest) {
+  const session = await auth()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  
+  // Role-based authorization
+  if (session.user.role !== 'MANAGER' && session.user.role !== 'PARTNER') {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+  }
+  
+  // Proceed with authorized operation
+}
+```
+
+## 🛡️ MANDATORY API Route Pattern
+
+### Complete API Route Template
+```typescript
+// ✅ REQUIRED - Complete API route template
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
+
+const RequestSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email format'),
+})
+
+export async function POST(request: NextRequest) {
+  try {
+    // 1. MANDATORY: Authentication check first
+    const session = await auth()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    // 2. MANDATORY: Request validation
+    const body = await request.json()
+    const validatedData = RequestSchema.parse(body)
+    
+    // 3. MANDATORY: Business logic with error handling
+    const result = await db.model.create({ data: validatedData })
+    
+    // 4. MANDATORY: Consistent response format
+    return NextResponse.json({ success: true, data: result })
+    
+  } catch (error) {
+    console.error('API Error:', error)
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({
+        error: 'Invalid request data',
+        details: error.errors
+      }, { status: 400 })
+    }
+    
+    return NextResponse.json({
+      error: 'Internal server error'
+    }, { status: 500 })
+  }
+}
+```
+
+## 🔐 Security Standards
+
+### Input Validation Requirements
+- Validate all user inputs with Zod
+- Sanitize data before database operations
+- Use proper CORS configuration
+- Implement rate limiting on API routes
+- Use environment variables for sensitive data
+- Hash passwords with bcrypt
+- Implement proper session timeout
+
+### Authentication Rules
+- Use NextAuth.js for authentication
+- Implement proper session management
+- Use role-based access control (RBAC)
+- Protect all API routes that need authentication
+- Use proper JWT token handling
+
+### Authorization Patterns
+```typescript
+// ✅ REQUIRED - Role-based authorization
+const hasPermission = (userRole: string, requiredRoles: string[]) => {
+  return requiredRoles.includes(userRole)
+}
+
+// ✅ REQUIRED - Resource-based authorization
+const canAccessClient = async (userId: string, clientId: string) => {
+  const client = await db.client.findFirst({
+    where: {
+      id: clientId,
+      assignedUserId: userId
+    }
+  })
+  return !!client
+}
+```
+
+## 🛡️ Error Handling Security
+
+### Secure Error Messages
+```typescript
+// ✅ REQUIRED - Don't expose internal details
+try {
+  // Database operation
+} catch (error) {
+  console.error('Internal error:', error) // Log internally
+  
+  // Return generic message to user
+  return NextResponse.json({
+    error: 'Operation failed. Please try again.'
+  }, { status: 500 })
+}
+
+// ❌ FORBIDDEN - Exposing internal errors
+catch (error) {
+  return NextResponse.json({
+    error: error.message // DON'T EXPOSE INTERNAL DETAILS
+  }, { status: 500 })
+}
+```
+
+### Input Sanitization
+```typescript
+// ✅ REQUIRED - Sanitize inputs
+import { z } from 'zod'
+
+const sanitizeInput = (input: string) => {
+  return input
+    .trim()
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
+    .replace(/[<>]/g, '') // Remove HTML tags
+}
+
+const UserSchema = z.object({
+  name: z.string().transform(sanitizeInput),
+  email: z.string().email().toLowerCase()
+})
+```
+
+## 🔒 Environment Variables Security
+
+### Required Environment Variable Validation
+```typescript
+// ✅ REQUIRED - Validate environment variables
+const envSchema = z.object({
+  DATABASE_URL: z.string().url(),
+  NEXTAUTH_SECRET: z.string().min(32),
+  NEXTAUTH_URL: z.string().url(),
+})
+
+const env = envSchema.parse(process.env)
+```
+
+## 🛡️ Session Security
+
+### Session Configuration
+```typescript
+// ✅ REQUIRED - Secure session configuration
+export const authOptions = {
+  session: {
+    strategy: 'jwt',
+    maxAge: 8 * 60 * 60, // 8 hours
+  },
+  jwt: {
+    maxAge: 8 * 60 * 60, // 8 hours
+  },
+  cookies: {
+    sessionToken: {
+      name: 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
+    }
+  }
+}
+```
+
+## 🔐 Data Protection
+
+### Sensitive Data Handling
+```typescript
+// ✅ REQUIRED - Remove sensitive data from responses
+const sanitizeUser = (user: User) => {
+  const { password, ...safeUser } = user
+  return safeUser
+}
+
+// ✅ REQUIRED - Encrypt sensitive data
+import bcrypt from 'bcrypt'
+
+const hashPassword = async (password: string) => {
+  return await bcrypt.hash(password, 12)
+}
+```
+
+## 🛡️ API Security Headers
+
+### Required Security Headers
+```typescript
+// ✅ REQUIRED - Security headers for all API responses
+export function withSecurityHeaders(response: NextResponse) {
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-XSS-Protection', '1; mode=block')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  
+  return response
+}
+```
+
+## 🔒 Rate Limiting
+
+### API Rate Limiting
+```typescript
+// ✅ REQUIRED - Rate limiting for sensitive endpoints
+const rateLimiter = new Map()
+
+export const rateLimit = (ip: string, limit: number = 10) => {
+  const now = Date.now()
+  const windowStart = now - 60000 // 1 minute window
+  
+  const requests = rateLimiter.get(ip) || []
+  const validRequests = requests.filter((time: number) => time > windowStart)
+  
+  if (validRequests.length >= limit) {
+    return false
+  }
+  
+  validRequests.push(now)
+  rateLimiter.set(ip, validRequests)
+  return true
+}
+```
+
+## 🛡️ CSRF Protection
+
+### CSRF Token Validation
+```typescript
+// ✅ REQUIRED - CSRF protection for state-changing operations
+export const validateCSRFToken = (request: NextRequest) => {
+  const token = request.headers.get('x-csrf-token')
+  const sessionToken = request.cookies.get('csrf-token')?.value
+  
+  return token && sessionToken && token === sessionToken
+}
+```
+
+## 🔐 Audit Logging
+
+### Security Event Logging
+```typescript
+// ✅ REQUIRED - Log security events
+export const logSecurityEvent = async (event: {
+  type: 'LOGIN' | 'LOGOUT' | 'FAILED_LOGIN' | 'PERMISSION_DENIED'
+  userId?: string
+  ip: string
+  userAgent: string
+  details?: any
+}) => {
+  await db.securityLog.create({
+    data: {
+      ...event,
+      timestamp: new Date()
+    }
+  })
+}
+```
+description:
+globs:
+alwaysApply: false
+---

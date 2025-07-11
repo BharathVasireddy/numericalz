@@ -1,0 +1,289 @@
+# 🎯 ABSOLUTE DESIGN CONSISTENCY RULES
+
+## 📐 MANDATORY Layout System - NO EXCEPTIONS
+
+### CRITICAL: Layout Consistency Rules
+- **ALWAYS** use the standardized layout system for ALL pages
+- **NEVER** use old layout classes (`container-padding`, `section-spacing`, `content-spacing`)
+- **ALWAYS** use new layout components for consistency
+- **NEVER** create horizontal scrolling
+- **ALWAYS** ensure content fits within viewport
+
+### Required Layout Structure for ALL Pages
+```tsx
+// Option 1: Using layout components (PREFERRED)
+import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
+
+export default function MyPage() {
+  return (
+    <PageLayout maxWidth="xl">
+      <PageHeader 
+        title="Page Title"
+        description="Page description"
+      >
+        {/* Optional header actions */}
+      </PageHeader>
+      <PageContent>
+        {/* Page content sections */}
+      </PageContent>
+    </PageLayout>
+  )
+}
+
+// Option 2: Using CSS classes directly
+export default function MyPage() {
+  return (
+    <div className="page-container">
+      <div className="content-wrapper">
+        <div className="content-sections">
+          {/* Page content */}
+        </div>
+      </div>
+    </div>
+  )
+}
+```
+
+### Layout CSS Classes
+- `.page-container` - Main page wrapper with consistent padding
+- `.content-wrapper` - Content container with max-width and centering
+- `.content-sections` - Sections wrapper with consistent spacing
+- `.page-header` - Standardized page header with bottom border
+- `.action-trigger-icon` - Consistent action icon styling
+
+### Table Layout Standards
+- **Use table-fixed**: Prevents horizontal scrolling
+- **Column Widths**: Specific widths for each column type
+  - Client Code: w-20 (80px)
+  - Company Number: w-24 (96px)
+  - Company Name: w-48 (192px) - Main content column
+  - Dates: w-20 or w-24 (80-96px)
+  - Contact: w-20 (80px) - For contact icons
+  - Assigned To: w-32 (128px)
+  - Actions: w-16 (64px)
+- **Text Truncation**: Use truncate with title tooltips
+
+### Max Width Options
+- `sm` - 672px (forms, simple pages)
+- `md` - 896px (content pages)
+- `lg` - 1152px (dashboard pages)
+- `xl` - 1280px (default, most pages)
+- `2xl` - No max width (full-width pages)
+- `full` - Full width (special cases)
+
+### Spacing Variables
+```css
+--layout-padding-x: 1rem;        /* Mobile horizontal padding */
+--layout-padding-x-md: 1.5rem;   /* Tablet horizontal padding */
+--layout-padding-x-lg: 2rem;     /* Desktop horizontal padding */
+
+--layout-padding-y: 1.5rem;      /* Mobile vertical padding */
+--layout-padding-y-md: 2rem;     /* Tablet vertical padding */
+--layout-padding-y-lg: 2.5rem;   /* Desktop vertical padding */
+
+--content-spacing: 1.5rem;       /* Mobile content spacing */
+--content-spacing-md: 2rem;      /* Tablet content spacing */
+--content-spacing-lg: 2.5rem;    /* Desktop content spacing */
+```
+
+## 📱 MANDATORY Responsive Design Rules
+
+### Fixed Table Layout to Prevent Horizontal Scrolling
+```css
+/* ✅ REQUIRED - Fixed table layout to prevent horizontal scrolling */
+.table-container {
+  @apply w-full overflow-hidden; /* NEVER use overflow-x-auto */
+}
+
+.data-table {
+  @apply table-fixed w-full; /* ALWAYS use table-fixed */
+}
+
+/* ✅ REQUIRED - Specific column widths */
+.col-client-code { @apply w-20; }     /* 80px */
+.col-company-name { @apply w-48; }    /* 192px - Main content */
+.col-contact { @apply w-20; }         /* 80px - Contact icons */
+.col-assigned { @apply w-32; }        /* 128px */
+.col-actions { @apply w-16; }         /* 64px */
+
+/* ✅ REQUIRED - Text truncation with tooltips */
+.truncate-text {
+  @apply truncate;
+  title: attr(data-full-text);
+}
+```
+
+## 📧 MANDATORY Contact Management Standards
+
+### Email Icon Implementation
+```tsx
+import { Mail, Phone } from 'lucide-react'
+
+function ContactIcons({ email, phone }: { email: string; phone?: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <a 
+        href={`mailto:${email}`}
+        className="text-muted-foreground hover:text-foreground transition-colors"
+        title={`Email: ${email}`}
+      >
+        <Mail className="h-3 w-3" />
+      </a>
+      {phone && (
+        <a 
+          href={`tel:${phone}`}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+          title={`Call: ${phone}`}
+        >
+          <Phone className="h-3 w-3" />
+        </a>
+      )}
+    </div>
+  )
+}
+
+// ❌ FORBIDDEN - Different icon sizes or missing functionality
+<Mail className="h-4 w-4" /> {/* WRONG SIZE */}
+<Mail onClick={() => {}} />   {/* MISSING MAILTO */}
+```
+
+## 🎨 MANDATORY Action Icon Standards
+
+### Consistent Action Icon Styling
+```css
+/* ✅ REQUIRED - Consistent action icon styling */
+.action-trigger-icon {
+  @apply h-4 w-4; /* EXACT SIZE REQUIRED */
+}
+
+.action-button {
+  @apply h-8 w-8 p-0; /* EXACT BUTTON SIZE REQUIRED */
+}
+
+/* ✅ REQUIRED - Hover states */
+.action-button:hover .action-trigger-icon {
+  @apply text-foreground;
+}
+```
+
+## 🎨 UI/UX Guidelines
+
+### Design System Standards
+- Use Tailwind CSS exclusively for styling
+- Use ShadCN/UI components as base components
+- Maintain consistent spacing using Tailwind spacing scale
+- Use semantic color classes (e.g., `text-primary`, `bg-secondary`)
+- Implement proper focus states for accessibility
+
+### Component Architecture Standards
+- Create reusable components in components/ui/
+- Use compound components for complex UI patterns
+- Implement proper loading and error states
+- Use Framer Motion for animations consistently
+- Maintain consistent button heights and spacing
+
+### Contact Management Standards
+- **Email Icons**: Use Mail icon from Lucide React
+- **Phone Icons**: Use Phone icon from Lucide React
+- **Click Actions**: Email opens mailto:, Phone opens tel:
+- **Icon Sizing**: Consistent h-3 w-3 for contact icons
+- **Hover Effects**: text-muted-foreground hover:text-foreground
+- **Tooltips**: Show full contact info with title attribute
+
+### Action Icon Standards
+- **Consistent Sizing**: h-4 w-4 for all action icons
+- **Button Container**: h-8 w-8 p-0 for icon buttons
+- **CSS Class**: Use .action-trigger-icon for consistent styling
+- **Hover States**: Smooth transitions with proper color changes
+
+### Responsive Design Rules
+- Mobile-first approach using Tailwind responsive prefixes
+- **NO HORIZONTAL SCROLLING** - Content must fit viewport
+- **Fixed Table Layout**: Use table-fixed for consistent columns
+- Use proper touch targets (minimum 44px)
+- Implement proper keyboard navigation
+
+## 📐 STANDARDIZED LAYOUT SYSTEM
+
+### CRITICAL: Layout Consistency Rules
+- **ALWAYS** use the standardized layout system for ALL pages
+- **NEVER** use old layout classes (`container-padding`, `section-spacing`, `content-spacing`)
+- **ALWAYS** use new layout components for consistency
+- **NEVER** create horizontal scrolling
+- **ALWAYS** ensure content fits within viewport
+
+### Required Layout Structure for ALL Pages
+```tsx
+// Option 1: Using layout components (PREFERRED)
+import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
+
+export default function MyPage() {
+  return (
+    <PageLayout maxWidth="xl">
+      <PageHeader 
+        title="Page Title"
+        description="Page description"
+      >
+        {/* Optional header actions */}
+      </PageHeader>
+      <PageContent>
+        {/* Page content sections */}
+      </PageContent>
+    </PageLayout>
+  )
+}
+
+// Option 2: Using CSS classes directly
+export default function MyPage() {
+  return (
+    <div className="page-container">
+      <div className="content-wrapper">
+        <div className="content-sections">
+          {/* Page content */}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ❌ FORBIDDEN - Custom layouts without standardized classes
+export default function MyPage() {
+  return (
+    <div className="p-4 mx-auto"> {/* NEVER DO THIS */}
+      {/* Content */}
+    </div>
+  )
+}
+```
+
+## 🔐 CURRENT FUNCTIONALITY PROTECTION
+
+### Contact Management (PROTECTED)
+- Email icons with mailto: functionality
+- Phone icons with tel: functionality
+- Hover effects and tooltips
+- Responsive design across all breakpoints
+
+### Client Code Generation (PROTECTED)
+- NZ-1, NZ-2, NZ-3 sequential format
+- generateClientCode() function logic
+- Database query for last client code
+
+### User Assignment (PROTECTED)
+- POST /api/clients/[id]/assign endpoint
+- userId parameter in request body
+- AssignUserModal component functionality
+
+### Responsive Design (PROTECTED)
+- Fixed table layout without horizontal scrolling
+- Proper column widths and text truncation
+- Mobile/tablet/desktop breakpoints
+
+### Layout System (PROTECTED)
+- Standardized CSS classes
+- PageLayout components
+- Consistent spacing and padding
+description:
+globs:
+alwaysApply: false
+---

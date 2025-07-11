@@ -1,0 +1,130 @@
+---
+title: Numericalz Internal Management System - Core Rules
+---
+
+# Numericalz Internal Management System - Core Rules
+
+## 🎯 Project Overview
+This is the Numericalz Internal Management System - a UK-based accounting firm management platform built with Next.js 14, TypeScript, Prisma, and PostgreSQL.
+
+## 🚨 CRITICAL PROTECTION RULES - READ FIRST
+
+### 🛡️ ABSOLUTE NEVER DELETE RULES
+- **NEVER** delete any existing functionality without explicit user approval
+- **NEVER** remove working APIs, components, or database operations
+- **NEVER** change existing API response formats or data structures
+- **NEVER** remove imports, exports, or dependencies that are being used
+- **NEVER** modify working authentication or authorization logic
+- **NEVER** change database schema without migration strategy
+- **NEVER** remove existing client management features
+- **NEVER** alter working contact management (email/phone icons)
+- **NEVER** change responsive design or layout systems
+- **NEVER** remove client assignment functionality
+
+### 🔒 FUNCTIONALITY PRESERVATION MANDATE
+- **ALWAYS** preserve existing functionality when refactoring
+- **ALWAYS** maintain backward compatibility
+- **ALWAYS** test functionality before and after changes
+- **ALWAYS** add comments explaining why code is being modified
+- **ALWAYS** use deprecation warnings before removing features
+- **ALWAYS** backup critical sections before major changes
+- If code seems unused, comment it out with a note rather than deleting it
+
+## 🛠️ Technology Stack Guidelines
+
+### Next.js 14 (App Router)
+- Use App Router exclusively (app/ directory)
+- Server Components by default, Client Components when needed
+- Use proper loading.tsx, error.tsx, and not-found.tsx files
+- Implement proper metadata for SEO
+- Use route groups with parentheses for organization: (auth), (dashboard)
+
+### TypeScript Standards
+- Use strict TypeScript configuration
+- Define interfaces for all data structures
+- Use proper generic types where applicable
+- Avoid 'any' type - use 'unknown' or proper typing
+- Export types from dedicated types/ directory
+
+### React/Next.js Component Rules
+- Use functional components with hooks exclusively
+- Implement proper error boundaries
+- Use React.memo() for performance optimization where needed
+- Prefer composition over inheritance
+- Use proper key props in lists
+
+## 📁 File Organization & Naming
+
+### Directory Structure
+```
+app/
+├── (auth)/           # Authentication routes
+├── (dashboard)/      # Protected dashboard routes
+├── api/             # API routes
+components/
+├── ui/              # Reusable UI components (ShadCN)
+├── forms/           # Form components
+├── dashboard/       # Dashboard-specific components
+├── clients/         # Client management components
+├── layout/          # Layout components
+└── shared/          # Shared components
+lib/
+├── auth.ts          # Authentication utilities
+├── db.ts            # Database connection with retry logic
+├── companies-house.ts # Companies House API
+├── email.ts         # Email utilities
+├── utils.ts         # General utilities
+└── validations.ts   # Zod schemas
+```
+
+### Naming Conventions
+- Components: PascalCase (e.g., `ClientCard.tsx`)
+- Files/Directories: kebab-case (e.g., `client-management/`)
+- Variables/Functions: camelCase (e.g., `getUserClients`)
+- Constants: UPPER_SNAKE_CASE (e.g., `API_BASE_URL`)
+- Database tables: snake_case (e.g., `user_clients`)
+
+## 🎯 DEVELOPMENT PHILOSOPHY
+**REMEMBER**: This system manages critical UK accounting firm operations
+- **Data Integrity > Feature Velocity** - Never compromise data for speed
+- **User Experience Consistency > Individual Preferences** - Follow established patterns
+- **Business Logic Preservation > Code Cleanliness** - Don't break working systems
+- **Compliance Requirements > Technical Preferences** - UK regulations come first
+- **Client Relationship Protection > System Efficiency** - Don't disrupt client assignments
+
+## 🏁 FINAL CHECKPOINT REMINDER
+
+### Before submitting ANY work:
+1. **Functionality Test**: Does everything work exactly as before?
+2. **Database Safety**: Did I follow the safety protocol for any schema changes?
+3. **Design Consistency**: Does the UI match the established design system?
+4. **Responsive Check**: Does it work on mobile, tablet, and desktop?
+5. **Security Verification**: Are all authentication and authorization checks in place?
+6. **Business Logic Integrity**: Are client assignments and VAT workflows preserved?
+7. **Error Handling**: Are all edge cases and error scenarios handled?
+8. **Performance Impact**: Does this maintain or improve performance?
+9. **Documentation**: Have I documented any new functionality?
+10. **Testing**: Have I tested all affected functionality thoroughly?
+
+**ZERO TOLERANCE for violations of these rules. The integrity of this accounting firm management system depends on strict adherence to these standards.**
+
+### 🚫 FORBIDDEN MODIFICATIONS WITHOUT APPROVAL
+- Date calculation logic (must use centralized functions from lib/year-end-utils.ts)
+- Accounts due date calculations (ALWAYS use companyData.accounts.next_due directly from Companies House)
+- Client code generation logic (NZ-1, NZ-2 format)
+- Contact icon functionality (email/phone click actions)
+- User assignment system and API endpoints
+- Responsive table design and layout
+- Authentication and session management
+- Database connection and retry logic
+- Companies House API integration
+- Layout system and CSS classes
+
+## 📋 Core Development Principles
+
+### 🔒 Code Preservation Rules
+- When refactoring, ALWAYS maintain backward compatibility
+- When updating components, preserve all existing props and functionality
+- When modifying API endpoints, maintain existing response formats
+- NEVER remove database fields or tables without migration strategy
+- ALWAYS use deprecation warnings before removing features

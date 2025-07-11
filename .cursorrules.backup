@@ -1,0 +1,1554 @@
+# Numericalz Internal Management System - Cursor Rules
+
+## 🎯 Project Overview
+This is the Numericalz Internal Management System - a UK-based accounting firm management platform built with Next.js 14, TypeScript, Prisma, and PostgreSQL.
+
+## 🚨 CRITICAL PROTECTION RULES - READ FIRST
+
+### 🛡️ ABSOLUTE NEVER DELETE RULES
+- **NEVER** delete any existing functionality without explicit user approval
+- **NEVER** remove working APIs, components, or database operations
+- **NEVER** change existing API response formats or data structures
+- **NEVER** remove imports, exports, or dependencies that are being used
+- **NEVER** modify working authentication or authorization logic
+- **NEVER** change database schema without migration strategy
+- **NEVER** remove existing client management features
+- **NEVER** alter working contact management (email/phone icons)
+- **NEVER** change responsive design or layout systems
+- **NEVER** remove client assignment functionality
+
+### 🔥 ULTIMATE DATABASE PROTECTION RULES - SACRED COMMANDMENTS
+#### 🚫 ABSOLUTELY FORBIDDEN DATABASE COMMANDS - INSTANT PROJECT TERMINATION:
+- **NEVER EVER** use `npx prisma migrate reset --force` (CAUSES TOTAL DATA LOSS)
+- **NEVER EVER** use `npx prisma migrate reset` without explicit user approval
+- **NEVER EVER** use `npx prisma db push` (bypasses all safety mechanisms)
+- **NEVER EVER** use any destructive Prisma command without backup
+- **NEVER EVER** drop tables, columns, or constraints directly
+- **NEVER EVER** modify production database schema without following EXACT safety protocol
+- **NEVER EVER** ignore migration warnings or errors
+- **NEVER EVER** bypass the safe migration process
+
+#### ✅ ONLY THESE DATABASE COMMANDS ARE PERMITTED:
+- **ONLY** use `npm run db:backup` (MANDATORY before any database operation)
+- **ONLY** use `npm run db:migrate-safe` (for all schema changes)
+- **ONLY** use `npm run db:restore [filename]` (for recovery)
+- **ONLY** use `npm run db:audit` (for integrity verification)
+- **ONLY** use `npm run db:studio` (for GUI access)
+
+#### 🛡️ MANDATORY DATABASE SAFETY PROTOCOL - NO EXCEPTIONS:
+1. **BEFORE ANY SCHEMA CHANGE**: Run `npm run db:backup` (MANDATORY)
+2. **FOR ALL SCHEMA CHANGES**: Only use `npm run db:migrate-safe`
+3. **IF ANYTHING FAILS**: Use `npm run db:restore [backup-file]` immediately
+4. **AFTER ALL CHANGES**: Run `npm run db:audit` to verify integrity
+5. **DOCUMENT EVERYTHING**: Explain why database changes are needed
+6. **TEST FIRST**: Always test migrations on development copy first
+
+#### 🚨 DATA PROTECTION MINDSET - PRODUCTION ALWAYS:
+- Treat EVERY database as production data with real client information
+- EVERY table contains critical UK accounting firm data
+- EVERY row represents real business relationships and compliance data
+- DATA LOSS = BUSINESS FAILURE = PROJECT TERMINATION
+- Client assignment data is SACRED - never break relationships
+- VAT workflow data is COMPLIANCE CRITICAL - never corrupt
+- User authentication data is SECURITY CRITICAL - never compromise
+
+#### 🔐 SCHEMA CHANGE APPROVAL MATRIX:
+- **Minor additions** (new optional fields): Backup + Safe migration
+- **Major changes** (new tables, relationships): User approval required
+- **Field removals**: FORBIDDEN without explicit user approval
+- **Table drops**: FORBIDDEN without explicit user approval
+- **Index changes**: Backup + Safe migration + Performance testing
+- **Constraint changes**: User approval + Backup + Safe migration
+
+#### 🚨 EXTREMELY DANGEROUS DATABASE COMMANDS - NEVER USE:
+
+##### 💥 TOTAL DATA DESTRUCTION COMMANDS:
+```bash
+# ❌ FORBIDDEN - DELETES ALL DATA
+npx prisma migrate reset
+npx prisma migrate reset --force
+
+# ❌ FORBIDDEN - BYPASSES ALL SAFETY MECHANISMS
+npx prisma db push
+
+# ❌ FORBIDDEN - RISKY WITHOUT BACKUP
+npx prisma migrate dev
+
+# ❌ FORBIDDEN - DIRECT DATABASE DESTRUCTION
+psql -c "DROP DATABASE numericalz_dev_db;"
+psql -c "TRUNCATE TABLE users CASCADE;"
+psql -c "DELETE FROM clients;"
+psql -c "ALTER TABLE clients DROP COLUMN vatAssignedUserId;"
+psql -c "DROP TABLE clients;"
+```
+
+##### ⚠️ MODERATELY DANGEROUS COMMANDS:
+```bash
+# ⚠️ RISKY - Can overwrite existing data
+npx prisma db seed
+
+# ⚠️ RISKY - Can break existing code
+npx prisma generate
+
+# ⚠️ RISKY - Manual data editing GUI
+npx prisma studio  # Use with extreme caution
+```
+
+#### 🏗️ DUAL DATABASE ENVIRONMENT RULES:
+
+##### 🏠 LOCAL DATABASE (Development):
+- **PostgreSQL** running locally on `localhost:5432`
+- **Database**: `numericalz_dev_db`
+- **Purpose**: Testing, development, experimentation
+- **Safety**: Always backup before changes
+- **Commands**: All safe commands permitted
+
+##### 🌐 PRODUCTION DATABASE (Railway):
+- **PostgreSQL** hosted on Railway cloud
+- **Database**: Production instance
+- **Purpose**: Live client data, production use
+- **Safety**: EXTREME CAUTION - backup mandatory
+- **Access**: ONLY when explicitly requested by user
+
+##### 📋 DATABASE SELECTION RULES:
+- **DEFAULT**: Always use LOCAL database for testing
+- **PRODUCTION**: Only use when user explicitly requests
+- **NEVER**: Assume production access needed
+- **ALWAYS**: Specify which database is being used
+- **BACKUP**: Mandatory before any production operation
+
+### 🛠️ SAFE SCHEMA MIGRATION WORKFLOW - MANDATORY PROCESS
+
+#### 🚨 AVOID DATA LOSS PROMPTS - CRITICAL RULES:
+
+##### ⚠️ DANGEROUS PROMPTS TO NEVER ACCEPT:
+```bash
+⚠️  We need to reset the database, this will cause data loss.
+    Do you want to continue? (y/N)  # ALWAYS SAY NO!
+
+⚠️  This migration will remove data. Do you want to continue? (y/N)  # ALWAYS SAY NO!
+
+⚠️  Prisma needs to perform transactions that might fail.
+    Do you want to continue? (y/N)  # ALWAYS SAY NO!
+```
+
+##### 📋 MANDATORY SAFE MIGRATION WORKFLOW:
+
+```bash
+# 1. ALWAYS BACKUP FIRST (NO EXCEPTIONS)
+npm run db:backup
+
+# 2. MODIFY SCHEMA FILE SAFELY
+# Edit prisma/schema.prisma
+
+# 3. CREATE MIGRATION FILE (DON'T APPLY YET)
+npx prisma migrate dev --create-only --name "descriptive_change_name"
+
+# 4. REVIEW MIGRATION FILE BEFORE APPLYING
+cat prisma/migrations/[timestamp]_descriptive_change_name/migration.sql
+
+# 5. LOOK FOR DANGEROUS SQL COMMANDS:
+# - DROP COLUMN (data loss)
+# - DROP TABLE (data loss)
+# - ALTER COLUMN TYPE (data loss)
+# - TRUNCATE (data loss)
+
+# 6. IF MIGRATION LOOKS SAFE, APPLY IT
+npm run db:migrate-safe
+
+# 7. VERIFY EVERYTHING WORKS
+npm run db:audit
+npm run build
+npm run dev
+```
+
+##### ✅ ALWAYS SAFE SCHEMA CHANGES:
+```typescript
+// ✅ SAFE: Adding optional fields
+model Client {
+  id          String   @id @default(cuid())
+  companyName String
+  newField    String?  // Optional - never causes data loss
+}
+
+// ✅ SAFE: Adding new tables
+model NewTable {
+  id        String   @id @default(cuid())
+  name      String
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+}
+
+// ✅ SAFE: Adding indexes
+model Client {
+  email String @unique  // Adding constraints is safe
+}
+```
+
+##### ⚠️ DANGEROUS SCHEMA CHANGES - REQUIRE SPECIAL APPROACH:
+```typescript
+// ❌ DANGEROUS: Changing field types
+model Client {
+  clientCode Int  // Was String - WILL PROMPT FOR DATA LOSS
+}
+
+// ❌ DANGEROUS: Removing fields
+model Client {
+  // Removing any field - WILL PROMPT FOR DATA LOSS
+}
+
+// ❌ DANGEROUS: Making optional fields required
+model Client {
+  email String  // Was String? - WILL PROMPT FOR DATA LOSS
+}
+```
+
+##### 🛡️ SAFE STRATEGIES FOR COMPLEX CHANGES:
+
+###### **Strategy 1: Multi-Step Migration (Recommended)**
+```bash
+# Instead of changing field type directly:
+# Step 1: Add new field
+# Step 2: Write data migration script
+# Step 3: Update application code
+# Step 4: Remove old field in separate migration
+
+# Example:
+# 1. Add clientCodeNew Int?
+# 2. Run script to populate clientCodeNew from clientCode
+# 3. Update code to use clientCodeNew
+# 4. Remove clientCode in separate migration
+```
+
+###### **Strategy 2: Rename Instead of Remove**
+```typescript
+// Instead of removing:
+model Client {
+  // ❌ oldField  String  // Don't remove directly
+  
+  // ✅ Rename with deprecation
+  oldField_deprecated String  // TODO: Remove after migration complete
+  newField           String?
+}
+```
+
+###### **Strategy 3: Optional First, Required Later**
+```typescript
+// Step 1: Add as optional
+model Client {
+  newRequiredField String?  // Start optional
+}
+
+// Step 2: Populate data
+// Step 3: Make required in separate migration
+model Client {
+  newRequiredField String  // Now required
+}
+```
+
+##### 🚨 EMERGENCY RESPONSE TO DATA LOSS PROMPTS:
+```bash
+# If you see data loss prompt:
+# 1. NEVER type 'y' - always say NO
+N
+
+# 2. Exit safely
+Ctrl+C
+
+# 3. Backup immediately if you haven't
+npm run db:backup
+
+# 4. Review what triggered the prompt
+cat prisma/migrations/[latest-migration]/migration.sql
+
+# 5. Plan safer multi-step approach
+# 6. Ask user for approval if needed
+```
+
+##### 📋 PRE-MIGRATION SAFETY CHECKLIST:
+- [ ] **Backup completed:** `npm run db:backup`
+- [ ] **Using `--create-only` flag:** No auto-apply
+- [ ] **Reviewed migration file:** Checked for dangerous SQL
+- [ ] **No field removals:** Unless approved by user
+- [ ] **No type changes:** Unless using multi-step approach
+- [ ] **Testing on LOCAL database:** Never production first
+- [ ] **Rollback plan ready:** Know how to undo changes
+
+##### 🎯 GOLDEN RULES FOR SCHEMA CHANGES:
+1. **BACKUP FIRST** - Always, no exceptions
+2. **LOCAL TESTING** - Test on local database first  
+3. **--CREATE-ONLY** - Never let Prisma auto-apply migrations
+4. **REVIEW FIRST** - Always check generated SQL before applying
+5. **MULTI-STEP** - Break dangerous changes into safe steps
+6. **USER APPROVAL** - For any field removals or type changes
+7. **VERIFY AFTER** - Run audit and test functionality
+
+### 🔒 FUNCTIONALITY PRESERVATION MANDATE
+- **ALWAYS** preserve existing functionality when refactoring
+- **ALWAYS** maintain backward compatibility
+- **ALWAYS** test functionality before and after changes
+- **ALWAYS** add comments explaining why code is being modified
+- **ALWAYS** use deprecation warnings before removing features
+- **ALWAYS** backup critical sections before major changes
+- If code seems unused, comment it out with a note rather than deleting it
+
+## 🎨 VAT ASSIGNMENT SYSTEM - CRITICAL UNDERSTANDING
+
+### 🚨 ABSOLUTE VAT ASSIGNMENT RULES - NEVER VIOLATE
+These rules are the result of comprehensive system cleanup and MUST be followed:
+
+- **NEVER** re-introduce client-level VAT assignments (`Client.vatAssignedUserId`)
+- **NEVER** create fallback assignment logic for VAT quarters
+- **NEVER** sync VAT quarter assignments to client-level fields
+- **NEVER** use complex priority hierarchies for VAT assignments
+- **ALWAYS** use quarter-level assignments only (`VATQuarter.assignedUserId`)
+- **ALWAYS** keep VAT quarters independent from each other
+- **ALWAYS** start new VAT quarters unassigned (`assignedUserId = null`)
+
+### 📚 VAT ASSIGNMENT SYSTEM ARCHITECTURE
+
+#### 🎯 CURRENT SYSTEM (Post-Cleanup - July 2025)
+
+The VAT assignment system uses **QUARTER-LEVEL ASSIGNMENTS ONLY**:
+
+```typescript
+// ✅ CORRECT VAT ASSIGNMENT ARCHITECTURE
+interface VATQuarter {
+  id: string
+  clientId: string
+  assignedUserId: string | null  // ONLY assignment field for VAT
+  quarterPeriod: string
+  currentStage: VATWorkflowStage
+  isCompleted: boolean
+  // ... milestone fields
+}
+
+// ✅ CORRECT: Get VAT assignee
+function getVATAssignee(vatQuarter: VATQuarter): User | null {
+  return vatQuarter.assignedUser || null  // No fallback logic
+}
+
+// ❌ FORBIDDEN: Client-level VAT assignments
+interface Client {
+  vatAssignedUserId: string     // REMOVED - DO NOT RE-ADD
+  vatAssignedUser: User         // REMOVED - DO NOT RE-ADD
+}
+```
+
+#### 🚫 REMOVED SYSTEM (Historical Context - DO NOT RESTORE)
+
+The old system had a complex 3-tier assignment priority that was **COMPLETELY REMOVED**:
+
+```typescript
+// ❌ OLD SYSTEM (REMOVED - DO NOT RESTORE)
+function getVATAssignee(client: Client): User | null {
+  // Priority 1: Quarter assignee
+  if (client.currentVATQuarter?.assignedUser) return client.currentVATQuarter.assignedUser
+  // Priority 2: Client VAT assignee (REMOVED)
+  if (client.vatAssignedUser) return client.vatAssignedUser
+  // Priority 3: General assignee (REMOVED for VAT)
+  if (client.assignedUser) return client.assignedUser
+  return null
+}
+```
+
+#### 🏗️ WHY QUARTER-LEVEL ASSIGNMENTS ONLY
+
+1. **Clear Ownership**: Each quarter has one clear assignee
+2. **Temporal Independence**: Q1 assignee ≠ Q2 assignee automatically
+3. **No Confusion**: No fallback logic or priority hierarchies
+4. **Realistic Workflow**: Different quarters can have different specialists
+5. **Audit Trail**: Clear history of who worked on which quarter
+6. **Simplified Logic**: Easy to understand and maintain
+
+### 📋 VAT ASSIGNMENT BUSINESS RULES
+
+#### 🔄 Assignment Lifecycle
+
+```mermaid
+graph TD
+    A[Client Enables VAT] --> B[VAT Quarter Created]
+    B --> C[Quarter Starts Unassigned]
+    C --> D[Filing Month Arrives]
+    D --> E[Manager/Partner Assigns Quarter]
+    E --> F[User Processes Quarter]
+    F --> G[Quarter Completed]
+    G --> H[Next Quarter Starts Unassigned]
+```
+
+#### 📏 Assignment Rules
+
+1. **Independence**: Each VAT quarter is assigned separately
+2. **Unassigned Start**: New quarters start with `assignedUserId = null`
+3. **Filing Month Assignment**: Quarters assigned during their filing month
+4. **Future Quarters**: Future quarters remain unassigned until filing month
+5. **No Inheritance**: No assignment inheritance from client or previous quarters
+6. **No Fallback**: No fallback to client-level or general assignments
+
+### 💾 DATABASE SCHEMA RULES
+
+#### ✅ CURRENT SCHEMA (Correct)
+
+```typescript
+// ✅ CORRECT Client Model (VAT fields only)
+model Client {
+  id                          String       @id @default(cuid())
+  assignedUserId              String?      // General assignment
+  ltdCompanyAssignedUserId    String?      // Ltd company assignment
+  nonLtdCompanyAssignedUserId String?      // Non-Ltd assignment
+  // vatAssignedUserId REMOVED - DO NOT RE-ADD
+  
+  vatQuartersWorkflow         VATQuarter[] // VAT quarters with quarter-level assignments
+  
+  // vatAssignedUser relation REMOVED - DO NOT RE-ADD
+}
+
+// ✅ CORRECT VATQuarter Model
+model VATQuarter {
+  id                          String    @id @default(cuid())
+  clientId                    String
+  assignedUserId              String?   // ONLY VAT assignment field
+  
+  assignedUser                User?     @relation(fields: [assignedUserId])
+  client                      Client    @relation(fields: [clientId])
+}
+```
+
+#### ❌ FORBIDDEN SCHEMA ADDITIONS
+
+```typescript
+// ❌ DO NOT RE-ADD THESE FIELDS
+model Client {
+  vatAssignedUserId           String?   // REMOVED - DO NOT RE-ADD
+  vatAssignedUser             User?     // REMOVED - DO NOT RE-ADD
+}
+
+// ❌ DO NOT RE-ADD THESE RELATIONS
+model User {
+  vatAssignedClients          Client[]  // REMOVED - DO NOT RE-ADD
+}
+```
+
+### 🔧 API ENDPOINT RULES
+
+#### ✅ CORRECT API PATTERNS
+
+```typescript
+// ✅ CORRECT: Quarter-level assignment
+PUT /api/vat-quarters/[id]/workflow
+{
+  assignedUserId: "user123"  // Assigns THIS quarter only
+}
+
+// ✅ CORRECT: Get VAT quarters with assignments
+GET /api/clients/vat-clients
+// Returns quarters with quarter.assignedUser only
+```
+
+#### ❌ FORBIDDEN API PATTERNS
+
+```typescript
+// ❌ FORBIDDEN: Client-level VAT assignment (REMOVED)
+POST /api/clients/[id]/assign-vat  // ENDPOINT REMOVED
+
+// ❌ FORBIDDEN: Complex assignment logic
+GET /api/clients/[id]
+{
+  vatAssignee: client.vatAssignedUser || client.assignedUser  // NO FALLBACK
+}
+```
+
+### 🖥️ FRONTEND COMPONENT RULES
+
+#### ✅ CORRECT COMPONENT PATTERNS
+
+```typescript
+// ✅ CORRECT: Show quarter assignment only
+function VATQuarterDisplay({ vatQuarter }: Props) {
+  const assignee = vatQuarter.assignedUser
+  
+  return (
+    <div>
+      {assignee ? assignee.name : 'Unassigned'}
+    </div>
+  )
+}
+
+// ✅ CORRECT: Assignment modal for quarter
+function VATWorkflowModal({ vatQuarter }: Props) {
+  const updateAssignment = async (userId: string) => {
+    await fetch(`/api/vat-quarters/${vatQuarter.id}/workflow`, {
+      method: 'PUT',
+      body: JSON.stringify({ assignedUserId: userId })
+    })
+  }
+}
+```
+
+#### ❌ FORBIDDEN COMPONENT PATTERNS
+
+```typescript
+// ❌ FORBIDDEN: Client-level VAT assignment display
+function VATClientDisplay({ client }: Props) {
+  // DO NOT show client.vatAssignedUser (REMOVED)
+  const assignee = client.vatAssignedUser || client.assignedUser  // NO FALLBACK
+}
+
+// ❌ FORBIDDEN: Client-level VAT assignment modal
+function ClientVATAssignModal({ client }: Props) {
+  // DO NOT create client-level VAT assignment modals
+}
+```
+
+### 📊 WORKLOAD CALCULATION RULES
+
+#### ✅ CORRECT WORKLOAD LOGIC
+
+```typescript
+// ✅ CORRECT: Count VAT quarters assigned to user
+const userVATWorkload = await db.vATQuarter.count({
+  where: {
+    assignedUserId: userId,
+    isCompleted: false
+  }
+})
+```
+
+#### ❌ FORBIDDEN WORKLOAD LOGIC
+
+```typescript
+// ❌ FORBIDDEN: Complex multi-source counting
+const userVATWorkload = await db.client.count({
+  where: {
+    OR: [
+      { vatAssignedUserId: userId },        // REMOVED FIELD
+      { assignedUserId: userId },           // NO FALLBACK FOR VAT
+      { vatQuartersWorkflow: { some: { assignedUserId: userId } } }
+    ]
+  }
+})
+```
+
+### 📝 DOCUMENTATION REQUIREMENTS
+
+#### 📖 Required Documentation
+
+When working with VAT assignments, always refer to:
+1. **Schema Documentation**: `prisma/schema.prisma` (comprehensive comments)
+2. **Cleanup Documentation**: `docs/VAT_ASSIGNMENT_SYSTEM_CLEANUP.md`
+3. **Verification Script**: `scripts/verify-vat-functionality.js`
+4. **This Cursor Rules Section**: For quick reference
+
+#### 💭 Code Comments Requirements
+
+```typescript
+// ✅ REQUIRED: Add detailed comments for VAT assignment code
+function assignVATQuarter(quarterId: string, userId: string) {
+  // VAT ASSIGNMENT RULE: Each quarter has independent assignment
+  // No client-level sync, no fallback logic
+  // See docs/VAT_ASSIGNMENT_SYSTEM_CLEANUP.md for context
+  
+  return db.vATQuarter.update({
+    where: { id: quarterId },
+    data: { assignedUserId: userId }
+  })
+}
+```
+
+### 🧪 TESTING REQUIREMENTS
+
+#### 🔍 Mandatory Testing
+
+Before any VAT-related changes:
+
+```bash
+# 1. Run verification script
+node scripts/verify-vat-functionality.js
+
+# 2. Test VAT workflow manually
+# - Create VAT quarter
+# - Assign to user
+# - Update workflow stage
+# - Verify assignment display
+
+# 3. Check dashboard widgets
+# - VAT unassigned widget
+# - User workload calculations
+# - VAT deadline tables
+```
+
+#### ⚠️ Critical Test Cases
+
+1. **Quarter Assignment**: Assign quarter to user
+2. **Assignment Display**: Show assignee in UI
+3. **Workload Calculation**: Count user's VAT quarters
+4. **Workflow Progression**: Stage changes with assignment
+5. **Dashboard Widgets**: All VAT widgets work correctly
+
+### 🚨 VIOLATION CONSEQUENCES
+
+Violating VAT assignment rules results in:
+
+1. **Client-Level VAT Assignment**: Immediate removal required
+2. **Fallback Logic**: Must be simplified to quarter-only
+3. **Complex Priority**: Must be replaced with quarter assignment
+4. **Schema Changes**: Must follow database safety protocol
+5. **Missing Documentation**: Must add comprehensive comments
+
+### 📚 REFERENCE FILES
+
+Essential files for VAT assignment understanding:
+- `prisma/schema.prisma` - Database schema with comprehensive documentation
+- `docs/VAT_ASSIGNMENT_SYSTEM_CLEANUP.md` - Complete cleanup documentation
+- `app/api/vat-quarters/[id]/workflow/route.ts` - Main assignment API
+- `components/clients/vat-workflow-modal.tsx` - Assignment UI
+- `lib/deadline-utils.ts` - Assignment display logic
+- `scripts/verify-vat-functionality.js` - Testing and verification
+
+## 🎨 ABSOLUTE CODE CONSISTENCY RULES
+
+### 📝 MANDATORY TypeScript Standards
+```typescript
+// ✅ REQUIRED - Strict typing for all functions
+interface ClientData {
+  id: string
+  clientCode: string
+  companyName: string
+  assignedUserId?: string
+}
+
+async function updateClient(id: string, data: Partial<ClientData>): Promise<ClientData> {
+  // Implementation with proper error handling
+}
+
+// ❌ FORBIDDEN - No 'any' types allowed
+const clientData: any = {} // NEVER DO THIS
+
+// ✅ REQUIRED - Proper error handling pattern
+try {
+  const result = await apiCall()
+  return { success: true, data: result }
+} catch (error) {
+  console.error('Operation failed:', error)
+  return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+}
+```
+
+### 🏗️ MANDATORY Component Architecture
+```typescript
+// ✅ REQUIRED - Complete component template
+'use client' // Only when client-side features needed
+
+import React, { useState, useCallback } from 'react'
+import { Button } from '@/components/ui/button'
+import type { ComponentProps } from '@/types'
+
+interface ComponentNameProps {
+  data: ComponentProps[]
+  onAction: (id: string) => void
+  isLoading?: boolean
+  className?: string
+}
+
+export function ComponentName({ 
+  data, 
+  onAction, 
+  isLoading = false,
+  className 
+}: ComponentNameProps) {
+  const [localState, setLocalState] = useState<string>('')
+  
+  const handleAction = useCallback((id: string) => {
+    try {
+      onAction(id)
+    } catch (error) {
+      console.error('Action failed:', error)
+    }
+  }, [onAction])
+  
+  if (isLoading) return <div>Loading...</div>
+  
+  return (
+    <div className={`base-component-styles ${className}`}>
+      {/* Component content */}
+    </div>
+  )
+}
+
+ComponentName.displayName = 'ComponentName'
+```
+
+### 🛡️ MANDATORY API Route Pattern
+```typescript
+// ✅ REQUIRED - Complete API route template
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
+
+const RequestSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email format'),
+})
+
+export async function POST(request: NextRequest) {
+  try {
+    // 1. MANDATORY: Authentication check first
+    const session = await auth()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    // 2. MANDATORY: Request validation
+    const body = await request.json()
+    const validatedData = RequestSchema.parse(body)
+    
+    // 3. MANDATORY: Business logic with error handling
+    const result = await db.model.create({ data: validatedData })
+    
+    // 4. MANDATORY: Consistent response format
+    return NextResponse.json({ success: true, data: result })
+    
+  } catch (error) {
+    console.error('API Error:', error)
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({
+        error: 'Invalid request data',
+        details: error.errors
+      }, { status: 400 })
+    }
+    
+    return NextResponse.json({
+      error: 'Internal server error'
+    }, { status: 500 })
+  }
+}
+```
+
+## 🎯 ABSOLUTE DESIGN CONSISTENCY RULES
+
+### 📐 MANDATORY Layout System - NO EXCEPTIONS
+```tsx
+// ✅ REQUIRED - Use standardized layout for ALL pages
+import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
+
+export default function MyPage() {
+  return (
+    <PageLayout maxWidth="xl">
+      <PageHeader 
+        title="Page Title"
+        description="Page description"
+      >
+        {/* Optional header actions */}
+      </PageHeader>
+      <PageContent>
+        {/* Page content sections */}
+      </PageContent>
+    </PageLayout>
+  )
+}
+
+// ✅ ALTERNATIVE - Using CSS classes directly
+export default function MyPage() {
+  return (
+    <div className="page-container">
+      <div className="content-wrapper">
+        <div className="content-sections">
+          {/* Page content */}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ❌ FORBIDDEN - Custom layouts without standardized classes
+export default function MyPage() {
+  return (
+    <div className="p-4 mx-auto"> {/* NEVER DO THIS */}
+      {/* Content */}
+    </div>
+  )
+}
+```
+
+### 📱 MANDATORY Responsive Design Rules
+```css
+/* ✅ REQUIRED - Fixed table layout to prevent horizontal scrolling */
+.table-container {
+  @apply w-full overflow-hidden; /* NEVER use overflow-x-auto */
+}
+
+.data-table {
+  @apply table-fixed w-full; /* ALWAYS use table-fixed */
+}
+
+/* ✅ REQUIRED - Specific column widths */
+.col-client-code { @apply w-20; }     /* 80px */
+.col-company-name { @apply w-48; }    /* 192px - Main content */
+.col-contact { @apply w-20; }         /* 80px - Contact icons */
+.col-assigned { @apply w-32; }        /* 128px */
+.col-actions { @apply w-16; }         /* 64px */
+
+/* ✅ REQUIRED - Text truncation with tooltips */
+.truncate-text {
+  @apply truncate;
+  title: attr(data-full-text);
+}
+```
+
+### 📧 MANDATORY Contact Management Standards
+```tsx
+// ✅ REQUIRED - Email icon implementation
+import { Mail, Phone } from 'lucide-react'
+
+function ContactIcons({ email, phone }: { email: string; phone?: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <a 
+        href={`mailto:${email}`}
+        className="text-muted-foreground hover:text-foreground transition-colors"
+        title={`Email: ${email}`}
+      >
+        <Mail className="h-3 w-3" />
+      </a>
+      {phone && (
+        <a 
+          href={`tel:${phone}`}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+          title={`Call: ${phone}`}
+        >
+          <Phone className="h-3 w-3" />
+        </a>
+      )}
+    </div>
+  )
+}
+
+// ❌ FORBIDDEN - Different icon sizes or missing functionality
+<Mail className="h-4 w-4" /> {/* WRONG SIZE */}
+<Mail onClick={() => {}} />   {/* MISSING MAILTO */}
+```
+
+### 🎨 MANDATORY Action Icon Standards
+```css
+/* ✅ REQUIRED - Consistent action icon styling */
+.action-trigger-icon {
+  @apply h-4 w-4; /* EXACT SIZE REQUIRED */
+}
+
+.action-button {
+  @apply h-8 w-8 p-0; /* EXACT BUTTON SIZE REQUIRED */
+}
+
+/* ✅ REQUIRED - Hover states */
+.action-button:hover .action-trigger-icon {
+  @apply text-foreground;
+}
+```
+
+## 🔐 MANDATORY SECURITY & VALIDATION RULES
+
+### 🛡️ Input Validation - NO EXCEPTIONS
+```typescript
+// ✅ REQUIRED - Zod validation for ALL inputs
+const ClientValidation = z.object({
+  companyName: z.string()
+    .min(1, 'Company name is required')
+    .max(255, 'Company name too long')
+    .regex(/^[a-zA-Z0-9\s&.-]+$/, 'Invalid characters'),
+  
+  email: z.string()
+    .email('Invalid email format')
+    .toLowerCase(),
+    
+  vatNumber: z.string()
+    .regex(/^GB\d{9}$/, 'Invalid UK VAT number format')
+    .optional()
+})
+
+// ❌ FORBIDDEN - No validation
+const createClient = async (data: any) => { // NEVER DO THIS
+  await db.client.create({ data })
+}
+```
+
+### 🔒 Authentication Pattern - MANDATORY
+```typescript
+// ✅ REQUIRED - Authentication check in ALL protected routes
+export async function POST(request: NextRequest) {
+  const session = await auth()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  
+  // Role-based authorization
+  if (session.user.role !== 'MANAGER' && session.user.role !== 'PARTNER') {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+  }
+  
+  // Proceed with authorized operation
+}
+```
+
+## 🎯 MANDATORY BUSINESS LOGIC RULES
+
+### 📅 DATE CALCULATION SYSTEM - ABSOLUTELY CRITICAL
+```typescript
+// 🎯 MANDATORY: Use Companies House official dates and centralized calculations
+import { 
+  calculateYearEnd, 
+  calculateCorporationTaxDue,
+  formatYearEnd,
+  getYearEndForTable,
+  getYearEndForForm 
+} from '@/lib/year-end-utils'
+
+// ✅ REQUIRED - Use Companies House accounts due date directly (official HMRC deadline)
+nextAccountsDue: companyData.accounts?.next_due ? new Date(companyData.accounts.next_due) : null
+
+// ✅ REQUIRED - For year end display calculations
+const yearEnd = calculateYearEnd(clientData)
+const yearEndDisplay = getYearEndForTable(clientData) // Tables: "30 Sept 2024" or "—"
+const yearEndForm = getYearEndForForm(clientData)     // Forms: "30 Sept 2024" or "Not set"
+
+// ✅ REQUIRED - Calculate CT due date only (not provided by Companies House)
+const ctDue = calculateCorporationTaxDue(clientData)     // Year end + 12 months
+
+// ❌ FORBIDDEN - NEVER calculate accounts due dates ourselves
+// const accountsDue = calculateAccountsDue(clientData) ❌ NEVER DO THIS
+// nextAccountsDue: calculatedAccountsDue ❌ NEVER DO THIS
+
+// ❌ FORBIDDEN - NEVER calculate dates inline
+// const accountsDue = new Date(yearEnd); accountsDue.setMonth(accountsDue.getMonth() + 9) ❌
+
+// ✅ REQUIRED - ClientYearEndData interface for calculations
+interface ClientYearEndData {
+  accountingReferenceDate?: string | null  // JSON: {"day":"30","month":"09"} or ISO
+  lastAccountsMadeUpTo?: string | Date | null
+  incorporationDate?: string | Date | null
+}
+```
+
+### 📊 Client Management - SACRED FUNCTIONALITY
+```typescript
+// ✅ REQUIRED - Client code generation (NEVER CHANGE)
+function generateClientCode(): string {
+  // Find last NZ- code and increment
+  // Format: NZ-1, NZ-2, NZ-3, etc.
+  // NEVER change this logic without explicit approval
+}
+
+// ✅ REQUIRED - Assignment priority system (PRESERVE EXACTLY)
+function getAssignedUser(client: Client, workType: 'VAT' | 'ACCOUNTS'): User | null {
+  if (workType === 'VAT') {
+    return client.currentVATQuarter?.assignedUser || 
+           client.vatAssignedUser || 
+           client.assignedUser
+  }
+  return client.assignedUser
+}
+```
+
+### 📱 Contact Management - EXACT IMPLEMENTATION
+```typescript
+// ✅ REQUIRED - Email functionality (NEVER CHANGE)
+const handleEmailClick = (email: string) => {
+  window.location.href = `mailto:${email}`
+}
+
+// ✅ REQUIRED - Phone functionality (NEVER CHANGE)  
+const handlePhoneClick = (phone: string) => {
+  window.location.href = `tel:${phone}`
+}
+```
+
+## 🎯 PROJECT CONTEXT AWARENESS - MANDATORY UNDERSTANDING
+
+### 🏢 Business Domain Understanding - CRITICAL
+- **UK Accounting Firm Management**: This is NOT a generic business app
+- **Compliance Critical**: Every feature affects UK tax compliance and legal requirements
+- **Client Relationship Management**: Disrupting client assignments = business relationship damage
+- **VAT Workflow System**: Complex 11-stage VAT return processing system
+- **Real Production Data**: Contains real UK company data from Companies House API
+- **Multi-User System**: Staff, Manager, Partner roles with different permissions
+- **Timeline Critical**: VAT deadlines are HMRC compliance requirements
+
+### 📊 Data Relationships - SACRED CONNECTIONS
+```typescript
+// ✅ UNDERSTAND - Critical data relationships (NEVER BREAK)
+Client -> VATQuarter -> VATWorkflowHistory  // VAT compliance chain
+Client -> User (multiple assignment types)   // Work assignment relationships  
+Client -> Companies House Data              // UK government data sync
+User -> Role -> Permissions                 // Security authorization chain
+VATQuarter -> Milestones -> Compliance     // Legal deadline tracking
+```
+
+### 🔄 Workflow Context - MISSION CRITICAL
+- **VAT Return Processing**: 11-stage workflow from paperwork to HMRC filing
+- **Client Assignment System**: Complex multi-type assignments (General, VAT, Ltd Accounts)
+- **Companies House Integration**: Automatic UK company data synchronization
+- **Deadline Management**: Statutory deadlines affect client compliance
+- **Audit Trail**: Complete activity logging for compliance and legal requirements
+
+## 🚨 ENFORCEMENT & ACCOUNTABILITY RULES
+
+### 🛡️ PRE-WORK MANDATORY CHECKLIST
+Before making ANY changes, MUST verify:
+- [ ] Does this involve date calculations? (If yes → MUST use lib/year-end-utils.ts functions)
+- [ ] Does this use Companies House data? (If yes → ALWAYS use accounts.next_due directly for accounts due dates)
+- [ ] Does this change affect existing functionality? (If yes → User approval required)
+- [ ] Does this involve database schema? (If yes → Follow EXACT safety protocol)
+- [ ] Does this change client assignments? (If yes → Extreme caution required)
+- [ ] Does this affect VAT workflows? (If yes → Compliance verification required)
+- [ ] Does this change contact management? (If yes → Test email/phone functionality)
+- [ ] Does this alter responsive design? (If yes → Test on all device sizes)
+- [ ] Does this modify authentication? (If yes → Security review required)
+
+### 🔍 POST-WORK MANDATORY VERIFICATION
+After making ANY changes, MUST verify:
+- [ ] All date calculations use centralized functions (no hardcoded date logic)
+- [ ] Companies House accounts due dates used directly (accounts.next_due IS used for official deadlines)
+- [ ] All existing functionality still works exactly as before
+- [ ] No horizontal scrolling introduced anywhere
+- [ ] Contact icons still work (email opens mailto, phone opens tel)
+- [ ] Client assignment system unchanged
+- [ ] Database integrity maintained (run npm run db:audit)
+- [ ] No TypeScript errors introduced
+- [ ] Responsive design maintained across all breakpoints
+- [ ] Authentication and authorization unchanged
+
+### 🚨 VIOLATION CONSEQUENCES
+Violating these rules results in:
+1. **Database Safety Violations**: Immediate project termination
+2. **Date Calculation Violations**: Immediate fix required - ALWAYS use Companies House accounts due dates, NEVER calculate them ourselves
+3. **Functionality Removal**: Immediate rollback required  
+4. **Design Inconsistency**: Must fix before any other work
+5. **Security Violations**: Immediate security review required
+6. **Business Logic Changes**: User approval and comprehensive testing required
+
+### 📚 MANDATORY REFERENCE DOCUMENTATION
+Before ANY development work, MUST review:
+- `CLAUDE.md` - Complete project understanding
+- `docs/VAT_SYSTEM_DOCUMENTATION.md` - VAT workflow system
+- `docs/DATABASE_SCHEMA.md` - Database structure and relationships
+- `docs/API_DOCUMENTATION.md` - API endpoint specifications
+- `docs/DESIGN_SYSTEM.md` - UI/UX standards and components
+- `docs/DATE_CALCULATION_SYSTEM.md` - Centralized date calculation functions and rules
+
+### 🎯 DEVELOPMENT PHILOSOPHY
+**REMEMBER**: This system manages critical UK accounting firm operations
+- **Data Integrity > Feature Velocity** - Never compromise data for speed
+- **User Experience Consistency > Individual Preferences** - Follow established patterns
+- **Business Logic Preservation > Code Cleanliness** - Don't break working systems
+- **Compliance Requirements > Technical Preferences** - UK regulations come first
+- **Client Relationship Protection > System Efficiency** - Don't disrupt client assignments
+
+## 🏁 FINAL CHECKPOINT REMINDER
+
+### Before submitting ANY work:
+1. **Functionality Test**: Does everything work exactly as before?
+2. **Database Safety**: Did I follow the safety protocol for any schema changes?
+3. **Design Consistency**: Does the UI match the established design system?
+4. **Responsive Check**: Does it work on mobile, tablet, and desktop?
+5. **Security Verification**: Are all authentication and authorization checks in place?
+6. **Business Logic Integrity**: Are client assignments and VAT workflows preserved?
+7. **Error Handling**: Are all edge cases and error scenarios handled?
+8. **Performance Impact**: Does this maintain or improve performance?
+9. **Documentation**: Have I documented any new functionality?
+10. **Testing**: Have I tested all affected functionality thoroughly?
+
+**ZERO TOLERANCE for violations of these rules. The integrity of this accounting firm management system depends on strict adherence to these standards.**
+
+### 🚫 FORBIDDEN MODIFICATIONS WITHOUT APPROVAL
+- **Date calculation logic** (must use centralized functions from lib/year-end-utils.ts)
+- **Accounts due date calculations** (ALWAYS use companyData.accounts.next_due directly from Companies House)
+- Client code generation logic (NZ-1, NZ-2 format)
+- Contact icon functionality (email/phone click actions)
+- User assignment system and API endpoints
+- Responsive table design and layout
+- Authentication and session management
+- Database connection and retry logic
+- Companies House API integration
+- Layout system and CSS classes
+
+## 📋 Core Development Principles
+
+### 🔒 Code Preservation Rules
+- When refactoring, ALWAYS maintain backward compatibility
+- When updating components, preserve all existing props and functionality
+- When modifying API endpoints, maintain existing response formats
+- NEVER remove database fields or tables without migration strategy
+- ALWAYS use deprecation warnings before removing features
+
+## 🛠️ Technology Stack Guidelines
+
+### Next.js 14 (App Router)
+- Use App Router exclusively (app/ directory)
+- Server Components by default, Client Components when needed
+- Use proper loading.tsx, error.tsx, and not-found.tsx files
+- Implement proper metadata for SEO
+- Use route groups with parentheses for organization: (auth), (dashboard)
+
+### TypeScript Standards
+- Use strict TypeScript configuration
+- Define interfaces for all data structures
+- Use proper generic types where applicable
+- Avoid 'any' type - use 'unknown' or proper typing
+- Export types from dedicated types/ directory
+
+### React/Next.js Component Rules
+- Use functional components with hooks exclusively
+- Implement proper error boundaries
+- Use React.memo() for performance optimization where needed
+- Prefer composition over inheritance
+- Use proper key props in lists
+
+## 📁 File Organization & Naming
+
+### Directory Structure
+```
+app/
+├── (auth)/           # Authentication routes
+├── (dashboard)/      # Protected dashboard routes
+├── api/             # API routes
+│   ├── clients/     # Client management APIs
+│   │   ├── [id]/    # Individual client operations
+│   │   │   ├── assign/        # User assignment
+│   │   │   ├── reassign/      # User reassignment
+│   │   │   ├── resign/        # Client resignation
+│   │   │   └── refresh-companies-house/  # CH data refresh
+│   │   ├── bulk-assign/       # Bulk user assignment
+│   │   ├── bulk-resign/       # Bulk resignation
+│   │   ├── bulk-refresh/      # Bulk CH refresh
+│   │   └── export/            # Data export
+│   ├── companies-house/       # Companies House integration
+│   ├── users/                 # User management APIs
+│   └── auth/                  # Authentication APIs
+├── globals.css      # Global styles with layout system
+├── layout.tsx       # Root layout
+└── page.tsx         # Home page
+
+components/
+├── ui/              # Reusable UI components (ShadCN)
+├── forms/           # Form components
+├── dashboard/       # Dashboard-specific components
+├── clients/         # Client management components
+│   ├── clients-table.tsx      # Main clients table with contact icons
+│   ├── assign-user-modal.tsx  # User assignment modal
+│   └── bulk-operations.tsx    # Bulk operations component
+├── layout/          # Layout components
+│   └── page-layout.tsx        # Standardized page layouts
+└── shared/          # Shared components
+
+lib/
+├── auth.ts          # Authentication utilities
+├── db.ts            # Database connection with retry logic
+├── companies-house.ts # Companies House API
+├── email.ts         # Email utilities
+├── utils.ts         # General utilities
+└── validations.ts   # Zod schemas
+```
+
+### Naming Conventions
+- Components: PascalCase (e.g., `ClientCard.tsx`)
+- Files/Directories: kebab-case (e.g., `client-management/`)
+- Variables/Functions: camelCase (e.g., `getUserClients`)
+- Constants: UPPER_SNAKE_CASE (e.g., `API_BASE_URL`)
+- Database tables: snake_case (e.g., `user_clients`)
+
+## 🎨 UI/UX Guidelines
+
+### Design System Standards
+- Use Tailwind CSS exclusively for styling
+- Use ShadCN/UI components as base components
+- Maintain consistent spacing using Tailwind spacing scale
+- Use semantic color classes (e.g., `text-primary`, `bg-secondary`)
+- Implement proper focus states for accessibility
+
+### Component Architecture Standards
+- Create reusable components in components/ui/
+- Use compound components for complex UI patterns
+- Implement proper loading and error states
+- Use Framer Motion for animations consistently
+- Maintain consistent button heights and spacing
+
+### Contact Management Standards
+- **Email Icons**: Use Mail icon from Lucide React
+- **Phone Icons**: Use Phone icon from Lucide React
+- **Click Actions**: Email opens mailto:, Phone opens tel:
+- **Icon Sizing**: Consistent h-3 w-3 for contact icons
+- **Hover Effects**: text-muted-foreground hover:text-foreground
+- **Tooltips**: Show full contact info with title attribute
+
+### Action Icon Standards
+- **Consistent Sizing**: h-4 w-4 for all action icons
+- **Button Container**: h-8 w-8 p-0 for icon buttons
+- **CSS Class**: Use .action-trigger-icon for consistent styling
+- **Hover States**: Smooth transitions with proper color changes
+
+### Responsive Design Rules
+- Mobile-first approach using Tailwind responsive prefixes
+- **NO HORIZONTAL SCROLLING** - Content must fit viewport
+- **Fixed Table Layout**: Use table-fixed for consistent columns
+- Use proper touch targets (minimum 44px)
+- Implement proper keyboard navigation
+
+## 📐 STANDARDIZED LAYOUT SYSTEM
+
+### CRITICAL: Layout Consistency Rules
+- **ALWAYS** use the standardized layout system for ALL pages
+- **NEVER** use old layout classes (`container-padding`, `section-spacing`, `content-spacing`)
+- **ALWAYS** use new layout components for consistency
+- **NEVER** create horizontal scrolling
+- **ALWAYS** ensure content fits within viewport
+
+### Required Layout Structure for ALL Pages
+```tsx
+// Option 1: Using layout components (PREFERRED)
+import { PageLayout, PageHeader, PageContent } from '@/components/layout/page-layout'
+
+export default function MyPage() {
+  return (
+    <PageLayout maxWidth="xl">
+      <PageHeader 
+        title="Page Title"
+        description="Page description"
+      >
+        {/* Optional header actions */}
+      </PageHeader>
+      <PageContent>
+        {/* Page content sections */}
+      </PageContent>
+    </PageLayout>
+  )
+}
+
+// Option 2: Using CSS classes directly
+export default function MyPage() {
+  return (
+    <div className="page-container">
+      <div className="content-wrapper">
+        <div className="content-sections">
+          {/* Page content */}
+        </div>
+      </div>
+    </div>
+  )
+}
+```
+
+### Layout CSS Classes
+- `.page-container` - Main page wrapper with consistent padding
+- `.content-wrapper` - Content container with max-width and centering
+- `.content-sections` - Sections wrapper with consistent spacing
+- `.page-header` - Standardized page header with bottom border
+- `.action-trigger-icon` - Consistent action icon styling
+
+### Table Layout Standards
+- **Use table-fixed**: Prevents horizontal scrolling
+- **Column Widths**: Specific widths for each column type
+  - Client Code: w-20 (80px)
+  - Company Number: w-24 (96px)
+  - Company Name: w-48 (192px) - Main content column
+  - Dates: w-20 or w-24 (80-96px)
+  - Contact: w-20 (80px) - For contact icons
+  - Assigned To: w-32 (128px)
+  - Actions: w-16 (64px)
+- **Text Truncation**: Use truncate with title tooltips
+
+### Max Width Options
+- `sm` - 672px (forms, simple pages)
+- `md` - 896px (content pages)
+- `lg` - 1152px (dashboard pages)
+- `xl` - 1280px (default, most pages)
+- `2xl` - No max width (full-width pages)
+- `full` - Full width (special cases)
+
+### Spacing Variables
+```css
+--layout-padding-x: 1rem;        /* Mobile horizontal padding */
+--layout-padding-x-md: 1.5rem;   /* Tablet horizontal padding */
+--layout-padding-x-lg: 2rem;     /* Desktop horizontal padding */
+
+--layout-padding-y: 1.5rem;      /* Mobile vertical padding */
+--layout-padding-y-md: 2rem;     /* Tablet vertical padding */
+--layout-padding-y-lg: 2.5rem;   /* Desktop vertical padding */
+
+--content-spacing: 1.5rem;       /* Mobile content spacing */
+--content-spacing-md: 2rem;      /* Tablet content spacing */
+--content-spacing-lg: 2.5rem;    /* Desktop content spacing */
+```
+
+## 🗄️ Database & API Standards
+
+### Client Code Generation Rules
+- **Format**: NZ-1, NZ-2, NZ-3, etc. (sequential numbering)
+- **Function**: generateClientCode() in app/api/clients/route.ts
+- **Logic**: Find last NZ- code, increment by 1
+- **NEVER** change this format without explicit approval
+
+### API Route Standards
+- Use proper HTTP methods (GET, POST, PUT, DELETE)
+- Implement proper error handling with status codes
+- Use Zod for request/response validation
+- Include proper authentication middleware
+- Return consistent JSON response format:
+```typescript
+{
+  success: boolean,
+  data?: any,
+  error?: string,
+  message?: string
+}
+```
+
+### Client Assignment API Rules
+- **Endpoint**: POST /api/clients/[id]/assign
+- **Body Parameter**: { userId: string | null }
+- **NEVER** change parameter name from 'userId'
+- **Response**: Include updated client with assignedUser data
+- **Authentication**: Require MANAGER role
+
+### Prisma Guidelines
+- Use descriptive model names in PascalCase
+- Include proper relations with clear foreign keys
+- Use proper field types (DateTime, UUID, etc.)
+- Include created_at and updated_at on all models
+- Use enums for status fields
+
+### Authentication Rules
+- Use NextAuth.js for authentication
+- Implement proper session management
+- Use role-based access control (RBAC)
+- Protect all API routes that need authentication
+- Use proper JWT token handling
+
+## 🔧 Code Quality Standards
+
+### TypeScript Best Practices
+- Use interface for object shapes, type for unions/primitives
+- Implement proper error handling with try/catch
+- Use async/await instead of promises chains
+- Implement proper loading states with React Query
+- Use proper TypeScript generics where applicable
+
+### Performance Guidelines
+- Use React.memo() for expensive components
+- Implement proper code splitting with dynamic imports
+- Use React Query for server state management
+- Implement proper caching strategies
+- Use Next.js Image component for images
+- Implement proper database indexing
+
+### Security Standards
+- Validate all user inputs with Zod
+- Sanitize data before database operations
+- Use proper CORS configuration
+- Implement rate limiting on API routes
+- Use environment variables for sensitive data
+- Hash passwords with bcrypt
+- Implement proper session timeout
+
+## 📝 Documentation Requirements
+
+### Code Documentation
+- Add JSDoc comments for all functions and components
+- Include prop types documentation for components
+- Document complex business logic with inline comments
+- Maintain up-to-date README.md files
+- Document API endpoints with proper examples
+
+### Commit Guidelines
+- Use conventional commit format: `type(scope): description`
+- Types: feat, fix, docs, style, refactor, test, chore
+- Write descriptive commit messages
+- Reference issue numbers when applicable
+
+## 🧪 Testing Standards
+
+### Testing Requirements
+- Write unit tests for utility functions
+- Write integration tests for API routes
+- Write component tests using React Testing Library
+- Maintain test coverage above 80%
+- Test error scenarios and edge cases
+
+### Test Organization
+- Place tests adjacent to source files: `component.test.tsx`
+- Use descriptive test names
+- Group related tests with describe blocks
+- Mock external dependencies properly
+- Use proper test data factories
+
+## 🚀 Deployment & Environment
+
+### Environment Management
+- Use different env files for different environments
+- Never commit sensitive data to version control
+- Use proper environment variable validation
+- Document all required environment variables
+
+### Build & Deployment
+- Ensure builds pass without warnings
+- Test deployments in staging environment
+- Use proper database migrations
+- Implement proper logging for production
+- Monitor application performance
+
+## 🔄 Development Workflow
+
+### Branch Strategy
+- Use feature branches: `feature/client-management`
+- Use descriptive branch names
+- Keep branches small and focused
+- Rebase before merging to main
+- Delete branches after merging
+
+### Code Review Guidelines
+- Review for functionality, not just syntax
+- Check for proper error handling
+- Verify accessibility compliance
+- Ensure proper TypeScript usage
+- Check for performance implications
+- **VERIFY LAYOUT CONSISTENCY** - Ensure new pages use standardized layout system
+- **VERIFY NO HORIZONTAL SCROLLING** - Test responsive design
+- **VERIFY CONTACT ICONS** - Ensure email/phone functionality works
+
+## 🎯 Business Logic Guidelines
+
+### Client Management Rules
+- Always validate company numbers with Companies House API
+- Implement proper client assignment workflows
+- Maintain audit trails for client changes
+- Use proper date handling for UK accounting periods
+- Implement proper client status tracking
+- **PRESERVE** contact management functionality (email/phone icons)
+- **MAINTAIN** client code generation (NZ-X format)
+
+### Contact Management Rules
+- **Email Icons**: Must open mailto: links
+- **Phone Icons**: Must open tel: links
+- **Responsive**: Icons must work on all device sizes
+- **Accessibility**: Include proper titles and hover states
+- **Consistency**: Same styling across desktop/tablet/mobile
+
+### Task Management
+- Use proper deadline tracking and notifications
+- Implement workload balancing algorithms
+- Maintain task history and status changes
+- Use proper priority levels
+- Implement recurring task support
+
+### Communication System
+- Use proper email template validation
+- Implement proper notification queuing
+- Maintain communication audit trails
+- Use proper unsubscribe mechanisms
+- Implement proper email delivery tracking
+
+## ⚡ Performance Optimization
+
+### Frontend Performance
+- Use proper image optimization with Next.js Image
+- Implement proper bundle splitting
+- Use proper caching headers
+- Minimize JavaScript bundle size
+- Use proper preloading strategies
+
+### Backend Performance
+- Use proper database indexing
+- Implement query optimization
+- Use proper caching strategies (Redis if needed)
+- Implement proper connection pooling
+- Monitor API response times
+
+## 🛡️ Error Handling
+
+### Error Boundaries
+- Implement proper React error boundaries
+- Use proper error logging services
+- Provide user-friendly error messages
+- Implement proper fallback UI components
+- Log errors with proper context
+
+### API Error Handling
+- Use proper HTTP status codes
+- Return consistent error response format
+- Log errors with request context
+- Implement proper validation error messages
+- Use proper error recovery strategies
+
+## 📊 Analytics & Monitoring
+
+### Logging Standards
+- Use structured logging with proper levels
+- Log important business events
+- Include proper context in logs
+- Use proper log rotation strategies
+- Monitor error rates and performance
+
+### Metrics Tracking
+- Track user engagement metrics
+- Monitor system performance metrics
+- Track business KPIs
+- Implement proper alerting
+- Use proper dashboard visualization
+
+## 🔐 CURRENT FUNCTIONALITY PROTECTION
+
+### Contact Management (PROTECTED)
+- Email icons with mailto: functionality
+- Phone icons with tel: functionality
+- Hover effects and tooltips
+- Responsive design across all breakpoints
+
+### Client Code Generation (PROTECTED)
+- NZ-1, NZ-2, NZ-3 sequential format
+- generateClientCode() function logic
+- Database query for last client code
+
+### User Assignment (PROTECTED)
+- POST /api/clients/[id]/assign endpoint
+- userId parameter in request body
+- AssignUserModal component functionality
+
+### Responsive Design (PROTECTED)
+- Fixed table layout without horizontal scrolling
+- Proper column widths and text truncation
+- Mobile/tablet/desktop breakpoints
+
+### Layout System (PROTECTED)
+- Standardized CSS classes
+- PageLayout components
+- Consistent spacing and padding
+
+---
+
+## 🎯 FINAL REMINDER: ABSOLUTE PROTECTION RULES
+
+### NEVER DO THESE WITHOUT EXPLICIT APPROVAL:
+1. Delete any existing functionality
+2. Remove working APIs or endpoints
+3. Change client code generation format
+4. Remove contact icon functionality
+5. Alter responsive design or create horizontal scrolling
+6. Modify user assignment system
+7. Change authentication or authorization logic
+8. Remove layout system components
+9. Delete database operations or queries
+10. Change API response formats
+
+### ALWAYS DO THESE:
+1. Preserve existing functionality when refactoring
+2. Test thoroughly before deploying changes
+3. Use standardized layout system for new pages
+4. Maintain responsive design without horizontal scrolling
+5. Follow contact icon standards for new implementations
+6. Use consistent action icon sizing
+7. Implement proper error handling
+8. Document all changes thoroughly
+9. Follow TypeScript best practices
+10. Maintain backward compatibility
+
+These rules ensure code consistency, maintainability, reliability, and visual consistency while preserving all existing functionality throughout the development process. 

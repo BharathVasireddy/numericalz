@@ -1,0 +1,269 @@
+# 🔥 ULTIMATE DATABASE PROTECTION RULES - SACRED COMMANDMENTS
+
+## 🚫 ABSOLUTELY FORBIDDEN DATABASE COMMANDS - INSTANT PROJECT TERMINATION:
+- **NEVER EVER** use `npx prisma migrate reset --force` (CAUSES TOTAL DATA LOSS)
+- **NEVER EVER** use `npx prisma migrate reset` without explicit user approval
+- **NEVER EVER** use `npx prisma db push` (bypasses all safety mechanisms)
+- **NEVER EVER** use any destructive Prisma command without backup
+- **NEVER EVER** drop tables, columns, or constraints directly
+- **NEVER EVER** modify production database schema without following EXACT safety protocol
+- **NEVER EVER** ignore migration warnings or errors
+- **NEVER EVER** bypass the safe migration process
+
+## ✅ ONLY THESE DATABASE COMMANDS ARE PERMITTED:
+- **ONLY** use `npm run db:backup` (MANDATORY before any database operation)
+- **ONLY** use `npm run db:migrate-safe` (for all schema changes)
+- **ONLY** use `npm run db:restore [filename]` (for recovery)
+- **ONLY** use `npm run db:audit` (for integrity verification)
+- **ONLY** use `npm run db:studio` (for GUI access)
+
+## 🛡️ MANDATORY DATABASE SAFETY PROTOCOL - NO EXCEPTIONS:
+1. **BEFORE ANY SCHEMA CHANGE**: Run `npm run db:backup` (MANDATORY)
+2. **FOR ALL SCHEMA CHANGES**: Only use `npm run db:migrate-safe`
+3. **IF ANYTHING FAILS**: Use `npm run db:restore [backup-file]` immediately
+4. **AFTER ALL CHANGES**: Run `npm run db:audit` to verify integrity
+5. **DOCUMENT EVERYTHING**: Explain why database changes are needed
+6. **TEST FIRST**: Always test migrations on development copy first
+
+## 🚨 DATA PROTECTION MINDSET - PRODUCTION ALWAYS:
+- Treat EVERY database as production data with real client information
+- EVERY table contains critical UK accounting firm data
+- EVERY row represents real business relationships and compliance data
+- DATA LOSS = BUSINESS FAILURE = PROJECT TERMINATION
+- Client assignment data is SACRED - never break relationships
+- VAT workflow data is COMPLIANCE CRITICAL - never corrupt
+- User authentication data is SECURITY CRITICAL - never compromise
+
+## 🔐 SCHEMA CHANGE APPROVAL MATRIX:
+- **Minor additions** (new optional fields): Backup + Safe migration
+- **Major changes** (new tables, relationships): User approval required
+- **Field removals**: FORBIDDEN without explicit user approval
+- **Table drops**: FORBIDDEN without explicit user approval
+- **Index changes**: Backup + Safe migration + Performance testing
+- **Constraint changes**: User approval + Backup + Safe migration
+
+## 🚨 EXTREMELY DANGEROUS DATABASE COMMANDS - NEVER USE:
+
+### 💥 TOTAL DATA DESTRUCTION COMMANDS:
+```bash
+# ❌ FORBIDDEN - DELETES ALL DATA
+npx prisma migrate reset
+npx prisma migrate reset --force
+
+# ❌ FORBIDDEN - BYPASSES ALL SAFETY MECHANISMS
+npx prisma db push
+
+# ❌ FORBIDDEN - RISKY WITHOUT BACKUP
+npx prisma migrate dev
+
+# ❌ FORBIDDEN - DIRECT DATABASE DESTRUCTION
+psql -c "DROP DATABASE numericalz_dev_db;"
+psql -c "TRUNCATE TABLE users CASCADE;"
+psql -c "DELETE FROM clients;"
+psql -c "ALTER TABLE clients DROP COLUMN vatAssignedUserId;"
+psql -c "DROP TABLE clients;"
+```
+
+### ⚠️ MODERATELY DANGEROUS COMMANDS:
+```bash
+# ⚠️ RISKY - Can overwrite existing data
+npx prisma db seed
+
+# ⚠️ RISKY - Can break existing code
+npx prisma generate
+
+# ⚠️ RISKY - Manual data editing GUI
+npx prisma studio  # Use with extreme caution
+```
+
+## 🏗️ DUAL DATABASE ENVIRONMENT RULES:
+
+### 🏠 LOCAL DATABASE (Development):
+- **PostgreSQL** running locally on `localhost:5432`
+- **Database**: `numericalz_dev_db`
+- **Purpose**: Testing, development, experimentation
+- **Safety**: Always backup before changes
+- **Commands**: All safe commands permitted
+
+### 🌐 PRODUCTION DATABASE (Railway):
+- **PostgreSQL** hosted on Railway cloud
+- **Database**: Production instance
+- **Purpose**: Live client data, production use
+- **Safety**: EXTREME CAUTION - backup mandatory
+- **Access**: ONLY when explicitly requested by user
+
+### 📋 DATABASE SELECTION RULES:
+- **DEFAULT**: Always use LOCAL database for testing
+- **PRODUCTION**: Only use when user explicitly requests
+- **NEVER**: Assume production access needed
+- **ALWAYS**: Specify which database is being used
+- **BACKUP**: Mandatory before any production operation
+
+## 🛠️ SAFE SCHEMA MIGRATION WORKFLOW - MANDATORY PROCESS
+
+### 🚨 AVOID DATA LOSS PROMPTS - CRITICAL RULES:
+
+#### ⚠️ DANGEROUS PROMPTS TO NEVER ACCEPT:
+```bash
+⚠️  We need to reset the database, this will cause data loss.
+    Do you want to continue? (y/N)  # ALWAYS SAY NO!
+
+⚠️  This migration will remove data. Do you want to continue? (y/N)  # ALWAYS SAY NO!
+
+⚠️  Prisma needs to perform transactions that might fail.
+    Do you want to continue? (y/N)  # ALWAYS SAY NO!
+```
+
+#### 📋 MANDATORY SAFE MIGRATION WORKFLOW:
+```bash
+# 1. ALWAYS BACKUP FIRST (NO EXCEPTIONS)
+npm run db:backup
+
+# 2. MODIFY SCHEMA FILE SAFELY
+# Edit prisma/schema.prisma
+
+# 3. CREATE MIGRATION FILE (DON'T APPLY YET)
+npx prisma migrate dev --create-only --name "descriptive_change_name"
+
+# 4. REVIEW MIGRATION FILE BEFORE APPLYING
+cat prisma/migrations/[timestamp]_descriptive_change_name/migration.sql
+
+# 5. LOOK FOR DANGEROUS SQL COMMANDS:
+# - DROP COLUMN (data loss)
+# - DROP TABLE (data loss)
+# - ALTER COLUMN TYPE (data loss)
+# - TRUNCATE (data loss)
+
+# 6. IF MIGRATION LOOKS SAFE, APPLY IT
+npm run db:migrate-safe
+
+# 7. VERIFY EVERYTHING WORKS
+npm run db:audit
+npm run build
+npm run dev
+```
+
+## ✅ ALWAYS SAFE SCHEMA CHANGES:
+```typescript
+// ✅ SAFE: Adding optional fields
+model Client {
+  id          String   @id @default(cuid())
+  companyName String
+  newField    String?  // Optional - never causes data loss
+}
+
+// ✅ SAFE: Adding new tables
+model NewTable {
+  id        String   @id @default(cuid())
+  name      String
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+}
+
+// ✅ SAFE: Adding indexes
+model Client {
+  email String @unique  // Adding constraints is safe
+}
+```
+
+## ⚠️ DANGEROUS SCHEMA CHANGES - REQUIRE SPECIAL APPROACH:
+```typescript
+// ❌ DANGEROUS: Changing field types
+model Client {
+  clientCode Int  // Was String - WILL PROMPT FOR DATA LOSS
+}
+
+// ❌ DANGEROUS: Removing fields
+model Client {
+  // Removing any field - WILL PROMPT FOR DATA LOSS
+}
+
+// ❌ DANGEROUS: Making optional fields required
+model Client {
+  email String  // Was String? - WILL PROMPT FOR DATA LOSS
+}
+```
+
+## 🛡️ SAFE STRATEGIES FOR COMPLEX CHANGES:
+
+### Strategy 1: Multi-Step Migration (Recommended)
+```bash
+# Instead of changing field type directly:
+# Step 1: Add new field
+# Step 2: Write data migration script
+# Step 3: Update application code
+# Step 4: Remove old field in separate migration
+
+# Example:
+# 1. Add clientCodeNew Int?
+# 2. Run script to populate clientCodeNew from clientCode
+# 3. Update code to use clientCodeNew
+# 4. Remove clientCode in separate migration
+```
+
+### Strategy 2: Rename Instead of Remove
+```typescript
+// Instead of removing:
+model Client {
+  // ❌ oldField  String  // Don't remove directly
+  
+  // ✅ Rename with deprecation
+  oldField_deprecated String  // TODO: Remove after migration complete
+  newField           String?
+}
+```
+
+### Strategy 3: Optional First, Required Later
+```typescript
+// Step 1: Add as optional
+model Client {
+  newRequiredField String?  // Start optional
+}
+
+// Step 2: Populate data
+// Step 3: Make required in separate migration
+model Client {
+  newRequiredField String  // Now required
+}
+```
+
+## 🚨 EMERGENCY RESPONSE TO DATA LOSS PROMPTS:
+```bash
+# If you see data loss prompt:
+# 1. NEVER type 'y' - always say NO
+N
+
+# 2. Exit safely
+Ctrl+C
+
+# 3. Backup immediately if you haven't
+npm run db:backup
+
+# 4. Review what triggered the prompt
+cat prisma/migrations/[latest-migration]/migration.sql
+
+# 5. Plan safer multi-step approach
+# 6. Ask user for approval if needed
+```
+
+## 📋 PRE-MIGRATION SAFETY CHECKLIST:
+- [ ] **Backup completed:** `npm run db:backup`
+- [ ] **Using `--create-only` flag:** No auto-apply
+- [ ] **Reviewed migration file:** Checked for dangerous SQL
+- [ ] **No field removals:** Unless approved by user
+- [ ] **No type changes:** Unless using multi-step approach
+- [ ] **Testing on LOCAL database:** Never production first
+- [ ] **Rollback plan ready:** Know how to undo changes
+
+## 🎯 GOLDEN RULES FOR SCHEMA CHANGES:
+1. **BACKUP FIRST** - Always, no exceptions
+2. **LOCAL TESTING** - Test on local database first  
+3. **--CREATE-ONLY** - Never let Prisma auto-apply migrations
+4. **REVIEW FIRST** - Always check generated SQL before applying
+5. **MULTI-STEP** - Break dangerous changes into safe steps
+6. **USER APPROVAL** - For any field removals or type changes
+7. **VERIFY AFTER** - Run audit and test functionality
+description:
+globs:
+alwaysApply: false
+---
