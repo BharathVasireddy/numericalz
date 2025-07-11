@@ -82,18 +82,28 @@ export async function GET(request: NextRequest) {
 
     // PERFORMANCE: Add server-side workflow stage filtering (at client level)
     if (workflowStage) {
+      let stageFilter: any = {}
+      
+      // Handle special filter cases
+      if (workflowStage === 'completed') {
+        stageFilter = { isCompleted: true }
+      } else if (workflowStage === 'not_started') {
+        stageFilter = { currentStage: 'PAPERWORK_PENDING_CHASE' }
+      } else {
+        // Regular workflow stage
+        stageFilter = { currentStage: workflowStage as any }
+      }
+      
       // If user assignment filter is already applied, combine with stage filter
       if (whereClause.vatQuartersWorkflow?.some) {
         whereClause.vatQuartersWorkflow.some = {
           ...whereClause.vatQuartersWorkflow.some,
-          currentStage: workflowStage as any
+          ...stageFilter
         }
       } else {
         // Otherwise, create new filter for clients with at least one quarter in this stage
         whereClause.vatQuartersWorkflow = {
-          some: {
-            currentStage: workflowStage as any
-          }
+          some: stageFilter
         }
       }
     }
@@ -180,7 +190,23 @@ export async function GET(request: NextRequest) {
           if (currentQuarter) {
             // Only create quarter if it matches the stage filter (or no stage filter)
             const quarterStage = 'PAPERWORK_PENDING_CHASE' as const
-            if (!workflowStage || workflowStage === quarterStage) {
+            
+            // Check if this quarter matches the filter
+            let shouldCreateQuarter = true
+            if (workflowStage) {
+              if (workflowStage === 'completed') {
+                // Don't create new quarters when filtering by completed (new quarters are never completed)
+                shouldCreateQuarter = false
+              } else if (workflowStage === 'not_started') {
+                // Create new quarters when filtering by not_started (new quarters start as PAPERWORK_PENDING_CHASE)
+                shouldCreateQuarter = true
+              } else {
+                // For specific stages, only create if it matches
+                shouldCreateQuarter = workflowStage === quarterStage
+              }
+            }
+            
+            if (shouldCreateQuarter) {
               return {
                 ...client,
                 vatQuartersWorkflow: [{
