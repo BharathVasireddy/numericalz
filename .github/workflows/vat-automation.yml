@@ -1,0 +1,72 @@
+name: VAT Quarter Auto-Creation
+
+on:
+  # Run on the 1st of every month at 12:00 AM UTC
+  schedule:
+    - cron: '0 0 1 * *'
+  
+  # Allow manual triggering for testing
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Force run even if not 1st of month'
+        required: false
+        default: 'false'
+
+jobs:
+  auto-create-vat-quarters:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Trigger VAT Quarter Auto-Creation
+        run: |
+          echo "🔄 Starting VAT quarter auto-creation..."
+          echo "⏰ Triggered at: $(date)"
+          
+          # Make API call to your Vercel app
+          response=$(curl -s -w "%{http_code}" \
+            -X GET "${{ secrets.VERCEL_APP_URL }}/api/vat-quarters/auto-create" \
+            -H "Authorization: Bearer ${{ secrets.VAT_AUTO_CREATE_SECRET }}" \
+            -H "Content-Type: application/json")
+          
+          # Extract HTTP status code (last 3 characters)
+          http_code=${response: -3}
+          
+          # Extract response body (everything except last 3 characters)
+          response_body=${response%???}
+          
+          echo "📊 HTTP Status: $http_code"
+          echo "📄 Response: $response_body"
+          
+          # Check if request was successful
+          if [ $http_code -eq 200 ]; then
+            echo "✅ VAT quarter auto-creation completed successfully!"
+            
+            # Pretty print the JSON response
+            echo "📋 Results:"
+            echo "$response_body" | jq '.' || echo "$response_body"
+            
+          else
+            echo "❌ API call failed with HTTP status: $http_code"
+            echo "Error response: $response_body"
+            exit 1
+          fi
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "❌ VAT quarter auto-creation failed!"
+          echo "Please check the logs and manual trigger if needed."
+          
+          # You can add Slack/email notifications here if needed
+          # Example:
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"❌ VAT automation failed on $(date)"}' \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Success Summary
+        if: success()
+        run: |
+          echo "🎉 VAT quarter automation completed successfully!"
+          echo "📧 Check your email for assignment notifications"
+          echo "🔗 View dashboard: ${{ secrets.VERCEL_APP_URL }}/dashboard/clients/vat-dt" 
