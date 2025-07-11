@@ -80,6 +80,24 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // PERFORMANCE: Add server-side workflow stage filtering (at client level)
+    if (workflowStage) {
+      // If user assignment filter is already applied, combine with stage filter
+      if (whereClause.vatQuartersWorkflow?.some) {
+        whereClause.vatQuartersWorkflow.some = {
+          ...whereClause.vatQuartersWorkflow.some,
+          currentStage: workflowStage as any
+        }
+      } else {
+        // Otherwise, create new filter for clients with at least one quarter in this stage
+        whereClause.vatQuartersWorkflow = {
+          some: {
+            currentStage: workflowStage as any
+          }
+        }
+      }
+    }
+
     // PERFORMANCE: Get total count and clients with optimized filtering
     const [vatClients, totalCount] = await Promise.all([
       // Fetch VAT clients with OPTIMIZED query structure and server-side filtering
@@ -99,9 +117,8 @@ export async function GET(request: NextRequest) {
           isVatEnabled: true,
           createdAt: true,
           
-          // OPTIMIZED: Get relevant VAT quarters with server-side stage filtering
+          // OPTIMIZED: Get ALL VAT quarters (filtering is done at client level above)
           vatQuartersWorkflow: {
-            where: workflowStage ? { currentStage: workflowStage as any } : {},
             select: {
               id: true,
               quarterPeriod: true,
@@ -156,22 +173,25 @@ export async function GET(request: NextRequest) {
 
     // PERFORMANCE OPTIMIZATION: Lightweight data transformation for remaining clients
     const processedClients = vatClients.map(client => {
-      // If no quarters exist and no server-side filtering, create current quarter on-demand
+      // If no quarters exist, create current quarter on-demand
       if (!client.vatQuartersWorkflow || client.vatQuartersWorkflow.length === 0) {
-        if (!assignedUserId && !workflowStage && client.vatQuarterGroup) {
+        if (!assignedUserId && client.vatQuarterGroup) {
           const currentQuarter = calculateVATQuarter(client.vatQuarterGroup)
           if (currentQuarter) {
-            return {
-              ...client,
-              vatQuartersWorkflow: [{
-                id: 'pending',
-                quarterPeriod: currentQuarter.quarterPeriod,
-                quarterStartDate: currentQuarter.quarterStartDate,
-                quarterEndDate: currentQuarter.quarterEndDate,
-                filingDueDate: currentQuarter.filingDueDate,
-                currentStage: 'PAPERWORK_PENDING_CHASE' as const,
-                isCompleted: false,
-                assignedUser: null,
+            // Only create quarter if it matches the stage filter (or no stage filter)
+            const quarterStage = 'PAPERWORK_PENDING_CHASE' as const
+            if (!workflowStage || workflowStage === quarterStage) {
+              return {
+                ...client,
+                vatQuartersWorkflow: [{
+                  id: 'pending',
+                  quarterPeriod: currentQuarter.quarterPeriod,
+                  quarterStartDate: currentQuarter.quarterStartDate,
+                  quarterEndDate: currentQuarter.quarterEndDate,
+                  filingDueDate: currentQuarter.filingDueDate,
+                  currentStage: quarterStage,
+                  isCompleted: false,
+                  assignedUser: null,
                 // Initialize milestone fields
                 chaseStartedDate: null,
                 chaseStartedByUserName: null,
@@ -191,6 +211,7 @@ export async function GET(request: NextRequest) {
             }
           }
         }
+      }
       }
       return client
     })
