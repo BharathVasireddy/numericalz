@@ -43,6 +43,15 @@ export async function GET(request: NextRequest) {
               email: true,
               role: true
             }
+          },
+          workflowHistory: {
+            where: {
+              toStage: 'REVIEW_PENDING_MANAGER'
+            },
+            orderBy: {
+              stageChangedAt: 'desc'
+            },
+            take: 1
           }
         },
         orderBy: {
@@ -52,7 +61,9 @@ export async function GET(request: NextRequest) {
 
       // Add VAT reviews to items
       for (const vatQuarter of vatManagerReviews) {
-        const submittedDate = vatQuarter.workFinishedDate || vatQuarter.workStartedDate || vatQuarter.createdAt
+        // Use the actual stage change date from workflow history
+        const stageChangeHistory = vatQuarter.workflowHistory[0]
+        const submittedDate = stageChangeHistory?.stageChangedAt || vatQuarter.workFinishedDate || vatQuarter.workStartedDate || vatQuarter.createdAt
         const daysWaiting = Math.floor((new Date().getTime() - new Date(submittedDate).getTime()) / (1000 * 60 * 60 * 24))
         
         reviewItems.push({
@@ -93,6 +104,15 @@ export async function GET(request: NextRequest) {
               email: true,
               role: true
             }
+          },
+          workflowHistory: {
+            where: {
+              toStage: 'DISCUSS_WITH_MANAGER'
+            },
+            orderBy: {
+              stageChangedAt: 'desc'
+            },
+            take: 1
           }
         },
         orderBy: {
@@ -102,7 +122,9 @@ export async function GET(request: NextRequest) {
 
       // Add Ltd reviews to items
       for (const ltdWorkflow of ltdManagerReviews) {
-        const submittedDate = ltdWorkflow.workStartedDate || ltdWorkflow.createdAt
+        // Use the actual stage change date from workflow history
+        const stageChangeHistory = ltdWorkflow.workflowHistory[0]
+        const submittedDate = stageChangeHistory?.stageChangedAt || ltdWorkflow.workStartedDate || ltdWorkflow.createdAt
         const daysWaiting = Math.floor((new Date().getTime() - new Date(submittedDate).getTime()) / (1000 * 60 * 60 * 24))
         
         reviewItems.push({
@@ -147,6 +169,18 @@ export async function GET(request: NextRequest) {
               email: true,
               role: true
             }
+          },
+          workflowHistory: {
+            where: {
+              OR: [
+                { toStage: 'REVIEW_PENDING_PARTNER' },
+                { toStage: 'EMAILED_TO_PARTNER' }
+              ]
+            },
+            orderBy: {
+              stageChangedAt: 'desc'
+            },
+            take: 1
           }
         },
         orderBy: {
@@ -156,7 +190,9 @@ export async function GET(request: NextRequest) {
 
       // Add VAT partner reviews
       for (const vatQuarter of vatPartnerReviews) {
-        const submittedDate = vatQuarter.workFinishedDate || vatQuarter.workStartedDate || vatQuarter.createdAt
+        // Use the actual stage change date from workflow history
+        const stageChangeHistory = vatQuarter.workflowHistory[0]
+        const submittedDate = stageChangeHistory?.stageChangedAt || vatQuarter.workFinishedDate || vatQuarter.workStartedDate || vatQuarter.createdAt
         const daysWaiting = Math.floor((new Date().getTime() - new Date(submittedDate).getTime()) / (1000 * 60 * 60 * 24))
         
         reviewItems.push({
@@ -197,6 +233,15 @@ export async function GET(request: NextRequest) {
               email: true,
               role: true
             }
+          },
+          workflowHistory: {
+            where: {
+              toStage: 'REVIEW_BY_PARTNER'
+            },
+            orderBy: {
+              stageChangedAt: 'desc'
+            },
+            take: 1
           }
         },
         orderBy: {
@@ -206,7 +251,9 @@ export async function GET(request: NextRequest) {
 
       // Add Ltd partner reviews
       for (const ltdWorkflow of ltdPartnerReviews) {
-        const submittedDate = ltdWorkflow.managerDiscussionDate || ltdWorkflow.workStartedDate || ltdWorkflow.createdAt
+        // Use the actual stage change date from workflow history
+        const stageChangeHistory = ltdWorkflow.workflowHistory[0]
+        const submittedDate = stageChangeHistory?.stageChangedAt || ltdWorkflow.managerDiscussionDate || ltdWorkflow.workStartedDate || ltdWorkflow.createdAt
         const daysWaiting = Math.floor((new Date().getTime() - new Date(submittedDate).getTime()) / (1000 * 60 * 60 * 24))
         
         reviewItems.push({
