@@ -7,7 +7,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { emailOTPServiceResend } from '@/lib/email-otp-resend'
-import { db } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,9 +21,9 @@ export async function POST(request: NextRequest) {
     // Process the webhook event
     await emailOTPServiceResend.handleWebhookEvent(body)
     
-    // Store delivery status in database if it's an email we sent
+    // Log delivery status information
     if (body.data?.email_id) {
-      await updateEmailDeliveryStatus(body)
+      logDeliveryStatus(body)
     }
     
     return NextResponse.json({ success: true })
@@ -39,24 +38,14 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Update email delivery status in database
+ * Log email delivery status
  */
-async function updateEmailDeliveryStatus(webhookData: any) {
+function logDeliveryStatus(webhookData: any) {
   try {
     const { type, data } = webhookData
     const messageId = data?.email_id
     
     if (!messageId) return
-    
-    // Find user by message ID
-    const user = await db.user.findFirst({
-      where: { lastEmailMessageId: messageId }
-    })
-    
-    if (!user) {
-      console.log('📧 No user found for message ID:', messageId)
-      return
-    }
     
     // Map webhook event types to status
     const statusMap: Record<string, string> = {
@@ -71,34 +60,15 @@ async function updateEmailDeliveryStatus(webhookData: any) {
     
     const status = statusMap[type] || 'unknown'
     
-    // Create delivery status record
-    await db.emailDeliveryStatus.create({
-      data: {
-        userId: user.id,
-        messageId,
-        status,
-        eventType: type,
-        eventData: JSON.stringify(data),
-        timestamp: new Date(data.created_at || Date.now())
-      }
-    }).catch(error => {
-      // If table doesn't exist, just log the status
-      console.log('📧 Email delivery status (table not found):', {
-        userId: user.id,
-        messageId,
-        status,
-        eventType: type
-      })
-    })
-    
-    console.log('📧 Updated delivery status:', {
-      userId: user.id,
+    // Log delivery status
+    console.log('📧 Email delivery status:', {
       messageId,
       status,
-      eventType: type
+      eventType: type,
+      timestamp: new Date(data.created_at || Date.now()).toISOString()
     })
     
   } catch (error) {
-    console.error('❌ Error updating delivery status:', error)
+    console.error('❌ Error logging delivery status:', error)
   }
 } 

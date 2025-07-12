@@ -49,9 +49,9 @@ export async function POST(request: NextRequest) {
     await db.user.update({
       where: { id: user.id },
       data: {
-        otp: otpCode,
-        otpExpiration,
-        lastOTPSent: new Date()
+        otpCode: otpCode,
+        otpExpiresAt: otpExpiration,
+        lastOtpSentAt: new Date()
       }
     })
 
@@ -110,16 +110,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-
-    // Update user with successful email send tracking
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        lastOTPSent: new Date(),
-        // Store message ID for tracking if available
-        ...(messageId && { lastEmailMessageId: messageId })
-      }
-    })
 
     // Return success response with tracking information
     return NextResponse.json({ 
