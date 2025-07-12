@@ -6,6 +6,14 @@ import { SimpleToaster } from '@/components/ui/simple-toaster'
 import { PerformanceTracker } from '@/components/performance-tracker'
 import { Analytics } from '@vercel/analytics/next'
 
+// Initialize London timezone override for Vercel compatibility
+import { initializeLondonTimezone } from '@/lib/timezone-override'
+
+// Initialize timezone override immediately when the module is loaded (server-side only)
+if (typeof window === 'undefined') {
+  initializeLondonTimezone()
+}
+
 // Optimized font loading with display: 'swap' for better performance
 const plusJakartaSans = Plus_Jakarta_Sans({ 
   subsets: ['latin'],

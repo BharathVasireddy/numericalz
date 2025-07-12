@@ -4,6 +4,11 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 })
 
 const nextConfig = {
+  // Environment variables
+  env: {
+    TZ: process.env.TZ || 'Europe/London', // Default to London timezone
+  },
+  
   // Latest Next.js 14 performance optimizations (compatible version)
   experimental: {
     // Optimize package imports for faster builds
@@ -60,6 +65,11 @@ const nextConfig = {
         protocol: 'https',
         hostname: '*.supabase.co',
       },
+      {
+        protocol: 'https',
+        hostname: 'numericalz.com',
+        pathname: '/**'
+      }
     ],
     minimumCacheTTL: 60, // 1 minute for real-time updates
     dangerouslyAllowSVG: true,
@@ -222,6 +232,15 @@ const nextConfig = {
           },
         ],
       },
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'X-Timezone',
+            value: 'Europe/London'
+          }
+        ]
+      }
     ]
   },
 
