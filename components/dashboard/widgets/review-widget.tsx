@@ -457,29 +457,19 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
                   <Button
                     variant={reviewAction === 'approve' ? 'default' : 'outline'}
                     onClick={() => setReviewAction('approve')}
-                    className="flex flex-col items-center justify-center h-16 p-2"
+                    className="flex items-center justify-center h-12 p-2"
                   >
-                    <div className="flex items-center gap-1 mb-1">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span className="font-medium">Approve</span>
-                    </div>
-                    <span className="text-xs text-center leading-tight opacity-75">
-                      {selectedItem?.type === 'vat' ? 'Continue workflow' : 'Ready for HelloSign'}
-                    </span>
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    <span className="font-medium">Approve</span>
                   </Button>
                   
                   <Button
                     variant={reviewAction === 'rework' ? 'default' : 'outline'}
                     onClick={() => setReviewAction('rework')}
-                    className="flex flex-col items-center justify-center h-16 p-2"
+                    className="flex items-center justify-center h-12 p-2"
                   >
-                    <div className="flex items-center gap-1 mb-1">
-                      <XCircle className="h-4 w-4" />
-                      <span className="font-medium">Rework</span>
-                    </div>
-                    <span className="text-xs text-center leading-tight opacity-75">
-                      Back to Work in Progress
-                    </span>
+                    <XCircle className="h-4 w-4 mr-2" />
+                    <span className="font-medium">Rework</span>
                   </Button>
                 </div>
               </div>
