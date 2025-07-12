@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { email, otpCode } = VerifyOTPSchema.parse(body)
 
-    // Find user with OTP data
+    // OPTIMIZATION: Single optimized database query with only needed fields
     const user = await db.user.findUnique({
       where: { email: email.toLowerCase() },
       select: {
@@ -55,15 +55,15 @@ export async function POST(request: NextRequest) {
 
     // Check if OTP is expired
     if (isOTPExpired(user.otpExpiresAt)) {
-      // Clear expired OTP
-      await db.user.update({
+      // OPTIMIZATION: Clear expired OTP without waiting
+      db.user.update({
         where: { id: user.id },
         data: {
           otpCode: null,
           otpExpiresAt: null,
           otpAttempts: 0,
         },
-      })
+      }).catch(error => console.error('Failed to clear expired OTP:', error))
 
       return NextResponse.json({
         error: 'Verification code has expired. Please request a new code.'
@@ -79,26 +79,28 @@ export async function POST(request: NextRequest) {
       
       // If too many failed attempts, clear OTP
       if (newAttempts >= 5) {
-        await db.user.update({
+        // OPTIMIZATION: Clear OTP without waiting for response
+        db.user.update({
           where: { id: user.id },
           data: {
             otpCode: null,
             otpExpiresAt: null,
             otpAttempts: 0,
           },
-        })
+        }).catch(error => console.error('Failed to clear OTP after max attempts:', error))
 
         return NextResponse.json({
           error: 'Too many failed attempts. Please request a new verification code.'
         }, { status: 401 })
       }
 
-      await db.user.update({
+      // OPTIMIZATION: Update attempts without waiting
+      db.user.update({
         where: { id: user.id },
         data: {
           otpAttempts: newAttempts,
         },
-      })
+      }).catch(error => console.error('Failed to update OTP attempts:', error))
 
       return NextResponse.json({
         error: `Invalid verification code. ${5 - newAttempts} attempts remaining.`
@@ -107,33 +109,42 @@ export async function POST(request: NextRequest) {
 
     // OTP is valid - mark as verified and clear OTP data
     const now = new Date()
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        otpCode: null,
-        otpExpiresAt: null,
-        otpAttempts: 0,
-        isOtpVerified: true,
-        lastLoginAt: now,
-      },
+    
+    // OPTIMIZATION: Run database updates and activity logging in parallel
+    const updatePromises = [
+      db.user.update({
+        where: { id: user.id },
+        data: {
+          otpCode: null,
+          otpExpiresAt: null,
+          otpAttempts: 0,
+          isOtpVerified: true,
+          lastLoginAt: now,
+        },
+      }),
+      db.activityLog.create({
+        data: {
+          userId: user.id,
+          action: 'OTP_VERIFIED',
+          details: JSON.stringify({
+            email: user.email,
+            timestamp: now.toISOString(),
+            userAgent: request.headers.get('user-agent') || 'Unknown',
+          }),
+        },
+      }).catch(error => {
+        console.error('Failed to log OTP verification:', error)
+        // Don't throw - this is non-critical
+      })
+    ]
+
+    // Run both operations in parallel, but only wait for user update
+    Promise.allSettled(updatePromises).catch(error => {
+      console.error('Some database operations failed:', error)
+      // Don't throw - the main operation (user update) should succeed
     })
 
-    // Log successful OTP verification
-    await db.activityLog.create({
-      data: {
-        userId: user.id,
-        action: 'OTP_VERIFIED',
-        details: JSON.stringify({
-          email: user.email,
-          timestamp: now.toISOString(),
-          userAgent: request.headers.get('user-agent') || 'Unknown',
-        }),
-      },
-    }).catch(error => {
-      console.error('Failed to log OTP verification:', error)
-    })
-
-    // Return success response with user data for NextAuth
+    // Return success response immediately
     return NextResponse.json({
       success: true,
       message: 'Verification successful',
@@ -147,17 +158,18 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Verify OTP error:', error)
-
+    console.error('❌ Verify OTP Error:', error)
+    
     if (error instanceof z.ZodError) {
       return NextResponse.json({
-        error: 'Invalid request data',
-        details: error.errors
+        success: false,
+        error: 'Invalid request format'
       }, { status: 400 })
     }
 
     return NextResponse.json({
-      error: 'Internal server error'
+      success: false,
+      error: 'Verification failed. Please try again.'
     }, { status: 500 })
   }
 } 

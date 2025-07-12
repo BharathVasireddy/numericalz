@@ -71,37 +71,15 @@ export async function POST(request: NextRequest) {
     // Resend email using centralized email service (this will automatically log it)
     const result = await emailService.sendEmail({
       to: [{ email: validatedData.to, name: originalEmail.recipientName || 'Recipient' }],
-      subject: `[RESENT] ${validatedData.subject}`,
-      htmlContent: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
-            <h4 style="margin: 0; color: #1565c0;">📧 Resent Email</h4>
-            <p style="margin: 5px 0 0 0; color: #1976d2; font-size: 14px;">
-              This email was resent by <strong>${session.user.name}</strong> from the Numericalz email history.
-              Original email was sent on ${new Date(originalEmail.createdAt).toLocaleString('en-GB')}.
-            </p>
-          </div>
-          <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e0e0e0;">
-            ${validatedData.htmlContent}
-          </div>
-          <div style="margin-top: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 8px; font-size: 12px; color: #666;">
-            <p style="margin: 0;">
-              This email was resent from the Numericalz Internal Management System.
-              Original email ID: ${validatedData.emailLogId}
-            </p>
-          </div>
-        </div>
-      `,
-      emailType: 'RESENT_EMAIL',
+      subject: validatedData.subject, // Use original subject without [RESENT] prefix
+      htmlContent: validatedData.htmlContent, // Use original content without resend notice
+      emailType: originalEmail.emailType || 'MANUAL', // Use original email type
       triggeredBy: session.user.id,
       clientId: validatedData.clientId,
       templateData: {
-        isResent: true,
-        originalEmailId: validatedData.emailLogId,
         resentBy: session.user.name,
         resentAt: new Date().toISOString(),
-        originalSubject: originalEmail.subject,
-        originalSentAt: originalEmail.createdAt.toISOString()
+        originalEmailId: validatedData.emailLogId
       }
     })
 

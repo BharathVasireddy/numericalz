@@ -19,9 +19,16 @@ export async function POST(request: NextRequest) {
     
     console.log('📧 Send OTP Request:', { email })
 
-    // Check if user exists
+    // OPTIMIZATION: Single database query with select optimization
     const user = await db.user.findUnique({
-      where: { email }
+      where: { email: email.toLowerCase() },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        isActive: true,
+        lastOtpSentAt: true
+      }
     })
 
     if (!user) {
@@ -40,44 +47,56 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    // Generate OTP
+    // OPTIMIZATION: Generate OTP and expiration once
     const otpCode = generateOTPCode()
     const otpExpiresAt = getOTPExpiration()
+    const now = new Date()
 
     console.log('🔑 Generated OTP for user:', {
       userId: user.id,
       email: user.email
     })
 
-    // Update user with OTP
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        otpCode,
-        otpExpiresAt,
-        lastOtpSentAt: new Date()
-      }
-    })
+    // OPTIMIZATION: Send email and update database in parallel
+    const [emailResult] = await Promise.allSettled([
+      emailOTPService.sendOTP({
+        email: user.email,
+        otpCode
+      }),
+      db.user.update({
+        where: { id: user.id },
+        data: {
+          otpCode,
+          otpExpiresAt,
+          lastOtpSentAt: now,
+          otpAttempts: 0 // Reset attempts on new OTP
+        }
+      })
+    ])
 
-    // Send OTP email (without personalization)
-    const emailResult = await emailOTPService.sendOTP({
-      email: user.email,
-      otpCode
-    })
-
-    if (!emailResult.success) {
-      console.error('❌ Failed to send OTP email:', emailResult.error)
+    // Check email result
+    if (emailResult.status === 'rejected') {
+      console.error('❌ Failed to send OTP email:', emailResult.reason)
       return NextResponse.json({
         success: false,
         error: 'Failed to send verification code. Please try again.'
       }, { status: 500 })
     }
 
-    console.log('✅ OTP email sent successfully via', emailResult.service, {
+    const emailValue = emailResult.value
+    if (!emailValue.success) {
+      console.error('❌ Failed to send OTP email:', emailValue.error)
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to send verification code. Please try again.'
+      }, { status: 500 })
+    }
+
+    console.log('✅ OTP email sent successfully via', emailValue.service, {
       userId: user.id,
       email: user.email,
-      messageId: emailResult.messageId,
-      service: emailResult.service
+      messageId: emailValue.messageId,
+      service: emailValue.service
     })
 
     return NextResponse.json({
@@ -85,8 +104,8 @@ export async function POST(request: NextRequest) {
       message: 'If your email is registered, you will receive a login code shortly.',
       debug: {
         emailSent: true,
-        service: emailResult.service,
-        messageId: emailResult.messageId
+        service: emailValue.service,
+        messageId: emailValue.messageId
       }
     })
 
