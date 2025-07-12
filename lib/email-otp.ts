@@ -5,208 +5,252 @@
 /**
  * Email OTP Service
  * 
- * Handles sending OTP codes via email using centralized email service
- * Now logs ALL OTP emails to EmailLog table for complete audit trail
- * This is a clean implementation that can be easily extended to other providers
+ * Enhanced service with dual-provider support (Resend + Brevo fallback)
+ * Handles sending OTP codes via email with 2025 compliance
+ * Simple, clean implementation with automatic fallback
  */
 
-// Original simple email OTP service - no complex dependencies
+import { Resend } from 'resend'
 
 interface EmailOTPConfig {
-  apiKey: string
-  senderEmail: string
-  senderName: string
+  // Brevo configuration
+  brevoApiKey: string
+  brevoSenderEmail: string
+  brevoSenderName: string
+  
+  // Resend configuration
+  resendApiKey: string
+  resendSenderEmail: string
+  resendSenderName: string
 }
 
 interface SendOTPParams {
   email: string
-  name: string
   otpCode: string
 }
 
+interface SendOTPResult {
+  success: boolean
+  messageId?: string
+  service: 'resend' | 'brevo'
+  error?: string
+}
+
 class EmailOTPService {
+  private resend: Resend | null = null
   private config: EmailOTPConfig
 
-  constructor(config: EmailOTPConfig) {
-    this.config = config
-  }
-
-  /**
-   * Send OTP code via email (Original Simple Version)
-   */
-  async sendOTP({ email, name, otpCode }: SendOTPParams): Promise<boolean> {
-    try {
-      console.log('📧 Sending OTP email to:', email)
+  constructor() {
+    this.config = {
+      // Brevo configuration
+      brevoApiKey: process.env.BREVO_API_KEY || '',
+      brevoSenderEmail: process.env.BREVO_SENDER_EMAIL || 'auto-reminder@numericalz.com',
+      brevoSenderName: process.env.BREVO_SENDER_NAME || 'Numericalz',
       
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': this.config.apiKey,
-        },
-        body: JSON.stringify({
-          sender: {
-            email: this.config.senderEmail,
-            name: this.config.senderName,
-          },
-          to: [
-            {
-              email: email,
-              name: name,
-            },
-          ],
-          subject: 'Your Numericalz Login Code',
-          htmlContent: this.generateOTPEmailHTML(name, otpCode),
-          textContent: this.generateOTPEmailText(name, otpCode),
-        }),
-      })
+      // Resend configuration
+      resendApiKey: process.env.RESEND_API_KEY || '',
+      resendSenderEmail: process.env.RESEND_SENDER_EMAIL || 'noreply@cloud9digital.in',
+      resendSenderName: process.env.RESEND_SENDER_NAME || 'Numericalz'
+    }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('❌ Email sending failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData,
-        })
-        return false
-      }
-
-      console.log('✅ OTP email sent successfully to:', email)
-      return true
-    } catch (error) {
-      console.error('❌ Error sending OTP email:', error)
-      return false
+    // Initialize Resend if API key is available
+    if (this.config.resendApiKey) {
+      this.resend = new Resend(this.config.resendApiKey)
     }
   }
 
   /**
-   * Generate HTML email content
+   * Generate simple OTP email template without personalization or signature
    */
-  private generateOTPEmailHTML(name: string, otpCode: string): string {
+  private generateOTPEmailTemplate(otpCode: string): string {
     return `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Numericalz Login Code</title>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .logo { font-size: 24px; font-weight: bold; color: #1a365d; margin-bottom: 10px; }
-        .otp-box { 
-            background: #f7fafc; 
-            border: 2px solid #e2e8f0; 
-            border-radius: 8px; 
-            padding: 20px; 
-            text-align: center; 
-            margin: 20px 0; 
-        }
-        .otp-code { 
-            font-size: 32px; 
-            font-weight: bold; 
-            color: #1a365d; 
-            letter-spacing: 4px; 
-            margin: 10px 0; 
-            font-family: monospace;
-        }
-        .footer { 
-            margin-top: 20px; 
-            padding-top: 15px; 
-            border-top: 1px solid #e2e8f0; 
-            text-align: center; 
-            color: #718096; 
-            font-size: 14px; 
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div class="logo">Numericalz</div>
-            <p>UK Accounting Firm Management System</p>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Login Verification Code</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+          .container { background: #f9f9f9; padding: 30px; border-radius: 10px; text-align: center; }
+          .otp-code { font-size: 32px; font-weight: bold; color: #2563eb; background: #eff6ff; padding: 20px; border-radius: 8px; margin: 20px 0; letter-spacing: 3px; }
+          .copy-button { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 10px 0; }
+          .copy-button:hover { background: #1d4ed8; }
+          .notice { color: #666; font-size: 14px; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h2>Login Verification Code</h2>
+          <p>Your verification code is:</p>
+          
+          <div class="otp-code" id="otpCode">${otpCode}</div>
+          
+          <button class="copy-button" onclick="copyToClipboard()">📋 Copy Code</button>
+          
+          <p class="notice">This code will expire in 10 minutes.</p>
         </div>
         
-        <h2>Hello ${name},</h2>
-        
-        <p>Please use this verification code to complete your login:</p>
-        
-        <div class="otp-box">
-            <p><strong>Your verification code:</strong></p>
-            <div class="otp-code">${otpCode}</div>
-            <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">Expires in 10 minutes</p>
-        </div>
-        
-        <p><strong>Security Notice:</strong></p>
-        <ul style="color: #666; font-size: 14px; line-height: 1.5;">
-            <li>Never share this code with anyone</li>
-            <li>Our team will never ask for this code</li>
-            <li>If you didn't request this, please ignore this email</li>
-        </ul>
-        
-        <div class="footer">
-            <p>Numericalz Internal Management System</p>
-            <p>This is an automated message - please do not reply</p>
-        </div>
-    </div>
-</body>
-</html>
-    `.trim()
+        <script>
+          function copyToClipboard() {
+            const otpCode = document.getElementById('otpCode').textContent;
+            navigator.clipboard.writeText(otpCode).then(function() {
+              alert('Code copied to clipboard!');
+            }).catch(function() {
+              // Fallback for older browsers
+              const textArea = document.createElement('textarea');
+              textArea.value = otpCode;
+              document.body.appendChild(textArea);
+              textArea.select();
+              document.execCommand('copy');
+              document.body.removeChild(textArea);
+              alert('Code copied to clipboard!');
+            });
+          }
+        </script>
+      </body>
+      </html>
+    `
   }
 
   /**
-   * Generate plain text email content
+   * Send OTP via Resend (primary method)
    */
-  private generateOTPEmailText(name: string, otpCode: string): string {
-    return `
-Hello ${name},
+  private async sendOTPViaResend(params: SendOTPParams): Promise<SendOTPResult> {
+    if (!this.resend) {
+      throw new Error('Resend not initialized')
+    }
 
-You have requested to sign in to your Numericalz account.
+    try {
+      console.log('📧 Attempting to send OTP via Resend (primary)...')
+      
+      const result = await this.resend.emails.send({
+        from: `${this.config.resendSenderName} <${this.config.resendSenderEmail}>`,
+        to: [params.email],
+        subject: `Login Code: ${params.otpCode}`, // Simple subject with OTP
+        html: this.generateOTPEmailTemplate(params.otpCode)
+      })
 
-Your verification code is: ${otpCode}
+      console.log('✅ OTP sent successfully via Resend')
+      
+      return {
+        success: true,
+        messageId: result.data?.id,
+        service: 'resend'
+      }
+    } catch (error) {
+      console.error('❌ Resend OTP failed:', error)
+      throw error
+    }
+  }
 
-This code will expire in 10 minutes.
+  /**
+   * Send OTP via Brevo (fallback method)
+   */
+  private async sendOTPViaBrevo(params: SendOTPParams): Promise<SendOTPResult> {
+    try {
+      console.log('📧 Attempting to send OTP via Brevo (fallback)...')
+      
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'api-key': this.config.brevoApiKey
+        },
+        body: JSON.stringify({
+          sender: {
+            name: this.config.brevoSenderName,
+            email: this.config.brevoSenderEmail
+          },
+          to: [{ email: params.email }],
+          subject: `Login Code: ${params.otpCode}`, // Simple subject with OTP
+          htmlContent: this.generateOTPEmailTemplate(params.otpCode)
+        })
+      })
 
-If you didn't request this code, please ignore this email or contact your system administrator.
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Brevo API error: ${response.status} ${errorText}`)
+      }
 
-For security reasons:
-- Never share this code with anyone
-- Our team will never ask for this code
-- This code is only valid for 10 minutes
+      const result = await response.json()
+      console.log('✅ OTP sent successfully via Brevo')
+      
+      return {
+        success: true,
+        messageId: result.messageId,
+        service: 'brevo'
+      }
+    } catch (error) {
+      console.error('❌ Brevo OTP failed:', error)
+      throw error
+    }
+  }
 
----
-This is an automated message from Numericalz Internal Management System
-If you need assistance, please contact your system administrator
-    `.trim()
+  /**
+   * Send OTP with automatic fallback
+   */
+  async sendOTP(params: SendOTPParams): Promise<SendOTPResult> {
+    // Try Resend first (primary)
+    if (this.resend && this.config.resendApiKey) {
+      try {
+        return await this.sendOTPViaResend(params)
+      } catch (error) {
+        console.log('⚠️ Resend failed, trying Brevo fallback...')
+      }
+    }
+
+    // Fallback to Brevo
+    if (this.config.brevoApiKey) {
+      try {
+        return await this.sendOTPViaBrevo(params)
+      } catch (error) {
+        console.error('❌ Both email services failed:', error)
+        return {
+          success: false,
+          service: 'brevo',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      }
+    }
+
+    return {
+      success: false,
+      service: 'brevo',
+      error: 'No email service configured'
+    }
+  }
+
+  /**
+   * Handle webhook events from Resend
+   */
+  async handleWebhookEvent(event: any): Promise<void> {
+    console.log('📨 Processing webhook event:', {
+      type: event.type,
+      messageId: event.data?.email_id,
+      timestamp: new Date().toISOString()
+    })
+    
+    // You can add database logging here if needed
+    // For now, we just log the event
   }
 }
 
-// Create and export the email service instance
-export const emailOTPService = new EmailOTPService({
-  apiKey: process.env.BREVO_API_KEY || '',
-  senderEmail: process.env.BREVO_SENDER_EMAIL || 'auto-reminder@numericalz.com',
-  senderName: 'Numericalz',
-})
+// Create singleton instance
+export const emailOTPService = new EmailOTPService()
 
-/**
- * Generate a 6-digit OTP code
- */
+// Utility functions
 export function generateOTPCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
-/**
- * Check if OTP is expired
- */
-export function isOTPExpired(expiresAt: Date): boolean {
-  return new Date() > expiresAt
+export function getOTPExpiration(): Date {
+  const expiration = new Date()
+  expiration.setMinutes(expiration.getMinutes() + 10) // 10 minutes expiration
+  return expiration
 }
 
-/**
- * Get OTP expiration time (10 minutes from now)
- */
-export function getOTPExpiration(): Date {
-  const now = new Date()
-  return new Date(now.getTime() + 10 * 60 * 1000) // 10 minutes
+export function isOTPExpired(otpExpiresAt: Date): boolean {
+  return new Date() > otpExpiresAt
 } 

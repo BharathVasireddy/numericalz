@@ -4,137 +4,105 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import bcrypt from 'bcryptjs'
-import { db } from '@/lib/db'
 import { emailOTPService, generateOTPCode, getOTPExpiration } from '@/lib/email-otp'
-import { emailOTPServiceResend } from '@/lib/email-otp-resend'
+import { db } from '@/lib/db'
 
 const SendOTPSchema = z.object({
-  email: z.string().email('Invalid email format'),
-  password: z.string().min(1, 'Password is required'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().optional()
 })
 
 export async function POST(request: NextRequest) {
   try {
-    // Parse and validate request
     const body = await request.json()
-    const { email, password } = SendOTPSchema.parse(body)
+    const { email } = SendOTPSchema.parse(body)
+    
+    console.log('📧 Send OTP Request:', { email })
 
-    // Find user and verify credentials
+    // Check if user exists
     const user = await db.user.findUnique({
       where: { email }
     })
 
-    if (!user || !user.password) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      )
+    if (!user) {
+      // Don't reveal if user exists or not for security
+      return NextResponse.json({
+        success: true,
+        message: 'If your email is registered, you will receive a login code shortly.'
+      })
     }
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password)
-    if (!isPasswordValid) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      )
+    // Check if user is active
+    if (!user.isActive) {
+      return NextResponse.json({
+        success: false,
+        error: 'Account is deactivated'
+      }, { status: 403 })
     }
 
     // Generate OTP
     const otpCode = generateOTPCode()
-    const otpExpiration = getOTPExpiration()
+    const otpExpiresAt = getOTPExpiration()
 
-    // Store OTP in database
+    console.log('🔑 Generated OTP for user:', {
+      userId: user.id,
+      email: user.email
+    })
+
+    // Update user with OTP
     await db.user.update({
       where: { id: user.id },
       data: {
-        otpCode: otpCode,
-        otpExpiresAt: otpExpiration,
+        otpCode,
+        otpExpiresAt,
         lastOtpSentAt: new Date()
       }
     })
 
-    console.log('📧 Sending OTP email to:', email)
+    // Send OTP email (without personalization)
+    const emailResult = await emailOTPService.sendOTP({
+      email: user.email,
+      otpCode
+    })
 
-    // Try Resend first (2025 compliant)
-    let emailSent = false
-    let messageId: string | undefined
-    let usedService = 'none'
-
-    try {
-      console.log('🚀 Attempting to send via Resend (Primary)...')
-      const resendResult = await emailOTPServiceResend.sendOTP({
-        email,
-        name: user.name,
-        otpCode
-      })
-
-      if (resendResult.success) {
-        emailSent = true
-        messageId = resendResult.messageId
-        usedService = 'resend'
-        console.log('✅ OTP email sent successfully via Resend')
-        console.log('📧 Message ID:', messageId)
-      } else {
-        console.log('❌ Resend failed:', resendResult.error)
-      }
-    } catch (resendError) {
-      console.error('❌ Resend service error:', resendError)
+    if (!emailResult.success) {
+      console.error('❌ Failed to send OTP email:', emailResult.error)
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to send verification code. Please try again.'
+      }, { status: 500 })
     }
 
-    // Fallback to Brevo if Resend fails
-    if (!emailSent) {
-      try {
-        console.log('🔄 Falling back to Brevo...')
-        const brevoResult = await emailOTPService.sendOTP({
-          email,
-          name: user.name,
-          otpCode
-        })
+    console.log('✅ OTP email sent successfully via', emailResult.service, {
+      userId: user.id,
+      email: user.email,
+      messageId: emailResult.messageId,
+      service: emailResult.service
+    })
 
-        if (brevoResult) {
-          emailSent = true
-          usedService = 'brevo'
-          console.log('✅ OTP email sent successfully via Brevo (fallback)')
-        }
-      } catch (brevoError) {
-        console.error('❌ Brevo service error:', brevoError)
-      }
-    }
-
-    if (!emailSent) {
-      console.error('❌ Both email services failed')
-      return NextResponse.json(
-        { error: 'Failed to send email. Please try again.' },
-        { status: 500 }
-      )
-    }
-
-    // Return success response with tracking information
-    return NextResponse.json({ 
-      success: true, 
-      message: 'OTP sent successfully',
-      tracking: {
-        service: usedService,
-        messageId,
-        timestamp: new Date().toISOString()
+    return NextResponse.json({
+      success: true,
+      message: 'If your email is registered, you will receive a login code shortly.',
+      debug: {
+        emailSent: true,
+        service: emailResult.service,
+        messageId: emailResult.messageId
       }
     })
 
   } catch (error) {
-    console.error('Send OTP error:', error)
+    console.error('❌ Send OTP Error:', error)
     
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
-        { status: 400 }
-      )
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid email format'
+      }, { status: 400 })
     }
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to send verification code. Please try again.'
+    }, { status: 500 })
   }
 } 
