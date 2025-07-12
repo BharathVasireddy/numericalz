@@ -329,6 +329,28 @@ export async function PUT(
       })
     }
 
+    // 🔔 Send assignment notification if assignee was changed
+    if (assignedUserId !== undefined && assignedUserId !== currentWorkflow?.assignedUserId && assignedUserId) {
+      const filingPeriodEnd = workflow.filingPeriodEnd.getFullYear()
+      workflowNotificationService.sendAssignmentNotifications({
+        workflowType: 'ACCOUNTS',
+        clientId,
+        clientName: client.companyName,
+        assignedUserId: assignedUserId,
+        workflowId: workflow.id,
+        assignedBy: {
+          id: session.user.id,
+          name: session.user.name || session.user.email || 'Unknown',
+          email: session.user.email || '',
+          role: session.user.role || 'USER'
+        },
+        filingPeriod: `${filingPeriodEnd}`
+      }).catch(notificationError => {
+        console.error('❌ Failed to send accounts assignment notification:', notificationError)
+        // Don't fail the main request if notifications fail
+      })
+    }
+
     return NextResponse.json({ 
       success: true, 
       workflow: {

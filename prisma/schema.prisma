@@ -38,6 +38,7 @@ model User {
   settings                     UserSettings?
   assignedVATQuarters          VATQuarter[]
   vatWorkflowHistory           VATWorkflowHistory[]
+  inAppNotifications           InAppNotification[]
 
   @@index([email])
   @@index([role])
@@ -157,6 +158,7 @@ model Client {
   emailLogs                       EmailLog[]
   ltdAccountsWorkflows            LtdAccountsWorkflow[]
   vatQuartersWorkflow             VATQuarter[]
+  inAppNotifications              InAppNotification[]
 
   @@index([companyNumber])
   @@index([assignedUserId])
@@ -238,6 +240,30 @@ model Notification {
   @@index([isRead])
   @@index([type])
   @@map("notifications")
+}
+
+model InAppNotification {
+  id        String                    @id @default(cuid())
+  userId    String
+  category  InAppNotificationCategory @default(VAT)
+  type      String                    // e.g., "VAT_ASSIGNMENT", "WORKFLOW_STAGE_CHANGE", "DEADLINE_REMINDER"
+  title     String
+  message   String
+  isRead    Boolean                   @default(false)
+  clientId  String?                   // Optional: related client
+  relatedId String?                   // Optional: related entity (VAT quarter, workflow, etc.)
+  metadata  String?                   // Optional: JSON metadata for additional context
+  createdAt DateTime                  @default(now())
+  updatedAt DateTime                  @updatedAt
+  user      User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client    Client?                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([category])
+  @@index([isRead])
+  @@index([type])
+  @@index([createdAt])
+  @@map("in_app_notifications")
 }
 
 model ActivityLog {
@@ -541,6 +567,12 @@ model BrandingSettings {
   
   // Each firm has one branding setting
   @@map("branding_settings")
+}
+
+enum InAppNotificationCategory {
+  VAT
+  ACCOUNTS
+  REMINDERS
 }
 
 enum TemplateCategory {

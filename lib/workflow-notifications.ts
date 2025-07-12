@@ -1,13 +1,19 @@
 /**
  * Workflow Notification Service
  * 
- * Handles email notifications for workflow stage changes
+ * Handles both email and in-app notifications for workflow stage changes
  * Sends notifications to relevant stakeholders based on stage changes
  */
 
 import { emailService } from './email-service'
 import { EmailTemplates } from './email-templates'
 import { db } from './db'
+import { 
+  createVATWorkflowStageNotification, 
+  createAccountsWorkflowStageNotification,
+  createVATAssignmentNotification,
+  createAccountsAssignmentNotification
+} from './in-app-notifications'
 
 interface StageChangeNotificationParams {
   clientId: string
@@ -47,27 +53,55 @@ export const workflowNotificationService = {
         return
       }
 
-      // Send notifications to each recipient
-      const notificationPromises = recipients.map(recipient => 
+      // Send email notifications to each recipient
+      const emailPromises = recipients.map(recipient => 
         this.sendStageChangeEmail(params, recipient)
       )
 
-      const results = await Promise.allSettled(notificationPromises)
+      // Create in-app notifications for each recipient
+      const inAppPromises = recipients.map(recipient => 
+        this.createInAppNotification(params, recipient)
+      )
+
+      // Send both email and in-app notifications
+      const [emailResults, inAppResults] = await Promise.allSettled([
+        Promise.allSettled(emailPromises),
+        Promise.allSettled(inAppPromises)
+      ])
       
-      // Log results
-      results.forEach((result, index) => {
-        const recipient = recipients[index]
-        if (!recipient) {
-          console.error(`❌ Missing recipient data for index ${index}`)
-          return
-        }
-        
-        if (result.status === 'fulfilled') {
-          console.log(`✅ Stage change notification sent to ${recipient.email} (${recipient.reason})`)
-        } else {
-          console.error(`❌ Failed to send stage change notification to ${recipient.email}:`, result.reason)
-        }
-      })
+      // Log email results
+      if (emailResults.status === 'fulfilled') {
+        emailResults.value.forEach((result, index) => {
+          const recipient = recipients[index]
+          if (!recipient) {
+            console.error(`❌ Missing recipient data for index ${index}`)
+            return
+          }
+          
+          if (result.status === 'fulfilled') {
+            console.log(`✅ Email notification sent to ${recipient.email} (${recipient.reason})`)
+          } else {
+            console.error(`❌ Failed to send email notification to ${recipient.email}:`, result.reason)
+          }
+        })
+      }
+
+      // Log in-app notification results
+      if (inAppResults.status === 'fulfilled') {
+        inAppResults.value.forEach((result, index) => {
+          const recipient = recipients[index]
+          if (!recipient) {
+            console.error(`❌ Missing recipient data for index ${index}`)
+            return
+          }
+          
+          if (result.status === 'fulfilled') {
+            console.log(`✅ In-app notification created for ${recipient.email} (${recipient.reason})`)
+          } else {
+            console.error(`❌ Failed to create in-app notification for ${recipient.email}:`, result.reason)
+          }
+        })
+      }
 
     } catch (error) {
       console.error('❌ Error in sendStageChangeNotifications:', error)
@@ -254,6 +288,80 @@ export const workflowNotificationService = {
         triggeredBy: params.changedBy.id
       }
     })
+  },
+
+  /**
+   * Create in-app notification for workflow stage change
+   */
+  async createInAppNotification(params: StageChangeNotificationParams, recipient: any): Promise<void> {
+    try {
+      const stageDisplayName = this.getStageDisplayName(params.toStage)
+      
+      if (params.workflowType === 'VAT') {
+        await createVATWorkflowStageNotification(
+          recipient.id,
+          params.clientId,
+          params.clientName,
+          stageDisplayName,
+          params.quarterPeriod || ''
+        )
+      } else if (params.workflowType === 'ACCOUNTS') {
+        await createAccountsWorkflowStageNotification(
+          recipient.id,
+          params.clientId,
+          params.clientName,
+          stageDisplayName,
+          params.filingPeriod || ''
+        )
+      }
+    } catch (error) {
+      console.error('❌ Error creating in-app notification:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Send assignment notifications (both email and in-app)
+   */
+  async sendAssignmentNotifications(params: {
+    workflowType: 'VAT' | 'ACCOUNTS'
+    clientId: string
+    clientName: string
+    assignedUserId: string
+    workflowId: string
+    assignedBy: {
+      id: string
+      name: string
+      email: string
+      role: string
+    }
+    quarterPeriod?: string
+    filingPeriod?: string
+  }): Promise<void> {
+    try {
+      // Create in-app notification for assigned user
+      if (params.workflowType === 'VAT') {
+        await createVATAssignmentNotification(
+          params.assignedUserId,
+          params.clientId,
+          params.clientName,
+          params.workflowId
+        )
+      } else if (params.workflowType === 'ACCOUNTS') {
+        await createAccountsAssignmentNotification(
+          params.assignedUserId,
+          params.clientId,
+          params.clientName,
+          params.workflowId
+        )
+      }
+
+      console.log(`✅ Assignment notification created for user ${params.assignedUserId}`)
+
+    } catch (error) {
+      console.error('❌ Error creating assignment notification:', error)
+      throw error
+    }
   },
 
   /**

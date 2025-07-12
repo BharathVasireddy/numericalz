@@ -27,6 +27,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { LondonTime } from '@/components/ui/london-time'
+import { NotificationIcon } from '@/components/notifications/notification-icon'
+import { NotificationSidebar } from '@/components/notifications/notification-sidebar'
 
 /**
  * Dashboard navigation component
@@ -46,6 +48,7 @@ export function DashboardNavigation() {
   const [currentUserName, setCurrentUserName] = useState<string>('')
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['dashboard', 'clients']))
+  const [isNotificationSidebarOpen, setIsNotificationSidebarOpen] = useState(false)
 
   // Fetch fresh user data when component mounts or session changes
   useEffect(() => {
@@ -85,6 +88,11 @@ export function DashboardNavigation() {
       setCurrentUserName(session.user.name)
     }
   }, [session?.user?.name])
+
+  // Close notification sidebar when navigating to other pages
+  useEffect(() => {
+    setIsNotificationSidebarOpen(false)
+  }, [pathname])
 
   const toggleSection = (sectionId: string) => {
     const newExpanded = new Set(expandedSections)
@@ -304,6 +312,10 @@ export function DashboardNavigation() {
           <div className="text-right">
             <LondonTime />
           </div>
+          <NotificationIcon 
+                    onClick={() => setIsNotificationSidebarOpen(!isNotificationSidebarOpen)}
+                    isOpen={isNotificationSidebarOpen}
+                  />
           <Button
             variant="ghost"
             size="sm"
@@ -346,8 +358,14 @@ export function DashboardNavigation() {
                 className="flex-shrink-0"
                 style={{ height: 'auto' }}
               />
-              <div className="text-right">
-                <LondonTime />
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <LondonTime />
+                </div>
+                <NotificationIcon 
+                  onClick={() => setIsNotificationSidebarOpen(!isNotificationSidebarOpen)}
+                  isOpen={isNotificationSidebarOpen}
+                />
               </div>
             </div>
           </div>
@@ -561,6 +579,12 @@ export function DashboardNavigation() {
           </div>
         </>
       )}
+
+      {/* Notification Sidebar */}
+      <NotificationSidebar 
+        isOpen={isNotificationSidebarOpen} 
+        onClose={() => setIsNotificationSidebarOpen(false)} 
+      />
     </>
   )
 } 

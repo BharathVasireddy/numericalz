@@ -245,6 +245,26 @@ export async function POST(request: NextRequest) {
       // Don't fail the main request if email fails
     })
 
+    // 🔔 Send in-app assignment notification
+    const { workflowNotificationService } = await import('@/lib/workflow-notifications')
+    workflowNotificationService.sendAssignmentNotifications({
+      workflowType: 'VAT',
+      clientId: vatQuarter.client.id,
+      clientName: vatQuarter.client.companyName,
+      assignedUserId: assignedUserId,
+      workflowId: vatQuarterId,
+      assignedBy: {
+        id: session.user.id,
+        name: session.user.name || session.user.email || 'Unknown',
+        email: session.user.email || '',
+        role: session.user.role || 'USER'
+      },
+      quarterPeriod: vatQuarter.quarterPeriod
+    }).catch(notificationError => {
+      console.error('❌ Failed to send in-app assignment notification:', notificationError)
+      // Don't fail the main request if notifications fail
+    })
+
     return NextResponse.json({
       success: true,
       message: `VAT quarter assigned to ${assignedUser.name || assignedUser.email} for ${vatQuarter.client.companyName}`

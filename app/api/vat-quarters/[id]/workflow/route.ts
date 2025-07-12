@@ -438,6 +438,25 @@ export async function PUT(
           console.error('❌ Failed to send VAT assignment notification email:', emailError)
           // Don't fail the main request if email fails
         })
+
+        // 🔔 Send in-app assignment notification
+        workflowNotificationService.sendAssignmentNotifications({
+          workflowType: 'VAT',
+          clientId: updatedVatQuarter.clientId,
+          clientName: updatedVatQuarter.client.companyName,
+          assignedUserId: finalAssigneeId,
+          workflowId: vatQuarterId,
+          assignedBy: {
+            id: session.user.id,
+            name: session.user.name || session.user.email || 'Unknown',
+            email: session.user.email || '',
+            role: session.user.role || 'USER'
+          },
+          quarterPeriod: updatedVatQuarter.quarterPeriod
+        }).catch(notificationError => {
+          console.error('❌ Failed to send in-app assignment notification:', notificationError)
+          // Don't fail the main request if notifications fail
+        })
       } else {
         // Unassignment
         const previousAssigneeName = vatQuarter.assignedUserId ? 
