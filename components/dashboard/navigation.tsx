@@ -47,7 +47,7 @@ export function DashboardNavigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [currentUserName, setCurrentUserName] = useState<string>('')
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['dashboard', 'clients']))
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [isNotificationSidebarOpen, setIsNotificationSidebarOpen] = useState(false)
 
   // Fetch fresh user data when component mounts or session changes
@@ -238,13 +238,18 @@ export function DashboardNavigation() {
     if (session?.user?.role === 'PARTNER') {
       structure.push({
         id: 'staff',
-        title: 'Staff',
+        title: 'Staff Management',
         icon: Users,
         items: [
           {
-            name: 'Staff Management',
+            name: 'Users',
             href: '/dashboard/staff',
             icon: Users,
+          },
+          {
+            name: 'Workload',
+            href: '/dashboard/staff/workload',
+            icon: BarChart3,
           }
         ]
       })
