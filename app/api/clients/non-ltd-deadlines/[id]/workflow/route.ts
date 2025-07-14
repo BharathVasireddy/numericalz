@@ -37,20 +37,23 @@ export async function PUT(
 
     const clientId = params.id
 
-    // Get current workflow for this client
+    // Get current workflow for this client (including completed workflows for undo operations)
     const currentWorkflow = await db.nonLtdAccountsWorkflow.findFirst({
       where: { 
-        clientId: clientId,
-        isCompleted: false // Get the active workflow
+        clientId: clientId
+        // Removed isCompleted: false to allow finding completed workflows for undo operations
       },
       include: {
         client: true,
         assignedUser: true,
+      },
+      orderBy: {
+        yearEndDate: 'desc' // Get the most recent workflow
       }
     })
 
     if (!currentWorkflow) {
-      return NextResponse.json({ error: 'No active workflow found for this client' }, { status: 404 })
+      return NextResponse.json({ error: 'No workflow found for this client' }, { status: 404 })
     }
 
     // Validate stage transition (only if stage is being changed and skipWarning is not true)
