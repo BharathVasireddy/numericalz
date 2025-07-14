@@ -107,6 +107,114 @@ export async function PUT(
           notes: validatedData.notes || `Stage updated to ${validatedData.currentStage}`
         }
       })
+
+      // 🎯 AUTO-ASSIGNMENT LOGIC: Create and assign next workflow when marked as "FILED_TO_HMRC"
+      if (validatedData.currentStage === 'FILED_TO_HMRC') {
+        try {
+          console.log('🔄 Starting auto-assignment for next non-ltd workflow...')
+          
+          // Calculate next year's dates (non-ltd companies have fixed dates)
+          const currentYearEnd = new Date(currentWorkflow.yearEndDate)
+          const nextYear = currentYearEnd.getFullYear() + 1
+          
+          // Non-ltd companies: Year end always April 5th, filing due always January 5th
+          const nextYearEnd = new Date(nextYear, 3, 5) // April 5th next year
+          const nextFilingDue = new Date(nextYear + 1, 0, 5) // January 5th year after next
+          
+          console.log('📅 Calculated next year dates:', {
+            currentYearEnd: currentYearEnd.toISOString().split('T')[0],
+            nextYearEnd: nextYearEnd.toISOString().split('T')[0],
+            nextFilingDue: nextFilingDue.toISOString().split('T')[0]
+          })
+
+          // Check if workflow for next year already exists
+          const existingNextWorkflow = await db.nonLtdAccountsWorkflow.findFirst({
+            where: {
+              clientId: clientId,
+              yearEndDate: nextYearEnd
+            }
+          })
+
+          if (!existingNextWorkflow) {
+            // Create new workflow for next year
+            const newWorkflow = await db.nonLtdAccountsWorkflow.create({
+              data: {
+                clientId: clientId,
+                yearEndDate: nextYearEnd,
+                filingDueDate: nextFilingDue,
+                currentStage: 'WAITING_FOR_YEAR_END',
+                isCompleted: false,
+                // Auto-assign to the same user who completed the current workflow
+                assignedUserId: currentWorkflow.assignedUserId
+              }
+            })
+
+            console.log('✅ Created and auto-assigned next workflow:', {
+              workflowId: newWorkflow.id,
+              yearEndDate: newWorkflow.yearEndDate.toISOString().split('T')[0],
+              assignedUserId: newWorkflow.assignedUserId,
+              assignedUserName: currentWorkflow.assignedUser?.name || 'Unknown'
+            })
+
+            // Log the auto-assignment activity
+            await logActivityEnhanced(request, {
+              action: 'NON_LTD_NEXT_WORKFLOW_AUTO_ASSIGNED',
+              clientId,
+              details: {
+                companyName: currentWorkflow.client.companyName,
+                clientCode: currentWorkflow.client.clientCode,
+                workflowType: 'NON_LTD',
+                nextFilingPeriod: `${nextYear} accounts`,
+                autoAssignedTo: currentWorkflow.assignedUser?.name || 'Unknown User',
+                autoAssignedToId: currentWorkflow.assignedUserId,
+                nextYearEndDate: nextYearEnd,
+                nextFilingDueDate: nextFilingDue,
+                comments: `Next workflow auto-created and assigned to ${currentWorkflow.assignedUser?.name || 'Unknown User'} after filing completion`,
+                completedBy: session.user.name || session.user.email || 'Unknown User'
+              }
+            })
+
+          } else {
+            // Workflow exists but might be unassigned - assign it to the same user
+            if (!existingNextWorkflow.assignedUserId && currentWorkflow.assignedUserId) {
+              await db.nonLtdAccountsWorkflow.update({
+                where: { id: existingNextWorkflow.id },
+                data: { assignedUserId: currentWorkflow.assignedUserId }
+              })
+
+              console.log('✅ Auto-assigned existing next workflow:', {
+                workflowId: existingNextWorkflow.id,
+                yearEndDate: existingNextWorkflow.yearEndDate.toISOString().split('T')[0],
+                assignedUserId: currentWorkflow.assignedUserId,
+                assignedUserName: currentWorkflow.assignedUser?.name || 'Unknown'
+              })
+
+              // Log the auto-assignment activity
+              await logActivityEnhanced(request, {
+                action: 'NON_LTD_EXISTING_WORKFLOW_AUTO_ASSIGNED',
+                clientId,
+                details: {
+                  companyName: currentWorkflow.client.companyName,
+                  clientCode: currentWorkflow.client.clientCode,
+                  workflowType: 'NON_LTD',
+                  nextFilingPeriod: `${nextYear} accounts`,
+                  autoAssignedTo: currentWorkflow.assignedUser?.name || 'Unknown User',
+                  autoAssignedToId: currentWorkflow.assignedUserId,
+                  nextYearEndDate: existingNextWorkflow.yearEndDate,
+                  nextFilingDueDate: existingNextWorkflow.filingDueDate,
+                  comments: `Existing next workflow auto-assigned to ${currentWorkflow.assignedUser?.name || 'Unknown User'} after filing completion`,
+                  completedBy: session.user.name || session.user.email || 'Unknown User'
+                }
+              })
+            } else {
+              console.log('⚠️ Next workflow already exists and assigned, skipping auto-assignment')
+            }
+          }
+        } catch (autoAssignmentError) {
+          console.error('❌ Error during auto-assignment of next workflow:', autoAssignmentError)
+          // Don't fail the main operation, just log the error
+        }
+      }
     }
 
     // Update assignment if provided
