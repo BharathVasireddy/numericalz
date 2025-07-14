@@ -187,6 +187,18 @@ interface LtdClientWithData {
   clientCode: string
   companyName: string
   contactEmail: string | null
+  companyNumber?: string
+  vatNumber?: string
+  contactName?: string
+  phone?: string
+  nextAccountsDue?: string
+  nextCorporationTaxDue?: string
+  nextConfirmationDue?: string
+  nextYearEnd?: string
+  filingPeriodStart?: string
+  filingPeriodEnd?: string
+  currentStage?: string
+  isCompleted?: boolean
   assignedUser?: {
     id: string
     name: string
@@ -238,30 +250,60 @@ export async function sendBulkLtdEmails({
         continue
       }
 
-      // Prepare email variables
-      const emailVariables = {
-        CLIENT_NAME: client.companyName,
-        CLIENT_CODE: client.clientCode,
-        ASSIGNED_USER_NAME: client.assignedUser?.name || 'Unassigned',
-        CONTACT_EMAIL: client.contactEmail,
-        CURRENT_DATE: new Date().toLocaleDateString('en-GB'),
-        CURRENT_YEAR: new Date().getFullYear().toString()
+      // Prepare comprehensive email data using the proper variable system
+      const emailData = {
+        client: {
+          companyName: client.companyName || '',
+          clientCode: client.clientCode || '',
+          companyNumber: client.companyNumber || '',
+          vatNumber: client.vatNumber || '',
+          contactName: client.contactName || '',
+          email: client.contactEmail || '',
+          phone: client.phone || '',
+          assignedUser: client.assignedUser
+        },
+        user: client.assignedUser ? {
+          name: client.assignedUser.name || '',
+          email: client.assignedUser.email || ''
+        } : null,
+        workflow: {
+          currentStage: client.currentStage || '',
+          workflowType: 'LTD',
+          isCompleted: client.isCompleted || false
+        },
+        accounts: {
+          filingPeriod: client.filingPeriodStart && client.filingPeriodEnd ? 
+            `${client.filingPeriodStart}_to_${client.filingPeriodEnd}` : '',
+          yearEndDate: client.nextYearEnd ? new Date(client.nextYearEnd) : null,
+          accountsDueDate: client.nextAccountsDue ? new Date(client.nextAccountsDue) : null,
+          corporationTaxDueDate: client.nextCorporationTaxDue ? new Date(client.nextCorporationTaxDue) : null,
+          confirmationStatementDueDate: client.nextConfirmationDue ? new Date(client.nextConfirmationDue) : null,
+          daysUntilAccountsDue: client.nextAccountsDue ? Math.ceil((new Date(client.nextAccountsDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+          daysUntilCTDue: client.nextCorporationTaxDue ? Math.ceil((new Date(client.nextCorporationTaxDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+          daysUntilCSDue: client.nextConfirmationDue ? Math.ceil((new Date(client.nextConfirmationDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+          isAccountsOverdue: client.nextAccountsDue ? new Date() > new Date(client.nextAccountsDue) : false,
+          isCTOverdue: client.nextCorporationTaxDue ? new Date() > new Date(client.nextCorporationTaxDue) : false,
+          isCSOverdue: client.nextConfirmationDue ? new Date() > new Date(client.nextConfirmationDue) : false,
+          currentStage: client.currentStage || '',
+          isCompleted: client.isCompleted || false,
+          assignedUser: client.assignedUser
+        },
+        system: {
+          currentDate: new Date(),
+          companyName: 'Numericalz'
+        }
       }
 
-      // Replace template variables
-      let emailSubject = customSubject || template.subject || `Accounts Filing - ${client.companyName}`
-      let emailBody = customMessage || template.htmlContent || ''
-
-      // Replace variables in subject and body
-      Object.entries(emailVariables).forEach(([key, value]) => {
-        const placeholder = `{{${key}}}`
-        emailSubject = emailSubject.replace(new RegExp(placeholder, 'g'), value)
-        emailBody = emailBody.replace(new RegExp(placeholder, 'g'), value)
-      })
+      // Use the comprehensive variable processing system
+      const emailSubject = customSubject || template.subject || `Accounts Filing - ${client.companyName}`
+      const emailBody = customMessage || template.htmlContent || ''
+      
+      const processedSubject = processEmailVariables(emailSubject, emailData)
+      const processedBody = processEmailVariables(emailBody, emailData)
 
       // 🔧 GMAIL OPTIMIZATION: Optimize email content to prevent clipping
-      const optimizedHtmlContent = await createOptimizedEmailTemplate(emailBody, {
-        subject: emailSubject,
+      const optimizedHtmlContent = await createOptimizedEmailTemplate(processedBody, {
+        subject: processedSubject,
         companyName: 'Numericalz'
       })
 
@@ -274,14 +316,14 @@ export async function sendBulkLtdEmails({
       // Send email
       const emailResult = await emailService.sendEmail({
         to: [{ email: client.contactEmail, name: client.companyName }],
-        subject: emailSubject,
+        subject: processedSubject,
         htmlContent: optimizedHtmlContent,
         emailType: 'LTD_BULK_EMAIL',
         clientId: client.id,
         workflowType: 'LTD',
         workflowId: client.id,
         templateId: templateId,
-        templateData: emailVariables
+        templateData: emailData
       })
 
       if (emailResult.success) {

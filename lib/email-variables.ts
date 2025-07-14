@@ -278,12 +278,60 @@ export const EMAIL_VARIABLES: EmailVariable[] = [
     type: 'date'
   },
   {
+    key: 'accounts.confirmationStatementDueDate',
+    label: 'Confirmation Statement Due Date',
+    description: 'The deadline for filing confirmation statement (CS01)',
+    example: '31 December 2024',
+    category: 'dates',
+    type: 'date'
+  },
+  {
     key: 'accounts.daysUntilAccountsDue',
     label: 'Days Until Accounts Due',
     description: 'Number of days until accounts filing is due',
     example: '30',
     category: 'workflow',
     type: 'number'
+  },
+  {
+    key: 'accounts.daysUntilCTDue',
+    label: 'Days Until Corporation Tax Due',
+    description: 'Number of days until corporation tax filing is due',
+    example: '45',
+    category: 'workflow',
+    type: 'number'
+  },
+  {
+    key: 'accounts.daysUntilCSDue',
+    label: 'Days Until Confirmation Statement Due',
+    description: 'Number of days until confirmation statement filing is due',
+    example: '15',
+    category: 'workflow',
+    type: 'number'
+  },
+  {
+    key: 'accounts.isAccountsOverdue',
+    label: 'Accounts Overdue',
+    description: 'Whether the accounts filing is overdue',
+    example: 'false',
+    category: 'workflow',
+    type: 'boolean'
+  },
+  {
+    key: 'accounts.isCTOverdue',
+    label: 'Corporation Tax Overdue',
+    description: 'Whether the corporation tax filing is overdue',
+    example: 'false',
+    category: 'workflow',
+    type: 'boolean'
+  },
+  {
+    key: 'accounts.isCSOverdue',
+    label: 'Confirmation Statement Overdue',
+    description: 'Whether the confirmation statement filing is overdue',
+    example: 'false',
+    category: 'workflow',
+    type: 'boolean'
   },
 
   // Current Status Variables
@@ -557,10 +605,13 @@ export function processEmailVariables(
   processed = processed.replace(/\{\{accounts\.yearEndDate\}\}/g, data.accounts?.yearEndDate ? formatDate(data.accounts.yearEndDate) : (data.accounts !== undefined ? 'NA' : ''))
   processed = processed.replace(/\{\{accounts\.accountsDueDate\}\}/g, data.accounts?.accountsDueDate ? formatDate(data.accounts.accountsDueDate) : (data.accounts !== undefined ? 'NA' : ''))
   processed = processed.replace(/\{\{accounts\.corporationTaxDueDate\}\}/g, data.accounts?.corporationTaxDueDate ? formatDate(data.accounts.corporationTaxDueDate) : (data.accounts !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{accounts\.confirmationStatementDueDate\}\}/g, data.accounts?.confirmationStatementDueDate ? formatDate(data.accounts.confirmationStatementDueDate) : (data.accounts !== undefined ? 'NA' : ''))
   processed = processed.replace(/\{\{accounts\.daysUntilAccountsDue\}\}/g, data.accounts?.daysUntilAccountsDue !== undefined ? String(data.accounts.daysUntilAccountsDue) : (data.accounts !== undefined ? 'NA' : ''))
   processed = processed.replace(/\{\{accounts\.daysUntilCTDue\}\}/g, data.accounts?.daysUntilCTDue !== undefined ? String(data.accounts.daysUntilCTDue) : (data.accounts !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{accounts\.daysUntilCSDue\}\}/g, data.accounts?.daysUntilCSDue !== undefined ? String(data.accounts.daysUntilCSDue) : (data.accounts !== undefined ? 'NA' : ''))
   processed = processed.replace(/\{\{accounts\.isAccountsOverdue\}\}/g, data.accounts?.isAccountsOverdue !== undefined ? String(data.accounts.isAccountsOverdue) : (data.accounts !== undefined ? 'NA' : ''))
   processed = processed.replace(/\{\{accounts\.isCTOverdue\}\}/g, data.accounts?.isCTOverdue !== undefined ? String(data.accounts.isCTOverdue) : (data.accounts !== undefined ? 'NA' : ''))
+  processed = processed.replace(/\{\{accounts\.isCSOverdue\}\}/g, data.accounts?.isCSOverdue !== undefined ? String(data.accounts.isCSOverdue) : (data.accounts !== undefined ? 'NA' : ''))
 
   // Date variables
   const now = new Date()

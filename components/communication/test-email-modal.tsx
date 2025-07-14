@@ -29,6 +29,7 @@ interface Client {
   vatQuarterGroup?: string
   nextAccountsDue?: string
   nextCorporationTaxDue?: string
+  nextConfirmationDue?: string
   nextVatReturnDue?: string
   incorporationDate?: string
   assignedUser?: {
@@ -155,6 +156,7 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
           vatNumber: client.vatNumber,
           nextAccountsDue: client.nextAccountsDue,
           nextCorporationTaxDue: client.nextCorporationTaxDue,
+          nextConfirmationDue: client.nextConfirmationDue,
           nextVatReturnDue: client.nextVatReturnDue,
           incorporationDate: client.incorporationDate,
           assignedUser: client.assignedUser,
@@ -258,14 +260,33 @@ export function TestEmailModal({ isOpen, onClose, templateData }: TestEmailModal
       yearEndDate: new Date(client.currentLtdAccountsWorkflow.filingPeriodEnd),
       accountsDueDate: new Date(client.currentLtdAccountsWorkflow.accountsDueDate),
       corporationTaxDueDate: new Date(client.currentLtdAccountsWorkflow.ctDueDate),
+      confirmationStatementDueDate: client.nextConfirmationDue ? new Date(client.nextConfirmationDue) : null,
       daysUntilAccountsDue: Math.ceil((new Date(client.currentLtdAccountsWorkflow.accountsDueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
       daysUntilCTDue: Math.ceil((new Date(client.currentLtdAccountsWorkflow.ctDueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
+      daysUntilCSDue: client.nextConfirmationDue ? Math.ceil((new Date(client.nextConfirmationDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
       isAccountsOverdue: new Date() > new Date(client.currentLtdAccountsWorkflow.accountsDueDate),
       isCTOverdue: new Date() > new Date(client.currentLtdAccountsWorkflow.ctDueDate),
+      isCSOverdue: client.nextConfirmationDue ? new Date() > new Date(client.nextConfirmationDue) : false,
       currentStage: client.currentLtdAccountsWorkflow.currentStage,
       isCompleted: client.currentLtdAccountsWorkflow.isCompleted,
       assignedUser: client.currentLtdAccountsWorkflow.assignedUser
-    } : null
+    } : {
+      // Fallback to client-level data if no workflow exists
+      filingPeriod: client.nextAccountsDue ? `${new Date(client.nextAccountsDue).getFullYear() - 1} accounts` : '',
+      yearEndDate: client.nextAccountsDue ? new Date(new Date(client.nextAccountsDue).setFullYear(new Date(client.nextAccountsDue).getFullYear() - 1)) : null,
+      accountsDueDate: client.nextAccountsDue ? new Date(client.nextAccountsDue) : null,
+      corporationTaxDueDate: client.nextCorporationTaxDue ? new Date(client.nextCorporationTaxDue) : null,
+      confirmationStatementDueDate: client.nextConfirmationDue ? new Date(client.nextConfirmationDue) : null,
+      daysUntilAccountsDue: client.nextAccountsDue ? Math.ceil((new Date(client.nextAccountsDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+      daysUntilCTDue: client.nextCorporationTaxDue ? Math.ceil((new Date(client.nextCorporationTaxDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+      daysUntilCSDue: client.nextConfirmationDue ? Math.ceil((new Date(client.nextConfirmationDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+      isAccountsOverdue: client.nextAccountsDue ? new Date() > new Date(client.nextAccountsDue) : false,
+      isCTOverdue: client.nextCorporationTaxDue ? new Date() > new Date(client.nextCorporationTaxDue) : false,
+      isCSOverdue: client.nextConfirmationDue ? new Date() > new Date(client.nextConfirmationDue) : false,
+      currentStage: '',
+      isCompleted: false,
+      assignedUser: client.assignedUser
+    }
 
     // Prepare dates data
     const datesData = {

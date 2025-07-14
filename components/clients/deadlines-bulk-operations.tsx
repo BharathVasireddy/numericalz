@@ -320,6 +320,13 @@ export function DeadlinesBulkOperations({
         yearEndDate: clientData.nextYearEnd ? new Date(clientData.nextYearEnd) : null,
         accountsDueDate: clientData.nextAccountsDue ? new Date(clientData.nextAccountsDue) : null,
         corporationTaxDueDate: clientData.corporationTaxDue ? new Date(clientData.corporationTaxDue) : null,
+        confirmationStatementDueDate: clientData.nextConfirmationDue ? new Date(clientData.nextConfirmationDue) : null,
+        daysUntilAccountsDue: clientData.nextAccountsDue ? Math.ceil((new Date(clientData.nextAccountsDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+        daysUntilCTDue: clientData.corporationTaxDue ? Math.ceil((new Date(clientData.corporationTaxDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+        daysUntilCSDue: clientData.nextConfirmationDue ? Math.ceil((new Date(clientData.nextConfirmationDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+        isAccountsOverdue: clientData.nextAccountsDue ? new Date() > new Date(clientData.nextAccountsDue) : false,
+        isCTOverdue: clientData.corporationTaxDue ? new Date() > new Date(clientData.corporationTaxDue) : false,
+        isCSOverdue: clientData.nextConfirmationDue ? new Date() > new Date(clientData.nextConfirmationDue) : false,
         currentStage: clientData.currentStage || '',
         isCompleted: clientData.isCompleted || false,
         assignedUser: clientData.assignedUser

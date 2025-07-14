@@ -161,10 +161,33 @@ export function SendEmailModal({
         yearEndDate: client.nextYearEnd ? new Date(client.nextYearEnd) : null, // Use official Companies House year end date
         accountsDueDate: workflowData.accountsDueDate ? new Date(workflowData.accountsDueDate) : null,
         corporationTaxDueDate: workflowData.ctDueDate ? new Date(workflowData.ctDueDate) : null,
+        confirmationStatementDueDate: client.nextConfirmationDue ? new Date(client.nextConfirmationDue) : null,
+        daysUntilAccountsDue: workflowData.accountsDueDate ? Math.ceil((new Date(workflowData.accountsDueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+        daysUntilCTDue: workflowData.ctDueDate ? Math.ceil((new Date(workflowData.ctDueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+        daysUntilCSDue: client.nextConfirmationDue ? Math.ceil((new Date(client.nextConfirmationDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+        isAccountsOverdue: workflowData.accountsDueDate ? new Date() > new Date(workflowData.accountsDueDate) : false,
+        isCTOverdue: workflowData.ctDueDate ? new Date() > new Date(workflowData.ctDueDate) : false,
+        isCSOverdue: client.nextConfirmationDue ? new Date() > new Date(client.nextConfirmationDue) : false,
         currentStage: workflowData.currentStage || '',
         isCompleted: workflowData.isCompleted || false,
         assignedUser: workflowData.assignedUser
-      } : null,
+      } : {
+        // Fallback to client-level data if no workflow exists
+        filingPeriod: client.nextAccountsDue ? `${new Date(client.nextAccountsDue).getFullYear() - 1} accounts` : '',
+        yearEndDate: client.nextYearEnd ? new Date(client.nextYearEnd) : null,
+        accountsDueDate: client.nextAccountsDue ? new Date(client.nextAccountsDue) : null,
+        corporationTaxDueDate: client.nextCorporationTaxDue ? new Date(client.nextCorporationTaxDue) : null,
+        confirmationStatementDueDate: client.nextConfirmationDue ? new Date(client.nextConfirmationDue) : null,
+        daysUntilAccountsDue: client.nextAccountsDue ? Math.ceil((new Date(client.nextAccountsDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+        daysUntilCTDue: client.nextCorporationTaxDue ? Math.ceil((new Date(client.nextCorporationTaxDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+        daysUntilCSDue: client.nextConfirmationDue ? Math.ceil((new Date(client.nextConfirmationDue).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+        isAccountsOverdue: client.nextAccountsDue ? new Date() > new Date(client.nextAccountsDue) : false,
+        isCTOverdue: client.nextCorporationTaxDue ? new Date() > new Date(client.nextCorporationTaxDue) : false,
+        isCSOverdue: client.nextConfirmationDue ? new Date() > new Date(client.nextConfirmationDue) : false,
+        currentStage: '',
+        isCompleted: false,
+        assignedUser: client.assignedUser
+      },
       system: {
         currentDate: new Date(),
         companyName: 'Numericalz'
