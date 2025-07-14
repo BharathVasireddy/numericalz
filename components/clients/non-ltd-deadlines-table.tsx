@@ -1140,6 +1140,8 @@ export function NonLtdDeadlinesTable({
         clientId: client.id,
         clientName: client.companyName,
         workflowId: client.currentNonLtdAccountsWorkflow.id,
+        workflowAssignedUser: client.currentNonLtdAccountsWorkflow?.assignedUser,
+        clientAssignedUser: client.nonLtdCompanyAssignedUser,
         url: `/api/clients/non-ltd-deadlines/${client.id}/workflow`
       })
       
@@ -1150,7 +1152,7 @@ export function NonLtdDeadlinesTable({
         body: JSON.stringify({
           currentStage: 'SUBMISSION_APPROVED_PARTNER', // Reset to previous stage
           notes: 'Filing undone - workflow reopened for corrections',
-          assignedUserId: client.nonLtdCompanyAssignedUser?.id || null,
+          // Don't send assignedUserId to preserve the existing assignment
           skipWarning: true // Bypass validation for undo operations
         })
       })
