@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { showToast } from '@/lib/toast'
 import { 
   Users, 
@@ -19,7 +20,8 @@ import {
   CheckCircle,
   Crown,
   Activity,
-  Eye
+  Eye,
+  BarChart3
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -80,6 +82,7 @@ interface TeamManagementProps {
 
 export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
   const { data: session } = useSession()
+  const router = useRouter()
   const [users, setUsers] = useState<StaffMember[]>(initialUsers)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
@@ -256,13 +259,23 @@ export function TeamManagement({ users: initialUsers }: TeamManagementProps) {
                   Manage team members and view their assignments
                 </p>
               </div>
-              <Button
-                onClick={() => setShowCreateForm(true)}
-                className="btn-primary flex items-center gap-2"
-              >
-                <UserPlus className="h-4 w-4" />
-                Add Team Member
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => router.push('/dashboard/staff/workload')}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  View Workload
+                </Button>
+                <Button
+                  onClick={() => setShowCreateForm(true)}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Add Team Member
+                </Button>
+              </div>
             </div>
           </div>
 
