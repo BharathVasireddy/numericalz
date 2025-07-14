@@ -222,6 +222,33 @@ export async function GET(request: NextRequest) {
               name: true,
             },
           },
+          // Non-Ltd workflow data
+          nonLtdCompanyAssignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          nonLtdAccountsWorkflows: {
+            where: {
+              isCompleted: false,
+            },
+            orderBy: {
+              yearEndDate: 'desc'
+            },
+            take: 1, // Get the most recent workflow
+            include: {
+              assignedUser: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                }
+              }
+            }
+          }
         },
         orderBy: (() => {
           // Handle special sorting cases

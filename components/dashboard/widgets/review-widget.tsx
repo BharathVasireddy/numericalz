@@ -13,7 +13,7 @@ import { CheckCircle, Clock, FileCheck, AlertTriangle, Eye, MessageSquare, Check
 
 interface ReviewItem {
   id: string
-  type: 'vat' | 'ltd'
+  type: 'vat' | 'ltd' | 'non-ltd'
   clientId: string
   clientName: string
   clientCode: string
@@ -49,7 +49,8 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
     medium: 0,
     low: 0,
     vat: 0,
-    ltd: 0
+    ltd: 0,
+    nonLtd: 0
   })
 
   // Review modal state
@@ -97,8 +98,10 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
     const isValidLtdManagerReview = item.type === 'ltd' && item.currentStage === 'DISCUSS_WITH_MANAGER'
     const isValidVATPartnerReview = item.type === 'vat' && item.currentStage === 'REVIEW_PENDING_PARTNER'
     const isValidVATManagerReview = item.type === 'vat' && item.currentStage === 'REVIEW_PENDING_MANAGER'
+    const isValidNonLtdPartnerReview = item.type === 'non-ltd' && item.currentStage === 'REVIEW_BY_PARTNER'
+    const isValidNonLtdManagerReview = item.type === 'non-ltd' && item.currentStage === 'DISCUSS_WITH_MANAGER'
     
-    if (!isValidLtdPartnerReview && !isValidLtdManagerReview && !isValidVATPartnerReview && !isValidVATManagerReview) {
+    if (!isValidLtdPartnerReview && !isValidLtdManagerReview && !isValidVATPartnerReview && !isValidVATManagerReview && !isValidNonLtdPartnerReview && !isValidNonLtdManagerReview) {
       toast({
         title: "Cannot complete review",
         description: "Only workflows at review stages can be marked as done.",
@@ -152,7 +155,7 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
           nextStage = reviewAction === 'approve' ? 'REVIEWED_BY_PARTNER' : 'WORK_IN_PROGRESS' // fallback
         }
         endpoint = `/api/vat-quarters/${selectedItem.workflowId}/workflow`
-      } else {
+      } else if (selectedItem.type === 'ltd') {
         // Handle LTD workflow transitions
         if (selectedItem.currentStage === 'DISCUSS_WITH_MANAGER') {
           nextStage = reviewAction === 'approve' ? 'REVIEWED_BY_MANAGER' : 'WORK_IN_PROGRESS'
@@ -162,6 +165,20 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
           nextStage = reviewAction === 'approve' ? 'REVIEW_DONE_HELLO_SIGN' : 'WORK_IN_PROGRESS' // fallback
         }
         endpoint = `/api/clients/ltd-deadlines/${selectedItem.clientId}/workflow`
+      } else if (selectedItem.type === 'non-ltd') {
+        // Handle Non-Ltd workflow transitions (same as Ltd, but endpoint is different)
+        if (selectedItem.currentStage === 'DISCUSS_WITH_MANAGER') {
+          nextStage = reviewAction === 'approve' ? 'REVIEWED_BY_MANAGER' : 'WORK_IN_PROGRESS'
+        } else if (selectedItem.currentStage === 'REVIEW_BY_PARTNER') {
+          nextStage = reviewAction === 'approve' ? 'REVIEWED_BY_PARTNER' : 'WORK_IN_PROGRESS'
+        } else {
+          nextStage = reviewAction === 'approve' ? 'REVIEWED_BY_PARTNER' : 'WORK_IN_PROGRESS' // fallback
+        }
+        endpoint = `/api/clients/non-ltd-deadlines/${selectedItem.clientId}/workflow`
+      } else {
+        // Default fallback for unknown types
+        nextStage = 'WORK_IN_PROGRESS'
+        endpoint = `/api/clients/non-ltd-deadlines/${selectedItem.clientId}/workflow`
       }
       
       const actionText = reviewAction === 'approve' ? 'approved' : 'sent back for rework'
@@ -170,26 +187,32 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stage: nextStage,
-          comments: `Review ${actionText} by ${userRole.toLowerCase()}: ${reviewComments.trim()}`
+          currentStage: nextStage,
+          notes: `Review ${actionText} by ${userRole.toLowerCase()}: ${reviewComments.trim()}`
         })
       })
 
       const result = await response.json()
 
       if (result.success) {
-        const workflowType = selectedItem.type === 'vat' ? 'VAT Return' : 'Annual Accounts'
+        const workflowType = selectedItem.type === 'vat' ? 'VAT Return' : selectedItem.type === 'ltd' ? 'Annual Accounts' : 'Non-Ltd Accounts'
         const reviewerType = selectedItem.currentStage === 'REVIEW_PENDING_MANAGER' || selectedItem.currentStage === 'DISCUSS_WITH_MANAGER' ? 'Manager' : 'Partner'
         
         let nextStepText: string
         if (selectedItem.type === 'vat') {
           nextStepText = reviewAction === 'approve' ? 'ready to continue workflow' : 'sent back for rework'
-        } else {
-          // Ltd company workflow
+        } else if (selectedItem.type === 'ltd') {
           if (selectedItem.currentStage === 'DISCUSS_WITH_MANAGER') {
             nextStepText = reviewAction === 'approve' ? 'reviewed by manager - ready for partner review' : 'sent back for rework'
           } else {
             nextStepText = reviewAction === 'approve' ? 'approved - Ready for HelloSign' : 'sent back for rework'
+          }
+        } else {
+          // Non-Ltd
+          if (selectedItem.currentStage === 'DISCUSS_WITH_MANAGER') {
+            nextStepText = reviewAction === 'approve' ? 'reviewed by manager - ready for partner review' : 'sent back for rework'
+          } else {
+            nextStepText = reviewAction === 'approve' ? 'reviewed by partner - ready for next step' : 'sent back for rework'
           }
         }
         
@@ -198,17 +221,19 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
           description: `${selectedItem.clientName} reviewed by ${reviewerType} - ${nextStepText}`,
         })
         
-        // Close modal and refresh data
         setReviewModalOpen(false)
-        setSelectedItem(null)
-        setReviewComments('')
         setReviewAction(null)
-        await fetchReviewData()
+        setReviewComments('')
+        setSelectedItem(null)
+        fetchReviewData()
       } else {
-        throw new Error(result.error || 'Failed to update workflow')
+        toast({
+          title: "Review failed",
+          description: result.error || 'Failed to update workflow',
+          variant: "destructive"
+        })
       }
     } catch (error) {
-      console.error('❌ Error processing review:', error)
       toast({
         title: "Error",
         description: "Failed to process review. Please try again.",
@@ -217,7 +242,7 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
     } finally {
       setProcessingItems(prev => {
         const newSet = new Set(prev)
-        newSet.delete(selectedItem.id)
+        if (selectedItem) newSet.delete(selectedItem.id)
         return newSet
       })
     }
@@ -261,8 +286,10 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
   const handleItemClick = (item: ReviewItem) => {
     if (item.type === 'vat') {
       router.push(`/dashboard/clients/vat-dt?client=${item.clientId}`)
-    } else {
+    } else if (item.type === 'ltd') {
       router.push(`/dashboard/clients/ltd-companies?client=${item.clientId}`)
+    } else if (item.type === 'non-ltd') {
+      router.push(`/dashboard/clients/non-ltd-companies?client=${item.clientId}`)
     }
   }
 
@@ -275,18 +302,20 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
   }
 
   const canMarkReviewDone = (item: ReviewItem) => {
-    // Partners can review: LTD partner reviews and VAT partner reviews
+    // Partners can review: LTD partner reviews, VAT partner reviews, and non-Ltd partner reviews
     if (userRole === 'PARTNER') {
       const isLtdPartnerReview = item.type === 'ltd' && item.currentStage === 'REVIEW_BY_PARTNER'
       const isVATPartnerReview = item.type === 'vat' && item.currentStage === 'REVIEW_PENDING_PARTNER'
-      return isLtdPartnerReview || isVATPartnerReview
+      const isNonLtdPartnerReview = item.type === 'non-ltd' && item.currentStage === 'REVIEW_BY_PARTNER'
+      return isLtdPartnerReview || isVATPartnerReview || isNonLtdPartnerReview
     }
     
-    // Managers can review: LTD manager reviews and VAT manager reviews
+    // Managers can review: LTD manager reviews, VAT manager reviews, and non-Ltd manager reviews
     if (userRole === 'MANAGER') {
       const isLtdManagerReview = item.type === 'ltd' && item.currentStage === 'DISCUSS_WITH_MANAGER'
       const isVATManagerReview = item.type === 'vat' && item.currentStage === 'REVIEW_PENDING_MANAGER'
-      return isLtdManagerReview || isVATManagerReview
+      const isNonLtdManagerReview = item.type === 'non-ltd' && item.currentStage === 'DISCUSS_WITH_MANAGER'
+      return isLtdManagerReview || isVATManagerReview || isNonLtdManagerReview
     }
     
     return false
@@ -327,7 +356,7 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
                 </Badge>
               )}
               <Badge variant="secondary" className="text-xs">
-                VAT: {summary.vat} | Accounts: {summary.ltd}
+                VAT: {summary.vat} | Accounts: {summary.ltd} | Non-Ltd: {summary.nonLtd}
               </Badge>
             </div>
           </div>

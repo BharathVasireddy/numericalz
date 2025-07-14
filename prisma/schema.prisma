@@ -31,7 +31,9 @@ model User {
   triggeredEmailLogs           EmailLog[]
   createdTemplates             EmailTemplate[]
   ltdAccountsWorkflowHistory   LtdAccountsWorkflowHistory[]
+  nonLtdAccountsWorkflowHistory NonLtdAccountsWorkflowHistory[]
   assignedLtdAccountsWorkflows LtdAccountsWorkflow[]
+  assignedNonLtdAccountsWorkflows NonLtdAccountsWorkflow[]
   notifications                Notification[]
   sessions                     Session[]
   defaultAssigneeFor           UserSettings[]               @relation("DefaultAssignee")
@@ -157,6 +159,7 @@ model Client {
   communications                  Communication[]
   emailLogs                       EmailLog[]
   ltdAccountsWorkflows            LtdAccountsWorkflow[]
+  nonLtdAccountsWorkflows         NonLtdAccountsWorkflow[]
   vatQuartersWorkflow             VATQuarter[]
   inAppNotifications              InAppNotification[]
 
@@ -490,6 +493,77 @@ model LtdAccountsWorkflowHistory {
   @@map("ltd_accounts_workflow_history")
 }
 
+model NonLtdAccountsWorkflow {
+  id                          String                       @id @default(cuid())
+  clientId                    String
+  yearEndDate                 DateTime                     // Fixed 5th April
+  filingDueDate               DateTime                     // 9 months from year end (5th January)
+  currentStage                NonLtdAccountsWorkflowStage  @default(PAPERWORK_PENDING_CHASE)
+  assignedUserId              String?
+  isCompleted                 Boolean                      @default(false)
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @default(now()) @updatedAt
+  chaseStartedDate            DateTime?
+  chaseStartedByUserId        String?
+  chaseStartedByUserName      String?
+  paperworkReceivedDate       DateTime?
+  paperworkReceivedByUserId   String?
+  paperworkReceivedByUserName String?
+  workStartedDate             DateTime?
+  workStartedByUserId         String?
+  workStartedByUserName       String?
+  managerDiscussionDate       DateTime?
+  managerDiscussionByUserId   String?
+  managerDiscussionByUserName String?
+  partnerReviewDate           DateTime?
+  partnerReviewByUserId       String?
+  partnerReviewByUserName     String?
+  reviewCompletedDate         DateTime?
+  reviewCompletedByUserId     String?
+  reviewCompletedByUserName   String?
+  sentToClientDate            DateTime?
+  sentToClientByUserId        String?
+  sentToClientByUserName      String?
+  clientApprovedDate          DateTime?
+  clientApprovedByUserId      String?
+  clientApprovedByUserName    String?
+  partnerApprovedDate         DateTime?
+  partnerApprovedByUserId     String?
+  partnerApprovedByUserName   String?
+  filedToHMRCDate             DateTime?
+  filedToHMRCByUserId         String?
+  filedToHMRCByUserName       String?
+  workflowHistory             NonLtdAccountsWorkflowHistory[]
+  assignedUser                User?                        @relation(fields: [assignedUserId], references: [id])
+  client                      Client                       @relation(fields: [clientId], references: [id])
+
+  @@index([assignedUserId])
+  @@index([clientId])
+  @@index([currentStage])
+  @@index([yearEndDate])
+  @@map("non_ltd_accounts_workflows")
+}
+
+model NonLtdAccountsWorkflowHistory {
+  id                        String                      @id @default(cuid())
+  nonLtdAccountsWorkflowId  String
+  fromStage                 NonLtdAccountsWorkflowStage?
+  toStage                   NonLtdAccountsWorkflowStage
+  stageChangedAt            DateTime                     @default(now())
+  userId                    String
+  userName                  String
+  userEmail                 String
+  userRole                  String
+  notes                     String?
+  createdAt                 DateTime                     @default(now())
+  daysInPreviousStage       Int?
+  nonLtdAccountsWorkflow    NonLtdAccountsWorkflow       @relation(fields: [nonLtdAccountsWorkflowId], references: [id])
+  user                      User                         @relation(fields: [userId], references: [id])
+
+  @@index([nonLtdAccountsWorkflowId])
+  @@map("non_ltd_accounts_workflow_history")
+}
+
 model EmailLog {
   id              String      @id @default(cuid())
   createdAt       DateTime    @default(now())
@@ -621,6 +695,24 @@ enum LtdAccountsWorkflowStage {
   APPROVED_BY_CLIENT
   SUBMISSION_APPROVED_PARTNER
   FILED_TO_COMPANIES_HOUSE
+  FILED_TO_HMRC
+  CLIENT_SELF_FILING
+  REVIEWED_BY_MANAGER
+  REVIEWED_BY_PARTNER
+}
+
+enum NonLtdAccountsWorkflowStage {
+  WAITING_FOR_YEAR_END
+  PAPERWORK_PENDING_CHASE
+  PAPERWORK_CHASED
+  PAPERWORK_RECEIVED
+  WORK_IN_PROGRESS
+  DISCUSS_WITH_MANAGER
+  REVIEW_BY_PARTNER
+  REVIEW_DONE_HELLO_SIGN
+  SENT_TO_CLIENT_HELLO_SIGN
+  APPROVED_BY_CLIENT
+  SUBMISSION_APPROVED_PARTNER
   FILED_TO_HMRC
   CLIENT_SELF_FILING
   REVIEWED_BY_MANAGER

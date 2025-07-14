@@ -143,6 +143,67 @@ export async function GET(request: NextRequest) {
           filingPeriod: `${new Date(ltdWorkflow.filingPeriodStart).getFullYear()}-${new Date(ltdWorkflow.filingPeriodEnd).getFullYear()}`
         })
       }
+
+      // Non-Ltd company manager reviews: DISCUSS_WITH_MANAGER stage
+      const nonLtdManagerReviews = await db.nonLtdAccountsWorkflow.findMany({
+        where: {
+          currentStage: 'DISCUSS_WITH_MANAGER',
+          isCompleted: false
+        },
+        include: {
+          client: {
+            select: {
+              id: true,
+              clientCode: true,
+              companyName: true
+            }
+          },
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true
+            }
+          },
+          workflowHistory: {
+            where: {
+              toStage: 'DISCUSS_WITH_MANAGER'
+            },
+            orderBy: {
+              stageChangedAt: 'desc'
+            },
+            take: 1
+          }
+        },
+        orderBy: {
+          workStartedDate: 'asc'
+        }
+      })
+
+      // Add Non-Ltd reviews to items
+      for (const nonLtdWorkflow of nonLtdManagerReviews) {
+        // Use the actual stage change date from workflow history
+        const stageChangeHistory = nonLtdWorkflow.workflowHistory[0]
+        const submittedDate = stageChangeHistory?.stageChangedAt || nonLtdWorkflow.workStartedDate || nonLtdWorkflow.createdAt
+        const daysWaiting = Math.floor((new Date().getTime() - new Date(submittedDate).getTime()) / (1000 * 60 * 60 * 24))
+        
+        reviewItems.push({
+          id: `non-ltd-${nonLtdWorkflow.id}`,
+          type: 'non-ltd',
+          clientId: nonLtdWorkflow.client.id,
+          clientName: nonLtdWorkflow.client.companyName,
+          clientCode: nonLtdWorkflow.client.clientCode,
+          workflowId: nonLtdWorkflow.id,
+          currentStage: nonLtdWorkflow.currentStage,
+          stageLabel: 'To discuss with manager',
+          assignedUser: nonLtdWorkflow.assignedUser || { id: '', name: 'Unassigned', role: 'STAFF' },
+          submittedDate: submittedDate,
+          daysWaiting,
+          priority: daysWaiting > 5 ? 'high' : daysWaiting > 2 ? 'medium' : 'low',
+          filingPeriod: `${new Date(nonLtdWorkflow.yearEndDate).getFullYear()}-${new Date(nonLtdWorkflow.yearEndDate).getFullYear() + 1}`
+        })
+      }
     }
 
     if (userRole === 'PARTNER') {
@@ -272,6 +333,67 @@ export async function GET(request: NextRequest) {
           filingPeriod: `${new Date(ltdWorkflow.filingPeriodStart).getFullYear()}-${new Date(ltdWorkflow.filingPeriodEnd).getFullYear()}`
         })
       }
+
+      // Partner Non-Ltd reviews: REVIEW_BY_PARTNER stage
+      const nonLtdPartnerReviews = await db.nonLtdAccountsWorkflow.findMany({
+        where: {
+          currentStage: 'REVIEW_BY_PARTNER',
+          isCompleted: false
+        },
+        include: {
+          client: {
+            select: {
+              id: true,
+              clientCode: true,
+              companyName: true
+            }
+          },
+          assignedUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true
+            }
+          },
+          workflowHistory: {
+            where: {
+              toStage: 'REVIEW_BY_PARTNER'
+            },
+            orderBy: {
+              stageChangedAt: 'desc'
+            },
+            take: 1
+          }
+        },
+        orderBy: {
+          managerDiscussionDate: 'asc'
+        }
+      })
+
+      // Add Non-Ltd partner reviews
+      for (const nonLtdWorkflow of nonLtdPartnerReviews) {
+        // Use the actual stage change date from workflow history
+        const stageChangeHistory = nonLtdWorkflow.workflowHistory[0]
+        const submittedDate = stageChangeHistory?.stageChangedAt || nonLtdWorkflow.managerDiscussionDate || nonLtdWorkflow.workStartedDate || nonLtdWorkflow.createdAt
+        const daysWaiting = Math.floor((new Date().getTime() - new Date(submittedDate).getTime()) / (1000 * 60 * 60 * 24))
+        
+        reviewItems.push({
+          id: `non-ltd-${nonLtdWorkflow.id}`,
+          type: 'non-ltd',
+          clientId: nonLtdWorkflow.client.id,
+          clientName: nonLtdWorkflow.client.companyName,
+          clientCode: nonLtdWorkflow.client.clientCode,
+          workflowId: nonLtdWorkflow.id,
+          currentStage: nonLtdWorkflow.currentStage,
+          stageLabel: 'To review by partner',
+          assignedUser: nonLtdWorkflow.assignedUser || { id: '', name: 'Unassigned', role: 'STAFF' },
+          submittedDate: submittedDate,
+          daysWaiting,
+          priority: daysWaiting > 5 ? 'high' : daysWaiting > 2 ? 'medium' : 'low',
+          filingPeriod: `${new Date(nonLtdWorkflow.yearEndDate).getFullYear()}-${new Date(nonLtdWorkflow.yearEndDate).getFullYear() + 1}`
+        })
+      }
     }
 
     // Sort by priority and days waiting
@@ -295,7 +417,8 @@ export async function GET(request: NextRequest) {
           medium: reviewItems.filter(item => item.priority === 'medium').length,
           low: reviewItems.filter(item => item.priority === 'low').length,
           vat: reviewItems.filter(item => item.type === 'vat').length,
-          ltd: reviewItems.filter(item => item.type === 'ltd').length
+          ltd: reviewItems.filter(item => item.type === 'ltd').length,
+          nonLtd: reviewItems.filter(item => item.type === 'non-ltd').length
         }
       }
     })

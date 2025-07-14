@@ -136,6 +136,34 @@ const VAT_FILTER_FIELDS = [
   { value: 'createdAt', label: 'Client Created Date', type: 'date' }
 ]
 
+const NON_LTD_FILTER_FIELDS = [
+  { value: 'companyName', label: 'Company Name', type: 'text' },
+  { value: 'clientCode', label: 'Client Code', type: 'text' },
+  { value: 'contactName', label: 'Contact Name', type: 'text' },
+  { value: 'contactEmail', label: 'Contact Email', type: 'text' },
+  { value: 'yearEndDate', label: 'Year End Date', type: 'date' },
+  { value: 'filingDueDate', label: 'Filing Due Date', type: 'date' },
+  { value: 'nonLtdCompanyAssignedUser', label: 'Assigned User', type: 'user' },
+  { value: 'workflowStage', label: 'Workflow Stage', type: 'select', options: [
+    { value: 'WAITING_FOR_YEAR_END', label: 'Waiting for Year End' },
+    { value: 'PAPERWORK_PENDING_CHASE', label: 'Pending to Chase Paperwork' },
+    { value: 'PAPERWORK_CHASED', label: 'Paperwork Chased' },
+    { value: 'PAPERWORK_RECEIVED', label: 'Paperwork Received' },
+    { value: 'WORK_IN_PROGRESS', label: 'Work in Progress' },
+    { value: 'DISCUSS_WITH_MANAGER', label: 'To Discuss with Manager' },
+    { value: 'REVIEWED_BY_MANAGER', label: 'Reviewed by Manager' },
+    { value: 'REVIEW_BY_PARTNER', label: 'To Review by Partner' },
+    { value: 'REVIEWED_BY_PARTNER', label: 'Reviewed by Partner' },
+    { value: 'REVIEW_DONE_HELLO_SIGN', label: 'Review Done - Hello Sign to Client' },
+    { value: 'SENT_TO_CLIENT_HELLO_SIGN', label: 'Sent to client on Hello Sign' },
+    { value: 'APPROVED_BY_CLIENT', label: 'Approved by Client' },
+    { value: 'SUBMISSION_APPROVED_PARTNER', label: 'Submission Approved by Partner' },
+    { value: 'FILED_TO_HMRC', label: 'Filed to HMRC' }
+  ]},
+  { value: 'isCompleted', label: 'Workflow Completed', type: 'boolean' },
+  { value: 'createdAt', label: 'Client Created Date', type: 'date' }
+]
+
 // Operator definitions
 const OPERATORS = {
   text: [
@@ -189,7 +217,7 @@ interface AdvancedFilterModalProps {
   onApplyFilters: (filter: AdvancedFilter | null) => void
   currentFilter: AdvancedFilter | null
   users: User[]
-  tableType: 'vat' | 'ltd'
+  tableType: 'vat' | 'ltd' | 'non-ltd'
 }
 
 export function AdvancedFilterModal({
@@ -208,7 +236,9 @@ export function AdvancedFilterModal({
     groupOperator: 'AND'
   })
 
-  const filterFields = tableType === 'ltd' ? LTD_FILTER_FIELDS : VAT_FILTER_FIELDS
+  const filterFields = tableType === 'ltd' ? LTD_FILTER_FIELDS : 
+                       tableType === 'non-ltd' ? NON_LTD_FILTER_FIELDS : 
+                       VAT_FILTER_FIELDS
 
   // Initialize filter when modal opens
   useEffect(() => {

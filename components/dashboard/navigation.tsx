@@ -135,21 +135,38 @@ export function DashboardNavigation() {
             href: '/dashboard/clients',
             icon: Building2,
           },
-          {
-            name: 'Ltd Companies',
-            href: '/dashboard/clients/ltd-companies',
-            icon: Building2,
-          },
-          {
-            name: 'Non-Ltd Companies',
-            href: '/dashboard/clients/non-ltd-companies',
-            icon: Building2,
-          },
           ...(session?.user?.role === 'PARTNER' || session?.user?.role === 'MANAGER' ? [{
             name: 'Inactive Clients',
             href: '/dashboard/clients/inactive',
             icon: Building2,
           }] : [])
+        ]
+      },
+      {
+        id: 'accounts',
+        title: 'Accounts',
+        icon: Briefcase,
+        items: [
+          {
+            name: 'Limited Companies',
+            href: '/dashboard/clients/ltd-companies',
+            icon: Building2,
+          },
+          {
+            name: 'Non Limited Companies',
+            href: '/dashboard/clients/non-ltd-companies',
+            icon: Building2,
+          },
+          {
+            name: 'Directors',
+            href: '/dashboard/accounts/directors',
+            icon: Users,
+          },
+          {
+            name: 'Sub Contractors',
+            href: '/dashboard/accounts/sub-contractors',
+            icon: Users,
+          }
         ]
       },
       {

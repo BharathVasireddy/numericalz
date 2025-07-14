@@ -47,7 +47,7 @@ interface DeadlinesBulkOperationsProps {
   users: User[]
   onClearSelection: () => void
   onRefreshData: () => void
-  type: 'vat' | 'ltd'  // Specify which type of deadlines table
+  type: 'vat' | 'ltd' | 'non-ltd'  // Specify which type of deadlines table
 }
 
 /**
@@ -101,8 +101,8 @@ export function DeadlinesBulkOperations({
     return null
   }
 
-  const entityName = type === 'vat' ? 'VAT quarter' : 'Ltd workflow'
-  const entityNamePlural = type === 'vat' ? 'VAT quarters' : 'Ltd workflows'
+  const entityName = type === 'vat' ? 'VAT quarter' : type === 'non-ltd' ? 'Non-Ltd workflow' : 'Ltd workflow'
+  const entityNamePlural = type === 'vat' ? 'VAT quarters' : type === 'non-ltd' ? 'Non-Ltd workflows' : 'Ltd workflows'
 
   const handleBulkAssign = async () => {
     if (!selectedUserId) {
@@ -114,6 +114,8 @@ export function DeadlinesBulkOperations({
     try {
       const endpoint = type === 'vat' 
         ? '/api/vat-quarters/bulk'
+        : type === 'non-ltd'
+        ? '/api/clients/non-ltd-deadlines/bulk'
         : '/api/clients/ltd-deadlines/bulk'
 
       const response = await fetch(endpoint, {
@@ -170,9 +172,11 @@ export function DeadlinesBulkOperations({
   const fetchClientsData = async () => {
     setLoadingClients(true)
     try {
-      // For VAT deadlines, fetch VAT clients; for Ltd deadlines, fetch Ltd clients
+      // For VAT deadlines, fetch VAT clients; for Ltd/Non-Ltd deadlines, fetch respective clients
       const endpoint = type === 'vat' 
         ? '/api/clients/vat-clients?limit=1000'
+        : type === 'non-ltd'
+        ? '/api/clients/non-ltd-deadlines?limit=1000'
         : '/api/clients/ltd-deadlines?limit=1000'
       
       const response = await fetch(endpoint)
@@ -229,24 +233,24 @@ export function DeadlinesBulkOperations({
               vatQuartersWorkflow: client.vatQuartersWorkflow || []
             }))
         } else {
-          // For Ltd: selectedItems are client IDs directly
-          const ltdClients = data.clients || []
-          clientsForPreview = ltdClients
+          // For Ltd/Non-Ltd: selectedItems are client IDs directly
+          const clients = data.clients || []
+          clientsForPreview = clients
             .filter((client: any) => selectedItems.includes(client.id))
             .map((client: any) => ({
               id: client.id,
               companyName: client.companyName,
-              contactEmail: client.contactEmail, // Fixed: Ltd API uses contactEmail 
+              contactEmail: client.contactEmail, // Fixed: API uses contactEmail 
               clientCode: client.clientCode,
               companyNumber: client.companyNumber,
               contactName: client.contactName,
-              contactPhone: client.contactPhone, // Fixed: Ltd API uses contactPhone
+              contactPhone: client.contactPhone, // Fixed: API uses contactPhone
               address: client.address,
               vatNumber: client.vatNumber,
               accountingReferenceDate: client.accountingReferenceDate,
               incorporationDate: client.incorporationDate,
-              // Include quarter data (Ltd companies may have VAT quarters too)
-              currentVATQuarter: client.vatQuartersWorkflow?.[0] || null,
+              // Include workflow data for variable replacement
+              currentVATQuarter: client.currentNonLtdAccountsWorkflow || client.currentLtdAccountsWorkflow || null,
               vatQuartersWorkflow: client.vatQuartersWorkflow || []
             }))
         }

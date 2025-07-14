@@ -1,0 +1,739 @@
+{
+  "timestamp": "2025-07-14T11:24:32.177Z",
+  "database": {
+    "users": {
+      "count": 9,
+      "records": [
+        {
+          "id": "cmcbkax3k00001r554wgaihtz",
+          "email": "vasireddybharatsai@gmail.com",
+          "name": "Staff Bharat",
+          "role": "MANAGER",
+          "isActive": true,
+          "createdAt": "2025-06-25T06:17:07.856Z",
+          "updatedAt": "2025-07-12T16:22:59.013Z"
+        },
+        {
+          "id": "cmcn7urjp000012t8n2xaazqj",
+          "email": "sakshi@numericalz.com",
+          "name": "Sakshi Gupta",
+          "role": "STAFF",
+          "isActive": true,
+          "createdAt": "2025-07-03T10:01:52.885Z",
+          "updatedAt": "2025-07-14T07:21:33.519Z"
+        },
+        {
+          "id": "cmcnztgn0000047ym0bujihxi",
+          "email": "mukulmalik1@gmail.com",
+          "name": "Mukul Staff",
+          "role": "MANAGER",
+          "isActive": true,
+          "createdAt": "2025-07-03T23:04:41.341Z",
+          "updatedAt": "2025-07-07T09:35:01.552Z"
+        },
+        {
+          "id": "cmcn7xvkt000212t8gsczksi5",
+          "email": "manoj@numericalz.com",
+          "name": "Manoj Kumar",
+          "role": "STAFF",
+          "isActive": true,
+          "createdAt": "2025-07-03T10:04:18.077Z",
+          "updatedAt": "2025-07-07T13:42:19.230Z"
+        },
+        {
+          "id": "cmcd7qn0g00002td8p3oy55ye",
+          "email": "rakhi@numericalz.com",
+          "name": "Rakhi Aggarwal",
+          "role": "MANAGER",
+          "isActive": true,
+          "createdAt": "2025-06-26T10:00:58.625Z",
+          "updatedAt": "2025-07-14T06:54:39.072Z"
+        },
+        {
+          "id": "cmcbjjcc200006ypkt4ry68d3",
+          "email": "george@numericalz.com",
+          "name": "George",
+          "role": "STAFF",
+          "isActive": true,
+          "createdAt": "2025-06-25T05:55:41.234Z",
+          "updatedAt": "2025-07-14T08:39:51.686Z"
+        },
+        {
+          "id": "cmc5889sp0000699mygkbm269",
+          "email": "bharat@cloud9digital.in",
+          "name": "Bharat Vasireddy",
+          "role": "PARTNER",
+          "isActive": true,
+          "createdAt": "2025-06-20T19:52:31.897Z",
+          "updatedAt": "2025-07-14T09:18:35.886Z"
+        },
+        {
+          "id": "cmcn7whkq000112t8y0q7iobs",
+          "email": "shinam@numericalz.com",
+          "name": "Shinam Singal",
+          "role": "STAFF",
+          "isActive": true,
+          "createdAt": "2025-07-03T10:03:13.275Z",
+          "updatedAt": "2025-07-14T09:37:16.811Z"
+        },
+        {
+          "id": "cmc5979ft000082w1zpye2aby",
+          "email": "mukul@numericalz.com",
+          "name": "Mukul Malik",
+          "role": "PARTNER",
+          "isActive": true,
+          "createdAt": "2025-06-20T20:19:44.393Z",
+          "updatedAt": "2025-07-14T10:42:53.151Z"
+        }
+      ]
+    },
+    "clients": {
+      "count": 36,
+      "records": [
+        {
+          "id": "cmcnhaabg0000l2d5k1ic1ub2",
+          "clientCode": "D05",
+          "companyName": "DREAM HOUSE PROJECT LTD",
+          "companyNumber": "12658287",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-03T14:25:53.596Z",
+          "updatedAt": "2025-07-14T11:07:19.245Z"
+        },
+        {
+          "id": "cmco2v95a0003fsq8x3j3fs13",
+          "clientCode": "M32",
+          "companyName": "MEHMOOD INVESTMENTS LTD",
+          "companyNumber": "14443737",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T00:30:03.790Z",
+          "updatedAt": "2025-07-14T11:07:03.287Z"
+        },
+        {
+          "id": "cmcnhf7e70000f4l5zwtbusj5",
+          "clientCode": "F08",
+          "companyName": "FORTITUDE FITNESS LTD",
+          "companyNumber": "14483746",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-03T14:29:43.087Z",
+          "updatedAt": "2025-07-14T11:07:07.785Z"
+        },
+        {
+          "id": "cmcnhi0jj0004womjyt0oxmd6",
+          "clientCode": "L09",
+          "companyName": "LIFTUP LIFTS LIMITED",
+          "companyNumber": "11706702",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-03T14:31:54.175Z",
+          "updatedAt": "2025-07-14T11:07:10.836Z"
+        },
+        {
+          "id": "cmco2k7vb00062ypd1uict2hf",
+          "clientCode": "H01",
+          "companyName": "HILLS TAIL LIFTS & SHUTTER REPAIRS LTD",
+          "companyNumber": "12131640",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T00:21:28.919Z",
+          "updatedAt": "2025-07-14T11:06:56.880Z"
+        },
+        {
+          "id": "cmcnhead80000cljocqzixhwz",
+          "clientCode": "R21 ",
+          "companyName": "RR CONTRACTORS KENT LIMITED",
+          "companyNumber": "10499833",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-03T14:29:00.284Z",
+          "updatedAt": "2025-07-14T11:07:06.270Z"
+        },
+        {
+          "id": "cmco2ny870000fsq8zv8ylk3r",
+          "clientCode": "G06",
+          "companyName": "GENTS GROOMING SALON LTD",
+          "companyNumber": "12283614",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T00:24:23.047Z",
+          "updatedAt": "2025-07-14T11:06:58.588Z"
+        },
+        {
+          "id": "cmco2mfn600092ypddb0sm1nk",
+          "clientCode": "S08",
+          "companyName": "SILODIA LIMITED",
+          "companyNumber": "12246794",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T00:23:12.307Z",
+          "updatedAt": "2025-07-14T11:06:59.435Z"
+        },
+        {
+          "id": "cmcnhg3xe0004dcnretv55jw6",
+          "clientCode": "A27",
+          "companyName": "AM2PM ELECTRICAL SOLUTIONS LTD",
+          "companyNumber": "15373416",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-03T14:30:25.250Z",
+          "updatedAt": "2025-07-14T11:07:10.018Z"
+        },
+        {
+          "id": "cmcnhj69q0000a31d7ytj3n95",
+          "clientCode": "M59",
+          "companyName": "MIYU LONDON LTD",
+          "companyNumber": "09499089",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-03T14:32:48.254Z",
+          "updatedAt": "2025-07-14T11:07:13.117Z"
+        },
+        {
+          "id": "cmd2vjgdh0000nk9sahgg0joj",
+          "clientCode": "S60",
+          "companyName": "SPARK IT SERVICES LIMITED",
+          "companyNumber": "12503840",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-14T09:01:28.613Z",
+          "updatedAt": "2025-07-14T11:07:13.901Z"
+        },
+        {
+          "id": "cmco2tuyh0009854pbf6g3m36",
+          "clientCode": "C14",
+          "companyName": "CODER ENTERPRISES LTD",
+          "companyNumber": "12260775",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T00:28:58.746Z",
+          "updatedAt": "2025-07-14T11:07:02.488Z"
+        },
+        {
+          "id": "cmcoz1nvn0000a8tep7qw9smv",
+          "clientCode": "V11",
+          "companyName": "VEER BUILD GROUP LTD",
+          "companyNumber": "15792119",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T15:30:50.531Z",
+          "updatedAt": "2025-07-14T11:07:17.744Z"
+        },
+        {
+          "id": "cmco2p9gz0000854p7n6v1l6f",
+          "clientCode": "H03",
+          "companyName": "HAMGARD LIMITED",
+          "companyNumber": "11636756",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T00:25:24.275Z",
+          "updatedAt": "2025-07-14T11:07:00.219Z"
+        },
+        {
+          "id": "cmczismpz0000p6yrv4xh32y1",
+          "clientCode": "NZ-1",
+          "companyName": "RIVERVIEW CAR AND COMMERCIALS LTD",
+          "companyNumber": "13468150",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-12T00:41:23.207Z",
+          "updatedAt": "2025-07-14T11:07:21.601Z"
+        },
+        {
+          "id": "cmco2vyl80006fsq8ws1cw4f4",
+          "clientCode": "T19",
+          "companyName": "TNC CONSULTING LTD",
+          "companyNumber": "14453853",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T00:30:36.764Z",
+          "updatedAt": "2025-07-14T11:07:04.036Z"
+        },
+        {
+          "id": "cmcorxrpg0000doo4xvrfzobp",
+          "clientCode": "C04",
+          "companyName": "CRUICKSHANK PLUMBING & HEATING LIMITED",
+          "companyNumber": "09585155",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T12:11:51.556Z",
+          "updatedAt": "2025-07-14T11:07:15.471Z"
+        },
+        {
+          "id": "cmco2uhte000c854ph0a6zfrp",
+          "clientCode": "V08",
+          "companyName": "VINSON INVESTMENTS LLP",
+          "companyNumber": "OC433796",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T00:29:28.371Z",
+          "updatedAt": "2025-07-14T11:07:04.788Z"
+        },
+        {
+          "id": "cmco2rhrk0003854phi4v3art",
+          "clientCode": "S70",
+          "companyName": "SAKALA LTD",
+          "companyNumber": "09848798",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T00:27:08.336Z",
+          "updatedAt": "2025-07-14T11:07:00.960Z"
+        },
+        {
+          "id": "cmcnhdcin0003lkcd3128clze",
+          "clientCode": "B25",
+          "companyName": "BEST BUNK BEDS LTD",
+          "companyNumber": "07708913",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-03T14:28:16.415Z",
+          "updatedAt": "2025-07-14T11:07:07.017Z"
+        },
+        {
+          "id": "cmcw27bga00004sn8mcaagbti",
+          "clientCode": "F05",
+          "companyName": "FIRST RATE KETTLES LTD",
+          "companyNumber": "14477541",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-09T14:33:36.443Z",
+          "updatedAt": "2025-07-14T11:07:05.525Z"
+        },
+        {
+          "id": "cmcx7fawa0000lo9cq7wi2nxh",
+          "clientCode": "H13",
+          "companyName": "HOPS INVESTMENTS LTD",
+          "companyNumber": "15355741",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-10T09:47:33.226Z",
+          "updatedAt": "2025-07-14T11:07:09.256Z"
+        },
+        {
+          "id": "cmcw2rt5l00007rt65oku49yg",
+          "clientCode": "T04",
+          "companyName": "TKA PROPERTIES LTD",
+          "companyNumber": "12696829",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-09T14:49:32.505Z",
+          "updatedAt": "2025-07-14T11:07:19.986Z"
+        },
+        {
+          "id": "cmcxbsg2r0000i3v0xdon1n9q",
+          "clientCode": "V14",
+          "companyName": "VAGGS TRANSPORT SOLUTIONS LIMITED",
+          "companyNumber": "16522307",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-10T11:49:44.931Z",
+          "updatedAt": "2025-07-14T11:07:23.841Z"
+        },
+        {
+          "id": "cmcngwnop0000amr3ojwrx0og",
+          "clientCode": "N01",
+          "companyName": "NUMERICALZ ADVISERS LIMITED",
+          "companyNumber": "11903549",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-03T14:15:17.738Z",
+          "updatedAt": "2025-07-14T11:07:12.318Z"
+        },
+        {
+          "id": "cmcot827h00001289dipgh64u",
+          "clientCode": "A05",
+          "companyName": "ALONI CONSULTING LTD",
+          "companyNumber": "10183134",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T12:47:51.341Z",
+          "updatedAt": "2025-07-14T11:07:14.737Z"
+        },
+        {
+          "id": "cmcxlwj470000rdlrcuc7pdck",
+          "clientCode": "J10",
+          "companyName": "JAYVI TRANSPORT LIMITED",
+          "companyNumber": "15801447",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-10T16:32:51.656Z",
+          "updatedAt": "2025-07-14T11:07:18.496Z"
+        },
+        {
+          "id": "cmco2hd8b00002ypdek7wi5t0",
+          "clientCode": "D17",
+          "companyName": "DR MELANIN LTD",
+          "companyNumber": "15192574",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T00:19:15.899Z",
+          "updatedAt": "2025-07-14T11:07:11.582Z"
+        },
+        {
+          "id": "cmco2j00l00032ypdwawnidn3",
+          "clientCode": "M52",
+          "companyName": "MAYA101PVT LIMITED",
+          "companyNumber": "14999760",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T00:20:32.085Z",
+          "updatedAt": "2025-07-14T11:07:23.108Z"
+        },
+        {
+          "id": "cmcxzudne0000ujx5z1q1igbe",
+          "clientCode": "M37",
+          "companyName": "MRAS SERVICES LIMITED",
+          "companyNumber": "14958106",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-10T23:03:05.883Z",
+          "updatedAt": "2025-07-14T11:07:20.811Z"
+        },
+        {
+          "id": "cmczix78s0003p6yrnskg05ww",
+          "clientCode": "NZ-2",
+          "companyName": "GROWLIKEVINES LTD",
+          "companyNumber": "15745145",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-12T00:44:56.429Z",
+          "updatedAt": "2025-07-14T11:07:16.210Z"
+        },
+        {
+          "id": "cmco2n1q1000c2ypdlzssgzfz",
+          "clientCode": "C07",
+          "companyName": "CZORLU LTD",
+          "companyNumber": "07806571",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T00:23:40.922Z",
+          "updatedAt": "2025-07-14T11:06:57.834Z"
+        },
+        {
+          "id": "cmco2tbe10006854ph50b5g90",
+          "clientCode": "A07",
+          "companyName": "ACM CONSTRUCTION SERVICES LTD",
+          "companyNumber": "12935877",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-04T00:28:33.386Z",
+          "updatedAt": "2025-07-14T11:07:01.702Z"
+        },
+        {
+          "id": "cmczj2a9l0000gr8n8qe32p24",
+          "clientCode": "NZ-3",
+          "companyName": "TRACK LOGIX LIMITED",
+          "companyNumber": "14137143",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-12T00:48:53.626Z",
+          "updatedAt": "2025-07-14T11:07:16.952Z"
+        },
+        {
+          "id": "cmcnhc83x0000lkcdejp2pwmc",
+          "clientCode": "T11",
+          "companyName": "THE GLASS COMPANY LONDON LIMITED",
+          "companyNumber": "14305131",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-03T14:27:24.046Z",
+          "updatedAt": "2025-07-14T11:07:08.521Z"
+        },
+        {
+          "id": "cmcnhgwrw00007ufzcjes99ba",
+          "clientCode": "S129",
+          "companyName": "SUNCLEAN SERVICES LTD",
+          "companyNumber": "12094996",
+          "assignedUserId": null,
+          "isActive": true,
+          "createdAt": "2025-07-03T14:31:02.636Z",
+          "updatedAt": "2025-07-14T11:07:22.352Z"
+        }
+      ]
+    },
+    "userSettings": {
+      "count": 1,
+      "records": [
+        {
+          "id": "cmcs8v3g70001qpb0fwltxdsz",
+          "userId": "cmc5979ft000082w1zpye2aby",
+          "defaultAssigneeId": null,
+          "emailNotifications": true,
+          "smsNotifications": false,
+          "createdAt": "2025-07-06T22:28:58.807Z",
+          "updatedAt": "2025-07-06T22:28:58.807Z",
+          "ltdWorkflowAutomationEnabled": false
+        }
+      ]
+    },
+    "communications": {
+      "count": 0
+    },
+    "notifications": {
+      "count": 0
+    },
+    "activityLogs": {
+      "count": 514
+    }
+  },
+  "foreignKeyConstraints": [
+    {
+      "table_name": "accounts",
+      "constraint_name": "accounts_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "activity_logs",
+      "constraint_name": "activity_logs_clientId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "clientId",
+      "foreign_table_name": "clients",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "activity_logs",
+      "constraint_name": "activity_logs_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "clients",
+      "constraint_name": "clients_assignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "assignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "clients",
+      "constraint_name": "clients_ltdCompanyAssignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "ltdCompanyAssignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "clients",
+      "constraint_name": "clients_nonLtdCompanyAssignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "nonLtdCompanyAssignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "clients",
+      "constraint_name": "clients_vatAssignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "vatAssignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "communications",
+      "constraint_name": "communications_clientId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "clientId",
+      "foreign_table_name": "clients",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "communications",
+      "constraint_name": "communications_sentByUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "sentByUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "email_logs",
+      "constraint_name": "email_logs_clientId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "clientId",
+      "foreign_table_name": "clients",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "email_logs",
+      "constraint_name": "email_logs_templateId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "templateId",
+      "foreign_table_name": "email_templates",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "email_logs",
+      "constraint_name": "email_logs_triggeredBy_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "triggeredBy",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "email_logs",
+      "constraint_name": "email_logs_triggeredby_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "triggeredBy",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "email_templates",
+      "constraint_name": "email_templates_createdby_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "createdBy",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "in_app_notifications",
+      "constraint_name": "in_app_notifications_clientId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "clientId",
+      "foreign_table_name": "clients",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "in_app_notifications",
+      "constraint_name": "in_app_notifications_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "ltd_accounts_workflow_history",
+      "constraint_name": "ltd_accounts_workflow_history_ltdAccountsWorkflowId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "ltdAccountsWorkflowId",
+      "foreign_table_name": "ltd_accounts_workflows",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "ltd_accounts_workflow_history",
+      "constraint_name": "ltd_accounts_workflow_history_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "ltd_accounts_workflows",
+      "constraint_name": "ltd_accounts_workflows_assignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "assignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "ltd_accounts_workflows",
+      "constraint_name": "ltd_accounts_workflows_clientId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "clientId",
+      "foreign_table_name": "clients",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "non_ltd_accounts_workflow_history",
+      "constraint_name": "non_ltd_accounts_workflow_history_nonLtdAccountsWorkflowId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "nonLtdAccountsWorkflowId",
+      "foreign_table_name": "non_ltd_accounts_workflows",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "non_ltd_accounts_workflow_history",
+      "constraint_name": "non_ltd_accounts_workflow_history_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "non_ltd_accounts_workflows",
+      "constraint_name": "non_ltd_accounts_workflows_assignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "assignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "non_ltd_accounts_workflows",
+      "constraint_name": "non_ltd_accounts_workflows_clientId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "clientId",
+      "foreign_table_name": "clients",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "notifications",
+      "constraint_name": "notifications_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "sessions",
+      "constraint_name": "sessions_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "user_settings",
+      "constraint_name": "user_settings_defaultAssigneeId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "defaultAssigneeId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "user_settings",
+      "constraint_name": "user_settings_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "vat_quarters",
+      "constraint_name": "vat_quarters_assignedUserId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "assignedUserId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "vat_quarters",
+      "constraint_name": "vat_quarters_clientId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "clientId",
+      "foreign_table_name": "clients",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "vat_workflow_history",
+      "constraint_name": "vat_workflow_history_userId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "userId",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "vat_workflow_history",
+      "constraint_name": "vat_workflow_history_vatQuarterId_fkey",
+      "constraint_type": "FOREIGN KEY",
+      "column_name": "vatQuarterId",
+      "foreign_table_name": "vat_quarters",
+      "foreign_column_name": "id"
+    }
+  ],
+  "orphanedRecords": []
+}

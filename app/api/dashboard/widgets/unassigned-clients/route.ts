@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
       include: {
         assignedUser: true,
         ltdCompanyAssignedUser: true,
+        nonLtdCompanyAssignedUser: true,
         vatQuartersWorkflow: {
           where: { isCompleted: false },
           orderBy: { quarterEndDate: 'asc' },
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
         c.companyType === 'LIMITED_COMPANY' && !c.ltdCompanyAssignedUserId && !c.assignedUserId
       ).length,
       nonLtd: allClients.filter(c => 
-        c.companyType !== 'LIMITED_COMPANY' && !c.assignedUserId
+        c.companyType !== 'LIMITED_COMPANY' && !c.nonLtdCompanyAssignedUserId && !c.assignedUserId
       ).length,
       vat: allClients.filter(c => 
         c.isVatEnabled && c.vatQuartersWorkflow?.some(q => !q.assignedUserId && !q.isCompleted)

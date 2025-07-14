@@ -46,6 +46,24 @@ export const LTD_WORKFLOW_STAGE_ORDER = [
   'FILED_TO_HMRC'
 ] as const
 
+// Non-Ltd Workflow Stage Order (sequential progression - same as Ltd but without Companies House)
+export const NON_LTD_WORKFLOW_STAGE_ORDER = [
+  'WAITING_FOR_YEAR_END',
+  'PAPERWORK_PENDING_CHASE',
+  'PAPERWORK_CHASED',
+  'PAPERWORK_RECEIVED', 
+  'WORK_IN_PROGRESS',
+  'DISCUSS_WITH_MANAGER',
+  'REVIEWED_BY_MANAGER',
+  'REVIEW_BY_PARTNER',
+  'REVIEWED_BY_PARTNER',
+  'REVIEW_DONE_HELLO_SIGN',
+  'SENT_TO_CLIENT_HELLO_SIGN',
+  'APPROVED_BY_CLIENT',
+  'SUBMISSION_APPROVED_PARTNER',
+  'FILED_TO_HMRC'
+] as const
+
 // Stages that are automatically set by the system (not selectable by users)
 export const AUTO_SET_STAGES = [
   'REVIEWED_BY_MANAGER',
@@ -76,14 +94,23 @@ export const REGRESSION_ALLOWED_STAGES = [
 /**
  * Get the stage order array for a workflow type
  */
-function getStageOrder(workflowType: 'VAT' | 'LTD'): readonly string[] {
-  return workflowType === 'VAT' ? VAT_WORKFLOW_STAGE_ORDER : LTD_WORKFLOW_STAGE_ORDER
+function getStageOrder(workflowType: 'VAT' | 'LTD' | 'NON_LTD'): readonly string[] {
+  switch (workflowType) {
+    case 'VAT':
+      return VAT_WORKFLOW_STAGE_ORDER
+    case 'LTD':
+      return LTD_WORKFLOW_STAGE_ORDER
+    case 'NON_LTD':
+      return NON_LTD_WORKFLOW_STAGE_ORDER
+    default:
+      throw new Error(`Unsupported workflow type: ${workflowType}`)
+  }
 }
 
 /**
  * Get the index of a stage in the workflow order
  */
-function getStageIndex(stage: string, workflowType: 'VAT' | 'LTD'): number {
+function getStageIndex(stage: string, workflowType: 'VAT' | 'LTD' | 'NON_LTD'): number {
   const stageOrder = getStageOrder(workflowType)
   return stageOrder.indexOf(stage)
 }
@@ -91,7 +118,7 @@ function getStageIndex(stage: string, workflowType: 'VAT' | 'LTD'): number {
 /**
  * Get the next allowed stages for a current stage
  */
-export function getNextAllowedStages(currentStage: string, workflowType: 'VAT' | 'LTD'): string[] {
+export function getNextAllowedStages(currentStage: string, workflowType: 'VAT' | 'LTD' | 'NON_LTD'): string[] {
   const stageOrder = getStageOrder(workflowType)
   const currentIndex = getStageIndex(currentStage, workflowType)
   
@@ -124,7 +151,7 @@ export function getNextAllowedStages(currentStage: string, workflowType: 'VAT' |
 export function validateStageTransition(
   fromStage: string | null,
   toStage: string,
-  workflowType: 'VAT' | 'LTD'
+  workflowType: 'VAT' | 'LTD' | 'NON_LTD'
 ): WorkflowValidationResult {
   const stageOrder = getStageOrder(workflowType)
   
@@ -225,7 +252,7 @@ export function validateStageTransition(
 /**
  * Get user-friendly stage names for display
  */
-export function getStageDisplayName(stage: string, workflowType: 'VAT' | 'LTD'): string {
+export function getStageDisplayName(stage: string, workflowType: 'VAT' | 'LTD' | 'NON_LTD'): string {
   const stageDisplayNames = {
     VAT: {
       'WAITING_FOR_QUARTER_END': 'Waiting for quarter end',
@@ -259,6 +286,22 @@ export function getStageDisplayName(stage: string, workflowType: 'VAT' | 'LTD'):
       'SUBMISSION_APPROVED_PARTNER': 'Submission Approved by Partner',
       'FILED_TO_COMPANIES_HOUSE': 'Filed to Companies House',
       'FILED_TO_HMRC': 'Filed to HMRC'
+    },
+    NON_LTD: {
+      'WAITING_FOR_YEAR_END': 'Waiting for Year End',
+      'PAPERWORK_PENDING_CHASE': 'Pending to Chase Paperwork',
+      'PAPERWORK_CHASED': 'Paperwork Chased',
+      'PAPERWORK_RECEIVED': 'Paperwork Received',
+      'WORK_IN_PROGRESS': 'Work in Progress',
+      'DISCUSS_WITH_MANAGER': 'To Discuss with Manager',
+      'REVIEWED_BY_MANAGER': 'Reviewed by Manager',
+      'REVIEW_BY_PARTNER': 'To Review by Partner',
+      'REVIEWED_BY_PARTNER': 'Reviewed by Partner',
+      'REVIEW_DONE_HELLO_SIGN': 'Review Done - Hello Sign to Client',
+      'SENT_TO_CLIENT_HELLO_SIGN': 'Sent to client on Hello Sign',
+      'APPROVED_BY_CLIENT': 'Approved by Client',
+      'SUBMISSION_APPROVED_PARTNER': 'Submission Approved by Partner',
+      'FILED_TO_HMRC': 'Filed to HMRC'
     }
   }
   
@@ -275,7 +318,7 @@ export function isStageUserSelectable(stage: string): boolean {
 /**
  * Get selectable stages for a workflow type (excluding auto-set stages)
  */
-export function getSelectableStages(workflowType: 'VAT' | 'LTD'): string[] {
+export function getSelectableStages(workflowType: 'VAT' | 'LTD' | 'NON_LTD'): string[] {
   const stageOrder = getStageOrder(workflowType)
   return stageOrder.filter(stage => isStageUserSelectable(stage))
 } 

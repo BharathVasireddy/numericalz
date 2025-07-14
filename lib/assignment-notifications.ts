@@ -269,6 +269,84 @@ export class AssignmentNotificationService {
   }
 
   /**
+   * Send Non-Ltd Company assignment notification with full client and deadline details
+   */
+  static async sendNonLtdAssignmentNotification(
+    clientId: string,
+    assignedUserId: string,
+    context: AssignmentNotificationContext,
+    previousAssignee?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Get assigned user details
+      const assignedUser = await db.user.findUnique({
+        where: { id: assignedUserId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true
+        }
+      })
+
+      if (!assignedUser) {
+        return { success: false, error: 'Assigned user not found' }
+      }
+
+      // Get client details with non-Ltd workflow information
+      const client = await db.client.findUnique({
+        where: { id: clientId },
+        select: {
+          id: true,
+          companyName: true,
+          clientCode: true,
+          nonLtdAccountsWorkflows: {
+            where: {
+              isCompleted: false
+            },
+            select: {
+              id: true,
+              currentStage: true,
+              yearEndDate: true,
+              filingDueDate: true
+            },
+            orderBy: {
+              yearEndDate: 'desc'
+            },
+            take: 1
+          }
+        }
+      })
+
+      if (!client) {
+        return { success: false, error: 'Client not found' }
+      }
+
+      // Get current workflow or create filing period info
+      const currentWorkflow = client.nonLtdAccountsWorkflows[0]
+      const filingPeriod = currentWorkflow ? 
+        `${new Date(currentWorkflow.yearEndDate).getFullYear()} accounts` : 
+        'Current accounts'
+
+      // For now, use the general client assignment notification
+      // In the future, we can create a specific non-Ltd email template
+      return await this.sendGeneralClientAssignmentNotification(
+        clientId,
+        assignedUserId,
+        context,
+        previousAssignee
+      )
+
+    } catch (error) {
+      console.error('Error in Non-Ltd assignment notification service:', error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      }
+    }
+  }
+
+  /**
    * Send notification when a client is assigned (general assignment)
    */
   static async sendGeneralClientAssignmentNotification(

@@ -1,0 +1,728 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                           String                       @id @default(cuid())
+  email                        String                       @unique
+  name                         String
+  password                     String
+  role                         String                       @default("STAFF")
+  isActive                     Boolean                      @default(true)
+  lastLoginAt                  DateTime?
+  createdAt                    DateTime                     @default(now())
+  updatedAt                    DateTime                     @updatedAt
+  otpCode                      String?
+  otpExpiresAt                 DateTime?
+  otpAttempts                  Int                          @default(0)
+  lastOtpSentAt                DateTime?
+  isOtpVerified                Boolean                      @default(false)
+  accounts                     Account[]
+  activityLogs                 ActivityLog[]
+  assignedClients              Client[]                     @relation("ClientAssignedUser")
+  ltdCompanyAssignedClients    Client[]                     @relation("ClientLtdAssignedUser")
+  nonLtdCompanyAssignedClients Client[]                     @relation("ClientNonLtdAssignedUser")
+  sentCommunications           Communication[]
+  triggeredEmailLogs           EmailLog[]
+  createdTemplates             EmailTemplate[]
+  ltdAccountsWorkflowHistory   LtdAccountsWorkflowHistory[]
+  nonLtdAccountsWorkflowHistory NonLtdAccountsWorkflowHistory[]
+  assignedLtdAccountsWorkflows LtdAccountsWorkflow[]
+  assignedNonLtdAccountsWorkflows NonLtdAccountsWorkflow[]
+  notifications                Notification[]
+  sessions                     Session[]
+  defaultAssigneeFor           UserSettings[]               @relation("DefaultAssignee")
+  settings                     UserSettings?
+  assignedVATQuarters          VATQuarter[]
+  vatWorkflowHistory           VATWorkflowHistory[]
+  inAppNotifications           InAppNotification[]
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+  @@index([otpCode])
+  @@index([otpExpiresAt])
+  @@map("users")
+}
+
+model Client {
+  id                              String                @id @default(cuid())
+  clientCode                      String                @unique
+  companyName                     String
+  companyNumber                   String?               @unique
+  companyType                     String?
+  companyStatus                   String?
+  companyStatusDetail             String?
+  incorporationDate               DateTime?
+  cessationDate                   DateTime?
+  registeredOfficeAddress         String?
+  sicCodes                        String?
+  nextAccountsDue                 DateTime?
+  lastAccountsMadeUpTo            DateTime?
+
+  nextConfirmationDue             DateTime?
+  lastConfirmationMadeUpTo        DateTime?
+  jurisdiction                    String?
+  hasBeenLiquidated               Boolean               @default(false)
+  hasCharges                      Boolean               @default(false)
+  hasInsolvencyHistory            Boolean               @default(false)
+  officers                        String?
+  personsWithSignificantControl   String?
+  contactName                     String
+  contactEmail                    String
+  contactPhone                    String?
+  contactFax                      String?
+  website                         String?
+  vatNumber                       String?
+  yearEstablished                 Int?
+  numberOfEmployees               Int?
+  annualTurnover                  Float?
+  paperworkFrequency              String?
+  assignedUserId                  String?
+  isActive                        Boolean               @default(true)
+  notes                           String?
+  createdAt                       DateTime              @default(now())
+  updatedAt                       DateTime              @updatedAt
+  additionalComments              String?
+  annualAccountingScheme          Boolean               @default(false)
+  businessType                    String?
+  corporationTaxPeriodEnd         DateTime?
+  corporationTaxPeriodStart       DateTime?
+  corporationTaxStatus            String?               @default("UNKNOWN")
+  ctDueSource                     String?               @default("AUTO")
+  ctStatusUpdatedBy               String?
+  dormantStatus                   Boolean               @default(false)
+  flatRatePercentage              Float?
+  handlesAnnualAccounts           Boolean               @default(true)
+  isVatEnabled                    Boolean               @default(false)
+  jobCompleted                    Boolean               @default(false)
+  jobCompletedDate                DateTime?
+  lastCTStatusUpdate              DateTime?
+  ltdCompanyAssignedUserId        String?
+  manualCTDueOverride             DateTime?
+  nationalInsuranceNumber         String?
+  natureOfBusiness                String?
+  natureOfTrade                   String?
+  nextCorporationTaxDue           DateTime?
+  nextVatReturnDue                DateTime?
+  nonLtdCompanyAssignedUserId     String?
+  numberOfPartners                Int?
+  paperWorkReceived               Boolean               @default(false)
+  paperWorkReceivedDate           DateTime?
+  partnershipTaxReturn            Boolean               @default(false)
+  preferredContactMethod          String?
+  previousYearEnded               DateTime?
+  previousYearJobCompletedDate    DateTime?
+  previousYearSA100FiledDate      DateTime?
+  previousYearWorkReceivedDate    DateTime?
+  registeredOfficeAddressCity     String?
+  registeredOfficeAddressCountry  String?
+  registeredOfficeAddressCounty   String?
+  registeredOfficeAddressLine1    String?
+  registeredOfficeAddressLine2    String?
+  registeredOfficeAddressPostCode String?
+  requiresBookkeeping             Boolean               @default(false)
+  requiresManagementAccounts      Boolean               @default(false)
+  requiresPayroll                 Boolean               @default(false)
+  residentialAddressCountry       String?
+  residentialAddressLine1         String?
+  residentialAddressLine2         String?
+  residentialAddressPostCode      String?
+  sa100Filed                      Boolean               @default(false)
+  sa100FiledDate                  DateTime?
+  smallCompanyExemption           Boolean               @default(false)
+  specialInstructions             String?
+  staff                           String?
+  tradingAddressCountry           String?
+  tradingAddressLine1             String?
+  tradingAddressLine2             String?
+  tradingAddressPostCode          String?
+  utrNumber                       String?
+  vatDeregistrationDate           DateTime?
+  vatFrequency                    String?
+  vatQuarterGroup                 String?
+  vatRegistrationDate             DateTime?
+  vatReturnsFrequency             String?
+  vatScheme                       String?
+  workStatus                      String?
+  chaseTeamUserIds                String[]              @default([])
+  nextYearEnd                     DateTime?
+  activityLogs                    ActivityLog[]
+  assignedUser                    User?                 @relation("ClientAssignedUser", fields: [assignedUserId], references: [id])
+  ltdCompanyAssignedUser          User?                 @relation("ClientLtdAssignedUser", fields: [ltdCompanyAssignedUserId], references: [id])
+  nonLtdCompanyAssignedUser       User?                 @relation("ClientNonLtdAssignedUser", fields: [nonLtdCompanyAssignedUserId], references: [id])
+  communications                  Communication[]
+  emailLogs                       EmailLog[]
+  ltdAccountsWorkflows            LtdAccountsWorkflow[]
+  nonLtdAccountsWorkflows         NonLtdAccountsWorkflow[]
+  vatQuartersWorkflow             VATQuarter[]
+  inAppNotifications              InAppNotification[]
+
+  @@index([companyNumber])
+  @@index([assignedUserId])
+  @@index([ltdCompanyAssignedUserId])
+  @@index([nonLtdCompanyAssignedUserId])
+  @@index([isActive])
+  @@index([companyType])
+  @@index([companyStatus])
+  @@index([nextAccountsDue])
+  @@index([nextConfirmationDue])
+  @@index([nextCorporationTaxDue])
+  @@index([corporationTaxStatus])
+  @@index([corporationTaxPeriodEnd])
+  @@index([ctDueSource])
+  @@index([chaseTeamUserIds], type: Gin)
+  @@map("clients")
+}
+
+model Communication {
+  id           String    @id @default(cuid())
+  type         String
+  subject      String
+  content      String
+  sentAt       DateTime?
+  scheduledAt  DateTime?
+  clientId     String
+  sentByUserId String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  client       Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  sentBy       User?     @relation(fields: [sentByUserId], references: [id])
+
+  @@index([clientId])
+  @@index([sentByUserId])
+  @@index([type])
+  @@index([sentAt])
+  @@map("communications")
+}
+
+model EmailTemplate {
+  id          String             @id @default(cuid())
+  name        String             @unique
+  subject     String
+  htmlContent String
+  textContent String?
+  variables   String?            // JSON string of available variables
+  category    TemplateCategory   @default(GENERAL)
+  isActive    Boolean            @default(true)
+  isSystem    Boolean            @default(false) // System templates vs user-created
+  createdBy   String?
+  description String?            // Template description
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  
+  // Relationships
+  creator     User?              @relation(fields: [createdBy], references: [id])
+  emailLogs   EmailLog[]         @relation("TemplateEmailLogs")
+  attachments EmailAttachment[]
+
+  @@index([category])
+  @@index([isActive])
+  @@index([isSystem])
+  @@index([createdBy])
+  @@map("email_templates")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  data      String?
+  userId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([type])
+  @@map("notifications")
+}
+
+model InAppNotification {
+  id        String                    @id @default(cuid())
+  userId    String
+  category  InAppNotificationCategory @default(VAT)
+  type      String                    // e.g., "VAT_ASSIGNMENT", "WORKFLOW_STAGE_CHANGE", "DEADLINE_REMINDER"
+  title     String
+  message   String
+  isRead    Boolean                   @default(false)
+  clientId  String?                   // Optional: related client
+  relatedId String?                   // Optional: related entity (VAT quarter, workflow, etc.)
+  metadata  String?                   // Optional: JSON metadata for additional context
+  createdAt DateTime                  @default(now())
+  updatedAt DateTime                  @updatedAt
+  user      User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client    Client?                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([category])
+  @@index([isRead])
+  @@index([type])
+  @@index([createdAt])
+  @@map("in_app_notifications")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  action    String
+  timestamp DateTime @default(now())
+  userId    String?
+  clientId  String?
+  details   String?
+  client    Client?  @relation(fields: [clientId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([action])
+  @@index([timestamp])
+  @@map("activity_logs")
+}
+
+model Settings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@map("settings")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+model UserSettings {
+  id                           String   @id @default(cuid())
+  userId                       String   @unique
+  defaultAssigneeId            String?
+  emailNotifications           Boolean  @default(true)
+  smsNotifications             Boolean  @default(false)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+  ltdWorkflowAutomationEnabled Boolean  @default(false)
+  defaultAssignee              User?    @relation("DefaultAssignee", fields: [defaultAssigneeId], references: [id])
+  user                         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model VATQuarter {
+  id                          String               @id @default(cuid())
+  clientId                    String
+  quarterPeriod               String
+  quarterStartDate            DateTime
+  quarterEndDate              DateTime
+  filingDueDate               DateTime
+  quarterGroup                String
+  currentStage                VATWorkflowStage     @default(PAPERWORK_PENDING_CHASE)
+  isCompleted                 Boolean              @default(false)
+  assignedUserId              String?
+  chaseStartedDate            DateTime?
+  chaseStartedByUserId        String?
+  chaseStartedByUserName      String?
+  paperworkReceivedDate       DateTime?
+  paperworkReceivedByUserId   String?
+  paperworkReceivedByUserName String?
+  workStartedDate             DateTime?
+  workStartedByUserId         String?
+  workStartedByUserName       String?
+  workFinishedDate            DateTime?
+  workFinishedByUserId        String?
+  workFinishedByUserName      String?
+  sentToClientDate            DateTime?
+  sentToClientByUserId        String?
+  sentToClientByUserName      String?
+  clientApprovedDate          DateTime?
+  clientApprovedByUserId      String?
+  clientApprovedByUserName    String?
+  filedToHMRCDate             DateTime?
+  filedToHMRCByUserId         String?
+  filedToHMRCByUserName       String?
+  createdAt                   DateTime             @default(now())
+  updatedAt                   DateTime             @updatedAt
+  assignedUser                User?                @relation(fields: [assignedUserId], references: [id])
+  client                      Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  workflowHistory             VATWorkflowHistory[]
+
+  @@unique([clientId, quarterPeriod])
+  @@map("vat_quarters")
+}
+
+model VATWorkflowHistory {
+  id                  String            @id @default(cuid())
+  vatQuarterId        String
+  fromStage           VATWorkflowStage?
+  toStage             VATWorkflowStage
+  stageChangedAt      DateTime
+  daysInPreviousStage Int?
+  userId              String?
+  userName            String
+  userEmail           String
+  userRole            String
+  notes               String?
+  createdAt           DateTime          @default(now())
+  user                User?             @relation(fields: [userId], references: [id])
+  vatQuarter          VATQuarter        @relation(fields: [vatQuarterId], references: [id], onDelete: Cascade)
+
+  @@map("vat_workflow_history")
+}
+
+model LtdAccountsWorkflow {
+  id                          String                       @id @default(cuid())
+  clientId                    String
+  filingPeriodStart           DateTime
+  filingPeriodEnd             DateTime
+  accountsDueDate             DateTime
+  ctDueDate                   DateTime
+  csDueDate                   DateTime
+  currentStage                LtdAccountsWorkflowStage     @default(PAPERWORK_PENDING_CHASE)
+  assignedUserId              String?
+  isCompleted                 Boolean                      @default(false)
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @default(now()) @updatedAt
+  chaseStartedDate            DateTime?
+  chaseStartedByUserId        String?
+  chaseStartedByUserName      String?
+  paperworkReceivedDate       DateTime?
+  paperworkReceivedByUserId   String?
+  paperworkReceivedByUserName String?
+  workStartedDate             DateTime?
+  workStartedByUserId         String?
+  workStartedByUserName       String?
+  managerDiscussionDate       DateTime?
+  managerDiscussionByUserId   String?
+  managerDiscussionByUserName String?
+  partnerReviewDate           DateTime?
+  partnerReviewByUserId       String?
+  partnerReviewByUserName     String?
+  reviewCompletedDate         DateTime?
+  reviewCompletedByUserId     String?
+  reviewCompletedByUserName   String?
+  sentToClientDate            DateTime?
+  sentToClientByUserId        String?
+  sentToClientByUserName      String?
+  clientApprovedDate          DateTime?
+  clientApprovedByUserId      String?
+  clientApprovedByUserName    String?
+  partnerApprovedDate         DateTime?
+  partnerApprovedByUserId     String?
+  partnerApprovedByUserName   String?
+  filedDate                       DateTime?
+  filedByUserId                   String?
+  filedByUserName                 String?
+  filedToCompaniesHouseDate       DateTime?
+  filedToCompaniesHouseByUserId   String?
+  filedToCompaniesHouseByUserName String?
+  filedToHMRCDate                 DateTime?
+  filedToHMRCByUserId             String?
+  filedToHMRCByUserName           String?
+  clientSelfFilingDate            DateTime?
+  clientSelfFilingByUserId        String?
+  clientSelfFilingByUserName      String?
+  workflowHistory             LtdAccountsWorkflowHistory[]
+  assignedUser                User?                        @relation(fields: [assignedUserId], references: [id])
+  client                      Client                       @relation(fields: [clientId], references: [id])
+
+  @@index([assignedUserId])
+  @@index([clientId])
+  @@index([currentStage])
+  @@index([filingPeriodEnd])
+  @@map("ltd_accounts_workflows")
+}
+
+model LtdAccountsWorkflowHistory {
+  id                    String                    @id @default(cuid())
+  ltdAccountsWorkflowId String
+  fromStage             LtdAccountsWorkflowStage?
+  toStage               LtdAccountsWorkflowStage
+  stageChangedAt        DateTime                  @default(now())
+  userId                String
+  userName              String
+  userEmail             String
+  userRole              String
+  notes                 String?
+  createdAt             DateTime                  @default(now())
+  daysInPreviousStage   Int?
+  ltdAccountsWorkflow   LtdAccountsWorkflow       @relation(fields: [ltdAccountsWorkflowId], references: [id])
+  user                  User                      @relation(fields: [userId], references: [id])
+
+  @@index([ltdAccountsWorkflowId])
+  @@map("ltd_accounts_workflow_history")
+}
+
+model NonLtdAccountsWorkflow {
+  id                          String                       @id @default(cuid())
+  clientId                    String
+  yearEndDate                 DateTime                     // Fixed 5th April
+  filingDueDate               DateTime                     // 9 months from year end (5th January)
+  currentStage                NonLtdAccountsWorkflowStage  @default(PAPERWORK_PENDING_CHASE)
+  assignedUserId              String?
+  isCompleted                 Boolean                      @default(false)
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @default(now()) @updatedAt
+  chaseStartedDate            DateTime?
+  chaseStartedByUserId        String?
+  chaseStartedByUserName      String?
+  paperworkReceivedDate       DateTime?
+  paperworkReceivedByUserId   String?
+  paperworkReceivedByUserName String?
+  workStartedDate             DateTime?
+  workStartedByUserId         String?
+  workStartedByUserName       String?
+  managerDiscussionDate       DateTime?
+  managerDiscussionByUserId   String?
+  managerDiscussionByUserName String?
+  partnerReviewDate           DateTime?
+  partnerReviewByUserId       String?
+  partnerReviewByUserName     String?
+  reviewCompletedDate         DateTime?
+  reviewCompletedByUserId     String?
+  reviewCompletedByUserName   String?
+  sentToClientDate            DateTime?
+  sentToClientByUserId        String?
+  sentToClientByUserName      String?
+  clientApprovedDate          DateTime?
+  clientApprovedByUserId      String?
+  clientApprovedByUserName    String?
+  partnerApprovedDate         DateTime?
+  partnerApprovedByUserId     String?
+  partnerApprovedByUserName   String?
+  filedToHMRCDate             DateTime?
+  filedToHMRCByUserId         String?
+  filedToHMRCByUserName       String?
+  workflowHistory             NonLtdAccountsWorkflowHistory[]
+  assignedUser                User?                        @relation(fields: [assignedUserId], references: [id])
+  client                      Client                       @relation(fields: [clientId], references: [id])
+
+  @@index([assignedUserId])
+  @@index([clientId])
+  @@index([currentStage])
+  @@index([yearEndDate])
+  @@map("non_ltd_accounts_workflows")
+}
+
+model NonLtdAccountsWorkflowHistory {
+  id                        String                      @id @default(cuid())
+  nonLtdAccountsWorkflowId  String
+  fromStage                 NonLtdAccountsWorkflowStage?
+  toStage                   NonLtdAccountsWorkflowStage
+  stageChangedAt            DateTime                     @default(now())
+  userId                    String
+  userName                  String
+  userEmail                 String
+  userRole                  String
+  notes                     String?
+  createdAt                 DateTime                     @default(now())
+  daysInPreviousStage       Int?
+  nonLtdAccountsWorkflow    NonLtdAccountsWorkflow       @relation(fields: [nonLtdAccountsWorkflowId], references: [id])
+  user                      User                         @relation(fields: [userId], references: [id])
+
+  @@index([nonLtdAccountsWorkflowId])
+  @@map("non_ltd_accounts_workflow_history")
+}
+
+model EmailLog {
+  id              String      @id @default(cuid())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  recipientEmail  String
+  recipientName   String?
+  subject         String
+  content         String
+  emailType       String
+  status          EmailStatus @default(PENDING)
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+  clientId        String?
+  workflowType    String?
+  workflowId      String?
+  triggeredBy     String?
+  fromEmail       String?     @default("noreply@numericalz.com")
+  fromName        String?     @default("Numericalz")
+  
+  // Template support
+  templateId      String?     // Reference to EmailTemplate if used
+  templateData    String?     // JSON data used to populate template variables
+  
+  // Relationships
+  client          Client?     @relation(fields: [clientId], references: [id])
+  triggeredByUser User?       @relation(fields: [triggeredBy], references: [id])
+  template        EmailTemplate? @relation("TemplateEmailLogs", fields: [templateId], references: [id])
+  attachments     EmailAttachment[]
+
+  @@index([clientId])
+  @@index([createdAt])
+  @@index([emailType])
+  @@index([recipientEmail])
+  @@index([sentAt])
+  @@index([status])
+  @@index([triggeredBy])
+  @@index([templateId])
+  @@map("email_logs")
+}
+
+model EmailAttachment {
+  id           String        @id @default(cuid())
+  fileName     String
+  filePath     String        // Path to file on Railway filesystem
+  fileSize     Int           // File size in bytes
+  mimeType     String
+  createdAt    DateTime      @default(now())
+  
+  // Relationships - can be attached to templates or email logs
+  templateId   String?
+  emailLogId   String?
+  
+  template     EmailTemplate? @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  emailLog     EmailLog?      @relation(fields: [emailLogId], references: [id], onDelete: Cascade)
+  
+  @@index([templateId])
+  @@index([emailLogId])
+  @@map("email_attachments")
+}
+
+model BrandingSettings {
+  id             String   @id @default(cuid())
+  firmName       String
+  logoUrl        String?  // Path to logo file on Railway filesystem
+  primaryColor   String   @default("#2563eb") // Hex color
+  secondaryColor String   @default("#64748b") // Hex color
+  emailSignature String?  // HTML signature for emails
+  websiteUrl     String?
+  phoneNumber    String?
+  address        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Each firm has one branding setting
+  @@map("branding_settings")
+}
+
+enum InAppNotificationCategory {
+  VAT
+  ACCOUNTS
+  REMINDERS
+}
+
+enum TemplateCategory {
+  GENERAL
+  VAT_WORKFLOW
+  ACCOUNTS_WORKFLOW
+  CHASE_REMINDERS
+  DEADLINE_NOTIFICATIONS
+  COMPLETION_NOTIFICATIONS
+  QUERY_REQUESTS
+  APPROVAL_REQUESTS
+  FILING_CONFIRMATIONS
+  WELCOME_ONBOARDING
+  MARKETING
+  SYSTEM_NOTIFICATIONS
+}
+
+enum VATWorkflowStage {
+  CLIENT_BOOKKEEPING
+  PAPERWORK_PENDING_CHASE
+  PAPERWORK_CHASED
+  PAPERWORK_RECEIVED
+  WORK_IN_PROGRESS
+  QUERIES_PENDING
+  REVIEW_PENDING_MANAGER
+  REVIEW_PENDING_PARTNER
+  EMAILED_TO_PARTNER
+  EMAILED_TO_CLIENT
+  CLIENT_APPROVED
+  FILED_TO_HMRC
+  REVIEWED_BY_MANAGER
+  REVIEWED_BY_PARTNER
+  WAITING_FOR_QUARTER_END
+}
+
+enum LtdAccountsWorkflowStage {
+  WAITING_FOR_YEAR_END
+  PAPERWORK_PENDING_CHASE
+  PAPERWORK_CHASED
+  PAPERWORK_RECEIVED
+  WORK_IN_PROGRESS
+  DISCUSS_WITH_MANAGER
+  REVIEW_BY_PARTNER
+  REVIEW_DONE_HELLO_SIGN
+  SENT_TO_CLIENT_HELLO_SIGN
+  APPROVED_BY_CLIENT
+  SUBMISSION_APPROVED_PARTNER
+  FILED_TO_COMPANIES_HOUSE
+  FILED_TO_HMRC
+  CLIENT_SELF_FILING
+  REVIEWED_BY_MANAGER
+  REVIEWED_BY_PARTNER
+}
+
+enum NonLtdAccountsWorkflowStage {
+  WAITING_FOR_YEAR_END
+  PAPERWORK_PENDING_CHASE
+  PAPERWORK_CHASED
+  PAPERWORK_RECEIVED
+  WORK_IN_PROGRESS
+  DISCUSS_WITH_MANAGER
+  REVIEW_BY_PARTNER
+  REVIEW_DONE_HELLO_SIGN
+  SENT_TO_CLIENT_HELLO_SIGN
+  APPROVED_BY_CLIENT
+  SUBMISSION_APPROVED_PARTNER
+  FILED_TO_HMRC
+  CLIENT_SELF_FILING
+  REVIEWED_BY_MANAGER
+  REVIEWED_BY_PARTNER
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+}
