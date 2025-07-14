@@ -67,6 +67,37 @@ interface SimpleWorkloadTableProps {
 
 export function SimpleWorkloadTable({ workloadData }: SimpleWorkloadTableProps) {
   const router = useRouter()
+  
+  // Calculate totals across all team members
+  const calculateTotals = () => {
+    const totals = {
+      vatClients: { active: 0, inactive: 0 },
+      ltdCompanies: { active: 0, inactive: 0 },
+      nonLtdCompanies: { active: 0, inactive: 0 },
+      contractors: { active: 0, inactive: 0 },
+      subContractors: { active: 0, inactive: 0 },
+      total: { active: 0, inactive: 0 }
+    }
+    
+    workloadData.forEach(member => {
+      totals.vatClients.active += member.vatClients.active
+      totals.vatClients.inactive += member.vatClients.inactive
+      totals.ltdCompanies.active += member.ltdCompanies.active
+      totals.ltdCompanies.inactive += member.ltdCompanies.inactive
+      totals.nonLtdCompanies.active += member.nonLtdCompanies.active
+      totals.nonLtdCompanies.inactive += member.nonLtdCompanies.inactive
+      totals.contractors.active += member.contractors.active
+      totals.contractors.inactive += member.contractors.inactive
+      totals.subContractors.active += member.subContractors.active
+      totals.subContractors.inactive += member.subContractors.inactive
+      totals.total.active += member.total.active
+      totals.total.inactive += member.total.inactive
+    })
+    
+    return totals
+  }
+  
+  const teamTotals = calculateTotals()
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'PARTNER':
@@ -144,12 +175,12 @@ This includes:
             <TableHeader>
               <TableRow>
                 <TableHead className="w-48">Team Member</TableHead>
-                <TableHead className="w-24 text-center">VAT Clients</TableHead>
-                <TableHead className="w-24 text-center">Ltd Companies</TableHead>
-                <TableHead className="w-24 text-center">Non-Ltd Companies</TableHead>
+                <TableHead className="w-24 text-center">VAT</TableHead>
+                <TableHead className="w-24 text-center">Ltd</TableHead>
+                <TableHead className="w-24 text-center">Non-Ltd</TableHead>
                 <TableHead className="w-24 text-center">Contractors</TableHead>
-                <TableHead className="w-24 text-center">Sub-Contractors</TableHead>
-                <TableHead className="w-24 text-center font-bold">Total</TableHead>
+                <TableHead className="w-24 text-center">Sub-C</TableHead>
+                <TableHead className="w-24 text-center font-bold bg-blue-100">Total</TableHead>
                 <TableHead className="w-16 text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -184,7 +215,7 @@ This includes:
                   <TableCell className="text-center">
                     {formatCount(member.subContractors, 'Sub-Contractor')}
                   </TableCell>
-                  <TableCell className="text-center font-bold">
+                  <TableCell className="text-center font-bold bg-blue-100">
                     {formatCount(member.total, 'Total')}
                   </TableCell>
                   <TableCell className="text-center">
@@ -223,6 +254,37 @@ This includes:
                   </TableCell>
                 </TableRow>
               ))}
+              
+              {/* Team Totals Row */}
+              <TableRow className="border-t-2 border-gray-300 bg-blue-50">
+                <TableCell className="font-bold">
+                  <div className="flex items-center gap-2">
+                    <Calculator className="h-4 w-4 text-gray-600" />
+                    <span>Team Totals</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-center font-bold">
+                  {formatCount(teamTotals.vatClients, 'VAT')}
+                </TableCell>
+                <TableCell className="text-center font-bold">
+                  {formatCount(teamTotals.ltdCompanies, 'Ltd')}
+                </TableCell>
+                <TableCell className="text-center font-bold">
+                  {formatCount(teamTotals.nonLtdCompanies, 'Non-Ltd')}
+                </TableCell>
+                <TableCell className="text-center font-bold">
+                  {formatCount(teamTotals.contractors, 'Contractor')}
+                </TableCell>
+                <TableCell className="text-center font-bold">
+                  {formatCount(teamTotals.subContractors, 'Sub-Contractor')}
+                </TableCell>
+                <TableCell className="text-center font-bold bg-blue-200">
+                  {formatCount(teamTotals.total, 'Total')}
+                </TableCell>
+                <TableCell className="text-center">
+                  {/* Empty cell for actions column */}
+                </TableCell>
+              </TableRow>
             </TableBody>
           </Table>
         </div>
