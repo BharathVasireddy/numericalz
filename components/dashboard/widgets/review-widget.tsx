@@ -183,13 +183,23 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
       
       const actionText = reviewAction === 'approve' ? 'approved' : 'sent back for rework'
       
+      // Different APIs expect different parameter names
+      const requestBody: any = {
+        notes: `Review ${actionText} by ${userRole.toLowerCase()}: ${reviewComments.trim()}`
+      }
+      
+      if (selectedItem.type === 'ltd' || selectedItem.type === 'vat') {
+        // Ltd and VAT APIs expect 'stage'
+        requestBody.stage = nextStage
+      } else if (selectedItem.type === 'non-ltd') {
+        // Non-Ltd API expects 'currentStage'
+        requestBody.currentStage = nextStage
+      }
+      
       const response = await fetch(endpoint, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          currentStage: nextStage,
-          notes: `Review ${actionText} by ${userRole.toLowerCase()}: ${reviewComments.trim()}`
-        })
+        body: JSON.stringify(requestBody)
       })
 
       const result = await response.json()

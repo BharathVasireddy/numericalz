@@ -25,6 +25,7 @@ import { showToast } from '@/lib/toast'
 import { VATFilingHistory } from '@/components/clients/filing-history/vat-filing-history'
 import { AccountsFilingHistory } from '@/components/clients/filing-history/accounts-filing-history'
 import { CTFilingHistory } from '@/components/clients/filing-history/ct-filing-history'
+import { NonLtdFilingHistory } from '@/components/clients/filing-history/non-ltd-filing-history'
 
 interface Client {
   id: string
@@ -171,6 +172,15 @@ export default function ClientFilingHistoryPage() {
       description: client.companyType === 'SOLE_TRADER'
         ? 'Not applicable'
         : 'Companies House filing'
+    },
+    {
+      id: 'non-ltd',
+      label: 'Non-Ltd Accounts',
+      icon: <FileText className="h-4 w-4" />,
+      disabled: client.companyType !== 'NON_LIMITED_COMPANY',
+      description: client.companyType === 'NON_LIMITED_COMPANY'
+        ? 'Partnership/Sole Trader accounts'
+        : 'Not applicable'
     },
     {
       id: 'ct',
@@ -336,6 +346,26 @@ export default function ClientFilingHistoryPage() {
                   <div className="text-center py-12">
                     <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                     <p className="text-muted-foreground">Annual accounts filing is not applicable for sole traders</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="non-ltd" className="p-6 m-0">
+                {client.companyType === 'NON_LIMITED_COMPANY' ? (
+                  <NonLtdFilingHistory 
+                    clientId={client.id}
+                    clientCode={client.clientCode}
+                    companyName={client.companyName}
+                    companyType={client.companyType}
+                    yearEndDate={client.yearEndDate || ''}
+                    accountsFilingDeadline={client.accountsFilingDeadline || ''}
+                    confirmationStatementDeadline={client.confirmationStatementDeadline || ''}
+                    corporationTaxDue={client.corporationTaxDue || ''}
+                  />
+                ) : (
+                  <div className="text-center py-12">
+                    <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-muted-foreground">Non-Ltd accounts are only applicable for partnerships and sole traders</p>
                   </div>
                 )}
               </TabsContent>

@@ -220,12 +220,16 @@ export async function PUT(
       }
     }
 
-    // Update assignment if provided
+    // Update assignment if provided (but preserve original assignment during undo operations)
     if (validatedData.assignedUserId !== undefined) {
-      await db.nonLtdAccountsWorkflow.update({
-        where: { id: currentWorkflow.id },
-        data: { assignedUserId: validatedData.assignedUserId }
-      })
+      // 🔧 CRITICAL FIX: For undo operations, preserve the original assignment
+      // Only update assignment if it's explicitly provided and different from current
+      if (validatedData.assignedUserId !== currentWorkflow.assignedUserId) {
+        await db.nonLtdAccountsWorkflow.update({
+          where: { id: currentWorkflow.id },
+          data: { assignedUserId: validatedData.assignedUserId }
+        })
+      }
     }
 
     // Create workflow history entry for assignment changes only (stage changes are handled above)
