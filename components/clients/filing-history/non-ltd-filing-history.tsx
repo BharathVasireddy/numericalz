@@ -31,7 +31,7 @@ import {
   calculateNonLtdFilingDays,
   getNonLtdWorkflowProgress,
   getNonLtdWorkflowStageColor
-} from '@/lib/non-ltd-workflow'
+} from '@/lib/non-ltd-workflow-utils-client'
 import type { NonLtdAccountsWorkflowStage } from '@prisma/client'
 
 interface NonLtdWorkflow {
