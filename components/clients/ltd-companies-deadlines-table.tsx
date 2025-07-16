@@ -81,6 +81,7 @@ import { WorkflowSkipWarningDialog } from '@/components/ui/workflow-skip-warning
 import { validateStageTransition, getSelectableStages } from '@/lib/workflow-validation'
 import { SendEmailModal } from './send-email-modal'
 import { DeadlinesBulkOperations } from './deadlines-bulk-operations'
+import { LtdCompaniesHeader } from './ltd-companies-header'
 
 
 interface LtdAccountsWorkflow {
@@ -1372,70 +1373,38 @@ export function LtdCompaniesDeadlinesTable({
 
   return (
     <>
-      <PageLayout maxWidth="xl">
-        <PageHeader 
-          title="Ltd Companies Deadlines"
-          description="Track and manage filing deadlines for all Limited Company clients"
+      <LtdCompaniesHeader 
+        currentMonthName={currentMonthName}
+        currentMonthClients={currentMonthClients}
+        next30DaysClients={next30DaysClients}
+        next60DaysClients={next60DaysClients}
+        totalClients={ltdClients.length}
+        completedCount={ltdClients.filter(c => c.currentLtdAccountsWorkflow?.isCompleted).length}
+        unassignedCount={ltdClients.filter(c => !c.currentLtdAccountsWorkflow?.assignedUser).length}
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchLtdClients(true, 1)}
+          disabled={loading || refreshingCompaniesHouse}
         >
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchLtdClients(true, 1)}
-              disabled={loading || refreshingCompaniesHouse}
-            >
-              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh Data
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleBulkRefreshCompaniesHouse}
-              disabled={loading || refreshingCompaniesHouse || sortedFilteredClients.length === 0}
-              className="border-blue-200 text-blue-700 hover:bg-blue-50"
-            >
-              <Building className={`mr-2 h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
-              {refreshingCompaniesHouse ? 'Refreshing CH...' : `Refresh CH Data (${sortedFilteredClients.length})`}
-            </Button>
-          </div>
-        </PageHeader>
-        
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh Data
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleBulkRefreshCompaniesHouse}
+          disabled={loading || refreshingCompaniesHouse || sortedFilteredClients.length === 0}
+          className="border-blue-200 text-blue-700 hover:bg-blue-50"
+        >
+          <Building className={`mr-2 h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
+          {refreshingCompaniesHouse ? 'Refreshing CH...' : `Refresh CH Data (${sortedFilteredClients.length})`}
+        </Button>
+      </LtdCompaniesHeader>
+
+      <PageLayout maxWidth="xl">
         <PageContent>
-
-            {/* Current Month Summary */}
-            <Card className="p-6 border-l-4 border-l-purple-500">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {/* Current Filing Month - Most Emphasized */}
-                <div className="md:col-span-1 text-center md:text-left">
-                  <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-                    <Calendar className="h-6 w-6 text-purple-600" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Current Filing Month</p>
-                      <h2 className="text-3xl font-bold text-purple-600">{currentMonthName}</h2>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    <strong>{currentMonthClients.length}</strong> accounts due
-                  </p>
-                </div>
-
-                {/* Quick Stats */}
-                <div className="grid grid-cols-3 gap-4 md:col-span-3">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">{next30DaysClients.length}</div>
-                    <p className="text-xs text-muted-foreground">Due in 0-30 days</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">{next60DaysClients.length}</div>
-                    <p className="text-xs text-muted-foreground">Due in 31-60 days</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600">{next90DaysClients.length}</div>
-                    <p className="text-xs text-muted-foreground">Due in 61-90 days</p>
-                  </div>
-                </div>
-              </div>
-            </Card>
 
             {/* Search Input */}
             <div className="flex-1">
