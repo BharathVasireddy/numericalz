@@ -239,16 +239,24 @@ export function VATWorkflowModal({
     setIsUpdating(true)
 
     try {
+      // For virtual quarters, include clientId in the request body
+      const requestBody: any = {
+        stage: selectedStage,
+        assignedUserId: selectedAssignee || null,
+        comments: comments.trim() || undefined,
+      }
+      
+      // Add clientId for virtual quarters (pending or calculated)
+      if (vatQuarter.id === 'pending' || vatQuarter.id.startsWith('calculated-')) {
+        requestBody.clientId = vatQuarter.client.id
+      }
+
       const response = await fetch(`/api/vat-quarters/${vatQuarter.id}/workflow`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          stage: selectedStage,
-          assignedUserId: selectedAssignee || null,
-          comments: comments.trim() || undefined,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       const data = await response.json()
@@ -278,17 +286,25 @@ export function VATWorkflowModal({
     setIsUpdating(true)
 
     try {
+      // For virtual quarters, include clientId in the request body
+      const requestBody: any = {
+        stage: 'FILED_TO_HMRC',
+        assignedUserId: selectedAssignee || null,
+        comments: comments.trim() || 'Quarter filing completed',
+        completeFiling: true, // Special flag for filing completion
+      }
+      
+      // Add clientId for virtual quarters (pending or calculated)
+      if (vatQuarter.id === 'pending' || vatQuarter.id.startsWith('calculated-')) {
+        requestBody.clientId = vatQuarter.client.id
+      }
+
       const response = await fetch(`/api/vat-quarters/${vatQuarter.id}/workflow`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          stage: 'FILED_TO_HMRC',
-          assignedUserId: selectedAssignee || null,
-          comments: comments.trim() || 'Quarter filing completed',
-          completeFiling: true, // Special flag for filing completion
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       const data = await response.json()

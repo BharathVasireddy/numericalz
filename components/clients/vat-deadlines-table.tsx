@@ -993,14 +993,22 @@ export function VATDeadlinesTable({
     try {
       setUpdating(true)
       
+      // Build request body for undo filing
+      const requestBody: any = {
+        stage: 'CLIENT_APPROVED', // Reset to previous stage
+        comments: 'Filing undone - workflow reopened for corrections',
+        assignedUserId: quarter?.assignedUser?.id || null // SIMPLIFIED: Only use quarter assignment
+      }
+
+      // Add clientId for virtual quarters (pending or calculated)
+      if (quarter.id === 'pending' || quarter.id.startsWith('calculated-')) {
+        requestBody.clientId = client.id
+      }
+
       const response = await fetch(`/api/vat-quarters/${quarter.id}/workflow`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stage: 'CLIENT_APPROVED', // Reset to previous stage
-          comments: 'Filing undone - workflow reopened for corrections',
-          assignedUserId: quarter?.assignedUser?.id || null // SIMPLIFIED: Only use quarter assignment
-        })
+        body: JSON.stringify(requestBody)
       })
 
       if (!response.ok) {
@@ -1126,6 +1134,11 @@ export function VATDeadlinesTable({
         requestBody.stage = selectedStage
       }
 
+      // Add clientId for virtual quarters (pending or calculated)
+      if (selectedQuarter.id === 'pending' || selectedQuarter.id.startsWith('calculated-')) {
+        requestBody.clientId = selectedClient.id
+      }
+
       const response = await fetch(`/api/vat-quarters/${quarterId}/workflow`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -1218,6 +1231,11 @@ export function VATDeadlinesTable({
         requestBody.stage = selectedStage
       }
 
+      // Add clientId for virtual quarters (pending or calculated)
+      if (selectedQuarter.id === 'pending' || selectedQuarter.id.startsWith('calculated-')) {
+        requestBody.clientId = selectedClient.id
+      }
+
       const response = await fetch(`/api/vat-quarters/${quarterId}/workflow`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -1302,10 +1320,15 @@ export function VATDeadlinesTable({
         clientName: selectedClient.companyName
       })
 
-      const requestBody = {
+      const requestBody: any = {
         stage: selectedStage,
         assignedUserId: selectedAssignee === 'unassigned' ? null : selectedAssignee,
         comments: updateComments || 'Filed to HMRC - VAT return completed'
+      }
+
+      // Add clientId for virtual quarters (pending or calculated)
+      if (selectedQuarter.id === 'pending' || selectedQuarter.id.startsWith('calculated-')) {
+        requestBody.clientId = selectedClient.id
       }
 
       console.log('📡 API Request:', {

@@ -198,7 +198,7 @@ export async function PUT(
 
     const vatQuarterId = params.id
     const body = await request.json()
-    const { stage, comments, assignedUserId } = body
+    const { stage, comments, assignedUserId, clientId } = body
 
     // Validate stage only if it's provided
     if (stage && !Object.keys(VAT_WORKFLOW_STAGE_NAMES).includes(stage)) {
@@ -217,26 +217,173 @@ export async function PUT(
       }, { status: 400 })
     }
 
-    // Get current VAT quarter
-    const vatQuarter = await prisma.vATQuarter.findUnique({
-      where: { id: vatQuarterId },
-      include: {
-        client: {
-          select: {
-            id: true,
-            companyName: true,
-            clientCode: true,
-            assignedUserId: true,
-          }
-        },
-        workflowHistory: {
-          orderBy: {
-            createdAt: 'desc'
-          },
-          take: 1
+    // Check if this is a virtual quarter (calculated or pending)
+    const isVirtualQuarter = vatQuarterId.startsWith('calculated-') || vatQuarterId === 'pending'
+    
+    let vatQuarter: any = null
+    
+    if (isVirtualQuarter) {
+      // Handle virtual quarter assignment - create real database record
+      console.log('🔄 Creating real VAT quarter from virtual quarter:', vatQuarterId)
+      
+             // Extract client ID from virtual quarter ID
+       let virtualClientId: string
+       if (vatQuarterId === 'pending') {
+         // For "pending" quarters, we need to get client ID from request body
+         virtualClientId = clientId
+         if (!virtualClientId) {
+           return NextResponse.json({ 
+             error: 'Client ID required for pending quarter assignment' 
+           }, { status: 400 })
+         }
+       } else {
+         // For "calculated-" quarters, extract client ID from the ID
+         const idParts = vatQuarterId.split('-')
+         if (idParts.length >= 2) {
+           virtualClientId = idParts[1]
+         } else {
+           return NextResponse.json({ 
+             error: 'Invalid virtual quarter ID format' 
+           }, { status: 400 })
+         }
+       }
+      
+             // Get client to validate and get VAT quarter group
+       const client = await prisma.client.findUnique({
+         where: { id: virtualClientId },
+        select: {
+          id: true,
+          companyName: true,
+          clientCode: true,
+          assignedUserId: true,
+          vatQuarterGroup: true,
+          isVatEnabled: true
         }
+      })
+      
+      if (!client || !client.isVatEnabled || !client.vatQuarterGroup) {
+        return NextResponse.json({ 
+          error: 'Client not found or VAT not enabled' 
+        }, { status: 404 })
       }
-    })
+      
+      // Calculate current quarter information
+      const { calculateVATQuarter } = await import('@/lib/vat-workflow')
+      const quarterInfo = calculateVATQuarter(client.vatQuarterGroup)
+      
+      // Check if quarter already exists in database
+      const existingQuarter = await prisma.vATQuarter.findFirst({
+        where: {
+          clientId: client.id,
+          quarterPeriod: quarterInfo.quarterPeriod
+        }
+      })
+      
+      if (existingQuarter) {
+        // Use existing quarter
+        vatQuarter = await prisma.vATQuarter.findUnique({
+          where: { id: existingQuarter.id },
+          include: {
+            client: {
+              select: {
+                id: true,
+                companyName: true,
+                clientCode: true,
+                assignedUserId: true,
+              }
+            },
+            workflowHistory: {
+              orderBy: {
+                createdAt: 'desc'
+              },
+              take: 1
+            }
+          }
+        })
+      } else {
+        // Create new VAT quarter in database
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const quarterEndDate = new Date(quarterInfo.quarterEndDate)
+        quarterEndDate.setHours(0, 0, 0, 0)
+        
+        // Determine initial stage based on quarter end date
+        const initialStage = today > quarterEndDate ? 'PAPERWORK_PENDING_CHASE' : 'WAITING_FOR_QUARTER_END'
+        
+        const newQuarter = await prisma.vATQuarter.create({
+          data: {
+            clientId: client.id,
+            quarterPeriod: quarterInfo.quarterPeriod,
+            quarterStartDate: quarterInfo.quarterStartDate,
+            quarterEndDate: quarterInfo.quarterEndDate,
+            filingDueDate: quarterInfo.filingDueDate,
+            quarterGroup: quarterInfo.quarterGroup,
+            currentStage: initialStage,
+            assignedUserId: null, // Will be set below
+            isCompleted: false
+          }
+        })
+        
+        // Get the created quarter with relations
+        vatQuarter = await prisma.vATQuarter.findUnique({
+          where: { id: newQuarter.id },
+          include: {
+            client: {
+              select: {
+                id: true,
+                companyName: true,
+                clientCode: true,
+                assignedUserId: true,
+              }
+            },
+            workflowHistory: {
+              orderBy: {
+                createdAt: 'desc'
+              },
+              take: 1
+            }
+          }
+        })
+        
+        // Create initial workflow history
+        await prisma.vATWorkflowHistory.create({
+          data: {
+            vatQuarterId: newQuarter.id,
+            toStage: initialStage,
+            stageChangedAt: new Date(),
+            userId: session.user.id,
+            userName: session.user.name || session.user.email || 'Unknown User',
+            userEmail: session.user.email || '',
+            userRole: session.user.role || 'USER',
+            notes: `VAT quarter created from virtual quarter assignment - Initial stage: ${initialStage}`,
+          }
+        })
+        
+        console.log('✅ Created real VAT quarter:', newQuarter.id, 'for client:', client.companyName)
+      }
+      
+    } else {
+      // Handle existing database quarter
+      vatQuarter = await prisma.vATQuarter.findUnique({
+        where: { id: vatQuarterId },
+        include: {
+          client: {
+            select: {
+              id: true,
+              companyName: true,
+              clientCode: true,
+              assignedUserId: true,
+            }
+          },
+          workflowHistory: {
+            orderBy: {
+              createdAt: 'desc'
+            },
+            take: 1
+          }
+        }
+      })
+    }
 
     if (!vatQuarter) {
       return NextResponse.json({ error: 'VAT quarter not found' }, { status: 404 })
