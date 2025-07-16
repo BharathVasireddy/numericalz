@@ -239,7 +239,7 @@ export async function PUT(
        } else {
          // For "calculated-" quarters, extract client ID from the ID
          const idParts = vatQuarterId.split('-')
-         if (idParts.length >= 2) {
+         if (idParts.length >= 2 && idParts[1]) {
            virtualClientId = idParts[1]
          } else {
            return NextResponse.json({ 
