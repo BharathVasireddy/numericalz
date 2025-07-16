@@ -188,8 +188,14 @@ export async function GET(request: NextRequest) {
         if (!assignedUserId && client.vatQuarterGroup) {
           const currentQuarter = calculateVATQuarter(client.vatQuarterGroup)
           if (currentQuarter) {
-            // Only create quarter if it matches the stage filter (or no stage filter)
-            const quarterStage = 'PAPERWORK_PENDING_CHASE' as const
+            // Determine the appropriate stage based on whether quarter has ended
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+            const quarterEndDate = new Date(currentQuarter.quarterEndDate)
+            quarterEndDate.setHours(0, 0, 0, 0)
+            
+            // If quarter has ended, it should be ready for chase; otherwise, waiting for quarter end
+            const quarterStage = today > quarterEndDate ? 'PAPERWORK_PENDING_CHASE' : 'WAITING_FOR_QUARTER_END'
             
             // Check if this quarter matches the filter
             let shouldCreateQuarter = true
@@ -198,7 +204,7 @@ export async function GET(request: NextRequest) {
                 // Don't create new quarters when filtering by completed (new quarters are never completed)
                 shouldCreateQuarter = false
               } else if (workflowStage === 'not_started') {
-                // Create new quarters when filtering by not_started (new quarters start as PAPERWORK_PENDING_CHASE)
+                // Create new quarters when filtering by not_started (new quarters start as WAITING_FOR_QUARTER_END or PAPERWORK_PENDING_CHASE)
                 shouldCreateQuarter = true
               } else {
                 // For specific stages, only create if it matches
