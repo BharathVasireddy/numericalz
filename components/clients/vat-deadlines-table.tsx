@@ -66,7 +66,8 @@ import {
   Settings,
   Filter,
   Undo2,
-  Mail
+  Mail,
+  BarChart3
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
 import { 
@@ -83,6 +84,8 @@ import { WorkflowSkipWarningDialog } from '@/components/ui/workflow-skip-warning
 import { validateStageTransition, getSelectableStages } from '@/lib/workflow-validation'
 import { SendEmailModal } from './send-email-modal'
 import { DeadlinesBulkOperations } from './deadlines-bulk-operations'
+import { WorkflowStageDistribution } from './workflow-stage-distribution'
+import { VATDeadlineHeader } from './vat-deadline-header'
 import debounce from 'lodash/debounce'
 
 interface VATQuarter {
@@ -1826,106 +1829,16 @@ export function VATDeadlinesTable({
       <div className="page-container">
         <div className="content-wrapper">
           <div className="content-sections">
-            {/* Page Header */}
-            <div className="page-header">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h1 className="text-xl md:text-2xl font-bold">VAT Deadline Tracker</h1>
-                  <p className="text-xs md:text-sm text-muted-foreground">
-                    Track and manage VAT filing deadlines for all VAT-enabled clients
-                  </p>
-                  <p className="text-xs text-green-600 mt-1">
-                    ⚡ Instant month switching • Real-time data • Optimized performance
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
-                    Live Data
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      showToast.success('Fetching latest VAT data...')
-                      fetchVATClients(true)
-                    }}
-                    disabled={loading}
-                  >
-                    <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                    {loading ? 'Refreshing...' : 'Refresh Data'}
-                  </Button>
-                </div>
-              </div>
-            </div>
+            {/* Modern Header */}
+            <VATDeadlineHeader 
+              currentMonth={currentMonth}
+              currentMonthName={currentMonthName}
+              currentMonthClients={currentMonthClients}
+              getQuarterForMonth={getQuarterForMonth}
+            />
 
 
 
-            {/* Current Month Summary */}
-            <Card className="p-6 border-l-4 border-l-blue-500">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {/* Current Filing Month - Most Emphasized */}
-                <div className="md:col-span-1 text-center md:text-left">
-                  <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-                    <Calendar className="h-6 w-6 text-blue-600" />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Current Filing Month</p>
-                      <h2 className="text-3xl font-bold text-blue-600">{currentMonthName}</h2>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Total Clients */}
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{currentMonthClients.length}</div>
-                  <div className="text-sm text-muted-foreground">Total Clients</div>
-                  <div className="text-xs text-muted-foreground mt-1">Filing this month</div>
-                </div>
-
-                {/* Completion Status */}
-                {(() => {
-                  const completed = currentMonthClients.filter(client => {
-                    const quarter = getQuarterForMonth(client, currentMonth)
-                    return quarter?.isCompleted || quarter?.currentStage === 'FILED_TO_HMRC'
-                  }).length
-                  
-                  const stillDue = currentMonthClients.length - completed
-                  
-                  return (
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <div className="text-lg font-bold text-green-600">{completed}</div>
-                        <div className="text-muted-foreground">/</div>
-                        <div className="text-lg font-bold text-orange-600">{stillDue}</div>
-                      </div>
-                      <div className="text-sm text-muted-foreground">Completed / Due</div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {currentMonthClients.length > 0 ? Math.round((completed / currentMonthClients.length) * 100) : 0}% complete
-                      </div>
-                    </div>
-                  )
-                })()}
-
-                {/* Days Left to File */}
-                {(() => {
-                  const today = new Date()
-                  const currentYear = today.getFullYear()
-                  const currentMonthIndex = today.getMonth()
-                  const lastDayOfMonth = new Date(currentYear, currentMonthIndex + 1, 0).getDate()
-                  const currentDay = today.getDate()
-                  const daysLeft = lastDayOfMonth - currentDay + 1 // +1 to include today
-                  
-                  return (
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{daysLeft}</div>
-                      <div className="text-sm text-muted-foreground">Days Left</div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {daysLeft <= 5 ? 'Urgent deadline!' : 'To file this month'}
-                      </div>
-                    </div>
-                  )
-                })()}
-              </div>
-            </Card>
 
             {/* Filter Buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
