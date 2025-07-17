@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { VAT_QUARTER_GROUPS } from '@/lib/vat-workflow'
+import { VAT_QUARTER_GROUPS, calculateVATQuarter, isVATFilingMonth } from '@/lib/vat-workflow'
 import { logClientActivity, ActivityTypes } from '@/lib/activity-logger'
 
 // Force dynamic rendering for this route since it uses session
@@ -439,6 +439,88 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           role: true,
         },
       })
+    }
+
+    // 🚀 AUTOMATIC VAT QUARTER CREATION - New Feature!
+    // If client just enabled VAT with quarter group during their filing month, create quarter automatically
+    if (isQuestionnaireUpdate && 
+        body.isVatEnabled === true && 
+        body.vatQuarterGroup && 
+        updatedClient.vatQuarterGroup) {
+      
+      try {
+        // Check if current month is a filing month for this quarter group
+        const londonNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/London' }))
+        const currentMonth = londonNow.getMonth() + 1
+        
+        if (isVATFilingMonth(updatedClient.vatQuarterGroup, currentMonth)) {
+          console.log(`🎯 Client ${updatedClient.clientCode} enabled VAT during filing month - creating quarter automatically`)
+          
+          // Check if quarter already exists
+          const quarterInfo = calculateVATQuarter(updatedClient.vatQuarterGroup)
+          const existingQuarter = await db.vATQuarter.findFirst({
+            where: {
+              clientId: updatedClient.id,
+              quarterPeriod: quarterInfo.quarterPeriod
+            }
+          })
+          
+          if (!existingQuarter) {
+            // Determine initial stage based on quarter end date
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+            const quarterEndDate = new Date(quarterInfo.quarterEndDate)
+            quarterEndDate.setHours(0, 0, 0, 0)
+            
+            const initialStage = today > quarterEndDate ? 'PAPERWORK_PENDING_CHASE' : 'WAITING_FOR_QUARTER_END'
+            
+            // Create the VAT quarter in database
+            const newVATQuarter = await db.vATQuarter.create({
+              data: {
+                clientId: updatedClient.id,
+                quarterPeriod: quarterInfo.quarterPeriod,
+                quarterStartDate: quarterInfo.quarterStartDate,
+                quarterEndDate: quarterInfo.quarterEndDate,
+                filingDueDate: quarterInfo.filingDueDate,
+                quarterGroup: quarterInfo.quarterGroup,
+                currentStage: initialStage,
+                isCompleted: false,
+                assignedUserId: null // Start unassigned (ready for manager assignment)
+              }
+            })
+            
+            // Create initial workflow history
+            await db.vATWorkflowHistory.create({
+              data: {
+                vatQuarterId: newVATQuarter.id,
+                toStage: initialStage,
+                stageChangedAt: new Date(),
+                userId: session.user.id,
+                userName: session.user.name || session.user.email || 'Unknown User',
+                userEmail: session.user.email || '',
+                userRole: session.user.role || 'USER',
+                notes: `VAT quarter auto-created during client onboarding - Current month (${currentMonth}) is filing month for quarter group ${updatedClient.vatQuarterGroup}`
+              }
+            })
+            
+            console.log(`✅ Auto-created VAT quarter ${quarterInfo.quarterPeriod} for client ${updatedClient.clientCode}`)
+            console.log(`   Quarter ID: ${newVATQuarter.id}`)
+            console.log(`   Stage: ${initialStage}`)
+            console.log(`   Filing Due: ${quarterInfo.filingDueDate.toISOString().split('T')[0]}`)
+            console.log(`   🎯 Client will now appear in VAT unassigned dashboard widgets!`)
+          } else {
+            console.log(`⚠️ VAT quarter ${quarterInfo.quarterPeriod} already exists for client ${updatedClient.clientCode}`)
+          }
+        } else {
+          console.log(`📅 Current month (${currentMonth}) is not a filing month for quarter group ${updatedClient.vatQuarterGroup} - quarter will be auto-created on next filing month`)
+        }
+      } catch (autoQuarterError) {
+        // Don't fail the main request if auto-quarter creation fails
+        console.error('❌ Error auto-creating VAT quarter:', autoQuarterError)
+        console.error(`   Client: ${updatedClient.clientCode} (${updatedClient.companyName})`)
+        console.error(`   Quarter Group: ${updatedClient.vatQuarterGroup}`)
+        // Continue with normal response - auto-creation is a bonus feature
+      }
     }
 
     return NextResponse.json({

@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         c.companyType !== 'LIMITED_COMPANY' && !c.nonLtdCompanyAssignedUserId && !c.assignedUserId
       ).length,
       vat: allClients.filter(c => 
-        c.isVatEnabled && c.vatQuartersWorkflow?.some(q => !q.assignedUserId && !q.isCompleted)
+        c.isVatEnabled && c.vatQuartersWorkflow?.some(q => !q.assignedUserId)
       ).length
     }
 

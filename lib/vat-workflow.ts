@@ -34,6 +34,47 @@ export function calculateVATQuarter(
 ): VATQuarterInfo {
   // Convert reference date to London timezone
   const londonDate = toLondonTime(referenceDate)
+  const currentMonth = londonDate.getMonth() + 1 // JavaScript months are 0-indexed
+
+  // Check if current month is a filing month for this quarter group
+  if (isVATFilingMonth(quarterGroup, currentMonth)) {
+    // Current month is a filing month - create the quarter that ENDS in previous month
+    return calculateVATQuarterForFilingMonth(quarterGroup, londonDate)
+  } else {
+    // Normal logic - create current quarter
+    return calculateVATQuarterStandard(quarterGroup, londonDate)
+  }
+}
+
+/**
+ * Calculate VAT quarter for filing month context
+ * When current month is a filing month, create the quarter that ends in previous month
+ */
+function calculateVATQuarterForFilingMonth(
+  quarterGroup: string,
+  londonDate: Date
+): VATQuarterInfo {
+  const currentMonth = londonDate.getMonth() + 1
+  const currentYear = londonDate.getFullYear()
+  
+  // Calculate the month that the quarter should END in (previous month)
+  const quarterEndMonth = currentMonth === 1 ? 12 : currentMonth - 1
+  const quarterEndYear = currentMonth === 1 ? currentYear - 1 : currentYear
+  
+  // Create reference date in the middle of the quarter end month to ensure correct calculation
+  const referenceForQuarter = new Date(quarterEndYear, quarterEndMonth - 1, 15)
+  
+  return calculateVATQuarterStandard(quarterGroup, referenceForQuarter)
+}
+
+/**
+ * Standard VAT quarter calculation logic (original logic)
+ * Creates quarter based on the reference date without filing month consideration
+ */
+function calculateVATQuarterStandard(
+  quarterGroup: string,
+  londonDate: Date
+): VATQuarterInfo {
   const year = londonDate.getFullYear()
   const month = londonDate.getMonth() + 1 // JavaScript months are 0-indexed
 
@@ -117,6 +158,19 @@ export function calculateVATQuarter(
     filingDueDate,
     quarterGroup
   }
+}
+
+/**
+ * Calculate VAT quarter using standard logic only (backward compatibility)
+ * This function always uses the original logic without filing month context
+ * Use this when you specifically need the standard behavior regardless of filing month
+ */
+export function calculateVATQuarterIgnoringFilingMonth(
+  quarterGroup: string,
+  referenceDate: Date = new Date()
+): VATQuarterInfo {
+  const londonDate = toLondonTime(referenceDate)
+  return calculateVATQuarterStandard(quarterGroup, londonDate)
 }
 
 /**
