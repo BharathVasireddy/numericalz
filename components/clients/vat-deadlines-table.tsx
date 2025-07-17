@@ -238,11 +238,24 @@ const getMonthDisplayYear = (monthNumber: number, client?: VATClient): number =>
 
 // Helper function to get month display with year
 const getMonthDisplay = (monthNumber: number): string => {
-  const month = MONTHS.find(m => m.number === monthNumber)
-  const year = getMonthDisplayYear(monthNumber)
-  const yearSuffix = String(year).slice(2) // "2025" -> "25"
-  
-  return `${month?.short || 'Unknown'} ${yearSuffix}`
+  try {
+    const month = MONTHS.find(m => m.number === monthNumber)
+    const year = getMonthDisplayYear(monthNumber)
+    
+    // Debug logging for production
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+      console.log(`getMonthDisplay debug - month: ${monthNumber}, year: ${year}`)
+    }
+    
+    // Safe year calculation
+    const yearSuffix = year && year > 2000 ? String(year).slice(2) : '25'
+    
+    return `${month?.short || 'Unknown'} ${yearSuffix}`
+  } catch (error) {
+    console.error('getMonthDisplay error:', error)
+    const month = MONTHS.find(m => m.number === monthNumber)
+    return `${month?.short || 'Unknown'} 25`
+  }
 }
 
 // Filter interfaces to match the main clients page
@@ -2045,17 +2058,24 @@ export function VATDeadlinesTable({
                   <div className="border-b px-6 py-4">
                     <TabsList className="grid grid-cols-6 lg:grid-cols-12 gap-1 h-auto p-1">
                       {MONTHS.map((month) => {
-                        const monthClients = getClientsForMonth(month.number)
-                        const isCurrentMonth = month.number === currentMonth
-                        const monthDisplayWithYear = getMonthDisplay(month.number)
-                        return (
-                          <TabsTrigger
-                            key={month.key}
-                            value={month.key}
-                            className={`flex flex-col items-center gap-1 py-2 px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground ${
-                              isCurrentMonth ? 'ring-2 ring-blue-200 ring-offset-1' : ''
-                            }`}
-                          >
+                        try {
+                          const monthClients = getClientsForMonth(month.number)
+                          const isCurrentMonth = month.number === currentMonth
+                          const monthDisplayWithYear = getMonthDisplay(month.number)
+                          
+                          // Debug logging for production
+                          if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+                            console.log(`Tab rendering - ${month.key}: clients=${monthClients.length}, display=${monthDisplayWithYear}`)
+                          }
+                          
+                          return (
+                            <TabsTrigger
+                              key={month.key}
+                              value={month.key}
+                              className={`flex flex-col items-center gap-1 py-2 px-3 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground ${
+                                isCurrentMonth ? 'ring-2 ring-blue-200 ring-offset-1' : ''
+                              }`}
+                            >
                             <span className="font-medium">{monthDisplayWithYear}</span>
                             <Badge 
                               variant="secondary" 
@@ -2067,6 +2087,21 @@ export function VATDeadlinesTable({
                             </Badge>
                           </TabsTrigger>
                         )
+                        } catch (error) {
+                          console.error(`Tab rendering error for ${month.key}:`, error)
+                          return (
+                            <TabsTrigger
+                              key={month.key}
+                              value={month.key}
+                              className="flex flex-col items-center gap-1 py-2 px-3 text-xs"
+                            >
+                              <span className="font-medium">{month.short} 25</span>
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0.5 h-auto min-w-[1.5rem] justify-center">
+                                0
+                              </Badge>
+                            </TabsTrigger>
+                          )
+                        }
                       })}
                     </TabsList>
                   </div>
