@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
-import { CheckCircle, Clock, FileCheck, AlertTriangle, Eye, MessageSquare, CheckCircle2, Loader2, XCircle } from 'lucide-react'
+import { CheckCircle, Clock, FileCheck, AlertTriangle, Eye, MessageSquare, CheckCircle2, Loader2, XCircle, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface ReviewItem {
   id: string
@@ -43,6 +43,7 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([])
   const [loading, setLoading] = useState(true)
   const [processingItems, setProcessingItems] = useState<Set<string>>(new Set())
+  const [expanded, setExpanded] = useState(false)
   const [summary, setSummary] = useState({
     total: 0,
     high: 0,
@@ -304,11 +305,7 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
   }
 
   const handleViewAll = () => {
-    if (userRole === 'PARTNER') {
-      router.push('/dashboard/partner?tab=reviews')
-    } else {
-      router.push('/dashboard/manager?tab=reviews')
-    }
+    setExpanded(!expanded)
   }
 
   const canMarkReviewDone = (item: ReviewItem) => {
@@ -331,7 +328,9 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
     return false
   }
 
-  const displayItems = compact ? reviewItems.slice(0, 3) : reviewItems.slice(0, 5)
+  const maxItems = compact ? 3 : 5
+  const displayItems = expanded ? reviewItems : reviewItems.slice(0, maxItems)
+  const hasMore = reviewItems.length > maxItems
 
   if (loading) {
     return (
@@ -380,7 +379,7 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
             </div>
           ) : (
             <>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
+              <div className={`space-y-2 ${expanded ? 'max-h-96' : 'max-h-80'} overflow-y-auto`}>
                 {displayItems.map((item) => (
                   <div
                     key={item.id}
@@ -443,14 +442,24 @@ export function ReviewWidget({ userRole, compact = false }: ReviewWidgetProps) {
                 ))}
               </div>
 
-              {reviewItems.length > displayItems.length && (
+              {hasMore && (
                 <div className="mt-4 pt-3 border-t">
                   <Button 
                     variant="outline" 
                     className="w-full text-xs"
                     onClick={handleViewAll}
                   >
-                    View all {reviewItems.length} items
+                    {expanded ? (
+                      <>
+                        <ChevronUp className="h-3 w-3 mr-1" />
+                        Show Less
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="h-3 w-3 mr-1" />
+                        Show {reviewItems.length - maxItems} More Items
+                      </>
+                    )}
                   </Button>
                 </div>
               )}
