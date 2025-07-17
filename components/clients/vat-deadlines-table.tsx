@@ -188,51 +188,12 @@ const getMonthDisplayYear = (monthNumber: number, client?: VATClient): number =>
   const currentYear = new Date().getFullYear()
   const currentMonth = new Date().getMonth() + 1
   
-  // For cross-year filing months (like January), check if we should show next year
-  if (monthNumber === 1) {
-    // Basic rule: If we're past October, January tab should show next year deadlines
-    if (currentMonth >= 10) {
-      return currentYear + 1
-    }
-    
-    // ENHANCED: Progressive quarter logic for January
-    // Show next year if current year January quarter is completed
-    if (client?.vatQuartersWorkflow) {
-      const currentYearJanQuarter = client.vatQuartersWorkflow.find(q => {
-        const filingDate = new Date(q.filingDueDate)
-        return filingDate.getMonth() === 0 && filingDate.getFullYear() === currentYear // January of current year
-      })
-      
-      // If current year January quarter is completed, show next year quarters
-      if (currentYearJanQuarter?.isCompleted || currentYearJanQuarter?.currentStage === 'FILED_TO_HMRC') {
-        return currentYear + 1
-      }
-    }
+  // SIMPLIFIED: Only show next year for January if we're past October
+  if (monthNumber === 1 && currentMonth >= 10) {
+    return currentYear + 1
   }
   
-  // ENHANCED: Progressive quarter logic for all months
-  // Show next year quarters if current year quarter is completed AND we're close to year end
-  if (client?.vatQuartersWorkflow) {
-    const currentMonthQuarter = client.vatQuartersWorkflow.find(q => {
-      const filingDate = new Date(q.filingDueDate)
-      return filingDate.getMonth() === monthNumber - 1 && filingDate.getFullYear() === currentYear
-    })
-    
-    // Progressive logic: Show next year if current quarter is completed and we're in the right time period
-    if (currentMonthQuarter?.isCompleted || currentMonthQuarter?.currentStage === 'FILED_TO_HMRC') {
-      // Example: Show Jan 2026 after Oct 2025 filing is completed
-      // Show next year deadlines if we're in Q4 (Oct-Dec) and current quarter is done
-      if (currentMonth >= 10 && monthNumber === 1) {
-        return currentYear + 1
-      }
-      
-      // For other months, show next year if completed and we're past the filing month
-      if (currentMonth > monthNumber) {
-        return currentYear + 1
-      }
-    }
-  }
-  
+  // For all other months, show current year
   return currentYear
 }
 
