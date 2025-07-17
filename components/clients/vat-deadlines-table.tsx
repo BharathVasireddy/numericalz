@@ -2509,4 +2509,4 @@ export function VATDeadlinesTable({
       />
     </>
   )
-} 
+} // Production deployment fix - Thu Jul 17 13:34:57 IST 2025
