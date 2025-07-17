@@ -84,6 +84,7 @@ interface LtdCompaniesHeaderProps {
   unassignedCount: number
   ctDueThisMonth: number  // Add CT due count prop
   csDueThisMonth: number  // Add CS due count prop
+  refreshableClientsCount?: number  // Add count of clients that can be refreshed
   onBulkRefreshCompaniesHouse?: () => void
   refreshingCompaniesHouse?: boolean
   children?: React.ReactNode
@@ -100,6 +101,7 @@ export function LtdCompaniesHeader({
   unassignedCount,
   ctDueThisMonth,  // Use props instead of calculating
   csDueThisMonth,  // Use props instead of calculating
+  refreshableClientsCount = 0,  // Add default value
   onBulkRefreshCompaniesHouse,
   refreshingCompaniesHouse = false,
   children
@@ -131,7 +133,7 @@ export function LtdCompaniesHeader({
                 className="flex items-center gap-2"
               >
                 <RefreshCw className={`h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
-                Refresh CH
+                {refreshingCompaniesHouse ? 'Refreshing...' : `Refresh CH (${refreshableClientsCount})`}
               </Button>
             )}
             {children}

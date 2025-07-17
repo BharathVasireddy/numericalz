@@ -1402,6 +1402,7 @@ export function LtdCompaniesDeadlinesTable({
             return csDate.getMonth() === currentMonth && csDate.getFullYear() === currentYear
           }).length
         })()}
+        refreshableClientsCount={sortedFilteredClients.length}
         onBulkRefreshCompaniesHouse={handleBulkRefreshCompaniesHouse}
         refreshingCompaniesHouse={refreshingCompaniesHouse}
       />
