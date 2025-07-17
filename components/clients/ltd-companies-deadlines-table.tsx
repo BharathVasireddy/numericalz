@@ -1382,6 +1382,26 @@ export function LtdCompaniesDeadlinesTable({
         totalClients={ltdClients.length}
         completedCount={ltdClients.filter(c => c.currentLtdAccountsWorkflow?.isCompleted).length}
         unassignedCount={ltdClients.filter(c => !c.currentLtdAccountsWorkflow?.assignedUser).length}
+        ctDueThisMonth={(() => {
+          const currentMonth = new Date().getMonth()
+          const currentYear = new Date().getFullYear()
+          return ltdClients.filter(client => {
+            if (!client.nextCorporationTaxDue) return false
+            const ctDate = new Date(client.nextCorporationTaxDue)
+            // Include only CT due this specific month and year
+            return ctDate.getMonth() === currentMonth && ctDate.getFullYear() === currentYear
+          }).length
+        })()}
+        csDueThisMonth={(() => {
+          const currentMonth = new Date().getMonth()
+          const currentYear = new Date().getFullYear()
+          return ltdClients.filter(client => {
+            if (!client.nextConfirmationDue) return false
+            const csDate = new Date(client.nextConfirmationDue)
+            // Include only CS due this specific month and year
+            return csDate.getMonth() === currentMonth && csDate.getFullYear() === currentYear
+          }).length
+        })()}
         onBulkRefreshCompaniesHouse={handleBulkRefreshCompaniesHouse}
         refreshingCompaniesHouse={refreshingCompaniesHouse}
       />

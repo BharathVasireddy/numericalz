@@ -82,6 +82,8 @@ interface LtdCompaniesHeaderProps {
   totalClients: number
   completedCount: number
   unassignedCount: number
+  ctDueThisMonth: number  // Add CT due count prop
+  csDueThisMonth: number  // Add CS due count prop
   onBulkRefreshCompaniesHouse?: () => void
   refreshingCompaniesHouse?: boolean
   children?: React.ReactNode
@@ -96,26 +98,14 @@ export function LtdCompaniesHeader({
   totalClients,
   completedCount,
   unassignedCount,
+  ctDueThisMonth,  // Use props instead of calculating
+  csDueThisMonth,  // Use props instead of calculating
   onBulkRefreshCompaniesHouse,
   refreshingCompaniesHouse = false,
   children
 }: LtdCompaniesHeaderProps) {
   
-  // Calculate CT and CS due counts for current month
-  const currentMonth = new Date().getMonth()
-  const currentYear = new Date().getFullYear()
-  
-  const ctDueThisMonth = currentMonthClients.filter(client => {
-    if (!client.nextCorporationTaxDue) return false
-    const ctDate = new Date(client.nextCorporationTaxDue)
-    return ctDate.getMonth() === currentMonth && ctDate.getFullYear() === currentYear
-  }).length
-  
-  const csDueThisMonth = currentMonthClients.filter(client => {
-    if (!client.nextConfirmationDue) return false
-    const csDate = new Date(client.nextConfirmationDue)
-    return csDate.getMonth() === currentMonth && csDate.getFullYear() === currentYear
-  }).length
+  // Remove the calculation logic since we now receive the counts as props
   
   return (
     <div className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200 py-6">
