@@ -1378,30 +1378,13 @@ export function LtdCompaniesDeadlinesTable({
         currentMonthClients={currentMonthClients}
         next30DaysClients={next30DaysClients}
         next60DaysClients={next60DaysClients}
+        next90DaysClients={next90DaysClients}
         totalClients={ltdClients.length}
         completedCount={ltdClients.filter(c => c.currentLtdAccountsWorkflow?.isCompleted).length}
         unassignedCount={ltdClients.filter(c => !c.currentLtdAccountsWorkflow?.assignedUser).length}
-      >
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fetchLtdClients(true, 1)}
-          disabled={loading || refreshingCompaniesHouse}
-        >
-          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh Data
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleBulkRefreshCompaniesHouse}
-          disabled={loading || refreshingCompaniesHouse || sortedFilteredClients.length === 0}
-          className="border-blue-200 text-blue-700 hover:bg-blue-50"
-        >
-          <Building className={`mr-2 h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
-          {refreshingCompaniesHouse ? 'Refreshing CH...' : `Refresh CH Data (${sortedFilteredClients.length})`}
-        </Button>
-      </LtdCompaniesHeader>
+        onBulkRefreshCompaniesHouse={handleBulkRefreshCompaniesHouse}
+        refreshingCompaniesHouse={refreshingCompaniesHouse}
+      />
 
       <PageLayout maxWidth="xl">
         <PageContent>

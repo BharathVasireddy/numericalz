@@ -1,8 +1,8 @@
 'use client'
 
 import React from 'react'
-import { Badge } from '@/components/ui/badge'
-import { TrendingUp, Users, CheckCircle2, FileText, Building, Clock } from 'lucide-react'
+import { Building, Calendar, Clock, RefreshCw, FileText, Users } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface LtdAccountsWorkflow {
   id: string
@@ -78,9 +78,12 @@ interface LtdCompaniesHeaderProps {
   currentMonthClients: LtdClient[]
   next30DaysClients: LtdClient[]
   next60DaysClients: LtdClient[]
+  next90DaysClients: LtdClient[]
   totalClients: number
   completedCount: number
   unassignedCount: number
+  onBulkRefreshCompaniesHouse?: () => void
+  refreshingCompaniesHouse?: boolean
   children?: React.ReactNode
 }
 
@@ -89,145 +92,110 @@ export function LtdCompaniesHeader({
   currentMonthClients,
   next30DaysClients,
   next60DaysClients,
+  next90DaysClients,
   totalClients,
   completedCount,
   unassignedCount,
+  onBulkRefreshCompaniesHouse,
+  refreshingCompaniesHouse = false,
   children
 }: LtdCompaniesHeaderProps) {
+  
+  // Calculate CT and CS due counts for current month
   const currentMonth = new Date().getMonth()
   const currentYear = new Date().getFullYear()
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
-  const currentDay = new Date().getDate()
-  const daysRemaining = daysInMonth - currentDay
   
-  const urgencyColor = daysRemaining <= 10 ? 'text-red-600' : daysRemaining <= 20 ? 'text-orange-600' : 'text-green-600'
-  
-  const overdueCount = next30DaysClients.filter(client => {
-    const workflow = client.currentLtdAccountsWorkflow
-    if (!workflow) return false
-    return new Date(workflow.accountsDueDate) < new Date()
+  const ctDueThisMonth = currentMonthClients.filter(client => {
+    if (!client.nextCorporationTaxDue) return false
+    const ctDate = new Date(client.nextCorporationTaxDue)
+    return ctDate.getMonth() === currentMonth && ctDate.getFullYear() === currentYear
   }).length
   
-  const completionPercentage = totalClients > 0 ? Math.round((completedCount / totalClients) * 100) : 0
-
+  const csDueThisMonth = currentMonthClients.filter(client => {
+    if (!client.nextConfirmationDue) return false
+    const csDate = new Date(client.nextConfirmationDue)
+    return csDate.getMonth() === currentMonth && csDate.getFullYear() === currentYear
+  }).length
+  
   return (
-    <div className="border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50 relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(147,51,234,0.1),transparent_70%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(79,70,229,0.08),transparent_70%)]" />
-      
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center justify-between">
-          {/* Left side - Title and current month */}
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
-              <Building className="h-6 w-6 text-purple-600" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Ltd Companies</h1>
-                <p className="text-sm text-gray-600">Filing management dashboard</p>
-              </div>
-            </div>
-            
-            <div className="hidden md:flex items-center gap-2">
-              <Badge variant="outline" className="bg-white/60 border-purple-200">
-                <FileText className="h-3 w-3 mr-1" />
-                Companies House
-              </Badge>
-              <Badge variant="outline" className="bg-white/60 border-indigo-200">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                Workflow Tracking
-              </Badge>
-            </div>
-          </div>
-          
-          {/* Right side - Current month and stats */}
-          <div className="flex items-center gap-6">
-            {/* Current month display */}
-            <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600">{currentMonthName}</div>
-              <div className="text-sm text-gray-600">
-                <span className={`font-medium ${urgencyColor}`}>
-                  {daysRemaining} days remaining
-                </span>
-              </div>
-            </div>
-            
-            {/* Quick stats */}
-            <div className="hidden lg:flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1">
-                <Users className="h-4 w-4 text-gray-400" />
-                <span className="font-medium">{totalClients}</span>
-                <span className="text-gray-600">total</span>
-              </div>
-              
-              <div className="flex items-center gap-1">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span className="font-medium">{completedCount}</span>
-                <span className="text-gray-600">completed</span>
-              </div>
-              
-              {overdueCount > 0 && (
-                <div className="flex items-center gap-1">
-                  <Clock className="h-4 w-4 text-red-500" />
-                  <span className="font-medium text-red-600">{overdueCount}</span>
-                  <span className="text-gray-600">overdue</span>
-                </div>
-              )}
-              
-              {unassignedCount > 0 && (
-                <div className="flex items-center gap-1">
-                  <Users className="h-4 w-4 text-orange-500" />
-                  <span className="font-medium text-orange-600">{unassignedCount}</span>
-                  <span className="text-gray-600">unassigned</span>
-                </div>
-              )}
-            </div>
-            
-            {/* Action buttons */}
-            <div className="flex items-center gap-2">
-              {children}
-            </div>
-          </div>
-        </div>
+    <div className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Progress bar */}
-        <div className="mt-4 bg-white/60 rounded-full h-2 overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-300"
-            style={{ width: `${completionPercentage}%` }}
-          />
-        </div>
-        
-        {/* Additional stats for mobile */}
-        <div className="lg:hidden mt-4 flex items-center justify-center gap-6 text-sm">
-          <div className="flex items-center gap-1">
-            <Users className="h-4 w-4 text-gray-400" />
-            <span className="font-medium">{totalClients}</span>
-            <span className="text-gray-600">total</span>
+        {/* Title and Refresh Button */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Building className="h-6 w-6 text-gray-700" />
+            <h1 className="text-2xl font-bold text-gray-900">Limited Companies</h1>
+            <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+              {currentMonthName}
+            </div>
           </div>
           
-          <div className="flex items-center gap-1">
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-            <span className="font-medium">{completedCount}</span>
-            <span className="text-gray-600">completed</span>
+          <div className="flex items-center gap-3">
+            {onBulkRefreshCompaniesHouse && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onBulkRefreshCompaniesHouse}
+                disabled={refreshingCompaniesHouse}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
+                Refresh CH
+              </Button>
+            )}
+            {children}
           </div>
-          
-          {overdueCount > 0 && (
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4 text-red-500" />
-              <span className="font-medium text-red-600">{overdueCount}</span>
-              <span className="text-gray-600">overdue</span>
-            </div>
-          )}
-          
-          {unassignedCount > 0 && (
-            <div className="flex items-center gap-1">
-              <Users className="h-4 w-4 text-orange-500" />
-              <span className="font-medium text-orange-600">{unassignedCount}</span>
-              <span className="text-gray-600">unassigned</span>
-            </div>
-          )}
         </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-5 gap-4">
+          {/* Next 30 Days */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Clock className="h-5 w-5 text-blue-600" />
+              <span className="text-sm font-medium text-gray-600">Next 30 Days</span>
+            </div>
+            <div className="text-2xl font-bold text-gray-900">{next30DaysClients.length}</div>
+          </div>
+
+          {/* Next 60 Days */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Clock className="h-5 w-5 text-amber-600" />
+              <span className="text-sm font-medium text-gray-600">Next 60 Days</span>
+            </div>
+            <div className="text-2xl font-bold text-gray-900">{next60DaysClients.length}</div>
+          </div>
+
+          {/* Next 90 Days */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Clock className="h-5 w-5 text-orange-600" />
+              <span className="text-sm font-medium text-gray-600">Next 90 Days</span>
+            </div>
+            <div className="text-2xl font-bold text-gray-900">{next90DaysClients.length}</div>
+          </div>
+
+          {/* CT Due This Month */}
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200 p-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <FileText className="h-5 w-5 text-green-600" />
+              <span className="text-sm font-medium text-green-800">CT Due ({currentMonthName})</span>
+            </div>
+            <div className="text-2xl font-bold text-green-900">{ctDueThisMonth}</div>
+          </div>
+
+          {/* CS Due This Month */}
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Users className="h-5 w-5 text-purple-600" />
+              <span className="text-sm font-medium text-purple-800">CS Due ({currentMonthName})</span>
+            </div>
+            <div className="text-2xl font-bold text-purple-900">{csDueThisMonth}</div>
+          </div>
+        </div>
+
       </div>
     </div>
   )
