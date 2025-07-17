@@ -372,9 +372,9 @@ export function VATDeadlinesTable({
         params.append('_t', Date.now().toString())
       }
       
-      // PERFORMANCE: Use smaller page size for better response times
+      // PERFORMANCE: Use reasonable page size to ensure all clients are loaded
       const page = 1
-      const limit = 25 // Reduced from 200 to 25 for better performance
+      const limit = 100 // Increased from 25 to 100 to ensure all VAT clients are shown
       params.append('page', page.toString())
       params.append('limit', limit.toString())
       
