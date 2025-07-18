@@ -94,8 +94,7 @@ interface LtdCompaniesHeaderProps {
   ctDueThisMonth: number  // Add CT due count prop
   csDueThisMonth: number  // Add CS due count prop
   refreshableClientsCount?: number  // Add count of clients that can be refreshed
-  onBulkRefreshCompaniesHouse?: () => void
-  onFastBulkRefreshCompaniesHouse?: () => void  // New fast refresh handler
+  onBulkRefreshCompaniesHouse?: () => void  // Now points to fast refresh
   refreshProgress?: RefreshProgress  // New progress state
   children?: React.ReactNode
 }
@@ -113,7 +112,6 @@ export function LtdCompaniesHeader({
   csDueThisMonth,  // Use props instead of calculating
   refreshableClientsCount = 0,  // Add default value
   onBulkRefreshCompaniesHouse,
-  onFastBulkRefreshCompaniesHouse,  // New fast refresh handler
   refreshProgress = { isActive: false, processed: 0, total: 0, progress: 0 },  // New progress prop
   children
 }: LtdCompaniesHeaderProps) {
@@ -130,23 +128,20 @@ export function LtdCompaniesHeader({
   }
 
   // Get button text based on refresh state
-  const getRefreshButtonText = (isFast: boolean = false) => {
+  const getRefreshButtonText = () => {
     if (!refreshProgress.isActive) {
-      const prefix = isFast ? 'Fast Refresh ⚡' : 'Refresh CH'
-      return `${prefix} (${refreshableClientsCount})`
+      return `Refresh CH ⚡ (${refreshableClientsCount})`
     }
 
-    const mode = refreshProgress.mode || (isFast ? 'fast' : 'normal')
-    const prefix = mode === 'fast' ? '⚡' : '🔄'
     const processed = refreshProgress.processed
     const total = refreshProgress.total
     const progress = refreshProgress.progress
 
     if (total === 0) {
-      return `${prefix} Starting...`
+      return `⚡ Starting...`
     }
 
-    const progressText = `${prefix} ${processed}/${total} (${progress}%)`
+    const progressText = `⚡ ${processed}/${total} (${progress}%)`
     
     if (refreshProgress.estimatedTimeRemaining && refreshProgress.estimatedTimeRemaining > 0) {
       const eta = formatTimeRemaining(refreshProgress.estimatedTimeRemaining)
@@ -173,31 +168,18 @@ export function LtdCompaniesHeader({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             {onBulkRefreshCompaniesHouse && (
               <>
+                {/* Fast Refresh Button - Enhanced Mobile Support */}
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="sm"
                   onClick={onBulkRefreshCompaniesHouse}
                   disabled={refreshProgress.isActive}
-                  className="flex items-center justify-center gap-2 min-w-[120px] sm:min-w-[140px] text-xs sm:text-sm px-2 sm:px-3 py-2"
-                  title={refreshProgress.isActive ? `Refreshing ${refreshProgress.processed}/${refreshProgress.total} clients` : `Refresh Companies House data for ${refreshableClientsCount} clients`}
+                  className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 min-w-[140px] sm:min-w-[160px] text-xs sm:text-sm px-2 sm:px-3 py-2"
+                  title={refreshProgress.isActive ? `Refreshing ${refreshProgress.processed}/${refreshProgress.total} clients` : `High-performance refresh for ${refreshableClientsCount} clients - 3-5x faster than standard refresh`}
                 >
-                  <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 ${refreshProgress.isActive && refreshProgress.mode !== 'fast' ? 'animate-spin' : ''}`} />
-                  <span className="truncate">{getRefreshButtonText(false)}</span>
+                  <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 ${refreshProgress.isActive ? 'animate-spin' : ''}`} />
+                  <span className="truncate">{getRefreshButtonText()}</span>
                 </Button>
-                {/* Fast Refresh Button - Enhanced Mobile Support */}
-                {onFastBulkRefreshCompaniesHouse && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={onFastBulkRefreshCompaniesHouse}
-                    disabled={refreshProgress.isActive}
-                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 min-w-[140px] sm:min-w-[160px] text-xs sm:text-sm px-2 sm:px-3 py-2"
-                    title={refreshProgress.isActive ? `Fast refreshing ${refreshProgress.processed}/${refreshProgress.total} clients` : `High-performance refresh - 3-5x faster than regular refresh`}
-                  >
-                    <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 ${refreshProgress.isActive && refreshProgress.mode === 'fast' ? 'animate-spin' : ''}`} />
-                    <span className="truncate">{getRefreshButtonText(true)}</span>
-                  </Button>
-                )}
               </>
             )}
             {children}

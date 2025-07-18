@@ -75,7 +75,6 @@ import {
   Mail
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
-import { bulkRefreshHandler } from '@/lib/bulk-refresh-handler'
 import { fastBulkRefreshHandler } from '@/lib/fast-bulk-refresh-handler'
 import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 import { AdvancedFilterModal } from './advanced-filter-modal'
@@ -418,85 +417,6 @@ export function LtdCompaniesDeadlinesTable({
       handlePageChange(pagination.currentPage + 1)
     }
   }, [pagination.currentPage, pagination.totalPages, handlePageChange])
-
-  // Bulk refresh Companies House data for all filtered clients
-  const handleBulkRefreshCompaniesHouse = async () => {
-    if (sortedFilteredClients.length === 0) {
-      showToast.error('No clients to refresh')
-      return
-    }
-
-    // Only allow managers and partners
-    if (session?.user?.role !== 'MANAGER' && session?.user?.role !== 'PARTNER') {
-      showToast.error('Only managers and partners can refresh Companies House data')
-      return
-    }
-
-    const clientIds = sortedFilteredClients.map(client => client.id)
-    
-    // Set initial progress state
-    setRefreshProgress({
-      isActive: true,
-      processed: 0,
-      total: clientIds.length,
-      progress: 0,
-      mode: 'normal'
-    })
-    
-    try {
-      // Use the new bulk refresh handler with progress tracking
-      await bulkRefreshHandler.performBulkRefresh(clientIds, {
-        onProgress: (job) => {
-          // Update progress state instead of showing toast
-          setRefreshProgress({
-            isActive: true,
-            processed: job.processedClients,
-            total: job.totalClients,
-            progress: job.progress,
-            estimatedTimeRemaining: job.estimatedTimeRemaining || undefined,
-            mode: 'normal'
-          })
-        },
-        onComplete: async (job) => {
-          // Show completion message
-          showToast.success(
-            `🎉 Bulk refresh completed! ✅ ${job.successfulClients}/${job.totalClients} clients updated successfully`
-          )
-          
-          // Reset progress state
-          setRefreshProgress({
-            isActive: false,
-            processed: 0,
-            total: 0,
-            progress: 0
-          })
-          
-          // Refresh the table data after Companies House refresh (back to page 1)
-          await fetchLtdClients(true, 1)
-        },
-        onError: (error) => {
-          // Reset progress state on error
-          setRefreshProgress({
-            isActive: false,
-            processed: 0,
-            total: 0,
-            progress: 0
-          })
-          showToast.error(`Bulk refresh failed: ${error}`)
-        }
-      })
-      
-    } catch (error) {
-      console.error('Error starting bulk refresh:', error)
-      setRefreshProgress({
-        isActive: false,
-        processed: 0,
-        total: 0,
-        progress: 0
-      })
-      showToast.error('Failed to start bulk refresh')
-    }
-  }
 
   // FAST bulk refresh Companies House data for all filtered clients (3-5x faster)
   const handleFastBulkRefreshCompaniesHouse = async () => {
@@ -1529,8 +1449,7 @@ export function LtdCompaniesDeadlinesTable({
           }).length
         })()}
         refreshableClientsCount={sortedFilteredClients.length}
-        onBulkRefreshCompaniesHouse={handleBulkRefreshCompaniesHouse}
-        onFastBulkRefreshCompaniesHouse={handleFastBulkRefreshCompaniesHouse}
+        onBulkRefreshCompaniesHouse={handleFastBulkRefreshCompaniesHouse}
         refreshProgress={refreshProgress}
       />
 
