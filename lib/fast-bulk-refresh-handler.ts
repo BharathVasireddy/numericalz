@@ -94,12 +94,8 @@ class FastBulkRefreshHandler {
   ) {
     if (result.results) {
       const { successful, failed } = result.results
-      const duration = result.duration ? `in ${(result.duration/1000).toFixed(1)}s` : ''
       
-      if (successful.length > 0) {
-        showToast.success(`⚡ Fast refresh completed ${duration}! ✅ ${successful.length} clients updated successfully`)
-      }
-      
+      // Only show error toasts here - let the component handle success via onComplete
       if (failed.length > 0) {
         showToast.error(`❌ ${failed.length} clients failed to refresh`)
         console.warn('Failed fast refreshes:', failed)
@@ -107,6 +103,9 @@ class FastBulkRefreshHandler {
 
       // Call the completion callback with mock job data for immediate processing
       if (options?.onComplete) {
+        const now = new Date()
+        const startTime = result.duration ? new Date(now.getTime() - result.duration) : now
+        
         const mockJob: FastBackgroundJob = {
           id: 'immediate-' + Date.now(),
           status: 'completed',
@@ -115,8 +114,8 @@ class FastBulkRefreshHandler {
           successfulClients: successful.length,
           failedClients: failed.length,
           progress: 100,
-          startedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
+          startedAt: startTime.toISOString(),
+          completedAt: now.toISOString(),
           results: result.results,
           mode: 'fast'
         }

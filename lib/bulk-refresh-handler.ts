@@ -90,10 +90,7 @@ class BulkRefreshHandler {
     if (result.results) {
       const { successful, failed } = result.results
       
-      if (successful.length > 0) {
-        showToast.success(`✅ Successfully refreshed ${successful.length} clients`)
-      }
-      
+      // Only show error toasts here - let the component handle success via onComplete
       if (failed.length > 0) {
         showToast.error(`❌ Failed to refresh ${failed.length} clients`)
         console.warn('Failed refreshes:', failed)
@@ -101,6 +98,8 @@ class BulkRefreshHandler {
 
       // Call the completion callback with mock job data for immediate processing
       if (options?.onComplete) {
+        const now = new Date()
+        // For regular bulk refresh, we don't have duration in the response, so use current time
         const mockJob: BackgroundJob = {
           id: 'immediate-' + Date.now(),
           status: 'completed',
@@ -109,8 +108,8 @@ class BulkRefreshHandler {
           successfulClients: successful.length,
           failedClients: failed.length,
           progress: 100,
-          startedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
+          startedAt: now.toISOString(),
+          completedAt: now.toISOString(),
           results: result.results
         }
         options.onComplete(mockJob)
