@@ -262,7 +262,7 @@ export function LtdCompaniesDeadlinesTable({
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>(initialFilterState.userFilter)
   const [selectedWorkflowStageFilter, setSelectedWorkflowStageFilter] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState<string>('')
-  const [refreshingCompaniesHouse, setRefreshingCompaniesHouse] = useState(false)
+
   const [refreshingClientId, setRefreshingClientId] = useState<string | null>(null)
   const [undoingClientId, setUndoingClientId] = useState<string | null>(null)
   const [showActivityLogModal, setShowActivityLogModal] = useState(false)
@@ -303,6 +303,23 @@ export function LtdCompaniesDeadlinesTable({
       confirmationDue: string
     }
   } | null>(null)
+
+  // Add refresh progress tracking state
+  const [refreshProgress, setRefreshProgress] = useState<{
+    isActive: boolean
+    processed: number
+    total: number
+    progress: number
+    estimatedTimeRemaining?: number
+    mode?: 'normal' | 'fast'
+  }>({
+    isActive: false,
+    processed: 0,
+    total: 0,
+    progress: 0
+  })
+
+  // Rollover modal state
   const [showRolloverModal, setShowRolloverModal] = useState(false)
 
   // Get current month for header stats
@@ -415,33 +432,69 @@ export function LtdCompaniesDeadlinesTable({
       return
     }
 
-    setRefreshingCompaniesHouse(true)
+    const clientIds = sortedFilteredClients.map(client => client.id)
+    
+    // Set initial progress state
+    setRefreshProgress({
+      isActive: true,
+      processed: 0,
+      total: clientIds.length,
+      progress: 0,
+      mode: 'normal'
+    })
     
     try {
-      const clientIds = sortedFilteredClients.map(client => client.id)
-      
-      // Use the new bulk refresh handler
+      // Use the new bulk refresh handler with progress tracking
       await bulkRefreshHandler.performBulkRefresh(clientIds, {
         onProgress: (job) => {
-          // Optional: Update UI with progress information
-          console.log(`Progress: ${job.progress}% (${job.processedClients}/${job.totalClients})`)
+          // Update progress state instead of showing toast
+          setRefreshProgress({
+            isActive: true,
+            processed: job.processedClients,
+            total: job.totalClients,
+            progress: job.progress,
+            estimatedTimeRemaining: job.estimatedTimeRemaining || undefined,
+            mode: 'normal'
+          })
         },
         onComplete: async (job) => {
+          // Show completion message
+          showToast.success(
+            `🎉 Bulk refresh completed! ✅ ${job.successfulClients}/${job.totalClients} clients updated successfully`
+          )
+          
+          // Reset progress state
+          setRefreshProgress({
+            isActive: false,
+            processed: 0,
+            total: 0,
+            progress: 0
+          })
+          
           // Refresh the table data after Companies House refresh (back to page 1)
           await fetchLtdClients(true, 1)
-          setRefreshingCompaniesHouse(false)
         },
         onError: (error) => {
-          setRefreshingCompaniesHouse(false)
+          // Reset progress state on error
+          setRefreshProgress({
+            isActive: false,
+            processed: 0,
+            total: 0,
+            progress: 0
+          })
+          showToast.error(`Bulk refresh failed: ${error}`)
         }
       })
       
-      // For immediate processing, the handler will manage the refresh state
-      // For background processing, we'll keep the loading state until completion
-      
     } catch (error) {
       console.error('Error starting bulk refresh:', error)
-      setRefreshingCompaniesHouse(false)
+      setRefreshProgress({
+        isActive: false,
+        processed: 0,
+        total: 0,
+        progress: 0
+      })
+      showToast.error('Failed to start bulk refresh')
     }
   }
 
@@ -458,35 +511,74 @@ export function LtdCompaniesDeadlinesTable({
       return
     }
 
-    setRefreshingCompaniesHouse(true)
+    const clientIds = sortedFilteredClients.map(client => client.id)
+    
+    console.log(`🚀 Starting FAST bulk refresh for ${clientIds.length} clients`)
+    
+    // Set initial progress state
+    setRefreshProgress({
+      isActive: true,
+      processed: 0,
+      total: clientIds.length,
+      progress: 0,
+      mode: 'fast'
+    })
     
     try {
-      const clientIds = sortedFilteredClients.map(client => client.id)
-      
-      console.log(`🚀 Starting FAST bulk refresh for ${clientIds.length} clients`)
-      
-      // Use the new FAST bulk refresh handler
+      // Use the new FAST bulk refresh handler with progress tracking
       await fastBulkRefreshHandler.performFastBulkRefresh(clientIds, {
         onProgress: (job) => {
-          // Optional: Update UI with progress information
-          console.log(`Fast Progress: ${job.progress}% (${job.processedClients}/${job.totalClients})`)
+          // Update progress state instead of showing toast
+          setRefreshProgress({
+            isActive: true,
+            processed: job.processedClients,
+            total: job.totalClients,
+            progress: job.progress,
+            estimatedTimeRemaining: job.estimatedTimeRemaining || undefined,
+            mode: 'fast'
+          })
         },
         onComplete: async (job) => {
+          const duration = job.completedAt ? 
+            `in ${((new Date(job.completedAt).getTime() - new Date(job.startedAt).getTime()) / 1000).toFixed(1)}s` : ''
+          
+          // Show completion message
+          showToast.success(
+            `🎉 FAST bulk refresh completed ${duration}! ⚡ ${job.successfulClients}/${job.totalClients} clients updated successfully`
+          )
+          
+          // Reset progress state
+          setRefreshProgress({
+            isActive: false,
+            processed: 0,
+            total: 0,
+            progress: 0
+          })
+          
           // Refresh the table data after Companies House refresh (back to page 1)
           await fetchLtdClients(true, 1)
-          setRefreshingCompaniesHouse(false)
         },
         onError: (error) => {
-          setRefreshingCompaniesHouse(false)
+          // Reset progress state on error
+          setRefreshProgress({
+            isActive: false,
+            processed: 0,
+            total: 0,
+            progress: 0
+          })
+          showToast.error(`Fast bulk refresh failed: ${error}`)
         }
       })
       
-      // For immediate processing, the handler will manage the refresh state
-      // For background processing, we'll keep the loading state until completion
-      
     } catch (error) {
       console.error('Error starting fast bulk refresh:', error)
-      setRefreshingCompaniesHouse(false)
+      setRefreshProgress({
+        isActive: false,
+        processed: 0,
+        total: 0,
+        progress: 0
+      })
+      showToast.error('Failed to start fast bulk refresh')
     }
   }
 
@@ -1439,7 +1531,7 @@ export function LtdCompaniesDeadlinesTable({
         refreshableClientsCount={sortedFilteredClients.length}
         onBulkRefreshCompaniesHouse={handleBulkRefreshCompaniesHouse}
         onFastBulkRefreshCompaniesHouse={handleFastBulkRefreshCompaniesHouse}
-        refreshingCompaniesHouse={refreshingCompaniesHouse}
+        refreshProgress={refreshProgress}
       />
 
       <PageLayout maxWidth="xl">

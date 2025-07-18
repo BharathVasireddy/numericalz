@@ -111,26 +111,42 @@ class FastBulkRefreshHandler {
     // Clear any existing monitoring for this job
     this.stopJobMonitoring(jobId)
 
+    let consecutiveErrors = 0
+    const maxConsecutiveErrors = 5
+
     const intervalId = setInterval(async () => {
       try {
-        const response = await fetch(`/api/clients/bulk-refresh-fast/status/${jobId}`)
+        const response = await fetch(`/api/clients/bulk-refresh-fast/status/${jobId}`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        })
         
         if (!response.ok) {
-          throw new Error('Failed to check job status')
+          if (response.status === 404) {
+            throw new Error('Fast job not found - may have been completed and cleaned up')
+          }
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
         }
 
         const data = await response.json()
+        
+        if (!data.success || !data.job) {
+          throw new Error('Invalid response format from fast status endpoint')
+        }
+        
         const job: FastBackgroundJob = data.job
+
+        // Reset error counter on successful response
+        consecutiveErrors = 0
 
         // Call progress callback
         options?.onProgress?.(job)
 
-        // Update progress toast with faster pace
-        if (job.status === 'processing') {
-          const progressMessage = `⚡ Fast refreshing: ${job.processedClients}/${job.totalClients} (${job.progress}%)`
-          const estimatedTime = job.estimatedTimeRemaining ? ` - ETA: ${this.formatTime(job.estimatedTimeRemaining)}` : ''
-          showToast.info(progressMessage + estimatedTime, { duration: 1500 })
-        }
+        // Remove progress toast - progress is now shown in button
+        // The component will handle progress display through the onProgress callback
 
         // Handle completion
         if (job.status === 'completed') {
@@ -145,11 +161,17 @@ class FastBulkRefreshHandler {
         }
 
       } catch (error) {
-        console.error('Error checking fast job status:', error)
-        this.stopJobMonitoring(jobId)
-        const errorMessage = 'Failed to monitor fast job progress'
-        showToast.error(errorMessage)
-        options?.onError?.(errorMessage)
+        consecutiveErrors++
+        console.error(`Error checking fast job status (attempt ${consecutiveErrors}/${maxConsecutiveErrors}):`, error)
+        
+        // If we've had too many consecutive errors, stop monitoring
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          this.stopJobMonitoring(jobId)
+          const errorMessage = `Failed to monitor fast job progress after ${maxConsecutiveErrors} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`
+          showToast.error(errorMessage)
+          options?.onError?.(errorMessage)
+        }
+        // Otherwise, continue trying (the interval will continue)
       }
     }, 2000) // Check every 2 seconds (slightly faster than regular)
 

@@ -73,6 +73,15 @@ interface LtdClient {
   currentLtdAccountsWorkflow?: LtdAccountsWorkflow | null
 }
 
+interface RefreshProgress {
+  isActive: boolean
+  processed: number
+  total: number
+  progress: number
+  estimatedTimeRemaining?: number
+  mode?: 'normal' | 'fast'
+}
+
 interface LtdCompaniesHeaderProps {
   currentMonthName: string
   currentMonthClients: LtdClient[]
@@ -87,7 +96,7 @@ interface LtdCompaniesHeaderProps {
   refreshableClientsCount?: number  // Add count of clients that can be refreshed
   onBulkRefreshCompaniesHouse?: () => void
   onFastBulkRefreshCompaniesHouse?: () => void  // New fast refresh handler
-  refreshingCompaniesHouse?: boolean
+  refreshProgress?: RefreshProgress  // New progress state
   children?: React.ReactNode
 }
 
@@ -105,11 +114,47 @@ export function LtdCompaniesHeader({
   refreshableClientsCount = 0,  // Add default value
   onBulkRefreshCompaniesHouse,
   onFastBulkRefreshCompaniesHouse,  // New fast refresh handler
-  refreshingCompaniesHouse = false,
+  refreshProgress = { isActive: false, processed: 0, total: 0, progress: 0 },  // New progress prop
   children
 }: LtdCompaniesHeaderProps) {
   
-  // Remove the calculation logic since we now receive the counts as props
+  // Helper function to format time remaining
+  const formatTimeRemaining = (seconds: number): string => {
+    if (seconds < 60) {
+      return `${seconds}s`
+    } else {
+      const minutes = Math.floor(seconds / 60)
+      const remainingSeconds = seconds % 60
+      return `${minutes}m ${remainingSeconds}s`
+    }
+  }
+
+  // Get button text based on refresh state
+  const getRefreshButtonText = (isFast: boolean = false) => {
+    if (!refreshProgress.isActive) {
+      const prefix = isFast ? 'Fast Refresh ⚡' : 'Refresh CH'
+      return `${prefix} (${refreshableClientsCount})`
+    }
+
+    const mode = refreshProgress.mode || (isFast ? 'fast' : 'normal')
+    const prefix = mode === 'fast' ? '⚡' : '🔄'
+    const processed = refreshProgress.processed
+    const total = refreshProgress.total
+    const progress = refreshProgress.progress
+
+    if (total === 0) {
+      return `${prefix} Starting...`
+    }
+
+    const progressText = `${prefix} ${processed}/${total} (${progress}%)`
+    
+    if (refreshProgress.estimatedTimeRemaining && refreshProgress.estimatedTimeRemaining > 0) {
+      const eta = formatTimeRemaining(refreshProgress.estimatedTimeRemaining)
+      return `${progressText} - ${eta}`
+    }
+
+    return progressText
+  }
   
   return (
     <div className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200 py-6">
@@ -132,26 +177,27 @@ export function LtdCompaniesHeader({
                   variant="outline"
                   size="sm"
                   onClick={onBulkRefreshCompaniesHouse}
-                  disabled={refreshingCompaniesHouse}
-                  className="flex items-center gap-2"
+                  disabled={refreshProgress.isActive}
+                  className="flex items-center gap-2 min-w-[140px]"
+                  title={refreshProgress.isActive ? `Refreshing ${refreshProgress.processed}/${refreshProgress.total} clients` : `Refresh Companies House data for ${refreshableClientsCount} clients`}
                 >
-                  <RefreshCw className={`h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
-                  {refreshingCompaniesHouse ? 'Refreshing...' : `Refresh CH (${refreshableClientsCount})`}
+                  <RefreshCw className={`h-4 w-4 ${refreshProgress.isActive && refreshProgress.mode !== 'fast' ? 'animate-spin' : ''}`} />
+                  <span className="truncate">{getRefreshButtonText(false)}</span>
                 </Button>
-                                 {/* Fast Refresh Button - New High Performance Option */}
-                 {onFastBulkRefreshCompaniesHouse && (
-                   <Button
-                     variant="default"
-                     size="sm"
-                     onClick={onFastBulkRefreshCompaniesHouse}
-                     disabled={refreshingCompaniesHouse}
-                     className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                     title="High-performance refresh - 3-5x faster than regular refresh"
-                   >
-                     <RefreshCw className={`h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
-                     Fast Refresh ⚡
-                   </Button>
-                 )}
+                {/* Fast Refresh Button - New High Performance Option */}
+                {onFastBulkRefreshCompaniesHouse && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={onFastBulkRefreshCompaniesHouse}
+                    disabled={refreshProgress.isActive}
+                    className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 min-w-[160px]"
+                    title={refreshProgress.isActive ? `Fast refreshing ${refreshProgress.processed}/${refreshProgress.total} clients` : `High-performance refresh - 3-5x faster than regular refresh`}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${refreshProgress.isActive && refreshProgress.mode === 'fast' ? 'animate-spin' : ''}`} />
+                    <span className="truncate">{getRefreshButtonText(true)}</span>
+                  </Button>
+                )}
               </>
             )}
             {children}

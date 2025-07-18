@@ -150,63 +150,70 @@ async function refreshClientDirect(clientId: string): Promise<{ success: boolean
   }
 }
 
-// Ultra-fast parallel processing
+// High-performance batch processing with maximum optimizations
 async function processClientsBatch(
-  clientIds: string[],
-  batchSize: number = 50 // Much larger batches for speed
-): Promise<{ successful: string[], failed: { clientId: string, error: string }[] }> {
+  clientIds: string[], 
+  batchSize: number, 
+  jobId?: string
+): Promise<{
+  successful: string[]
+  failed: { clientId: string, error: string }[]
+}> {
   const results = {
     successful: [] as string[],
     failed: [] as { clientId: string, error: string }[]
   }
-  
-  // Process in large parallel batches
+
+  // Process in parallel chunks with optimized batch sizes
   for (let i = 0; i < clientIds.length; i += batchSize) {
-    const batch = clientIds.slice(i, i + batchSize)
+    const chunk = clientIds.slice(i, i + batchSize)
     
-    console.log(`🚀 Processing batch ${Math.floor(i / batchSize) + 1}: ${batch.length} clients (${i + 1}-${i + batch.length}/${clientIds.length})`)
-    
-    // Process entire batch in parallel with shorter timeout
-    const batchPromises = batch.map(clientId => 
-      Promise.race([
-        refreshClientDirect(clientId),
-        new Promise<{ success: boolean, clientId: string, error: string }>((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 8000) // 8 second timeout instead of 30
-        )
-      ]).catch(error => ({
-        success: false,
-        clientId,
-        error: error.message || 'Request timeout'
-      }))
-    )
-    
-    const batchResults = await Promise.allSettled(batchPromises)
-    
-    // Process results
-    for (const result of batchResults) {
-      if (result.status === 'fulfilled') {
-        const { success, clientId, error } = result.value
-        if (success) {
+    // Process chunk in parallel with optimized timeout
+    const chunkPromises = chunk.map(async (clientId) => {
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timeout')), 6000) // Reduced from 8s to 6s
+      )
+      
+      try {
+        const result = await Promise.race([
+          refreshClientDirect(clientId),
+          timeoutPromise
+        ]) as { success: boolean, clientId: string, error?: string }
+        
+        if (result.success) {
           results.successful.push(clientId)
         } else {
-          results.failed.push({ clientId, error: error || 'Unknown error' })
+          results.failed.push({ clientId, error: result.error || 'Unknown error' })
         }
-      } else {
-        // This shouldn't happen with our error handling, but just in case
-        console.error('Unexpected batch processing error:', result.reason)
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        results.failed.push({ clientId, error: errorMessage })
+      }
+    })
+
+    await Promise.allSettled(chunkPromises)
+    
+    // Update progress if this is a background job
+    if (jobId) {
+      const job = fastBulkJobs.get(jobId)
+      if (job) {
+        job.processedClients = Math.min(i + batchSize, clientIds.length)
+        job.successfulClients = results.successful.length
+        job.failedClients = results.failed.length
+        console.log(`📊 Progress update: ${job.processedClients}/${job.totalClients} processed (${Math.round((job.processedClients / job.totalClients) * 100)}%)`)
       }
     }
     
-    // Much shorter delay between batches (only for very large operations)
-    if (i + batchSize < clientIds.length && clientIds.length > 100) {
-      await new Promise(resolve => setTimeout(resolve, 100)) // 100ms instead of 500ms
+    // Shorter delay between batches (only for very large operations)
+    if (i + batchSize < clientIds.length && clientIds.length > 150) {
+      await new Promise(resolve => setTimeout(resolve, 50)) // Reduced from 100ms to 50ms
     }
   }
   
   return results
 }
 
-// Background processing function with optimizations
+// Background processing function with maximum optimizations
 async function processBackgroundJobFast(
   jobId: string, 
   clientIds: string[],
@@ -219,12 +226,19 @@ async function processBackgroundJobFast(
   
   try {
     job.status = 'processing'
-    console.log(`🚀 Starting FAST background bulk refresh for ${clientIds.length} clients (Job: ${jobId})`)
+    console.log(`🚀 Starting ULTRA-FAST background bulk refresh for ${clientIds.length} clients (Job: ${jobId})`)
     
-    // Determine optimal batch size based on total clients
-    const batchSize = clientIds.length <= 50 ? 25 : clientIds.length <= 200 ? 50 : 75
+    // Determine optimal batch size based on total clients (more aggressive)
+    let batchSize: number
+    if (clientIds.length <= 75) {
+      batchSize = 50  // Increased from 25 to 50
+    } else if (clientIds.length <= 300) {
+      batchSize = 75  // Increased from 50 to 75
+    } else {
+      batchSize = 100 // Increased from 75 to 100
+    }
     
-    const results = await processClientsBatch(clientIds, batchSize)
+    const results = await processClientsBatch(clientIds, batchSize, jobId)
     
     // Update job with results
     job.processedClients = clientIds.length
@@ -234,35 +248,35 @@ async function processBackgroundJobFast(
     job.completedAt = new Date()
     job.results = results
     
-    console.log(`✅ FAST background job ${jobId} completed: ${results.successful.length}/${clientIds.length} successful`)
+    console.log(`✅ ULTRA-FAST background job ${jobId} completed: ${results.successful.length}/${clientIds.length} successful`)
     
     // Batch activity logging (much more efficient)
     try {
       await db.activityLog.create({
         data: {
           userId: userId,
-          action: 'BULK_COMPANIES_HOUSE_REFRESH_FAST',
+          action: 'BULK_COMPANIES_HOUSE_REFRESH_ULTRA_FAST',
           details: JSON.stringify({
-            message: `Fast bulk Companies House refresh: ${results.successful.length}/${clientIds.length} clients updated successfully`,
+            message: `Ultra-fast bulk Companies House refresh: ${results.successful.length}/${clientIds.length} clients updated successfully`,
             jobId: jobId,
             requestedClients: clientIds.length,
             successfulClients: results.successful.length,
             failedClients: results.failed.length,
             operatedBy: userEmail,
             operatedByRole: userRole,
-            processingMode: 'fast-background',
+            processingMode: 'ultra-fast-background',
             batchSize: batchSize,
             duration: job.completedAt ? job.completedAt.getTime() - job.startedAt.getTime() : 0
           })
         }
       })
     } catch (logError) {
-      console.error('Error logging fast bulk refresh activity:', logError)
+      console.error('Error logging ultra-fast bulk refresh activity:', logError)
       // Don't fail the job if logging fails
     }
     
   } catch (error) {
-    console.error(`❌ FAST background job ${jobId} failed:`, error)
+    console.error(`❌ ULTRA-FAST background job ${jobId} failed:`, error)
     job.status = 'failed'
     job.completedAt = new Date()
   }
@@ -289,12 +303,12 @@ export async function POST(request: NextRequest) {
 
     console.log(`🚀 FAST bulk Companies House refresh requested for ${clientIds.length} clients by user ${session.user.email}`)
 
-    // For small batches (≤ 25 clients), process immediately for fastest response
-    if (clientIds.length <= 25) {
-      console.log('⚡ Processing small batch immediately with high performance')
+    // For small batches (≤ 50 clients), process immediately for fastest response
+    if (clientIds.length <= 50) {
+      console.log('⚡ Processing small-medium batch immediately with ultra-high performance')
       
       const startTime = Date.now()
-      const results = await processClientsBatch(clientIds, 25)
+      const results = await processClientsBatch(clientIds, Math.min(clientIds.length, 50))
       const duration = Date.now() - startTime
       
       console.log(`⚡ Immediate processing completed in ${duration}ms`)
@@ -326,7 +340,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // For large batches (> 25 clients), use optimized background processing
+    // For large batches (> 50 clients), use ultra-optimized background processing
     const jobId = generateJobId()
     const job: FastBulkRefreshJob = {
       id: jobId,
@@ -363,10 +377,10 @@ export async function POST(request: NextRequest) {
       success: true,
       mode: 'background',
       jobId: jobId,
-      message: `Fast background refresh started for ${clientIds.length} clients. This should complete much faster!`,
+      message: `Ultra-fast background refresh started for ${clientIds.length} clients. This should complete much faster!`,
       totalClients: clientIds.length,
       statusEndpoint: `/api/clients/bulk-refresh-fast/status/${jobId}`,
-      expectedDuration: `~${Math.ceil(clientIds.length / 50 * 0.5)} minutes` // Much faster estimate
+      expectedDuration: `~${Math.ceil(clientIds.length / 75 * 0.4)} minutes` // Even faster estimate with new optimizations
     })
 
   } catch (error) {
