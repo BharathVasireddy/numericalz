@@ -338,7 +338,7 @@ class EmailService {
         logId: emailLogId
       })
 
-      // Update email log with success
+      // Update email log with success and store message ID for webhook matching
       if (emailLogId) {
         try {
           await prisma.emailLog.update({
@@ -346,7 +346,14 @@ class EmailService {
             data: {
               status: 'SENT',
               sentAt: new Date(),
-              updatedAt: new Date()
+              updatedAt: new Date(),
+              // Store Brevo message ID in templateData for webhook matching
+              templateData: params.templateData ? 
+                JSON.stringify({
+                  ...JSON.parse(params.templateData),
+                  brevoMessageId: result.messageId
+                }) : 
+                JSON.stringify({ brevoMessageId: result.messageId })
             }
           })
         } catch (updateError) {
