@@ -62,8 +62,8 @@ class BulkRefreshHandler {
       const result: BulkRefreshResponse = await response.json()
 
       if (result.mode === 'immediate') {
-        // For immediate processing, show results directly
-        this.handleImmediateResults(result)
+        // For immediate processing, show results directly and call completion callback
+        this.handleImmediateResults(result, options)
       } else if (result.mode === 'background' && result.jobId) {
         // For background processing, start monitoring the job
         this.startJobMonitoring(result.jobId, options)
@@ -79,7 +79,14 @@ class BulkRefreshHandler {
     }
   }
 
-  private handleImmediateResults(result: BulkRefreshResponse) {
+  private handleImmediateResults(
+    result: BulkRefreshResponse, 
+    options?: {
+      onProgress?: (job: BackgroundJob) => void,
+      onComplete?: (job: BackgroundJob) => void,
+      onError?: (error: string) => void
+    }
+  ) {
     if (result.results) {
       const { successful, failed } = result.results
       
@@ -90,6 +97,23 @@ class BulkRefreshHandler {
       if (failed.length > 0) {
         showToast.error(`❌ Failed to refresh ${failed.length} clients`)
         console.warn('Failed refreshes:', failed)
+      }
+
+      // Call the completion callback with mock job data for immediate processing
+      if (options?.onComplete) {
+        const mockJob: BackgroundJob = {
+          id: 'immediate-' + Date.now(),
+          status: 'completed',
+          totalClients: successful.length + failed.length,
+          processedClients: successful.length + failed.length,
+          successfulClients: successful.length,
+          failedClients: failed.length,
+          progress: 100,
+          startedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+          results: result.results
+        }
+        options.onComplete(mockJob)
       }
     }
   }
