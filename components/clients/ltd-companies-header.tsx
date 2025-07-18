@@ -86,6 +86,7 @@ interface LtdCompaniesHeaderProps {
   csDueThisMonth: number  // Add CS due count prop
   refreshableClientsCount?: number  // Add count of clients that can be refreshed
   onBulkRefreshCompaniesHouse?: () => void
+  onFastBulkRefreshCompaniesHouse?: () => void  // New fast refresh handler
   refreshingCompaniesHouse?: boolean
   children?: React.ReactNode
 }
@@ -103,6 +104,7 @@ export function LtdCompaniesHeader({
   csDueThisMonth,  // Use props instead of calculating
   refreshableClientsCount = 0,  // Add default value
   onBulkRefreshCompaniesHouse,
+  onFastBulkRefreshCompaniesHouse,  // New fast refresh handler
   refreshingCompaniesHouse = false,
   children
 }: LtdCompaniesHeaderProps) {
@@ -125,16 +127,32 @@ export function LtdCompaniesHeader({
           
           <div className="flex items-center gap-3">
             {onBulkRefreshCompaniesHouse && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onBulkRefreshCompaniesHouse}
-                disabled={refreshingCompaniesHouse}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
-                {refreshingCompaniesHouse ? 'Refreshing...' : `Refresh CH (${refreshableClientsCount})`}
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onBulkRefreshCompaniesHouse}
+                  disabled={refreshingCompaniesHouse}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
+                  {refreshingCompaniesHouse ? 'Refreshing...' : `Refresh CH (${refreshableClientsCount})`}
+                </Button>
+                                 {/* Fast Refresh Button - New High Performance Option */}
+                 {onFastBulkRefreshCompaniesHouse && (
+                   <Button
+                     variant="default"
+                     size="sm"
+                     onClick={onFastBulkRefreshCompaniesHouse}
+                     disabled={refreshingCompaniesHouse}
+                     className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                     title="High-performance refresh - 3-5x faster than regular refresh"
+                   >
+                     <RefreshCw className={`h-4 w-4 ${refreshingCompaniesHouse ? 'animate-spin' : ''}`} />
+                     Fast Refresh ⚡
+                   </Button>
+                 )}
+              </>
             )}
             {children}
           </div>

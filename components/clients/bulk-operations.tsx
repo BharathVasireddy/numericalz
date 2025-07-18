@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog'
 import { UserPlus, UserX, RefreshCw, AlertTriangle, Users } from 'lucide-react'
 import { showToast } from '@/lib/toast'
+import { bulkRefreshHandler } from '@/lib/bulk-refresh-handler'
 
 interface BulkOperationsProps {
   selectedClients: string[]
@@ -128,28 +129,27 @@ export function BulkOperations({
   const handleBulkRefresh = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/clients/bulk-refresh', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Use the new bulk refresh handler
+      await bulkRefreshHandler.performBulkRefresh(selectedClients, {
+        onProgress: (job) => {
+          // Optional: Update UI with progress information
+          console.log(`Bulk refresh progress: ${job.progress}% (${job.processedClients}/${job.totalClients})`)
         },
-        body: JSON.stringify({
-          clientIds: selectedClients
-        })
+        onComplete: async (job) => {
+          onClearSelection()
+          onRefreshClients()
+          setIsLoading(false)
+        },
+        onError: (error) => {
+          setIsLoading(false)
+        }
       })
-
-      if (response.ok) {
-        showToast.success(`Successfully refreshed ${selectedClients.length} clients from Companies House`)
-        onClearSelection()
-        onRefreshClients()
-      } else {
-        const data = await response.json()
-        showToast.error(data.error || 'Failed to refresh clients')
-      }
+      
+      // For immediate processing, the loading state will be managed by callbacks
+      // For background processing, we keep loading until completion
+      
     } catch (error) {
-      // Error refreshing clients
-      showToast.error('Failed to refresh clients')
-    } finally {
+      console.error('Error starting bulk refresh:', error)
       setIsLoading(false)
     }
   }

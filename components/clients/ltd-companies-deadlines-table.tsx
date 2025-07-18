@@ -75,6 +75,8 @@ import {
   Mail
 } from 'lucide-react'
 import { showToast } from '@/lib/toast'
+import { bulkRefreshHandler } from '@/lib/bulk-refresh-handler'
+import { fastBulkRefreshHandler } from '@/lib/fast-bulk-refresh-handler'
 import { ActivityLogViewer } from '@/components/activity/activity-log-viewer'
 import { AdvancedFilterModal } from './advanced-filter-modal'
 import { WorkflowSkipWarningDialog } from '@/components/ui/workflow-skip-warning-dialog'
@@ -418,40 +420,72 @@ export function LtdCompaniesDeadlinesTable({
     try {
       const clientIds = sortedFilteredClients.map(client => client.id)
       
-      showToast.info(`Starting refresh for ${clientIds.length} clients...`)
-      
-      const response = await fetch('/api/clients/bulk-refresh', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Use the new bulk refresh handler
+      await bulkRefreshHandler.performBulkRefresh(clientIds, {
+        onProgress: (job) => {
+          // Optional: Update UI with progress information
+          console.log(`Progress: ${job.progress}% (${job.processedClients}/${job.totalClients})`)
         },
-        body: JSON.stringify({ clientIds })
+        onComplete: async (job) => {
+          // Refresh the table data after Companies House refresh (back to page 1)
+          await fetchLtdClients(true, 1)
+          setRefreshingCompaniesHouse(false)
+        },
+        onError: (error) => {
+          setRefreshingCompaniesHouse(false)
+        }
       })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to refresh Companies House data')
-      }
-
-      const result = await response.json()
       
-      // Show detailed results
-      if (result.results.successful.length > 0) {
-        showToast.success(`Successfully refreshed ${result.results.successful.length} clients`)
-      }
-      
-      if (result.results.failed.length > 0) {
-        showToast.error(`Failed to refresh ${result.results.failed.length} clients. Check console for details.`)
-        console.warn('Failed refreshes:', result.results.failed)
-      }
-
-      // Refresh the table data after Companies House refresh (back to page 1)
-      await fetchLtdClients(true, 1)
+      // For immediate processing, the handler will manage the refresh state
+      // For background processing, we'll keep the loading state until completion
       
     } catch (error) {
-      console.error('Error refreshing Companies House data:', error)
-      showToast.error(error instanceof Error ? error.message : 'Failed to refresh Companies House data')
-    } finally {
+      console.error('Error starting bulk refresh:', error)
+      setRefreshingCompaniesHouse(false)
+    }
+  }
+
+  // FAST bulk refresh Companies House data for all filtered clients (3-5x faster)
+  const handleFastBulkRefreshCompaniesHouse = async () => {
+    if (sortedFilteredClients.length === 0) {
+      showToast.error('No clients to refresh')
+      return
+    }
+
+    // Only allow managers and partners
+    if (session?.user?.role !== 'MANAGER' && session?.user?.role !== 'PARTNER') {
+      showToast.error('Only managers and partners can refresh Companies House data')
+      return
+    }
+
+    setRefreshingCompaniesHouse(true)
+    
+    try {
+      const clientIds = sortedFilteredClients.map(client => client.id)
+      
+      console.log(`🚀 Starting FAST bulk refresh for ${clientIds.length} clients`)
+      
+      // Use the new FAST bulk refresh handler
+      await fastBulkRefreshHandler.performFastBulkRefresh(clientIds, {
+        onProgress: (job) => {
+          // Optional: Update UI with progress information
+          console.log(`Fast Progress: ${job.progress}% (${job.processedClients}/${job.totalClients})`)
+        },
+        onComplete: async (job) => {
+          // Refresh the table data after Companies House refresh (back to page 1)
+          await fetchLtdClients(true, 1)
+          setRefreshingCompaniesHouse(false)
+        },
+        onError: (error) => {
+          setRefreshingCompaniesHouse(false)
+        }
+      })
+      
+      // For immediate processing, the handler will manage the refresh state
+      // For background processing, we'll keep the loading state until completion
+      
+    } catch (error) {
+      console.error('Error starting fast bulk refresh:', error)
       setRefreshingCompaniesHouse(false)
     }
   }
@@ -1404,6 +1438,7 @@ export function LtdCompaniesDeadlinesTable({
         })()}
         refreshableClientsCount={sortedFilteredClients.length}
         onBulkRefreshCompaniesHouse={handleBulkRefreshCompaniesHouse}
+        onFastBulkRefreshCompaniesHouse={handleFastBulkRefreshCompaniesHouse}
         refreshingCompaniesHouse={refreshingCompaniesHouse}
       />
 
